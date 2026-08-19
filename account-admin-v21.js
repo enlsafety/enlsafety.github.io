@@ -1,22 +1,29 @@
 // ENL Safety v2.1 - safety manager account & user administration patch
 const ENL_PRIMARY_SAFETY_PASSWORD_HASH='9c9efdf3f10d01ab10507fbb55277f1ac99f2b3a469e043de745dd166e8990ee';
+const ENL_PRIMARY_SAFETY_MIGRATION_KEY='enl_safety_primary_account_v21_done';
 
 function ensurePrimarySafetyAccount(){
   let primary=data.users.find(x=>x.id==='u-safety-demo');
   if(!primary) primary=data.users.find(x=>x.role==='safety'&&x.username==='safety');
   if(!primary) primary=data.users.find(x=>x.role==='safety'&&x.username==='박태영');
+  const migrated=localStorage.getItem(ENL_PRIMARY_SAFETY_MIGRATION_KEY)==='1';
   if(!primary){
     primary={id:'u-safety-demo',username:'박태영',name:'박태영',role:'safety',siteId:null,passwordHash:ENL_PRIMARY_SAFETY_PASSWORD_HASH,active:true,createdAt:nowISO()};
     data.users.push(primary);
-  }else{
+    localStorage.setItem(ENL_PRIMARY_SAFETY_MIGRATION_KEY,'1');
+  }else if(!migrated){
     primary.username='박태영';
     primary.name='박태영';
     primary.role='safety';
     primary.siteId=null;
     primary.passwordHash=ENL_PRIMARY_SAFETY_PASSWORD_HASH;
     primary.active=true;
+    localStorage.setItem(ENL_PRIMARY_SAFETY_MIGRATION_KEY,'1');
   }
-  // 동일 아이디가 별도로 존재하면 로그인 충돌 방지를 위해 비활성화
+  // 기본 안전관리자 계정은 관리자 권한을 유지한다. 비밀번호는 최초 전환 후 사용자가 변경할 수 있다.
+  if(primary.id==='u-safety-demo'){
+    primary.role='safety';primary.siteId=null;primary.active=true;
+  }
   data.users.filter(x=>x.id!==primary.id&&x.username==='박태영').forEach(x=>x.active=false);
   saveData();
 }
