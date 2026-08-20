@@ -11,6 +11,16 @@
 .report-simple{max-width:920px;margin:0 auto}.compact-person.hide{display:none}.advanced-box{border:1px solid #dde4ec;border-radius:12px;padding:0 12px;margin:12px 0;background:#fbfcfd}.advanced-box summary{cursor:pointer;font-weight:700;padding:12px 0}.advanced-box summary small{font-weight:400;color:#8a96a3;margin-left:6px}.advanced-grid{padding-top:4px}.check-line{display:flex;align-items:center;gap:8px;padding:0 0 12px;font-size:13px}.check-line input{width:auto}
 .permission-list{display:grid;gap:0;border:1px solid #e4e9f0;border-radius:12px;overflow:hidden}.permission-list>div{display:flex;justify-content:space-between;gap:12px;padding:12px 14px;background:#fff;border-bottom:1px solid #edf0f4}.permission-list>div:last-child{border-bottom:0}.permission-list b{color:#173b66}.tool-buttons{display:grid;grid-template-columns:1fr 1fr;gap:10px}.empty.compact{padding:18px}
 .p-hazard{background:#fff3d7!important;color:#8a5b00!important;border-color:#f1d49a!important}
+
+/* 홈 > 최근 사고: 표가 길어도 전체 화면 폭을 밀지 않고 이 영역 안에서만 좌우 스크롤 */
+html,body{max-width:100%;overflow-x:hidden}
+.app-v3,.app-v3 .main,.app-v3 #view{min-width:0;max-width:100%}
+.app-v3 .grid2{min-width:0;max-width:100%}
+.app-v3 .grid2>*{min-width:0;max-width:100%}
+.app-v3 .grid2>.panel{min-width:0;max-width:100%}
+.app-v3 .table-wrap{display:block;width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-inline:contain}
+.app-v3 .table-wrap .tbl{min-width:900px}
+
 @media(max-width:720px){
   .permission-strip{gap:6px}.permission-strip span{border-left:0;padding-left:0;width:100%}
   .common-nav{position:sticky;top:0;z-index:20;background:#fff;padding:6px 0;border-bottom:1px solid #e7ecf2}
@@ -18,4 +28,5 @@
   .home-hero{align-items:flex-start;flex-direction:column}.home-hero .primary{width:100%}
   .v3-cards{grid-template-columns:repeat(2,1fr)!important}
   .tool-buttons{grid-template-columns:1fr}
+  .app-v3 .table-wrap{margin-right:0}
 }
