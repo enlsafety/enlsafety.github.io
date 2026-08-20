@@ -1,16 +1,12 @@
 /* E&L 사고보고 - 앱 버전/새로고침 제어 */
-const ENL_DEPLOY_VERSION = '3.0.3';
+const ENL_DEPLOY_VERSION = '3.0.4';
 const ENL_VERSION_KEY = 'enl_safety_loaded_version';
 const ENL_REMOTE_VERSION_KEY = 'enl_safety_remote_version';
 const ENL_GLOBAL_EPOCH_KEY = 'enl_safety_global_epoch';
 
-/*
- * 전역 최신화 API는 별도 백엔드(Supabase 권장) 연결 후 설정한다.
- * GET  -> { epoch: string|number, version?: string }
- * POST -> 관리자 인증 후 epoch 증가/변경, { ok:true, epoch, version }
- */
-const ENL_GLOBAL_REFRESH_API = window.ENL_GLOBAL_REFRESH_API || '';
-const ENL_GLOBAL_REFRESH_ANON_KEY = window.ENL_GLOBAL_REFRESH_ANON_KEY || '';
+/* 무료 테스트용 Supabase 전체 최신화 API */
+const ENL_GLOBAL_REFRESH_API = 'https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-global-refresh';
+const ENL_GLOBAL_REFRESH_ANON_KEY = '';
 
 async function enlDeleteBrowserCaches(){
   if(!('caches' in window)) return;
@@ -67,13 +63,9 @@ async function enlCheckRemoteVersion(){
   }catch(e){ console.warn('version check skipped', e); }
 }
 
-/* 전체 사용자 최신화: 관리자 전용. 백엔드 연결 후 실제 동작. */
+/* 전체 사용자 최신화: 안전관리자 전용 */
 async function enlAdminGlobalRefresh(u){
   if(!u || u.role!=='safety') return;
-  if(!ENL_GLOBAL_REFRESH_API){
-    alert('전체 사용자 최신화 기능은 서버 연결이 필요합니다.\n현재 일반 새로고침은 정상 동작하며, 전체 사용자 강제 로그아웃은 사고보고 전용 Supabase 연결 후 활성화됩니다.');
-    return;
-  }
   if(!confirm('관리자를 포함한 전체 사용자를 로그아웃하고 앱 세션을 최신화할까요?')) return;
   const adminPassword = prompt('관리자 비밀번호를 입력하세요.');
   if(!adminPassword) return;
@@ -92,7 +84,7 @@ async function enlAdminGlobalRefresh(u){
     if(body.epoch!=null) try{localStorage.setItem(ENL_GLOBAL_EPOCH_KEY,String(body.epoch))}catch(e){}
     enlLogoutThisClient();
     await enlDeleteBrowserCaches();
-    alert('전체 사용자 최신화를 요청했습니다. 모든 사용자는 다음 확인 주기에 로그아웃됩니다.');
+    alert('전체 사용자 최신화를 요청했습니다. 다른 사용자는 최대 약 30초 안에 자동 로그아웃됩니다.');
     enlReloadWithVersion(body.version||ENL_DEPLOY_VERSION);
   }catch(e){
     alert(`전체 사용자 최신화에 실패했습니다.\n${e.message||e}`);
@@ -101,7 +93,6 @@ async function enlAdminGlobalRefresh(u){
 
 /* 각 기기가 서버의 전역 세션 세대를 확인하여 변경 시 강제 로그아웃 */
 async function enlCheckGlobalEpoch(){
-  if(!ENL_GLOBAL_REFRESH_API) return;
   try{
     const headers={};
     if(ENL_GLOBAL_REFRESH_ANON_KEY){headers['apikey']=ENL_GLOBAL_REFRESH_ANON_KEY;headers['Authorization']=`Bearer ${ENL_GLOBAL_REFRESH_ANON_KEY}`;}
@@ -170,7 +161,7 @@ function enlInjectAdminGlobalControl(root,u){
   const target=panels.length?panels[panels.length-1]:root;
   const box=document.createElement('div');
   box.id='globalRefreshBox';box.className='global-refresh-box';
-  box.innerHTML=`<h3>관리자 전체 앱 최신화</h3><p>관리자를 포함한 전체 사용자 세션을 종료하고 최신 앱으로 다시 접속시킵니다.${ENL_GLOBAL_REFRESH_API?'':' 현재는 서버 연결 전이라 버튼을 눌러도 실행되지 않습니다.'}</p><button type="button" class="global-refresh-btn" id="globalRefreshBtn">전체 사용자 앱 최신화</button>`;
+  box.innerHTML=`<h3>관리자 전체 앱 최신화</h3><p>관리자를 포함한 모든 사용자 세션을 종료하고 최신 앱으로 다시 접속시킵니다. 다른 사용자는 최대 약 30초 안에 자동 로그아웃됩니다.</p><button type="button" class="global-refresh-btn" id="globalRefreshBtn">전체 사용자 앱 최신화</button>`;
   target.appendChild(box);
   document.getElementById('globalRefreshBtn').onclick=()=>enlAdminGlobalRefresh(u);
 }
