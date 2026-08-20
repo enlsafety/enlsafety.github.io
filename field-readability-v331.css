@@ -1,0 +1,109 @@
+/* v3.3.1 현장 사용자 가독성 강화: 40~60대 사용자를 위한 필수 조작요소 중심 */
+
+/* 로그인은 역할 선택 전이므로 전체 사용자에게 가독성 강화 */
+.login-card label span{font-size:14px;font-weight:900;color:#33475d}
+.login-card input,.login-card select{font-size:16px;min-height:48px;font-weight:700;background:#fff}
+.login-card .primary{font-size:16px;min-height:50px}
+.login-brand h1{font-weight:900}
+.login-brand p{font-size:13px;line-height:1.45}
+
+/* 현장근로자/현장소장 계정에만 크게 적용 */
+.field-readable .brand h1{font-size:20px;font-weight:900}
+.field-readable .brand p{font-size:12px;font-weight:700;color:#5b6b7d}
+.field-readable .user-chip{min-height:48px}
+.field-readable .user-chip b{font-size:14px;font-weight:900}
+.field-readable .user-chip small{font-size:11px;font-weight:700}
+
+.field-readable .permission-strip{font-size:14px;font-weight:800;line-height:1.45;padding:12px 14px}
+.field-readable .platform-nav button,
+.field-readable .common-nav button{font-size:15px;font-weight:900;min-height:46px;padding:11px 13px}
+
+.field-readable .panel h2,
+.field-readable .section-head h2{font-weight:900}
+.field-readable .section-head p,
+.field-readable .platform-hero p{font-size:13px;line-height:1.55;font-weight:600;color:#56687b}
+.field-readable .ey{font-size:12px;font-weight:900;letter-spacing:.4px}
+
+.field-readable .communication-hero h2{font-size:25px;line-height:1.3;font-weight:900;color:#142b45}
+.field-readable .communication-hero p{font-size:14px;font-weight:700;line-height:1.6}
+.field-readable .communication-principle{font-size:13px;font-weight:800;line-height:1.5;padding:12px 14px}
+.field-readable .communication-principle b{font-size:14px}
+
+.field-readable .card span{font-size:13px;font-weight:900;color:#536477}
+.field-readable .card b{font-size:30px;font-weight:900}
+.field-readable .card small{font-size:11px;font-weight:700;color:#667689}
+
+.field-readable .platform-module-card{min-height:150px;padding:16px}
+.field-readable .platform-module-card .module-state{font-size:11px;font-weight:900;padding:5px 8px}
+.field-readable .platform-module-card strong{font-size:17px;line-height:1.35;font-weight:900}
+.field-readable .platform-module-card small{font-size:13px;line-height:1.55;font-weight:650;color:#586a7e}
+.field-readable .platform-module-card em{font-size:13px;font-weight:900}
+
+.field-readable .lbl>span{font-size:15px;font-weight:900;color:#33485f;margin-bottom:8px}
+.field-readable input,
+.field-readable select,
+.field-readable textarea{font-size:16px;font-weight:700;min-height:48px;padding:12px 13px;border-width:2px;border-color:#cdd8e4;background:#fff}
+.field-readable textarea{line-height:1.55;min-height:110px}
+.field-readable input::placeholder,
+.field-readable textarea::placeholder{font-size:14px;font-weight:600;color:#8996a5}
+.field-readable .help{font-size:12px;line-height:1.5;font-weight:650}
+.field-readable .check-line{font-size:14px;font-weight:800;line-height:1.5}
+.field-readable .check-line input{width:22px;height:22px;min-height:0}
+.field-readable .advanced-box summary{font-size:14px;font-weight:900;min-height:48px;display:flex;align-items:center}
+.field-readable .advanced-box summary small{font-size:12px}
+
+.field-readable .primary,
+.field-readable .secondary,
+.field-readable .small-btn,
+.field-readable .modal-actions button{font-size:15px;font-weight:900;min-height:48px;padding:12px 14px}
+.field-readable .full{min-height:54px;font-size:17px}
+.field-readable .photo-head b{font-size:14px;font-weight:900}
+.field-readable .photo-head small{font-size:12px;font-weight:700}
+.field-readable .photo-actions .secondary{font-size:14px}
+
+.field-readable .flow-list strong{font-size:15px;font-weight:900}
+.field-readable .flow-list small{font-size:12px;line-height:1.5;font-weight:650}
+.field-readable .flow-list>div>b{width:34px;height:34px;font-size:14px;flex:0 0 auto}
+.field-readable .platform-scope-box b{font-size:15px;font-weight:900}
+.field-readable .platform-scope-box span{font-size:12px;font-weight:700;line-height:1.45}
+
+.field-readable .platform-recent-row{min-height:62px;padding:12px}
+.field-readable .platform-recent-row b{font-size:14px;font-weight:900}
+.field-readable .platform-recent-row small{font-size:11px;font-weight:700}
+.field-readable .platform-recent-row .recent-summary{font-size:13px;font-weight:700}
+.field-readable .pill{font-size:11px;font-weight:900;padding:5px 8px}
+
+.field-readable .toolbar select,
+.field-readable .toolbar input{font-size:14px;min-height:46px;font-weight:800}
+.field-readable .tbl th{font-size:12px;font-weight:900;padding:12px}
+.field-readable .tbl td{font-size:13px;font-weight:650;padding:13px 12px;line-height:1.45}
+.field-readable .action-card h3{font-size:16px;font-weight:900}
+.field-readable .action-card p{font-size:13px;font-weight:650;line-height:1.55}
+.field-readable .action-grid b{font-size:11px;font-weight:900}
+.field-readable .action-grid span{font-size:13px;font-weight:700}
+
+.field-readable .detail-row b{font-size:12px;font-weight:900}
+.field-readable .detail-row span,
+.field-readable .detail-row div{font-size:14px;font-weight:650;line-height:1.55}
+.field-readable .modal-head h2{font-size:21px;font-weight:900}
+.field-readable .warn-box,
+.field-readable .law-box{font-size:13px;font-weight:650;line-height:1.55}
+
+@media(max-width:720px){
+  .field-readable .main{padding-left:9px;padding-right:9px}
+  .field-readable .panel{padding:16px}
+  .field-readable .platform-nav button{font-size:15px;min-height:48px}
+  .field-readable .common-nav button{font-size:14px;min-height:48px;padding:10px 4px}
+  .field-readable .communication-hero h2{font-size:24px}
+  .field-readable .communication-hero p{font-size:14px}
+  .field-readable .section-head p{font-size:13px}
+  .field-readable .formgrid{gap:8px}
+  .field-readable .lbl{margin-top:12px}
+}
+
+@media(max-width:420px){
+  .field-readable .communication-hero h2{font-size:22px}
+  .field-readable .platform-module-card{min-height:0}
+  .field-readable .card span{font-size:12px}
+  .field-readable .card b{font-size:28px}
+}
