@@ -54,8 +54,29 @@ function enlCheckVersionOnLoad(){
   let seen = null;
   try{ seen = localStorage.getItem(ENL_VERSION_KEY); }catch(e){}
   if(seen !== ENL_DEPLOY_VERSION){
+    // 새 버전 코드를 처음 받은 브라우저는 기존 로그인 세션을 종료한다.
     enlClearLocalSession();
     try{ localStorage.setItem(ENL_VERSION_KEY, ENL_DEPLOY_VERSION); }catch(e){}
+  }
+}
+
+async function enlCheckRemoteVersion(){
+  try{
+    const res = await fetch(`version.json?t=${Date.now()}`, {cache:'no-store'});
+    if(!res.ok) return;
+    const info = await res.json();
+    const remoteVersion = String(info.version||'').trim();
+    if(remoteVersion && remoteVersion !== ENL_DEPLOY_VERSION){
+      enlBroadcastLogout();
+      enlClearLocalSession();
+      await enlDeleteBrowserCaches();
+      const url = new URL(window.location.href);
+      url.searchParams.set('appv', remoteVersion);
+      url.searchParams.set('refresh', String(Date.now()));
+      window.location.replace(url.toString());
+    }
+  }catch(e){
+    console.warn('version check skipped', e);
   }
 }
 
@@ -127,3 +148,5 @@ try{
 enlCheckVersionOnLoad();
 currentView = '';
 render();
+setTimeout(enlCheckRemoteVersion, 4000);
+setInterval(enlCheckRemoteVersion, 60000);
