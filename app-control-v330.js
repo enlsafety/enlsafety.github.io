@@ -1,5 +1,5 @@
-/* E&L Safety Communication v3.3.0 - 앱 버전/새로고침 제어 */
-const ENL_DEPLOY_VERSION='3.3.0';
+/* E&L Safety Communication v3.3.1 - 앱 버전/새로고침 제어 */
+const ENL_DEPLOY_VERSION='3.3.1';
 const ENL_VERSION_KEY='enl_safety_loaded_version';
 const ENL_REMOTE_VERSION_KEY='enl_safety_remote_version';
 const ENL_GLOBAL_EPOCH_KEY='enl_safety_global_epoch';
