@@ -32,3 +32,7 @@ function openEditIncidentModal(i,u){
     saveData();closeModal();renderShell(u);
   };
 }
+
+// account-admin-v21.js가 먼저 실행한 초기 화면을 v3 공통화면으로 다시 그린다.
+currentView='';
+render();
