@@ -1,0 +1,9 @@
+/* E&L Safety Communication v3.3.0 */
+.communication-nav{scrollbar-width:none}.communication-nav::-webkit-scrollbar{display:none}
+.communication-hero{border-color:#cddfed;background:linear-gradient(135deg,#f8fbff 0%,#ffffff 72%)}
+.communication-hero h2{margin-bottom:4px}.communication-hero p{max-width:720px;line-height:1.55}
+.communication-principle{display:flex;align-items:center;gap:10px;margin:-2px 0 12px;padding:10px 12px;border:1px solid #dce7f1;border-radius:11px;background:#f7fafc;font-size:10px;color:#5a6b7d}.communication-principle b{color:#173b66;white-space:nowrap}.communication-principle span{line-height:1.45}
+.communication-module-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.communication-module-panel .platform-module-card:not(.ready){background:#fbfcfd;border-style:dashed}.communication-module-panel .platform-module-card:not(.ready) em{color:#8a96a5}
+.communication-flow-panel .platform-scope-box{margin-top:12px}.communication-summary .card small{line-height:1.4}
+@media(max-width:980px){.communication-module-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.communication-principle{align-items:flex-start;flex-direction:column;gap:3px}.communication-module-grid{grid-template-columns:1fr}.communication-hero .primary{font-size:14px;padding:13px 15px}.communication-summary{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
