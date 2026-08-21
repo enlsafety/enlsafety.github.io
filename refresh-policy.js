@@ -1,7 +1,7 @@
-/* E&L Safety - always load latest deployed assets on manual refresh */
+/* E&L Safety v3.6.6 - manual refresh always loads the newest deployed build */
 (function(){
   const VERSION_URL='version.json';
-  let binding=false;
+  let latestVersion='';
 
   async function fetchLatestVersion(){
     try{
@@ -11,10 +11,11 @@
       });
       if(!r.ok)return '';
       const j=await r.json();
-      return String(j.build||j.version||'').trim();
+      latestVersion=String(j.version||j.build||'').trim();
+      return latestVersion;
     }catch(e){
       console.warn('latest version check skipped',e);
-      return '';
+      return latestVersion;
     }
   }
 
@@ -45,32 +46,31 @@
     window.location.replace(url.toString());
   }
 
-  async function bindLatestRefresh(){
-    if(binding)return;
-    binding=true;
-    try{
-      const latest=await fetchLatestVersion();
-      const appBtn=document.getElementById('appRefreshBtn');
-      const loginBtn=document.getElementById('loginRefreshBtn');
-      const appLabel=document.getElementById('appVersionLabel');
-      const loginLabel=document.getElementById('loginVersionLabel');
-      if(latest){
-        if(appLabel)appLabel.textContent=`v${latest}`;
-        if(loginLabel)loginLabel.textContent=`v${latest}`;
-      }
-      [appBtn,loginBtn].forEach(btn=>{
-        if(!btn)return;
+  function applyLatestUI(){
+    const buttons=[...document.querySelectorAll('#appRefreshBtn,#loginRefreshBtn')];
+    buttons.forEach(btn=>{
+      if(btn.dataset.latestRefreshBound!=='1'){
+        btn.dataset.latestRefreshBound='1';
         btn.onclick=forceLatestRefresh;
-        btn.disabled=false;
-        btn.textContent='새로고침';
         btn.title='캐시를 지우고 최신 배포본을 다시 불러옵니다.';
-      });
-    }finally{binding=false}
+      }
+      if(!btn.disabled&&btn.textContent!=='새로고침')btn.textContent='새로고침';
+    });
+    if(latestVersion){
+      const labels=[...document.querySelectorAll('#appVersionLabel,#loginVersionLabel')];
+      labels.forEach(label=>{const text=`v${latestVersion}`;if(label.textContent!==text)label.textContent=text});
+    }
   }
 
-  const observer=new MutationObserver(()=>bindLatestRefresh());
-  observer.observe(document.documentElement,{childList:true,subtree:true,characterData:true});
-  window.addEventListener('pageshow',bindLatestRefresh);
-  setTimeout(bindLatestRefresh,0);
-  setInterval(bindLatestRefresh,10000);
+  async function updateLatest(){
+    await fetchLatestVersion();
+    applyLatestUI();
+  }
+
+  const observer=new MutationObserver(applyLatestUI);
+  observer.observe(document.documentElement,{childList:true,subtree:true});
+  window.addEventListener('pageshow',()=>{applyLatestUI();updateLatest()});
+  setTimeout(()=>{applyLatestUI();updateLatest()},0);
+  setInterval(applyLatestUI,1500);
+  setInterval(updateLatest,30000);
 })();

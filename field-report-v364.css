@@ -1,4 +1,4 @@
-/* E&L Safety v3.6.4 - always-visible report fields and required photo guidance */
+/* E&L Safety v3.6.6 - always-visible report fields, required photo, mobile-safe occurred time */
 .field-simple-mode #unifiedReportForm .advanced-grid{
   margin-top:10px;
 }
@@ -30,11 +30,66 @@
   background:#fff3f3;
   box-shadow:0 0 0 4px rgba(201,63,63,.12);
 }
+
+/* iPhone/Safari에서도 발생일시가 폼 폭을 넘지 않도록 날짜/시간을 분리 */
+.field-simple-mode #unifiedReportForm .occurred-field{
+  min-width:0!important;
+  width:100%;
+  max-width:100%;
+  overflow:hidden;
+}
+.field-simple-mode #unifiedReportForm .occurred-split{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 112px;
+  gap:8px;
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  overflow:hidden;
+}
+.field-simple-mode #unifiedReportForm .occurred-split input{
+  display:block;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  min-inline-size:0!important;
+  box-sizing:border-box!important;
+  padding-left:9px;
+  padding-right:7px;
+  overflow:hidden;
+}
+.field-simple-mode #unifiedReportForm .occurred-split input::-webkit-date-and-time-value{
+  min-width:0;
+  text-align:left;
+}
+.field-simple-mode #unifiedReportForm .occurred-split input::-webkit-datetime-edit{
+  min-width:0;
+  padding:0;
+}
+
 @media(max-width:560px){
   .field-simple-mode #unifiedReportForm .advanced-grid{
     grid-template-columns:minmax(0,1fr);
   }
   .field-simple-mode #unifiedReportForm .photo-required-guide{
     font-size:14px;
+  }
+  .field-simple-mode #unifiedReportForm .occurred-split{
+    grid-template-columns:minmax(0,1fr) 104px;
+    gap:6px;
+  }
+  .field-simple-mode #unifiedReportForm .occurred-split input{
+    font-size:16px;
+    padding-left:7px;
+    padding-right:5px;
+  }
+}
+
+@media(max-width:380px){
+  .field-simple-mode #unifiedReportForm .occurred-split{
+    grid-template-columns:minmax(0,1fr) 96px;
+  }
+  .field-simple-mode #unifiedReportForm .occurred-split input{
+    font-size:15px;
   }
 }
