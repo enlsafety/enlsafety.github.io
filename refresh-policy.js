@@ -1,7 +1,6 @@
-/* E&L Safety - always load latest deployed assets on manual refresh */
+/* E&L Safety v3.6.6 - manual refresh always loads the newest deployed build */
 (function(){
   const VERSION_URL='version.json';
-  let binding=false;
 
   async function fetchLatestVersion(){
     try{
@@ -11,7 +10,7 @@
       });
       if(!r.ok)return '';
       const j=await r.json();
-      return String(j.build||j.version||'').trim();
+      return String(j.version||j.build||'').trim();
     }catch(e){
       console.warn('latest version check skipped',e);
       return '';
@@ -45,32 +44,29 @@
     window.location.replace(url.toString());
   }
 
-  async function bindLatestRefresh(){
-    if(binding)return;
-    binding=true;
-    try{
-      const latest=await fetchLatestVersion();
-      const appBtn=document.getElementById('appRefreshBtn');
-      const loginBtn=document.getElementById('loginRefreshBtn');
-      const appLabel=document.getElementById('appVersionLabel');
-      const loginLabel=document.getElementById('loginVersionLabel');
-      if(latest){
-        if(appLabel)appLabel.textContent=`v${latest}`;
-        if(loginLabel)loginLabel.textContent=`v${latest}`;
-      }
-      [appBtn,loginBtn].forEach(btn=>{
-        if(!btn)return;
-        btn.onclick=forceLatestRefresh;
-        btn.disabled=false;
-        btn.textContent='새로고침';
-        btn.title='캐시를 지우고 최신 배포본을 다시 불러옵니다.';
-      });
-    }finally{binding=false}
+  function bindButtons(){
+    const buttons=[...document.querySelectorAll('#appRefreshBtn,#loginRefreshBtn')];
+    buttons.forEach(btn=>{
+      if(btn.dataset.latestRefreshBound==='1')return;
+      btn.dataset.latestRefreshBound='1';
+      btn.onclick=forceLatestRefresh;
+      btn.disabled=false;
+      btn.textContent='새로고침';
+      btn.title='캐시를 지우고 최신 배포본을 다시 불러옵니다.';
+    });
   }
 
-  const observer=new MutationObserver(()=>bindLatestRefresh());
-  observer.observe(document.documentElement,{childList:true,subtree:true,characterData:true});
-  window.addEventListener('pageshow',bindLatestRefresh);
-  setTimeout(bindLatestRefresh,0);
-  setInterval(bindLatestRefresh,10000);
+  async function updateVersionLabels(){
+    const latest=await fetchLatestVersion();
+    if(!latest)return;
+    const labels=[...document.querySelectorAll('#appVersionLabel,#loginVersionLabel')];
+    labels.forEach(label=>{const text=`v${latest}`;if(label.textContent!==text)label.textContent=text});
+  }
+
+  const observer=new MutationObserver(bindButtons);
+  observer.observe(document.documentElement,{childList:true,subtree:true});
+  window.addEventListener('pageshow',()=>{bindButtons();updateVersionLabels()});
+  setTimeout(()=>{bindButtons();updateVersionLabels()},0);
+  setInterval(bindButtons,1500);
+  setInterval(updateVersionLabels,30000);
 })();
