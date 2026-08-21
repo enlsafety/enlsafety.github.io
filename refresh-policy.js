@@ -11,7 +11,7 @@
       });
       if(!r.ok)return '';
       const j=await r.json();
-      return String(j.version||'').trim();
+      return String(j.build||j.version||'').trim();
     }catch(e){
       console.warn('latest version check skipped',e);
       return '';
@@ -69,8 +69,8 @@
   }
 
   const observer=new MutationObserver(()=>bindLatestRefresh());
-  observer.observe(document.documentElement,{childList:true,subtree:true});
+  observer.observe(document.documentElement,{childList:true,subtree:true,characterData:true});
   window.addEventListener('pageshow',bindLatestRefresh);
   setTimeout(bindLatestRefresh,0);
-  setInterval(bindLatestRefresh,15000);
+  setInterval(bindLatestRefresh,10000);
 })();
