@@ -1,5 +1,5 @@
-/* E&L Safety Communication v3.6.0 - robust app version/refresh control */
-const ENL_DEPLOY_VERSION='3.6.0';
+/* E&L Safety Communication v3.6.1 - robust app version/refresh control */
+const ENL_DEPLOY_VERSION='3.6.1';
 const ENL_VERSION_KEY='enl_safety_loaded_version';
 const ENL_REMOTE_VERSION_KEY='enl_safety_remote_version';
 const ENL_GLOBAL_EPOCH_KEY='enl_safety_global_epoch';
