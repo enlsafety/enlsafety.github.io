@@ -1,11 +1,15 @@
-/* E&L Safety v3.6.4 - field report form requirements */
+/* E&L Safety v3.6.5 - field report form requirements */
 (function(){
-  function showAdvancedFieldsOpen(root){
+  function applyReportRequirements(root){
     if(!root)return;
     const form=root.querySelector('#unifiedReportForm');
     if(!form)return;
+
+    const category=document.getElementById('category')?.value||'';
+    const isHazard=category==='hazard';
     const details=form.querySelector('.advanced-box');
-    if(details){
+
+    if(details&&!isHazard){
       const grid=details.querySelector('.advanced-grid');
       const check=details.querySelector('.check-line');
       if(grid)details.insertAdjacentElement('beforebegin',grid);
@@ -21,7 +25,9 @@
       if(!photoBox.querySelector('.photo-required-guide')){
         const guide=document.createElement('div');
         guide.className='photo-required-guide';
-        guide.textContent='필수 입력 · 사고자, 사고상황, 사고장소를 확인할 수 있는 사진을 1장 이상 등록해 주세요.';
+        guide.textContent=isHazard
+          ? '필수 입력 · 위험장소와 위험상태를 확인할 수 있는 사진을 1장 이상 등록해 주세요.'
+          : '필수 입력 · 사고자, 사고상황, 사고장소를 확인할 수 있는 사진을 1장 이상 등록해 주세요.';
         const actions=photoBox.querySelector('.photo-actions');
         if(actions)actions.insertAdjacentElement('beforebegin',guide);else photoBox.appendChild(guide);
       }
@@ -32,7 +38,7 @@
     const baseRenderUnifiedReport=renderUnifiedReport;
     renderUnifiedReport=function(root,u){
       baseRenderUnifiedReport(root,u);
-      showAdvancedFieldsOpen(root);
+      applyReportRequirements(root);
     };
   }
 
