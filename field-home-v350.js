@@ -29,7 +29,6 @@
     const baseHub=enlRenderPlatformHub;
     enlRenderPlatformHub=function(root,u){if(isField(u))return renderFieldLanding(root,u);return baseHub(root,u)};
   }
-
   if(typeof renderUnifiedHome==='function'){
     const baseUnifiedHome=renderUnifiedHome;
     renderUnifiedHome=function(root,u){if(isField(u))return renderFieldLanding(root,u);return baseUnifiedHome(root,u)};
@@ -39,13 +38,27 @@
   renderShell=function(u){
     baseShell(u);
     const shell=document.querySelector('.app-shell');
-    const isHome=isField(u)&&((typeof enlPlatformSection!=='undefined'&&enlPlatformSection==='hub')||currentView==='home');
+    const isHome=isField(u)&&typeof enlPlatformSection!=='undefined'&&enlPlatformSection==='hub';
     if(shell)shell.classList.toggle('field-home-mode',!!isHome);
     if(isField(u)){
       const chip=document.querySelector('.user-chip small');
       if(chip)chip.textContent=`${fieldTitle(u)} · ${siteById(u.siteId)?.name||'소속 사업장'}`;
     }
   };
+
+  try{
+    const baseLogin=doLogin;
+    doLogin=async function(e){
+      await baseLogin(e);
+      const u=currentUser();
+      if(isField(u)){
+        enlPlatformSection='hub';
+        try{localStorage.setItem(ENL_PLATFORM_SECTION_KEY,'hub')}catch(err){}
+        currentView='home';
+        render();
+      }
+    };
+  }catch(e){console.warn('field login hook skipped',e)}
 
   try{
     const u=currentUser();
