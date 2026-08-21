@@ -1,0 +1,40 @@
+/* E&L Safety v3.6.4 - always-visible report fields and required photo guidance */
+.field-simple-mode #unifiedReportForm .advanced-grid{
+  margin-top:10px;
+}
+.field-simple-mode #unifiedReportForm .check-line{
+  margin-top:12px;
+  padding:12px 13px;
+  border:2px solid #d5dee8;
+  border-radius:12px;
+  background:#f8fafc;
+  color:#2f455d;
+}
+.field-simple-mode #unifiedReportForm .photo-required{
+  border:2px dashed #7896b6;
+  background:#f4f9ff;
+}
+.field-simple-mode #unifiedReportForm .photo-required-guide{
+  margin-top:8px;
+  padding:10px 12px;
+  border-radius:10px;
+  background:#e8f1fb;
+  color:#173b66;
+  font-size:15px;
+  line-height:1.55;
+  font-weight:900;
+  word-break:keep-all;
+}
+.field-simple-mode #unifiedReportForm .photo-required-error{
+  border-color:#c93f3f;
+  background:#fff3f3;
+  box-shadow:0 0 0 4px rgba(201,63,63,.12);
+}
+@media(max-width:560px){
+  .field-simple-mode #unifiedReportForm .advanced-grid{
+    grid-template-columns:minmax(0,1fr);
+  }
+  .field-simple-mode #unifiedReportForm .photo-required-guide{
+    font-size:14px;
+  }
+}
