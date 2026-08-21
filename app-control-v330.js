@@ -1,5 +1,5 @@
-/* E&L Safety Communication v3.6.1 - robust app version/refresh control */
-const ENL_DEPLOY_VERSION='3.6.1';
+/* E&L Safety Communication v3.6.7 - robust app version/refresh control */
+const ENL_DEPLOY_VERSION='3.6.7';
 const ENL_VERSION_KEY='enl_safety_loaded_version';
 const ENL_REMOTE_VERSION_KEY='enl_safety_remote_version';
 const ENL_GLOBAL_EPOCH_KEY='enl_safety_global_epoch';
@@ -11,16 +11,17 @@ async function enlDeleteBrowserCaches(){
 }
 async function enlFetchRemoteVersion(){
   try{
-    const r=await fetch(`version.json?ts=${Date.now()}`,{cache:'no-store',headers:{'Cache-Control':'no-cache','Pragma':'no-cache'}});
+    const r=await fetch(`version.json?ts=${Date.now()}`,{cache:'no-store',headers:{'Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'}});
     if(!r.ok)return '';
-    const j=await r.json();return String(j.version||'').trim();
+    const j=await r.json();return String(j.version||j.build||'').trim();
   }catch(e){console.warn('version check skipped',e);return ''}
 }
 function enlReloadWithVersion(version=ENL_DEPLOY_VERSION){
   const url=new URL(window.location.href);
   url.searchParams.set('appv',String(version||ENL_DEPLOY_VERSION));
   url.searchParams.set('_reload',String(Date.now()));
-  window.location.assign(url.toString());
+  url.searchParams.set('_fresh','1');
+  window.location.replace(url.toString());
 }
 function enlLogoutThisClient(){session=null;try{localStorage.removeItem(SESSION_KEY)}catch(e){}currentView='';accountMenuOpen=false}
 async function enlHardRefresh(){
