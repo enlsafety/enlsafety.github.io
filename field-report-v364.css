@@ -1,4 +1,4 @@
-/* E&L Safety v3.6.6 - always-visible report fields, required photo, mobile-safe occurred time */
+/* E&L Safety v3.6.7 - always-visible report fields, required photo, aligned occurred time */
 .field-simple-mode #unifiedReportForm .advanced-grid{
   margin-top:10px;
 }
@@ -31,40 +31,77 @@
   box-shadow:0 0 0 4px rgba(201,63,63,.12);
 }
 
-/* iPhone/Safari에서도 발생일시가 폼 폭을 넘지 않도록 날짜/시간을 분리 */
+/* 발생일시: 사업장/보고유형/세부유형과 동일한 외곽선과 높이 */
 .field-simple-mode #unifiedReportForm .occurred-field{
   min-width:0!important;
   width:100%;
   max-width:100%;
-  overflow:hidden;
+  overflow:visible;
 }
 .field-simple-mode #unifiedReportForm .occurred-split{
   display:grid;
-  grid-template-columns:minmax(0,1fr) 112px;
-  gap:8px;
+  grid-template-columns:minmax(0,1fr) 94px;
+  gap:0;
   width:100%;
   max-width:100%;
   min-width:0;
+  min-height:48px;
+  height:48px;
+  box-sizing:border-box;
   overflow:hidden;
+  border:2px solid #bdcad8;
+  border-radius:10px;
+  background:#fff;
+}
+.field-simple-mode #unifiedReportForm .occurred-split:focus-within{
+  border-color:#215d9c;
+  box-shadow:0 0 0 3px rgba(33,93,156,.15);
 }
 .field-simple-mode #unifiedReportForm .occurred-split input{
+  -webkit-appearance:none;
+  appearance:none;
   display:block;
   width:100%!important;
   max-width:100%!important;
   min-width:0!important;
   min-inline-size:0!important;
+  height:44px!important;
+  min-height:44px!important;
   box-sizing:border-box!important;
-  padding-left:9px;
-  padding-right:7px;
+  margin:0!important;
+  padding:0 8px!important;
+  border:0!important;
+  border-radius:0!important;
+  outline:0!important;
+  box-shadow:none!important;
+  background:transparent!important;
+  color:#172b42;
+  font-size:15px!important;
+  font-weight:800;
+  line-height:44px;
   overflow:hidden;
+}
+.field-simple-mode #unifiedReportForm .occurred-split #occurredTime{
+  border-left:1px solid #d7e0e8!important;
+  padding-left:7px!important;
+  padding-right:5px!important;
+  text-align:center;
 }
 .field-simple-mode #unifiedReportForm .occurred-split input::-webkit-date-and-time-value{
   min-width:0;
+  margin:0;
+  padding:0;
   text-align:left;
 }
 .field-simple-mode #unifiedReportForm .occurred-split input::-webkit-datetime-edit{
   min-width:0;
+  margin:0;
   padding:0;
+}
+.field-simple-mode #unifiedReportForm .occurred-split input::-webkit-calendar-picker-indicator{
+  margin:0;
+  padding:2px;
+  flex:0 0 auto;
 }
 
 @media(max-width:560px){
@@ -75,21 +112,22 @@
     font-size:14px;
   }
   .field-simple-mode #unifiedReportForm .occurred-split{
-    grid-template-columns:minmax(0,1fr) 104px;
-    gap:6px;
+    grid-template-columns:minmax(0,1fr) 88px;
+    width:100%;
+    max-width:100%;
   }
   .field-simple-mode #unifiedReportForm .occurred-split input{
-    font-size:16px;
-    padding-left:7px;
-    padding-right:5px;
+    font-size:14px!important;
+    padding-left:6px!important;
+    padding-right:4px!important;
   }
 }
 
 @media(max-width:380px){
   .field-simple-mode #unifiedReportForm .occurred-split{
-    grid-template-columns:minmax(0,1fr) 96px;
+    grid-template-columns:minmax(0,1fr) 82px;
   }
   .field-simple-mode #unifiedReportForm .occurred-split input{
-    font-size:15px;
+    font-size:13px!important;
   }
 }
