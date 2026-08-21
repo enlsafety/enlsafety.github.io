@@ -1,6 +1,7 @@
 /* E&L Safety v3.6.6 - manual refresh always loads the newest deployed build */
 (function(){
   const VERSION_URL='version.json';
+  let latestVersion='';
 
   async function fetchLatestVersion(){
     try{
@@ -10,10 +11,11 @@
       });
       if(!r.ok)return '';
       const j=await r.json();
-      return String(j.version||j.build||'').trim();
+      latestVersion=String(j.version||j.build||'').trim();
+      return latestVersion;
     }catch(e){
       console.warn('latest version check skipped',e);
-      return '';
+      return latestVersion;
     }
   }
 
@@ -44,29 +46,31 @@
     window.location.replace(url.toString());
   }
 
-  function bindButtons(){
+  function applyLatestUI(){
     const buttons=[...document.querySelectorAll('#appRefreshBtn,#loginRefreshBtn')];
     buttons.forEach(btn=>{
-      if(btn.dataset.latestRefreshBound==='1')return;
-      btn.dataset.latestRefreshBound='1';
-      btn.onclick=forceLatestRefresh;
-      btn.disabled=false;
-      btn.textContent='새로고침';
-      btn.title='캐시를 지우고 최신 배포본을 다시 불러옵니다.';
+      if(btn.dataset.latestRefreshBound!=='1'){
+        btn.dataset.latestRefreshBound='1';
+        btn.onclick=forceLatestRefresh;
+        btn.title='캐시를 지우고 최신 배포본을 다시 불러옵니다.';
+      }
+      if(!btn.disabled&&btn.textContent!=='새로고침')btn.textContent='새로고침';
     });
+    if(latestVersion){
+      const labels=[...document.querySelectorAll('#appVersionLabel,#loginVersionLabel')];
+      labels.forEach(label=>{const text=`v${latestVersion}`;if(label.textContent!==text)label.textContent=text});
+    }
   }
 
-  async function updateVersionLabels(){
-    const latest=await fetchLatestVersion();
-    if(!latest)return;
-    const labels=[...document.querySelectorAll('#appVersionLabel,#loginVersionLabel')];
-    labels.forEach(label=>{const text=`v${latest}`;if(label.textContent!==text)label.textContent=text});
+  async function updateLatest(){
+    await fetchLatestVersion();
+    applyLatestUI();
   }
 
-  const observer=new MutationObserver(bindButtons);
+  const observer=new MutationObserver(applyLatestUI);
   observer.observe(document.documentElement,{childList:true,subtree:true});
-  window.addEventListener('pageshow',()=>{bindButtons();updateVersionLabels()});
-  setTimeout(()=>{bindButtons();updateVersionLabels()},0);
-  setInterval(bindButtons,1500);
-  setInterval(updateVersionLabels,30000);
+  window.addEventListener('pageshow',()=>{applyLatestUI();updateLatest()});
+  setTimeout(()=>{applyLatestUI();updateLatest()},0);
+  setInterval(applyLatestUI,1500);
+  setInterval(updateLatest,30000);
 })();
