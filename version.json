@@ -2,7 +2,7 @@
   "version": "0.0.0",
   "build": "safe-stop",
   "autoUpdate": false,
-  "stableEntry": "stable381.html",
-  "currentStableVersion": "3.8.1",
-  "updatedAt": "2026-08-24T13:38:00+09:00"
+  "stableEntry": "stable400.html",
+  "currentStableVersion": "4.0.0",
+  "updatedAt": "2026-08-24T16:21:00+09:00"
 }
