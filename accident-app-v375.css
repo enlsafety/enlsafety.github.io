@@ -1,0 +1,87 @@
+/* E&L Accident Report App v3.7.5 - compact field + simple admin */
+.app-hidden-nav{display:none!important}
+.simple-app-nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:8px 0 14px;padding:6px;border-radius:13px;background:#eaf0f6}
+.simple-app-nav button{border:0;border-radius:9px;background:transparent;color:#65758a;padding:11px 8px;font-size:13px;font-weight:900;line-height:1.25;word-break:keep-all}
+.simple-app-nav button.on{background:#fff;color:#173b66;box-shadow:0 2px 9px rgba(22,45,75,.10)}
+.simple-app-nav.operations-nav{grid-template-columns:repeat(2,minmax(0,1fr));max-width:500px}
+
+/* 현장소장: 사용자칩과 첫 화면을 최대한 압축 */
+.role-field .topbar{padding:8px 10px;gap:7px}
+.role-field .brand .logo{width:34px;height:34px;border-radius:9px}
+.role-field .brand h1{font-size:15px}
+.role-field .brand p{display:none}
+.role-field .user-chip{min-width:0;padding:6px 8px;border-radius:10px;gap:5px}
+.role-field .user-chip .avatar{display:none!important}
+.role-field .user-chip b{font-size:11px;max-width:96px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.role-field .user-chip small{font-size:8px;max-width:116px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.role-field .chev{margin-left:3px}
+.role-field .main{padding:7px 8px 24px}
+.role-field .field-six-home.field-home-compact{margin:4px auto 0;padding:0;max-width:720px}
+.role-field .field-home-compact .field-six-head{margin-bottom:8px;padding:9px 11px;border-width:1px;border-radius:13px;box-shadow:none;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.role-field .field-home-compact .field-six-head h2{margin:0;font-size:19px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.role-field .field-home-compact .field-six-role{margin:0;padding:5px 8px;font-size:11px;max-width:54%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.role-field .field-home-compact .field-six-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.role-field .field-home-compact .field-six-btn{min-height:132px;padding:12px 11px;border-width:2px;border-radius:16px;gap:7px;box-shadow:0 5px 13px rgba(20,45,78,.08)}
+.role-field .field-home-compact .field-six-no{min-width:38px;height:24px;padding:0 7px;font-size:11px}
+.role-field .field-home-compact .field-six-btn strong{font-size:18px;line-height:1.25}
+.role-field .field-home-compact .field-six-btn small{font-size:12px;line-height:1.4;font-weight:700}
+
+/* 안전관리자 전용 간단 현황 */
+.safety-simple-home{display:grid;gap:12px}
+.simple-home-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border:1px solid #dce5ef;border-radius:16px;background:#fff}
+.simple-home-head h2{margin:0;font-size:23px;color:#173b66}
+.simple-home-head p{margin:5px 0 0;color:#6b7b8e;font-size:13px}
+.simple-home-head .primary{white-space:nowrap}
+.simple-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.simple-stat-grid button{appearance:none;border:1px solid #dce5ef;border-radius:14px;background:#fff;padding:14px 12px;text-align:left;color:#31475e;box-shadow:0 4px 15px rgba(31,43,59,.04)}
+.simple-stat-grid span{display:block;font-size:12px;font-weight:800;color:#718094}
+.simple-stat-grid b{display:block;margin-top:6px;font-size:27px;color:#173b66}
+.simple-recent-panel{padding:16px}
+.simple-recent-panel .section-head{margin-bottom:8px}
+.simple-recent-panel .section-head h2{font-size:18px}
+.simple-incident-list{display:grid;gap:7px}
+.simple-incident-row{appearance:none;display:grid;grid-template-columns:180px minmax(0,1fr) 64px;align-items:center;gap:10px;width:100%;border:1px solid #e1e8ef;border-radius:11px;background:#fff;padding:10px 12px;text-align:left;color:#31475e}
+.simple-incident-row:hover{background:#f8fbff}
+.simple-incident-row span b{display:block;font-size:12px;color:#173b66}
+.simple-incident-row span small{display:block;margin-top:3px;font-size:10px;color:#7d8998}
+.simple-incident-row strong{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.simple-incident-row em{font-style:normal;font-size:10px;font-weight:900;color:#48627d;text-align:right}
+
+/* 사고보고앱이므로 안전관리자 화면의 불필요한 플랫폼 요소를 숨김 */
+.role-safety #platformNav,.role-safety .permission-strip,.role-safety .common-nav{display:none!important}
+.role-operations #platformNav,.role-operations .permission-strip,.role-operations .common-nav{display:none!important}
+
+@media(max-width:720px){
+  .simple-app-nav{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:5px}
+  .simple-app-nav button{padding:10px 6px;font-size:12px}
+  .simple-home-head{padding:13px;align-items:flex-start}
+  .simple-home-head h2{font-size:20px}
+  .simple-home-head p{font-size:12px}
+  .simple-home-head .primary{padding:9px 10px;font-size:11px}
+  .simple-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .simple-stat-grid button{padding:11px}
+  .simple-stat-grid b{font-size:23px}
+  .simple-incident-row{grid-template-columns:minmax(0,1fr) 50px;gap:7px}
+  .simple-incident-row span{grid-column:1}
+  .simple-incident-row strong{grid-column:1;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .simple-incident-row em{grid-column:2;grid-row:1/3}
+}
+
+@media(max-width:430px){
+  .role-field .header-update-control{gap:3px;margin-right:2px}
+  .role-field .header-version{padding:5px 6px;font-size:9px}
+  .role-field .header-refresh-btn{padding:6px 7px;font-size:10px}
+  .role-field .user-chip small{display:none}
+  .role-field .user-chip b{max-width:70px;font-size:10px}
+  .role-field .field-home-compact .field-six-head h2{font-size:17px}
+  .role-field .field-home-compact .field-six-role{font-size:10px;max-width:50%}
+  .role-field .field-home-compact .field-six-btn{min-height:116px;padding:10px 9px}
+  .role-field .field-home-compact .field-six-btn strong{font-size:16px}
+  .role-field .field-home-compact .field-six-btn small{font-size:11px;line-height:1.3}
+}
+
+@media(max-height:720px) and (max-width:560px){
+  .role-field .field-home-compact .field-six-head{padding:7px 9px;margin-bottom:6px}
+  .role-field .field-home-compact .field-six-btn{min-height:104px;padding:9px 8px;gap:5px}
+  .role-field .field-home-compact .field-six-btn small{font-size:10px}
+}
