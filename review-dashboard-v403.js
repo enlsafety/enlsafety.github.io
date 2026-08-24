@@ -1,0 +1,94 @@
+/* E&L Accident Report App v4.0.3 - review imports + robust back buttons + manager overview */
+(function(){
+  const VERSION='4.0.3';
+  const baseShell=typeof renderShell==='function'?renderShell:null;
+  const baseOpenIncident=typeof openIncidentModal==='function'?openIncidentModal:null;
+  const baseOpenEdit=typeof openEditIncidentModal==='function'?openEditIncidentModal:null;
+  const escx=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const siteName=id=>siteById(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>s.id===id)?.name||id||'-';
+  const reviewNeeded=i=>!!(i?.importReview&&i?.status==='reported');
+  const money=v=>v==null||v===''?'미확인':`${Number(v).toLocaleString('ko-KR')}원`;
+  const dateOnly=v=>{try{return new Intl.DateTimeFormat('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(v))}catch(e){return v||'-'}};
+
+  function css(){if(document.getElementById('review403Css'))return;const s=document.createElement('style');s.id='review403Css';s.textContent=`
+    .v403-home-back{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;margin:0 0 14px!important;padding:8px 10px!important;border:1px solid #9dbbd4!important;border-radius:12px!important;background:#eef6fc!important;box-shadow:0 4px 14px rgba(23,59,102,.11)!important}.v403-home-back button{min-height:44px!important;padding:0 17px!important;border:0!important;border-radius:10px!important;background:#173b66!important;color:white!important;font-size:15px!important;font-weight:950!important;cursor:pointer!important;box-shadow:0 3px 8px rgba(23,59,102,.2)!important}.v403-home-back span{font-size:12px!important;color:#45647f!important;font-weight:850!important;text-align:right!important}
+    .p-import-review{display:inline-flex;align-items:center;min-height:23px;padding:0 8px;border-radius:999px;background:#fff1dd;color:#a45100;border:1px solid #efbf77;font-size:10px;font-weight:950;white-space:nowrap}.import-review-box{margin:12px 0;padding:12px;border-radius:12px;background:#fff8e8;border:1px solid #efca87;color:#69490d;line-height:1.55}.import-review-box b{color:#8c4c00}.import-review-box ul{margin:7px 0 0 18px;padding:0}.import-source-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:10px 0}.import-source-grid>div{padding:9px;border-radius:9px;background:#f5f8fb;border:1px solid #dce5ed;font-size:12px}.import-source-grid b{display:block;font-size:10px;color:#72879b;margin-bottom:3px}.import-source-grid span{color:#29465e;font-weight:800}.time-review-note{display:block;margin-top:3px;color:#a45100;font-size:10px;font-weight:900}
+    .manager-overview403{display:grid;gap:13px}.manager-overview-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}.manager-overview-head h2{margin:0;color:#173b66;font-size:24px}.manager-overview-head p{margin:5px 0 0;color:#687c8f}.manager-stat403{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.manager-stat403>div{padding:13px;border:1px solid #d8e3ed;border-radius:13px;background:#fff}.manager-stat403 span{display:block;font-size:11px;color:#718294;font-weight:850}.manager-stat403 b{display:block;margin-top:5px;font-size:24px;color:#173b66}.manager-site-select{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.manager-site-select select{min-height:43px;min-width:220px;border:1.4px solid #c7d4df;border-radius:10px;padding:0 10px;background:#fff;font-weight:800}.manager-site-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}.manager-site-card{border:1px solid #d8e3ed;background:#fff;border-radius:13px;padding:12px;text-align:left;cursor:pointer;color:inherit}.manager-site-card:hover{border-color:#8eafcb;box-shadow:0 4px 12px rgba(23,59,102,.08)}.manager-site-card h3{margin:0;color:#173b66;font-size:15px}.manager-site-card .msc-count{display:flex;gap:8px;margin-top:9px}.manager-site-card .msc-count span{font-size:10px;color:#738597}.manager-site-card .msc-count b{display:block;color:#304c65;font-size:16px;margin-top:2px}.manager-site-card .msc-review b{color:#a45100}.manager-site-card small{display:block;margin-top:7px;color:#8493a2}.manager-list-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}.manager-list-head button{min-height:42px;border:0;border-radius:9px;background:#173b66;color:#fff;padding:0 13px;font-weight:900}.manager-record-list{display:grid;gap:7px;margin-top:11px}.manager-record-row{display:grid;grid-template-columns:110px minmax(0,.7fr) minmax(0,.8fr) minmax(180px,2fr) auto;gap:9px;align-items:center;width:100%;border:1px solid #dce5ed;background:#fff;border-radius:11px;padding:10px;text-align:left;cursor:pointer;color:inherit}.manager-record-row:hover{border-color:#93b2cc}.manager-record-row b{color:#173b66}.manager-record-row span,.manager-record-row small{font-size:11px;color:#667a8d}.manager-record-row .mr-summary{font-size:12px;line-height:1.4;color:#344f67}.manager-record-row .mr-status{display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap}.final-edit-btn{margin-top:11px;width:100%;min-height:44px;border:0;border-radius:9px;background:#173b66;color:white;font-weight:900}.import-extra-edit{margin:10px 0;padding:11px;border:1px solid #d7e2ec;border-radius:11px;background:#f7fafc}.import-extra-edit h3{margin:0 0 9px;font-size:14px;color:#173b66}.import-extra-edit label{display:grid;gap:5px}.import-extra-edit input{min-height:42px;border:1.3px solid #c6d3df;border-radius:8px;padding:0 9px}
+    @media(max-width:900px){.manager-site-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.manager-record-row{grid-template-columns:95px minmax(0,.7fr) minmax(180px,2fr) auto}.manager-record-row .mr-type{display:none}}
+    @media(max-width:620px){.v403-home-back{position:sticky!important;top:4px!important;z-index:30!important}.manager-stat403{grid-template-columns:repeat(2,minmax(0,1fr))}.manager-site-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.manager-site-select{align-items:stretch}.manager-site-select select{width:100%;min-width:0}.manager-record-row{grid-template-columns:82px minmax(0,1fr) auto}.manager-record-row .mr-site,.manager-record-row .mr-type{display:none}.manager-record-row .mr-summary{font-size:11px}.import-source-grid{grid-template-columns:1fr}}
+  `;document.head.appendChild(s)}
+
+  function goHome(){
+    const brand=document.querySelector('.topbar .brand');if(brand&&typeof brand.onclick==='function'){brand.click();return}
+    try{currentView='home';if(typeof enlPlatformSection!=='undefined')enlPlatformSection='hub';renderShell(currentUser())}catch(e){}
+  }
+  function ensureBack(){
+    const u=currentUser?.();if(!u||!['worker','field'].includes(u.role))return;
+    const root=document.getElementById('view');if(!root)return;
+    const notHome=currentView&&currentView!=='home';if(!notHome)return;
+    let bar=root.querySelector('.field-task-back');
+    if(!bar){bar=document.createElement('div');bar.className='field-task-back v403-home-back';bar.innerHTML=`<button type="button">← 홈으로</button><span>${escx(siteName(u.siteId))}</span>`;root.insertAdjacentElement('afterbegin',bar)}else{bar.classList.add('v403-home-back');const b=bar.querySelector('button');if(b)b.textContent='← 홈으로'}
+    const btn=bar.querySelector('button');if(btn)btn.onclick=goHome;
+  }
+
+  function patchReviewRows(){
+    document.querySelectorAll('tr[data-inc-id]').forEach(row=>{
+      const i=(data.incidents||[]).find(x=>x.id===row.dataset.incId);if(!i)return;
+      const cells=row.querySelectorAll('td');
+      if(reviewNeeded(i)&&cells[5]){cells[5].querySelector('.p-reported')?.remove();if(!cells[5].querySelector('.p-import-review'))cells[5].insertAdjacentHTML('afterbegin','<span class="p-import-review">검토필요</span>')}
+      if(i.importSource&&!i.importSource.timeConfirmed&&cells[0]&&!cells[0].querySelector('.time-review-note'))cells[0].innerHTML=`${escx(dateOnly(i.occurredAt))}<small class="time-review-note">시간 확인필요</small>`;
+    });
+  }
+
+  function importInfoHtml(i){
+    if(!i?.importSource)return '';
+    const m=(i.reviewMissingFields||[]).map(x=>`<li>${escx(x)}</li>`).join('');
+    return `${reviewNeeded(i)?`<div class="import-review-box"><b>검토필요 · 엑셀 자동등록 자료</b><br>원본에서 확인할 수 없는 항목은 임의 입력하지 않았습니다.${m?`<ul>${m}</ul>`:''}</div>`:''}<div class="import-source-grid"><div><b>원본 현장명</b><span>${escx(i.importSource.originalSite||'-')}</span></div><div><b>원본 사고유형</b><span>${escx(i.importSource.originalAccidentType||'-')}</span></div><div><b>피해금액</b><span>${escx(money(i.importSource.damageAmount))}</span></div><div><b>원본 후속조치</b><span>${escx(i.importSource.followup||'미입력')}</span></div></div>`;
+  }
+
+  function patchIncidentModal(id,u){
+    const i=(data.incidents||[]).find(x=>x.id===id),modal=document.querySelector('#modalRoot .modal');if(!i||!modal)return;
+    if(i.importSource&&!modal.querySelector('.import-review-box,.import-source-grid')){
+      const head=modal.querySelector('.modal-head');if(head)head.insertAdjacentHTML('afterend',importInfoHtml(i));
+      const detail=modal.querySelector('.detail');if(detail&&!detail.querySelector('[data-import-row]'))detail.insertAdjacentHTML('beforeend',`<div class="detail-row" data-import-row><b>자료 출처</b><span>${escx(i.importSource.file||'0. 사고현황.xlsx')} · NO.${escx(i.importSource.rowNo||'-')}</span></div>`);
+    }
+    if(reviewNeeded(i)){const ap=document.getElementById('approveInc');if(ap&&!ap.dataset.reviewWrapped){ap.dataset.reviewWrapped='1';const old=ap.onclick;ap.onclick=()=>{i.importReview=false;i.reviewRequired=false;i.reviewCompletedBy=u?.name||'';i.reviewCompletedAt=nowISO();return old?.()}}}
+  }
+
+  function patchImportEdit(i){
+    if(!i?.importSource)return;const form=document.getElementById('editIncidentForm');if(!form||form.querySelector('.import-extra-edit'))return;
+    const box=document.createElement('section');box.className='import-extra-edit';box.innerHTML=`<h3>엑셀 원본 보완정보</h3><label><span>피해금액(원)</span><input id="eImportDamage" type="number" min="0" value="${i.importSource.damageAmount??''}" placeholder="확인되지 않았으면 비워두기"></label>`;const submit=form.querySelector('button[type="submit"],button.primary');submit?.insertAdjacentElement('beforebegin',box);
+    const old=form.onsubmit;form.onsubmit=async ev=>{const v=document.getElementById('eImportDamage')?.value;i.importSource.damageAmount=v===''?null:Number(v);return old?.call(form,ev)};
+  }
+
+  function statusHtml(i){if(reviewNeeded(i))return '<span class="p-import-review">검토필요</span>';return typeof statusBadge==='function'?statusBadge(i.status):escx(i.status)}
+  function siteStats(id){const arr=(data.incidents||[]).filter(i=>i.siteId===id);return {arr,total:arr.length,review:arr.filter(reviewNeeded).length,approved:arr.filter(i=>i.status==='approved'||i.status==='closed').length,action:arr.filter(i=>!i.corrective||i.corrective.status!=='approved').length}}
+  function managerOverview(root,u){
+    const all=[...(data.incidents||[])],sites=[...(data.sites||[])].filter(s=>s.id!=='site-hq').sort((a,b)=>String(a.name).localeCompare(String(b.name),'ko'));
+    const review=all.filter(reviewNeeded).length,approved=all.filter(i=>i.status==='approved').length,closed=all.filter(i=>i.status==='closed').length;
+    root.innerHTML=`<section class="manager-overview403"><section class="panel"><div class="manager-overview-head"><div><div class="ey">ALL SITES</div><h2>전체 사업장 사고현황</h2><p>사업장을 선택하면 해당 현장의 사고기록을 바로 확인할 수 있습니다.</p></div><div class="manager-site-select"><select id="managerSiteSelect403"><option value="">사업장 선택</option>${sites.map(s=>`<option value="${escx(s.id)}">${escx(s.name)}</option>`).join('')}</select></div></div></section><div class="manager-stat403"><div><span>전체 사고</span><b>${all.length}</b></div><div><span>검토필요</span><b>${review}</b></div><div><span>승인</span><b>${approved}</b></div><div><span>종결</span><b>${closed}</b></div></div><section class="panel"><div class="section-head"><div><h2>사업장별 사고</h2><p>사고가 없는 현장도 함께 표시합니다.</p></div></div><div class="manager-site-grid">${sites.map(s=>{const x=siteStats(s.id);const latest=x.arr.sort((a,b)=>new Date(b.occurredAt)-new Date(a.occurredAt))[0];return `<button type="button" class="manager-site-card" data-manager-site="${escx(s.id)}"><h3>${escx(s.name)}</h3><div class="msc-count"><span>전체<b>${x.total}</b></span><span class="msc-review">검토필요<b>${x.review}</b></span><span>승인·종결<b>${x.approved}</b></span></div><small>${latest?'최근 '+dateOnly(latest.occurredAt):'사고기록 없음'}</small></button>`}).join('')}</div></section></section>`;
+    const sel=document.getElementById('managerSiteSelect403');if(sel)sel.onchange=()=>{if(sel.value)renderManagerList(root,u,sel.value)};root.querySelectorAll('[data-manager-site]').forEach(b=>b.onclick=()=>renderManagerList(root,u,b.dataset.managerSite));
+  }
+  function renderManagerList(root,u,siteId=''){
+    let arr=[...(data.incidents||[])];if(siteId)arr=arr.filter(i=>i.siteId===siteId);arr.sort((a,b)=>new Date(b.occurredAt)-new Date(a.occurredAt));
+    root.innerHTML=`<section class="panel"><div class="manager-list-head"><div><div class="ey">SITE RECORDS</div><h2 style="margin:3px 0;color:#173b66">${siteId?escx(siteName(siteId)):'전체 사업장'} 사고목록</h2><p style="margin:0;color:#718396">${arr.length}건 · 검토필요 ${arr.filter(reviewNeeded).length}건</p></div><button type="button" id="managerOverviewBack403">← 전체 사업장</button></div><div class="manager-record-list">${arr.map(i=>`<button type="button" class="manager-record-row" data-manager-inc="${escx(i.id)}"><span>${escx(i.importSource&&!i.importSource.timeConfirmed?dateOnly(i.occurredAt):fmt(i.occurredAt))}</span><b class="mr-site">${escx(siteName(i.siteId))}</b><span class="mr-type">${escx(i.eventType||'-')}</span><div class="mr-summary">${escx(i.summary||'-')}</div><div class="mr-status">${statusHtml(i)}</div></button>`).join('')||'<div class="empty">표시할 사고가 없습니다.</div>'}</div></section>`;
+    document.getElementById('managerOverviewBack403').onclick=()=>managerOverview(root,u);root.querySelectorAll('[data-manager-inc]').forEach(b=>b.onclick=()=>u.role==='safety'?openIncidentModal(b.dataset.managerInc,true,u):openFinalDetail(b.dataset.managerInc,u));
+  }
+  function openFinalDetail(id,u){
+    const i=(data.incidents||[]).find(x=>x.id===id);if(!i)return;
+    openModal(`<div class="modal-head"><div><div class="ey">INCIDENT DETAIL</div><h2>${escx(siteName(i.siteId))} · ${escx(i.eventType||'-')}</h2><div style="margin-top:7px">${typeof categoryBadge==='function'?categoryBadge(i.category):''}${statusHtml(i)}</div></div><button class="x" data-close>×</button></div>${importInfoHtml(i)}<div class="detail"><div class="detail-row"><b>발생일시</b><span>${escx(i.importSource&&!i.importSource.timeConfirmed?dateOnly(i.occurredAt)+' · 시간 확인필요':fmt(i.occurredAt))}</span></div><div class="detail-row"><b>사고자/관련자</b><span>${escx(i.injuredName||'-')} ${i.job?'· '+escx(i.job):''}</span></div><div class="detail-row"><b>사고내용</b><span>${escx(i.summary||'-')}</span></div><div class="detail-row"><b>즉시·후속조치</b><span>${escx(i.immediateAction||'-')}</span></div><div class="detail-row"><b>보고자</b><span>${escx(i.reporterName||'-')}</span></div><div class="detail-row"><b>최종수정</b><span>${escx(i.lastModifiedBy||'-')} ${i.lastModifiedAt?'· '+escx(fmt(i.lastModifiedAt)):''}</span></div></div><button type="button" class="final-edit-btn" id="finalEdit403">사고정보 수정</button>`);document.getElementById('finalEdit403').onclick=()=>baseOpenEdit?.(i,u);
+  }
+
+  function patchManagerViews(){
+    const u=currentUser?.();if(!u||!['safety','final'].includes(u.role))return;const root=document.getElementById('view');if(!root)return;
+    let section='';try{section=typeof enlPlatformSection!=='undefined'?enlPlatformSection:''}catch(e){}
+    if(u.role==='safety'&&(section==='hub'||(!section&&['home','dashboard'].includes(currentView))))managerOverview(root,u);
+    if(u.role==='final'){if(currentView==='incidents')renderManagerList(root,u,'');else managerOverview(root,u)}
+  }
+  function patchAll(){css();ensureBack();patchReviewRows();patchManagerViews()}
+
+  if(baseOpenIncident){openIncidentModal=function(id,admin,u){const r=baseOpenIncident(id,admin,u);setTimeout(()=>patchIncidentModal(id,u),0);return r}}
+  if(baseOpenEdit){openEditIncidentModal=function(i,u){const r=baseOpenEdit(i,u);setTimeout(()=>patchImportEdit(i),0);return r}}
+  if(baseShell){renderShell=function(u){const r=baseShell(u);setTimeout(patchAll,0);setTimeout(()=>{ensureBack();patchReviewRows()},80);return r}}
+  setTimeout(patchAll,180);window.ENL_DEPLOY_VERSION=VERSION;
+})();
