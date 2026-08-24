@@ -7,12 +7,6 @@
   window.ENL_DEPLOY_VERSION=VERSION;
   window.ENL_STABLE_MODE=true;
 
-  function cacheBust(url){
-    const u=new URL(url,location.href);
-    u.searchParams.set('_ts',String(Date.now()));
-    u.searchParams.set('v',VERSION);
-    return u.toString();
-  }
   function currentEntry(){return location.pathname.split('/').pop()||'index.html'}
   async function latestMeta(timeout=3500){
     const ctl=new AbortController();const timer=setTimeout(()=>ctl.abort(),timeout);
@@ -22,12 +16,15 @@
       return await r.json();
     }finally{clearTimeout(timer)}
   }
-  function newerTarget(meta){
+  function newest(meta){
     const entry=String(meta?.stableEntry||'').trim();
-    const ver=String(meta?.currentStableVersion||'').trim();
-    if(!entry)return null;
-    if(entry===currentEntry()&&(!ver||ver===VERSION))return null;
-    return {entry,ver:ver||'latest'};
+    const ver=String(meta?.currentStableVersion||'latest').trim()||'latest';
+    return entry?{entry,ver}:null;
+  }
+  function newerTarget(meta){
+    const target=newest(meta);if(!target)return null;
+    if(target.entry===currentEntry()&&target.ver===VERSION)return null;
+    return target;
   }
   function guardedRedirect(target,force=false){
     if(!target?.entry)return false;
@@ -46,12 +43,12 @@
     const manual=!!opts.manual;
     if(!manual&&!document.querySelector('.login-card'))return false;
     const btn=document.getElementById('loginLatestBtn');
-    if(btn&&manual){btn.disabled=true;btn.textContent='확인 중…'}
+    if(btn&&manual){btn.disabled=true;btn.textContent='최신화 중…'}
     try{
       const meta=await latestMeta();
       const target=newerTarget(meta);
       if(target)return guardedRedirect(target,manual);
-      if(btn&&manual){btn.textContent='최신 버전';setTimeout(()=>{if(btn.isConnected){btn.disabled=false;btn.textContent='최신버전'}},1200)}
+      if(manual){const latest=newest(meta);if(latest)return guardedRedirect(latest,true)}
       return false;
     }catch(e){
       console.warn('latest version check skipped',e);
@@ -61,11 +58,10 @@
       }
       return false;
     }finally{
-      if(btn&&manual&&btn.isConnected&&btn.textContent==='확인 중…'){btn.disabled=false;btn.textContent='최신버전'}
+      if(btn&&manual&&btn.isConnected){btn.disabled=false;btn.textContent='최신버전'}
     }
   }
 
-  function stableUrl(){return cacheBust('stable401.html')}
   function refreshNow(){checkLatest({manual:true})}
   window.enlForceLatestRefresh=refreshNow;
   window.enlCheckLatestVersion=checkLatest;
@@ -93,7 +89,7 @@
     style();
     const brand=document.querySelector('.login-brand');if(!brand)return;
     const textWrap=brand.querySelector('.logo + div')||brand.querySelector('div:last-child');if(!textWrap)return;
-    let h=textWrap.querySelector('h1');if(!h)return;
+    const h=textWrap.querySelector('h1');if(!h)return;
     let row=textWrap.querySelector('.login-brand-title-row');
     if(!row){row=document.createElement('div');row.className='login-brand-title-row';h.parentNode.insertBefore(row,h);row.appendChild(h)}
     let btn=document.getElementById('loginLatestBtn');
