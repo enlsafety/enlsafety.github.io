@@ -1,5 +1,7 @@
 {
-  "version": "3.7.8",
-  "build": "3.7.8",
-  "updatedAt": "2026-08-24T11:43:00+09:00"
+  "version": "0.0.0",
+  "build": "safe-stop",
+  "autoUpdate": false,
+  "stableEntry": "stable.html",
+  "updatedAt": "2026-08-24T11:47:00+09:00"
 }
