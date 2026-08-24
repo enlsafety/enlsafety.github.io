@@ -1,0 +1,112 @@
+/* E&L Safety v3.7.0 - guided field accident report + readable controls */
+.field-simple-mode #unifiedReportForm .advanced-grid{margin-top:10px}
+.field-simple-mode #unifiedReportForm .check-line{
+  margin-top:12px;padding:12px 13px;border:2px solid #d5dee8;border-radius:12px;
+  background:#f8fafc;color:#2f455d
+}
+.field-simple-mode #unifiedReportForm .photo-required{border:2px dashed #7896b6;background:#f4f9ff}
+.field-simple-mode #unifiedReportForm .photo-required-guide{
+  margin-top:8px;padding:10px 12px;border-radius:10px;background:#e8f1fb;color:#173b66;
+  font-size:15px;line-height:1.55;font-weight:900;word-break:keep-all
+}
+.field-simple-mode #unifiedReportForm .photo-required-error{
+  border-color:#c93f3f;background:#fff3f3;box-shadow:0 0 0 4px rgba(201,63,63,.12)
+}
+
+/* 발생일시 */
+.field-simple-mode #unifiedReportForm .occurred-field{min-width:0!important;width:100%;max-width:100%;overflow:visible}
+.field-simple-mode #unifiedReportForm .occurred-split{
+  display:grid;grid-template-columns:minmax(0,1fr) 104px;gap:0;width:100%;max-width:100%;
+  min-width:0;min-height:54px;height:54px;box-sizing:border-box;overflow:hidden;border:2px solid #bdcad8;
+  border-radius:12px;background:#fff
+}
+.field-simple-mode #unifiedReportForm .occurred-split:focus-within{border-color:#215d9c;box-shadow:0 0 0 3px rgba(33,93,156,.15)}
+.field-simple-mode #unifiedReportForm .occurred-split input{
+  -webkit-appearance:none;appearance:none;display:block;width:100%!important;max-width:100%!important;
+  min-width:0!important;min-inline-size:0!important;height:50px!important;min-height:50px!important;
+  box-sizing:border-box!important;margin:0!important;padding:0 9px!important;border:0!important;border-radius:0!important;
+  outline:0!important;box-shadow:none!important;background:transparent!important;color:#172b42;font-size:16px!important;
+  font-weight:800;line-height:50px;overflow:hidden
+}
+.field-simple-mode #unifiedReportForm .occurred-split #occurredTime{
+  border-left:1px solid #d7e0e8!important;padding-left:7px!important;padding-right:5px!important;text-align:center
+}
+.field-simple-mode #unifiedReportForm .occurred-split input::-webkit-date-and-time-value{min-width:0;margin:0;padding:0;text-align:left}
+.field-simple-mode #unifiedReportForm .occurred-split input::-webkit-datetime-edit{min-width:0;margin:0;padding:0}
+.field-simple-mode #unifiedReportForm .occurred-split input::-webkit-calendar-picker-indicator{margin:0;padding:2px;flex:0 0 auto}
+
+/* 40~60대 현장소장용 질문형 입력 */
+.field-simple-mode #unifiedReportForm.guided-accident-form{max-width:900px;margin:0 auto}
+.field-simple-mode #unifiedReportForm.guided-accident-form .section-head h2{font-size:24px}
+.field-simple-mode #unifiedReportForm.guided-accident-form .section-head p{font-size:16px;line-height:1.55}
+.field-simple-mode #unifiedReportForm.guided-accident-form .lbl>span,
+.field-simple-mode #unifiedReportForm.guided-accident-form .guide-question>span{
+  display:block;margin-bottom:8px;font-size:17px;font-weight:900;line-height:1.45;color:#213b57;word-break:keep-all
+}
+.field-simple-mode #unifiedReportForm.guided-accident-form input,
+.field-simple-mode #unifiedReportForm.guided-accident-form select,
+.field-simple-mode #unifiedReportForm.guided-accident-form textarea{
+  font-size:17px!important;line-height:1.55;min-height:54px;border-width:2px;border-radius:12px
+}
+.field-simple-mode #unifiedReportForm.guided-accident-form textarea{padding:13px 14px;min-height:94px}
+.field-simple-mode #unifiedReportForm.guided-accident-form input::placeholder,
+.field-simple-mode #unifiedReportForm.guided-accident-form textarea::placeholder{font-size:15px;color:#8a98a8}
+
+.fact-only-callout{
+  display:grid;gap:5px;margin:0 0 16px;padding:14px 15px;border-radius:14px;border:2px solid #f0c86d;background:#fff9e8;color:#573f11
+}
+.fact-only-callout b{font-size:18px}
+.fact-only-callout span{font-size:15px;line-height:1.6;font-weight:700;word-break:keep-all}
+
+.guided-top-grid{margin-bottom:8px}
+.guide-section{display:grid;gap:14px;margin:14px 0;padding:16px;border:2px solid #d8e3ee;border-radius:16px;background:#f8fbff}
+.guide-question{display:block}
+.guide-question input,.guide-question textarea{width:100%;box-sizing:border-box}
+
+.event-type-buttons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.event-type-buttons button{
+  min-height:52px;padding:8px 7px;border:2px solid #c9d5e1;border-radius:12px;background:#fff;color:#29445f;
+  font-size:16px;font-weight:900;line-height:1.25;cursor:pointer
+}
+.event-type-buttons button.on{border-color:#215d9c;background:#eaf3fc;color:#164d84;box-shadow:0 0 0 2px rgba(33,93,156,.08)}
+.sr-select{position:absolute!important;opacity:0!important;pointer-events:none!important;width:1px!important;height:1px!important;min-height:1px!important}
+
+.guided-person{
+  margin:0 0 14px;padding:14px;border:2px solid #e0e7ef;border-radius:14px;background:#fff
+}
+.auto-summary-box{
+  margin-top:16px;padding:15px;border:2px solid #9eb8d2!important;border-radius:14px;background:#f2f7fc
+}
+.auto-summary-box textarea{background:#fff!important;color:#203a55!important;font-weight:800}
+.summary-note{display:block;margin-top:8px;color:#56718c;font-size:14px;line-height:1.5;font-weight:700}
+.immediate-box{margin-top:16px}
+.quick-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 10px}
+.quick-actions button{
+  min-height:48px;padding:8px;border:2px solid #cbd7e3;border-radius:11px;background:#fff;color:#29445f;
+  font-size:15px;font-weight:900;cursor:pointer
+}
+.quick-actions button:active{transform:translateY(1px);background:#eef5fb}
+.field-simple-mode #unifiedReportForm.guided-accident-form button.primary.full{
+  min-height:58px;font-size:18px;font-weight:900;border-radius:14px;margin-top:18px
+}
+
+@media(max-width:700px){
+  .field-simple-mode #unifiedReportForm.guided-accident-form .guided-top-grid{grid-template-columns:minmax(0,1fr)}
+  .event-type-buttons{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .quick-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:560px){
+  .field-simple-mode #unifiedReportForm .advanced-grid{grid-template-columns:minmax(0,1fr)}
+  .field-simple-mode #unifiedReportForm .photo-required-guide{font-size:14px}
+  .field-simple-mode #unifiedReportForm .occurred-split{grid-template-columns:minmax(0,1fr) 96px;width:100%;max-width:100%}
+  .field-simple-mode #unifiedReportForm .occurred-split input{font-size:15px!important;padding-left:6px!important;padding-right:4px!important}
+  .field-simple-mode #unifiedReportForm.guided-accident-form .section-head h2{font-size:22px}
+  .field-simple-mode #unifiedReportForm.guided-accident-form .section-head p{font-size:15px}
+  .field-simple-mode #unifiedReportForm.guided-accident-form .lbl>span,
+  .field-simple-mode #unifiedReportForm.guided-accident-form .guide-question>span{font-size:16px}
+  .guide-section{padding:13px}
+}
+@media(max-width:380px){
+  .field-simple-mode #unifiedReportForm .occurred-split{grid-template-columns:minmax(0,1fr) 90px}
+  .field-simple-mode #unifiedReportForm .occurred-split input{font-size:14px!important}
+}
