@@ -11,7 +11,7 @@
     return u.toString();
   }
   function refreshNow(){
-    try{location.replace(stableUrl())}catch(e){location.href='stable.html? v='+encodeURIComponent(VERSION)}
+    try{location.replace(stableUrl())}catch(e){location.href='stable.html?v='+encodeURIComponent(VERSION)+'&_ts='+Date.now()}
   }
   window.enlForceLatestRefresh=refreshNow;
 
