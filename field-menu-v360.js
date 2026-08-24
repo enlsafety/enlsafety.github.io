@@ -1,4 +1,4 @@
-/* E&L Safety v3.6.0 - six field workflows */
+/* E&L Safety field workflows - accident report focused */
 (function(){
   const INQUIRY_KEY='enl_safety_field_inquiries_v1';
   let enlFieldTask='home';
@@ -23,12 +23,10 @@
     root.innerHTML=`<section class="field-six-home">
       <div class="field-six-head"><h2>${esc(site)}</h2><p>필요한 메뉴를 선택해 주세요.</p><span class="field-six-role">${esc(fieldTitle(u))} · ${esc(u.name)}</span></div>
       <div class="field-six-grid">
-        <button class="field-six-btn" data-field-task="accident_report"><span class="field-six-no">01</span><strong>사고 보고</strong><small>인사사고, 대물사고, 아차사고 알려주세요</small></button>
-        <button class="field-six-btn" data-field-task="accident_action"><span class="field-six-no">02</span><strong>사고 대책조치</strong><small>사고 발생 후 어떻게 조치 했는지 알려주세요</small></button>
-        <button class="field-six-btn" data-field-task="hazard_report"><span class="field-six-no">03</span><strong>위험요인 보고</strong><small>다칠만한 위험이 있는 곳 알려주세요</small></button>
-        <button class="field-six-btn" data-field-task="hazard_improve"><span class="field-six-no">04</span><strong>위험요인 개선</strong><small>다치지 않게 조치 한 것을 알려주세요</small></button>
-        <button class="field-six-btn" data-field-task="records"><span class="field-six-no">05</span><strong>우리 현장 기록</strong><small>우리현장의 사고기록을 한눈에 볼 수 있어요</small></button>
-        <button class="field-six-btn" data-field-task="inquiry"><span class="field-six-no">06</span><strong>기타 문의</strong><small>앱 사용법이나 기타 안전 관련 사항을 문의할 수 있어요</small></button>
+        <button class="field-six-btn" data-field-task="accident_report"><span class="field-six-no">01</span><strong>사고 보고</strong><small>사고 발생 내용을<br>사진과 함께 보고</small></button>
+        <button class="field-six-btn" data-field-task="accident_action"><span class="field-six-no">02</span><strong>사고 조치</strong><small>사고 후 원인과 조치 내용을<br>등록하고 확인</small></button>
+        <button class="field-six-btn" data-field-task="records"><span class="field-six-no">03</span><strong>사고 기록</strong><small>우리 현장의 사고와 조치<br>기록을 확인</small></button>
+        <button class="field-six-btn" data-field-task="inquiry"><span class="field-six-no">04</span><strong>기타 문의</strong><small>안전관리자 정보 확인<br>및 문의</small></button>
       </div>
     </section>`;
     root.querySelectorAll('[data-field-task]').forEach(b=>b.onclick=()=>goTask(b.dataset.fieldTask,u));
@@ -38,10 +36,25 @@
     const bar=document.createElement('div');bar.className='field-task-back';bar.innerHTML=`<button type="button">← ${label}</button><span>${esc(siteById(u.siteId)?.name||'소속 사업장')}</span>`;
     root.insertAdjacentElement('afterbegin',bar);bar.querySelector('button').onclick=()=>fieldHome(u);
   }
+  function safetyContactCard(){
+    return `<section id="fieldSafetyContact" class="field-safety-contact business-card-contact">
+      <div class="business-card-head"><span>안전관리자 정보</span><small>사고·안전 관련 문의는 아래 담당자에게 연락해 주세요.</small></div>
+      <div class="business-card-body">
+        <div class="business-card-name"><b>박태영</b><span>과장 · 경영관리부</span></div>
+        <div class="business-card-line"><span>회사</span><strong>(주)이앤엘</strong></div>
+        <div class="business-card-line"><span>전화</span><a href="tel:07086778554">070-8677-8554</a></div>
+        <div class="business-card-line"><span>휴대폰</span><a href="tel:01055668580">010-5566-8580</a></div>
+        <div class="business-card-line"><span>이메일</span><a href="mailto:hanarin0130@enlife.co.kr">hanarin0130@enlife.co.kr</a></div>
+        <div class="business-card-line address"><span>주소</span><strong>경기도 화성시 동탄순환대로823 702호<br>(영천동, 에이팩시티)</strong></div>
+        <div class="business-card-line"><span>홈페이지</span><a href="https://enlife.co.kr" target="_blank" rel="noopener">enlife.co.kr</a></div>
+      </div>
+    </section>`;
+  }
   function renderInquiry(root,u){
     const all=loadInquiries();const mine=all.filter(x=>x.userId===u.id||(!x.userId&&x.userName===u.name)).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
     root.innerHTML=`<div class="field-task-back"><button type="button" id="inqBack">← 현장 홈으로</button><span>${esc(siteById(u.siteId)?.name||'소속 사업장')}</span></div>
-      <form id="fieldInquiryForm" class="panel report-simple"><div class="section-head"><div><div class="ey">QUESTION</div><h2>기타 문의</h2><p>앱 사용법이나 안전 관련 궁금한 내용을 간단히 남겨주세요.</p></div></div>
+      <form id="fieldInquiryForm" class="panel report-simple"><div class="section-head"><div><div class="ey">QUESTION</div><h2>기타 문의</h2><p>안전관리자 정보 확인 또는 문의사항을 남겨주세요.</p></div></div>
+      ${safetyContactCard()}
       <div class="formgrid"><label class="lbl"><span>문의 구분 *</span><select id="inqType"><option>앱 사용법</option><option>안전 관련 문의</option><option>기타</option></select></label><label class="lbl"><span>제목 *</span><input id="inqTitle" required placeholder="문의 제목"></label></div>
       <label class="lbl"><span>문의 내용 *</span><textarea id="inqBody" rows="5" required placeholder="궁금한 내용을 적어주세요"></textarea></label><button class="primary full" type="submit">문의 보내기</button></form>
       <section class="panel" style="margin-top:12px"><div class="section-head"><div><div class="ey">MY QUESTIONS</div><h2>내 문의 기록</h2><p>이 기기에서 등록한 문의를 확인합니다.</p></div></div><div class="field-inquiry-list">${mine.map(q=>`<div class="field-inquiry-card"><b>${esc(q.title)}</b><span>${esc(q.type)} · ${q.status==='answered'?'답변완료':'접수'}</span><p>${esc(q.body)}</p>${q.answer?`<div class="field-inquiry-answer"><b>본사 답변</b>${esc(q.answer)}</div>`:''}<small>${fmt(q.createdAt)}</small></div>`).join('')||'<div class="empty compact">등록한 문의가 없습니다.</div>'}</div></section>`;
@@ -77,14 +90,14 @@
       try{baseActions(root,u)}finally{actionAccessibleIncidents=original}
       const h=root.querySelector('.section-head h2'),p=root.querySelector('.section-head p');
       if(enlFieldTask==='hazard_improve'){if(h)h.textContent='위험요인 개선';if(p)p.textContent='보고했던 위험요인을 다치지 않도록 어떻게 개선했는지 등록해 주세요.';root.querySelectorAll('[data-unified-action]').forEach(b=>{if(b.textContent.includes('후속조치'))b.textContent=b.textContent.replaceAll('후속조치','개선조치')})}
-      else{if(h)h.textContent='사고 대책조치';if(p)p.textContent='발생한 사고를 선택하고 원인과 재발방지 조치 내용을 등록해 주세요.'}
+      else{if(h)h.textContent='사고 조치';if(p)p.textContent='발생한 사고를 선택하고 원인과 재발방지 조치 내용을 등록해 주세요.'}
       addBack(root,u);
     };
   }
 
   if(typeof renderUnifiedIncidents==='function'){
     const baseIncidents=renderUnifiedIncidents;
-    renderUnifiedIncidents=function(root,u){baseIncidents(root,u);if(isField(u)){const h=root.querySelector('.section-head h2'),p=root.querySelector('.section-head p');if(h)h.textContent='우리 현장 기록';if(p)p.textContent='우리 현장의 사고·아차사고·위험요인 기록을 한눈에 확인합니다.';addBack(root,u)}};
+    renderUnifiedIncidents=function(root,u){baseIncidents(root,u);if(isField(u)){const h=root.querySelector('.section-head h2'),p=root.querySelector('.section-head p');if(h)h.textContent='사고 기록';if(p)p.textContent='우리 현장의 사고와 조치 기록을 확인합니다.';addBack(root,u)}};
   }
 
   const baseCurrent=renderCurrentView;
@@ -108,5 +121,5 @@
   const baseLogin=doLogin;
   doLogin=async function(e){enlFieldTask='home';await baseLogin(e);const u=currentUser();if(isField(u))fieldHome(u)};
 
-  try{const u=currentUser();if(isField(u)){enlFieldTask='home';fieldHome(u)}}catch(e){console.warn('six field menu init skipped',e)}
+  try{const u=currentUser();if(isField(u)){enlFieldTask='home';fieldHome(u)}}catch(e){console.warn('field menu init skipped',e)}
 })();
