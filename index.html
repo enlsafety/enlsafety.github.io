@@ -7,79 +7,16 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <meta name="enl-build" content="3.7.8" />
   <title>이앤엘 사고보고앱</title>
   <script>
-    window.ENL_PAGE_BUILD='3.7.8';
     (function(){
-      const current=window.ENL_PAGE_BUILD;
-      const parts=v=>String(v||'0').split('.').map(x=>parseInt(x,10)||0);
-      const newer=(a,b)=>{const aa=parts(a),bb=parts(b),n=Math.max(aa.length,bb.length);for(let i=0;i<n;i++){const av=aa[i]||0,bv=bb[i]||0;if(av>bv)return true;if(av<bv)return false}return false};
-      const controller=typeof AbortController!=='undefined'?new AbortController():null;
-      const timer=controller?setTimeout(()=>controller.abort(),2500):null;
-      fetch(`version.json?boot=${Date.now()}&rnd=${Math.random().toString(36).slice(2)}`,{
-        cache:'no-store',
-        headers:{'Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'},
-        signal:controller?.signal
-      }).then(r=>r.ok?r.json():null).then(j=>{
-        const remote=String(j?.version||j?.build||'').trim();
-        if(!remote||!newer(remote,current))return;
-        const key='enl_bootstrap_refresh_'+remote;
-        const last=Number(sessionStorage.getItem(key)||0);
-        if(Date.now()-last<90000)return;
-        sessionStorage.setItem(key,String(Date.now()));
-        const u=new URL(location.href);
-        u.searchParams.set('appv',remote);
-        u.searchParams.set('_reload',String(Date.now()));
-        u.searchParams.set('_fresh','1');
-        u.searchParams.set('_cb',Math.random().toString(36).slice(2));
-        location.replace(u.toString());
-      }).catch(()=>{}).finally(()=>{if(timer)clearTimeout(timer)});
+      var target='stable.html?entry=root&_ts='+Date.now();
+      try{location.replace(target)}catch(e){location.href=target}
     })();
   </script>
-  <link rel="stylesheet" href="style.css?v=3.7.8" />
-  <link rel="stylesheet" href="v3.css?v=3.7.8" />
-  <link rel="stylesheet" href="platform.css?v=3.7.8" />
-  <link rel="stylesheet" href="inspection.css?v=3.7.8" />
-  <link rel="stylesheet" href="communication-v330.css?v=3.7.8" />
-  <link rel="stylesheet" href="field-readability-v331.css?v=3.7.8" />
-  <link rel="stylesheet" href="admin-console-v332.css?v=3.7.8" />
-  <link rel="stylesheet" href="field-home-v350.css?v=3.7.8" />
-  <link rel="stylesheet" href="field-menu-v360.css?v=3.7.8" />
-  <link rel="stylesheet" href="field-form-v362.css?v=3.7.8" />
-  <link rel="stylesheet" href="field-report-v370.css?v=3.7.8" />
-  <link rel="stylesheet" href="field-ux-v374.css?v=3.7.8" />
-  <link rel="stylesheet" href="accident-app-v375.css?v=3.7.8" />
-  <link rel="stylesheet" href="accident-app-v376.css?v=3.7.8" />
-  <link rel="stylesheet" href="accident-app-v377.css?v=3.7.8" />
+  <style>body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;background:#f3f6fa;color:#173b66}.box{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}.card{background:#fff;padding:26px 22px;border-radius:18px;text-align:center;box-shadow:0 10px 30px rgba(23,59,102,.1)}a{display:inline-block;margin-top:16px;padding:12px 18px;border-radius:10px;background:#173b66;color:#fff;text-decoration:none;font-weight:800}</style>
 </head>
 <body>
-  <div id="app"></div>
-  <input id="incidentPhotoInput" type="file" accept="image/*" multiple hidden />
-  <input id="actionPhotoInput" type="file" accept="image/*" multiple hidden />
-  <input id="inspectionPhotoInput" type="file" accept="image/*" multiple hidden />
-  <input id="inspectionActionPhotoInput" type="file" accept="image/*" multiple hidden />
-  <script src="core.js?v=3.7.8"></script>
-  <script src="incidents.js?v=3.7.8"></script>
-  <script src="admin.js?v=3.7.8"></script>
-  <script src="account-admin-v21.js?v=3.7.8"></script>
-  <script src="v3-shell.js?v=3.7.8"></script>
-  <script src="v3-fix.js?v=3.7.8"></script>
-  <script src="v3-actions.js?v=3.7.8"></script>
-  <script src="inspection-module.js?v=3.7.8"></script>
-  <script src="app-control-v378.js?v=3.7.8"></script>
-  <script src="platform-shell-v320.js?v=3.7.8"></script>
-  <script src="communication-v330.js?v=3.7.8"></script>
-  <script src="communication-v331.js?v=3.7.8"></script>
-  <script src="admin-console-v332.js?v=3.7.8"></script>
-  <script src="site-accounts-v340.js?v=3.7.8"></script>
-  <script src="test-88cc-v341.js?v=3.7.8"></script>
-  <script src="field-home-v350.js?v=3.7.8"></script>
-  <script src="field-menu-v360.js?v=3.7.8"></script>
-  <script src="field-report-v370.js?v=3.7.8"></script>
-  <script src="field-ux-v374.js?v=3.7.8"></script>
-  <script src="accident-app-v375.js?v=3.7.8"></script>
-  <script src="accident-app-v376.js?v=3.7.8"></script>
-  <script src="incident-sync-v376.js?v=3.7.8"></script>
+  <div class="box"><div class="card"><b>이앤엘 사고보고앱</b><div>안정화 화면으로 이동 중입니다.</div><a href="stable.html">바로 열기</a></div></div>
 </body>
 </html>
