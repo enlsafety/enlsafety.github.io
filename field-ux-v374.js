@@ -1,33 +1,23 @@
-/* E&L Safety v3.7.4 - stable field UX refinements */
+/* E&L Safety field UX - consolidated stable hooks */
 (function(){
   const MIN_PHOTOS=3;
-
-  function safetyManagers(){
-    try{return (data.users||[]).filter(x=>x&&x.role==='safety'&&x.active!==false)}catch(e){return []}
-  }
-  function contactText(u){
-    const phone=u?.phone||u?.mobile||u?.tel||u?.contact||'';
-    const email=u?.email||'';
-    return [phone,email].filter(Boolean).join(' · ');
-  }
 
   function patchFieldHome(){
     const home=document.querySelector('.field-six-home .field-six-grid');
     if(!home)return;
     const wanted=['accident_report','accident_action','records','inquiry'];
     const labels={
-      accident_report:['01','사고 보고','인사사고, 대물사고, 아차사고를 보고합니다.'],
-      accident_action:['02','사고 대책조치','사고 발생 후 원인과 재발방지 조치를 등록합니다.'],
-      records:['03','우리 현장 기록','우리 현장의 사고와 조치 기록을 확인합니다.'],
-      inquiry:['04','기타 문의','안전관리자 정보 확인 및 안전 관련 문의를 남깁니다.']
+      accident_report:['01','사고 보고','사고 발생 내용을 사진과 함께 보고'],
+      accident_action:['02','사고 조치','사고 후 원인과 조치 내용을 등록하고 확인'],
+      records:['03','사고 기록','우리 현장의 사고와 조치 기록을 확인'],
+      inquiry:['04','기타 문의','안전관리자 정보 확인 및 문의']
     };
     [...home.querySelectorAll('[data-field-task]')].forEach(btn=>{
       if(!wanted.includes(btn.dataset.fieldTask))btn.remove();
     });
-    const current=[...home.querySelectorAll('[data-field-task]')].map(x=>x.dataset.fieldTask);
-    if(current.join('|')!==wanted.join('|')){
-      wanted.forEach(key=>{const btn=home.querySelector(`[data-field-task="${key}"]`);if(btn)home.appendChild(btn)});
-    }
+    wanted.forEach(key=>{
+      const btn=home.querySelector(`[data-field-task="${key}"]`);if(btn)home.appendChild(btn);
+    });
     wanted.forEach(key=>{
       const btn=home.querySelector(`[data-field-task="${key}"]`);if(!btn)return;
       const [no,title,desc]=labels[key];
@@ -40,17 +30,28 @@
 
   function patchInquirySafetyInfo(){
     const form=document.getElementById('fieldInquiryForm');
-    if(!form||document.getElementById('fieldSafetyContact'))return;
-    const managers=safetyManagers();
-    const box=document.createElement('section');
-    box.id='fieldSafetyContact';box.className='field-safety-contact';
-    box.innerHTML=`<div class="field-safety-contact-head"><span>안전관리자 정보</span><small>문의 전 담당자를 확인해 주세요.</small></div>
-      <div class="field-safety-contact-list">${managers.length?managers.map(m=>{
-        const contact=contactText(m);
-        return `<div class="field-safety-person"><div><b>${esc(m.name||'안전관리자')}</b><span>${esc(m.position||'안전관리자')}</span></div>${contact?`<strong>${esc(contact)}</strong>`:'<strong class="muted">연락처 정보 미등록</strong>'}</div>`;
-      }).join(''):'<div class="field-safety-person"><div><b>안전관리자</b><span>담당자 정보 확인 필요</span></div><strong class="muted">등록된 안전관리자 계정이 없습니다.</strong></div>'}</div>`;
-    const head=form.querySelector('.section-head');
-    if(head)head.insertAdjacentElement('afterend',box);else form.insertAdjacentElement('afterbegin',box);
+    if(!form)return;
+    let box=document.getElementById('fieldSafetyContact');
+    if(!box){
+      box=document.createElement('section');
+      box.id='fieldSafetyContact';
+      const head=form.querySelector('.section-head');
+      if(head)head.insertAdjacentElement('afterend',box);else form.insertAdjacentElement('afterbegin',box);
+    }
+    box.className='field-safety-contact business-card-contact';
+    if(box.dataset.contactReady==='1')return;
+    box.dataset.contactReady='1';
+    box.innerHTML=`
+      <div class="business-card-head"><span>안전관리자 정보</span><small>사고·안전 관련 문의는 아래 담당자에게 연락해 주세요.</small></div>
+      <div class="business-card-body">
+        <div class="business-card-name"><b>박태영</b><span>과장 · 경영관리부</span></div>
+        <div class="business-card-line"><span>회사</span><strong>(주)이앤엘</strong></div>
+        <div class="business-card-line"><span>전화</span><a href="tel:07086778554">070-8677-8554</a></div>
+        <div class="business-card-line"><span>휴대폰</span><a href="tel:01055668580">010-5566-8580</a></div>
+        <div class="business-card-line"><span>이메일</span><a href="mailto:hanarin0130@enlife.co.kr">hanarin0130@enlife.co.kr</a></div>
+        <div class="business-card-line address"><span>주소</span><strong>경기도 화성시 동탄순환대로823 702호<br>(영천동, 에이팩시티)</strong></div>
+        <div class="business-card-line"><span>홈페이지</span><a href="https://enlife.co.kr" target="_blank" rel="noopener">enlife.co.kr</a></div>
+      </div>`;
   }
 
   function photoCount(kind){
@@ -123,12 +124,6 @@
     renderShell=function(u){const r=base(u);setTimeout(patchAll,0);return r};
   }
 
-  let observer;
-  const observe=()=>observer.observe(document.documentElement,{subtree:true,childList:true});
-  observer=new MutationObserver(()=>{
-    observer.disconnect();
-    try{patchAll()}finally{observe()}
-  });
-  observe();
+  /* No MutationObserver here: repeated DOM observers caused a mobile render loop. */
   setTimeout(patchAll,0);
 })();
