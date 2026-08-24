@@ -13,7 +13,7 @@
   <style>
     .stable-boot{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;background:#f3f6fa;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;color:#173b66}
     .stable-boot-card{width:min(360px,100%);padding:26px 22px;border-radius:18px;background:#fff;box-shadow:0 10px 30px rgba(23,59,102,.10);text-align:center}
-    .stable-boot-card b{display:block;font-size:21px;margin-bottom:8px}.stable-boot-card span{font-size:14px;color:#6a7b8d}
+    .stable-boot-card b{display:block;font-size:21px;margin-bottom:8px}.stable-boot-card span{font-size:14px;color:#6a7b8d}.stable-retry{margin-top:16px;padding:12px 18px;border:0;border-radius:10px;background:#173b66;color:#fff;font-weight:800}
   </style>
   <link rel="stylesheet" href="style.css?v=3.8.0" />
   <link rel="stylesheet" href="v3.css?v=3.8.0" />
@@ -67,7 +67,11 @@
         if(typeof renderLogin==='function')renderLogin();
       }catch(e){
         var app=document.getElementById('app');
-        if(app)app.innerHTML='<div class="stable-boot"><div class="stable-boot-card"><b>앱을 다시 열어주세요</b><span>초기화 중 오류가 발생했습니다.</span><br><br><button onclick="location.href=\'stable.html?_recover='+Date.now()+'\'" style="padding:12px 18px;border:0;border-radius:10px;background:#173b66;color:#fff;font-weight:800">다시 시도</button></div></div>';
+        if(app){
+          app.innerHTML='<div class="stable-boot"><div class="stable-boot-card"><b>앱을 다시 열어주세요</b><span>초기화 중 오류가 발생했습니다.</span><br><button id="stableRetryBtn" class="stable-retry" type="button">다시 시도</button></div></div>';
+          var retry=document.getElementById('stableRetryBtn');
+          if(retry)retry.onclick=function(){location.reload()};
+        }
       }
     },1800);
   </script>
