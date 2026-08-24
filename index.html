@@ -7,18 +7,44 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
+  <meta name="enl-build" content="3.7.1" />
   <title>이앤엘 안전소통</title>
-  <link rel="stylesheet" href="style.css?v=3.7.0" />
-  <link rel="stylesheet" href="v3.css?v=3.7.0" />
-  <link rel="stylesheet" href="platform.css?v=3.7.0" />
-  <link rel="stylesheet" href="inspection.css?v=3.7.0" />
-  <link rel="stylesheet" href="communication-v330.css?v=3.7.0" />
-  <link rel="stylesheet" href="field-readability-v331.css?v=3.7.0" />
-  <link rel="stylesheet" href="admin-console-v332.css?v=3.7.0" />
-  <link rel="stylesheet" href="field-home-v350.css?v=3.7.0" />
-  <link rel="stylesheet" href="field-menu-v360.css?v=3.7.0" />
-  <link rel="stylesheet" href="field-form-v362.css?v=3.7.0" />
-  <link rel="stylesheet" href="field-report-v370.css?v=3.7.0" />
+  <script>
+    /* Lightweight bootstrap: even an older cached page checks version.json and moves to the newest build. */
+    window.ENL_PAGE_BUILD='3.7.1';
+    (function(){
+      const current=window.ENL_PAGE_BUILD;
+      const parts=v=>String(v||'0').split('.').map(x=>parseInt(x,10)||0);
+      const newer=(a,b)=>{const aa=parts(a),bb=parts(b),n=Math.max(aa.length,bb.length);for(let i=0;i<n;i++){const av=aa[i]||0,bv=bb[i]||0;if(av>bv)return true;if(av<bv)return false}return false};
+      fetch(`version.json?boot=${Date.now()}&rnd=${Math.random().toString(36).slice(2)}`,{cache:'no-store',headers:{'Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'}})
+        .then(r=>r.ok?r.json():null)
+        .then(j=>{
+          const remote=String(j?.version||j?.build||'').trim();
+          if(!remote||!newer(remote,current))return;
+          const key='enl_bootstrap_refresh_'+remote;
+          const last=Number(sessionStorage.getItem(key)||0);
+          if(Date.now()-last<90000)return;
+          sessionStorage.setItem(key,String(Date.now()));
+          const u=new URL(location.href);
+          u.searchParams.set('appv',remote);
+          u.searchParams.set('_reload',String(Date.now()));
+          u.searchParams.set('_fresh','1');
+          u.searchParams.set('_cb',Math.random().toString(36).slice(2));
+          location.replace(u.toString());
+        }).catch(()=>{});
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css?v=3.7.1" />
+  <link rel="stylesheet" href="v3.css?v=3.7.1" />
+  <link rel="stylesheet" href="platform.css?v=3.7.1" />
+  <link rel="stylesheet" href="inspection.css?v=3.7.1" />
+  <link rel="stylesheet" href="communication-v330.css?v=3.7.1" />
+  <link rel="stylesheet" href="field-readability-v331.css?v=3.7.1" />
+  <link rel="stylesheet" href="admin-console-v332.css?v=3.7.1" />
+  <link rel="stylesheet" href="field-home-v350.css?v=3.7.1" />
+  <link rel="stylesheet" href="field-menu-v360.css?v=3.7.1" />
+  <link rel="stylesheet" href="field-form-v362.css?v=3.7.1" />
+  <link rel="stylesheet" href="field-report-v370.css?v=3.7.1" />
 </head>
 <body>
   <div id="app"></div>
@@ -26,24 +52,24 @@
   <input id="actionPhotoInput" type="file" accept="image/*" multiple hidden />
   <input id="inspectionPhotoInput" type="file" accept="image/*" multiple hidden />
   <input id="inspectionActionPhotoInput" type="file" accept="image/*" multiple hidden />
-  <script src="core.js?v=3.7.0"></script>
-  <script src="incidents.js?v=3.7.0"></script>
-  <script src="admin.js?v=3.7.0"></script>
-  <script src="account-admin-v21.js?v=3.7.0"></script>
-  <script src="v3-shell.js?v=3.7.0"></script>
-  <script src="v3-fix.js?v=3.7.0"></script>
-  <script src="v3-actions.js?v=3.7.0"></script>
-  <script src="inspection-module.js?v=3.7.0"></script>
-  <script src="app-control-v330.js?v=3.7.0"></script>
-  <script src="platform-shell-v320.js?v=3.7.0"></script>
-  <script src="communication-v330.js?v=3.7.0"></script>
-  <script src="communication-v331.js?v=3.7.0"></script>
-  <script src="admin-console-v332.js?v=3.7.0"></script>
-  <script src="site-accounts-v340.js?v=3.7.0"></script>
-  <script src="test-88cc-v341.js?v=3.7.0"></script>
-  <script src="field-home-v350.js?v=3.7.0"></script>
-  <script src="field-menu-v360.js?v=3.7.0"></script>
-  <script src="field-report-v370.js?v=3.7.0"></script>
-  <script src="refresh-policy.js?v=3.7.0"></script>
+  <script src="core.js?v=3.7.1"></script>
+  <script src="incidents.js?v=3.7.1"></script>
+  <script src="admin.js?v=3.7.1"></script>
+  <script src="account-admin-v21.js?v=3.7.1"></script>
+  <script src="v3-shell.js?v=3.7.1"></script>
+  <script src="v3-fix.js?v=3.7.1"></script>
+  <script src="v3-actions.js?v=3.7.1"></script>
+  <script src="inspection-module.js?v=3.7.1"></script>
+  <script src="app-control-v330.js?v=3.7.1"></script>
+  <script src="platform-shell-v320.js?v=3.7.1"></script>
+  <script src="communication-v330.js?v=3.7.1"></script>
+  <script src="communication-v331.js?v=3.7.1"></script>
+  <script src="admin-console-v332.js?v=3.7.1"></script>
+  <script src="site-accounts-v340.js?v=3.7.1"></script>
+  <script src="test-88cc-v341.js?v=3.7.1"></script>
+  <script src="field-home-v350.js?v=3.7.1"></script>
+  <script src="field-menu-v360.js?v=3.7.1"></script>
+  <script src="field-report-v370.js?v=3.7.1"></script>
+  <script src="refresh-policy.js?v=3.7.1"></script>
 </body>
 </html>
