@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#173b66" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <meta name="enl-build" content="3.8.1" />
+  <title>이앤엘 사고보고앱</title>
+  <script>window.ENL_DEPLOY_VERSION='3.8.1';window.ENL_STABLE_MODE=true;</script>
+  <style>
+    .stable-boot{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;background:#f3f6fa;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;color:#173b66}
+    .stable-boot-card{width:min(360px,100%);padding:26px 22px;border-radius:18px;background:#fff;box-shadow:0 10px 30px rgba(23,59,102,.10);text-align:center}
+    .stable-boot-card b{display:block;font-size:21px;margin-bottom:8px}.stable-boot-card span{font-size:14px;color:#6a7b8d}.stable-retry{margin-top:16px;padding:12px 18px;border:0;border-radius:10px;background:#173b66;color:#fff;font-weight:800}
+  </style>
+  <link rel="stylesheet" href="style.css?v=3.8.1" />
+  <link rel="stylesheet" href="v3.css?v=3.8.1" />
+  <link rel="stylesheet" href="platform.css?v=3.8.1" />
+  <link rel="stylesheet" href="inspection.css?v=3.8.1" />
+  <link rel="stylesheet" href="communication-v330.css?v=3.8.1" />
+  <link rel="stylesheet" href="field-readability-v331.css?v=3.8.1" />
+  <link rel="stylesheet" href="admin-console-v332.css?v=3.8.1" />
+  <link rel="stylesheet" href="field-home-v350.css?v=3.8.1" />
+  <link rel="stylesheet" href="field-menu-v360.css?v=3.8.1" />
+  <link rel="stylesheet" href="field-form-v362.css?v=3.8.1" />
+  <link rel="stylesheet" href="field-report-v370.css?v=3.8.1" />
+  <link rel="stylesheet" href="field-ux-v374.css?v=3.8.1" />
+  <link rel="stylesheet" href="accident-app-v375.css?v=3.8.1" />
+  <link rel="stylesheet" href="accident-app-v376.css?v=3.8.1" />
+  <link rel="stylesheet" href="accident-app-v377.css?v=3.8.1" />
+</head>
+<body>
+  <div id="app"><div class="stable-boot"><div class="stable-boot-card"><b>이앤엘 사고보고앱</b><span>로그인 화면을 준비하고 있습니다.</span></div></div></div>
+  <input id="incidentPhotoInput" type="file" accept="image/*" multiple hidden />
+  <input id="actionPhotoInput" type="file" accept="image/*" multiple hidden />
+  <input id="inspectionPhotoInput" type="file" accept="image/*" multiple hidden />
+  <input id="inspectionActionPhotoInput" type="file" accept="image/*" multiple hidden />
+
+  <script src="core.js?v=3.8.1"></script>
+  <script src="incidents.js?v=3.8.1"></script>
+  <script src="admin.js?v=3.8.1"></script>
+  <script src="account-admin-v21.js?v=3.8.1"></script>
+  <script src="v3-shell.js?v=3.8.1"></script>
+  <script src="v3-fix.js?v=3.8.1"></script>
+  <script src="v3-actions.js?v=3.8.1"></script>
+  <script src="inspection-module.js?v=3.8.1"></script>
+  <script src="platform-shell-v320.js?v=3.8.1"></script>
+  <script src="communication-v330.js?v=3.8.1"></script>
+  <script src="communication-v331.js?v=3.8.1"></script>
+  <script src="admin-console-v332.js?v=3.8.1"></script>
+  <script src="site-accounts-v340.js?v=3.8.1"></script>
+  <script src="test-88cc-v341.js?v=3.8.1"></script>
+  <script src="field-home-v350.js?v=3.8.1"></script>
+  <script src="field-menu-v360.js?v=3.8.1"></script>
+  <script src="field-report-v370.js?v=3.8.1"></script>
+  <script src="field-ux-v374.js?v=3.8.1"></script>
+  <script src="accident-app-v375.js?v=3.8.1"></script>
+  <script src="event-type-safe-v380.js?v=3.8.1"></script>
+  <script src="incident-sync-v380.js?v=3.8.1"></script>
+  <script src="app-control-v381.js?v=3.8.1"></script>
+  <script>
+    setTimeout(function(){
+      if(document.querySelector('.login-card,.app-shell'))return;
+      try{if(typeof renderLogin==='function')renderLogin()}catch(e){
+        var app=document.getElementById('app');
+        if(app){
+          app.innerHTML='<div class="stable-boot"><div class="stable-boot-card"><b>앱을 다시 열어주세요</b><span>초기화 중 오류가 발생했습니다.</span><br><button id="stableRetryBtn" class="stable-retry" type="button">다시 시도</button></div></div>';
+          var retry=document.getElementById('stableRetryBtn');if(retry)retry.onclick=function(){location.reload()};
+        }
+      }
+    },1800);
+  </script>
+</body>
+</html>
