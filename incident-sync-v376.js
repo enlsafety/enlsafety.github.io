@@ -6,6 +6,7 @@
   let syncing=false;
   let pending=false;
   let lastIds=new Set((data.incidents||[]).map(x=>x.id));
+  let lastInitialUser='';
   const baseSaveData=saveData;
 
   function userScope(){
@@ -75,13 +76,32 @@
     setTimeout(()=>syncNow(deleted),0);
   };
 
-  async function initial(){
-    if(!currentUser())return;
+  async function initial(force=false){
+    const u=currentUser();if(!u)return;
+    if(!force&&lastInitialUser===u.id)return;
+    lastInitialUser=u.id;
     try{await push([]);await pull(true)}catch(e){console.warn('initial incident sync skipped',e)}
   }
+
+  try{
+    const baseDoLogin=doLogin;
+    doLogin=async function(e){
+      const r=await baseDoLogin(e);
+      setTimeout(()=>initial(true),120);
+      return r;
+    };
+  }catch(e){console.warn('sync login hook skipped',e)}
+
+  const baseRenderShell=renderShell;
+  renderShell=function(u){
+    const r=baseRenderShell(u);
+    if(u&&lastInitialUser!==u.id)setTimeout(()=>initial(true),80);
+    return r;
+  };
+
   window.enlIncidentSyncNow=()=>syncNow([]);
-  setTimeout(initial,250);
+  setTimeout(()=>initial(true),250);
   setInterval(()=>{const u=currentUser();if(u&&u.role!=='field')pull(true).catch(()=>{})},8000);
-  window.addEventListener('online',()=>initial());
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')initial()});
+  window.addEventListener('online',()=>initial(true));
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')initial(true)});
 })();
