@@ -1,9 +1,9 @@
-/* E&L Accident Report App v3.7.6 - mobile field menu + no accident type popup */
+/* E&L Accident Report App v3.7.8 - mobile field menu + no accident type popup */
 (function(){
   const DESCS={
     accident_report:'사고 발생 내용을\n사진과 함께 보고',
-    accident_action:'원인·재발방지 조치를\n등록하고 확인',
-    records:'우리 현장 사고·조치\n기록 확인',
+    accident_action:'사고 후 원인과 조치 내용을\n등록하고 확인',
+    records:'우리 현장의 사고와 조치\n기록을 확인',
     inquiry:'안전관리자 정보 확인\n및 문의'
   };
   function patchFieldTiles(){
@@ -12,9 +12,9 @@
     grid.querySelectorAll('[data-field-task]').forEach(btn=>{
       const desc=DESCS[btn.dataset.fieldTask];
       if(!desc)return;
-      btn.dataset.mobileDesc=desc;
+      if(btn.dataset.mobileDesc!==desc)btn.dataset.mobileDesc=desc;
       const small=btn.querySelector('small');
-      if(small)small.dataset.mobileDesc=desc;
+      if(small&&small.dataset.mobileDesc!==desc)small.dataset.mobileDesc=desc;
     });
   }
   function patchEventTypeButtons(){
@@ -37,7 +37,6 @@
   function patchAll(){patchFieldTiles();patchEventTypeButtons()}
   const baseShell=renderShell;
   renderShell=function(u){const r=baseShell(u);setTimeout(patchAll,0);return r};
-  const observer=new MutationObserver(()=>patchAll());
-  observer.observe(document.documentElement,{subtree:true,childList:true});
+  /* No global MutationObserver: avoid mobile DOM feedback loops. */
   setTimeout(patchAll,0);
 })();
