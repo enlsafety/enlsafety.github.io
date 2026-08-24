@@ -1,0 +1,76 @@
+/* E&L Safety v3.7.4 - field UX refinements */
+
+/* 사고일자 날짜/시간 글씨 중앙 정렬 */
+.field-simple-mode #unifiedReportForm .occurred-split input{
+  position:relative!important;
+  text-align:center!important;
+  text-align-last:center!important;
+  padding-left:4px!important;
+  padding-right:4px!important;
+}
+.field-simple-mode #unifiedReportForm .occurred-split input::-webkit-date-and-time-value{
+  width:100%!important;
+  text-align:center!important;
+}
+.field-simple-mode #unifiedReportForm .occurred-split input::-webkit-datetime-edit{
+  width:100%!important;
+  text-align:center!important;
+  padding:0!important;
+}
+.field-simple-mode #unifiedReportForm .occurred-split input::-webkit-datetime-edit-fields-wrapper{
+  width:100%!important;
+  display:flex!important;
+  justify-content:center!important;
+  align-items:center!important;
+}
+.field-simple-mode #unifiedReportForm .occurred-split input::-webkit-calendar-picker-indicator{
+  position:absolute!important;
+  right:7px!important;
+  top:50%!important;
+  transform:translateY(-50%)!important;
+  margin:0!important;
+}
+
+/* 기타문의 - 안전관리자 안내 */
+.field-safety-contact{margin:0 0 16px;padding:14px;border:2px solid #c9d9ea;border-radius:14px;background:#f4f8fd}
+.field-safety-contact-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px}
+.field-safety-contact-head span{font-size:17px;font-weight:900;color:#173b66}
+.field-safety-contact-head small{font-size:12px;color:#718096}
+.field-safety-contact-list{display:grid;gap:8px}
+.field-safety-person{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 12px;background:#fff;border:1px solid #dce5ef;border-radius:11px}
+.field-safety-person b{display:block;font-size:16px;color:#243c56}
+.field-safety-person span{display:block;margin-top:3px;font-size:12px;color:#758396}
+.field-safety-person strong{font-size:13px;color:#173b66;text-align:right;word-break:break-all}
+.field-safety-person strong.muted{color:#8a96a5;font-weight:700}
+
+/* 후속조치 팝업: 세로 스크롤만 허용 */
+.modal-bg{overflow:hidden!important;overscroll-behavior:none!important}
+.modal.action-modal-lock{
+  width:min(650px,calc(100vw - 24px))!important;
+  max-width:calc(100vw - 24px)!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+  overscroll-behavior-y:contain!important;
+  overscroll-behavior-x:none!important;
+  touch-action:pan-y!important;
+  -webkit-overflow-scrolling:touch;
+}
+.modal.action-modal-lock form,.modal.action-modal-lock .formgrid,.modal.action-modal-lock .lbl{min-width:0!important;max-width:100%!important}
+.modal.action-modal-lock input,.modal.action-modal-lock select,.modal.action-modal-lock textarea{max-width:100%!important;min-width:0!important;box-sizing:border-box!important}
+
+/* 완료 목표일 폭 통일 */
+#uDueDate,#dueDate{display:block!important;width:100%!important;min-width:0!important;max-width:100%!important;box-sizing:border-box!important}
+.modal.action-modal-lock .formgrid>label{min-width:0!important}
+
+/* 사고보고/후속조치 사진 최소 3장 */
+.photo-box.photo-min-three{border:2px dashed #7896b6!important;background:#f4f9ff!important}
+.photo-min-guide{margin-top:8px;padding:10px 12px;border-radius:10px;background:#fff4df;color:#80530f;font-size:14px;line-height:1.5;font-weight:900;word-break:keep-all}
+.photo-min-guide.ready{background:#eaf7f1;color:#176a4e}
+.photo-box.photo-min-error{border-color:#c93f3f!important;background:#fff3f3!important;box-shadow:0 0 0 4px rgba(201,63,63,.12)!important}
+
+@media(max-width:560px){
+  .field-safety-contact-head{align-items:flex-start;flex-direction:column;gap:4px}
+  .field-safety-person{align-items:flex-start;flex-direction:column;gap:7px}
+  .field-safety-person strong{text-align:left}
+  .modal.action-modal-lock{width:calc(100vw - 16px)!important;max-width:calc(100vw - 16px)!important;padding:15px!important}
+}
