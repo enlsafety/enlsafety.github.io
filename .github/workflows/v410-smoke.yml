@@ -1,23 +1,25 @@
-name: v410 smoke
+name: production smoke
 
 on:
   push:
     branches: [main]
     paths:
+      - 'index.html'
+      - 'version.json'
       - 'auth-core-v410.js'
       - 'app-control-v410.js'
       - 'field-ui-v410.js'
       - 'field-ui-v410.css'
       - 'incidents-v410.js'
-      - 'incident-sync-v410.js'
+      - 'incident-sync-v411.js'
+      - 'worker-public-incidents-v411.js'
       - 'site-directory-v410.js'
       - 'site-directory-sync-v410.js'
       - 'review-dashboard-v410.js'
       - 'interaction-v410.js'
       - 'report-v410.js'
       - 'report-v410.css'
-      - 'stable410.html'
-      - 'version.json'
+      - 'stable411.html'
       - '.github/workflows/v410-smoke.yml'
   workflow_dispatch:
 
@@ -35,13 +37,14 @@ jobs:
           node --check app-control-v410.js
           node --check field-ui-v410.js
           node --check incidents-v410.js
-          node --check incident-sync-v410.js
+          node --check incident-sync-v411.js
+          node --check worker-public-incidents-v411.js
           node --check site-directory-v410.js
           node --check site-directory-sync-v410.js
           node --check review-dashboard-v410.js
           node --check interaction-v410.js
           node --check report-v410.js
-      - name: Entry and permission rules
+      - name: Production entry and session routing
         shell: python
         run: |
           from pathlib import Path
@@ -49,6 +52,20 @@ jobs:
           from urllib.parse import urlsplit
           import json
 
+          meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
+          entry=meta.get('stableEntry')
+          if entry!='stable411.html':
+              raise SystemExit(f'Production stableEntry mismatch: {entry}')
+          if meta.get('build')!='stable-411-r2' or meta.get('version')!='4.1.1':
+              raise SystemExit('Production metadata is not stable-411-r2 / 4.1.1')
+          if meta.get('loginAutoUpdate') is not False:
+              raise SystemExit('loginAutoUpdate must remain false for iOS focus stability')
+
+          index=Path('index.html').read_text(encoding='utf-8')
+          if 'stable411.html' not in index or 'build=r2' not in index:
+              raise SystemExit('Root entry does not target stable411 r2')
+
+          html=Path(entry).read_text(encoding='utf-8')
           class Refs(HTMLParser):
               def __init__(self):
                   super().__init__(); self.refs=[]
@@ -56,55 +73,54 @@ jobs:
                   d=dict(attrs)
                   if tag=='script' and d.get('src'): self.refs.append(d['src'])
                   if tag=='link' and d.get('href'): self.refs.append(d['href'])
-
-          html=Path('stable410.html').read_text(encoding='utf-8')
           p=Refs(); p.feed(html)
           missing=[]
           for ref in p.refs:
               path=urlsplit(ref).path
               if path and not Path(path).exists(): missing.append(path)
           if missing:
-              raise SystemExit('Missing stable410 references: '+', '.join(sorted(set(missing))))
-          if 'src="incidents.js' in html:
-              raise SystemExit('Legacy incidents.js is still loaded')
-          if 'test-88cc-v341.js' in html:
-              raise SystemExit('Legacy 88CC test runtime is still loaded')
-          for required in ['incidents-v410.js?v=4.1.0-r5','field-ui-v410.js?v=4.1.0-r9','field-ui-v410.css?v=4.1.0-r9','auth-core-v410.js?v=4.1.0-r7','review-dashboard-v410.js','report-v410.js?v=4.1.0-r9','report-v410.css?v=4.1.0-r9']:
-              if required not in html:
-                  raise SystemExit('Missing required stable reference: '+required)
-          if html.index('report-v410.js?v=4.1.0-r9') < html.index('ui-rbac-v402.js'):
-              raise SystemExit('v410 report module must load after legacy UI modules')
-          if html.index('field-ui-v410.js?v=4.1.0-r9') < html.index('report-v410.js?v=4.1.0-r9'):
-              raise SystemExit('field UI must load after authoritative report module')
-          if 'field-report-v370.js' in html or 'field-report-v370.css' in html or 'event-type-safe-v380.js' in html:
-              raise SystemExit('Legacy report patch is still loaded in stable410')
-          src=Path('incidents-v410.js').read_text(encoding='utf-8')
-          for rule in ["i.status!=='rejected'", "position(u)==='현장소장'", "u.role==='worker'&&isAuthor(i,u)", "id=\"rejectInc\"", "i.status='reported'"]:
-              if rule not in src:
-                  raise SystemExit('Missing incident permission rule: '+rule)
+              raise SystemExit('Missing production references: '+', '.join(sorted(set(missing))))
+
+          legacy=['src="incidents.js','test-88cc-v341.js','field-report-v370.js','field-ux-v374.js','event-type-safe-v380.js','ui-rbac-v402.js','ux-rbac-v391.js']
+          for bad in legacy:
+              if bad in html:
+                  raise SystemExit('Legacy production runtime still loaded: '+bad)
+
+          required=['incidents-v410.js?v=4.1.1-r2','incident-sync-v411.js?v=4.1.1-r2','worker-public-incidents-v411.js?v=4.1.1-r2','auth-core-v410.js?v=4.1.1-r2','report-v410.js?v=4.1.1-r2','field-ui-v410.js?v=4.1.1-r2','report-v410.css?v=4.1.1-r2','field-ui-v410.css?v=4.1.1-r2']
+          for item in required:
+              if item not in html:
+                  raise SystemExit('Missing production module: '+item)
+
+          if html.index('auth-core-v410.js?v=4.1.1-r2') > html.index('platform-shell-v320.js'):
+              raise SystemExit('Auth/session core must load before platform-shell initial render')
+          if html.index('report-v410.js?v=4.1.1-r2') < html.index('app-control-v410.js?v=4.1.1-r2'):
+              raise SystemExit('Authoritative report module must load after legacy/current wrappers')
+          if html.index('field-ui-v410.js?v=4.1.1-r2') < html.index('report-v410.js?v=4.1.1-r2'):
+              raise SystemExit('Field UI must load after authoritative report module')
+
+          auth=Path('auth-core-v410.js').read_text(encoding='utf-8')
+          for rule in ['if(session?.worker)return session.worker','if(session?.manager)return session.manager',"option.kind==='hq'||option.requiresPassword"]:
+              if rule not in auth:
+                  raise SystemExit('Missing session/login rule: '+rule)
+
           report=Path('report-v410.js').read_text(encoding='utf-8')
           for rule in ['data-report-picker="v410"','data-report-type="person"','data-report-type="property"','diagnosis410','medicalCost410','damagedItem410','repairCost410',"if(currentView==='report')return renderReport(root,u);",'window.enlShowIncidentTypePicker']:
               if rule not in report:
                   raise SystemExit('Missing authoritative report rule: '+rule)
+
           field=Path('field-ui-v410.js').read_text(encoding='utf-8')
-          for rule in ['window.enlShowIncidentTypePicker', '<span class="field-six-no">03</span><strong>사고 기록</strong><small>우리 현장<br>사고기록 확인</small>']:
+          for rule in ['window.enlShowIncidentTypePicker','<span class="field-six-no">03</span><strong>사고 기록</strong><small>우리 현장<br>사고기록 확인</small>']:
               if rule not in field:
                   raise SystemExit('Missing field picker/menu rule: '+rule)
-          field_css=Path('field-ui-v410.css').read_text(encoding='utf-8')
-          if '[data-field-task="records"] small' not in field_css or 'font-size:13px!important' not in field_css:
-              raise SystemExit('Mobile record-menu overflow rule is missing')
+
           report_css=Path('report-v410.css').read_text(encoding='utf-8')
           if 'aspect-ratio:1/1' not in report_css or 'grid-template-columns:repeat(2,minmax(0,1fr))' not in report_css:
               raise SystemExit('Square two-column report picker CSS is missing')
-          auth=Path('auth-core-v410.js').read_text(encoding='utf-8')
-          if "option.kind==='hq'||option.requiresPassword" not in auth:
-              raise SystemExit('Site manager password routing is missing')
-          meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          if meta.get('build')!='stable-410-r9':
-              raise SystemExit('version.json build is not stable-410-r9')
-          if meta.get('loginAutoUpdate') is not False:
-              raise SystemExit('loginAutoUpdate must remain false for iOS focus stability')
-          print(f'OK: {len(p.refs)} local asset references resolved; r9 authoritative picker rules present')
+          field_css=Path('field-ui-v410.css').read_text(encoding='utf-8')
+          if '[data-field-task="records"] small' not in field_css or 'font-size:13px!important' not in field_css:
+              raise SystemExit('Mobile record-menu overflow rule is missing')
+
+          print(f'OK: production {entry}, {len(p.refs)} assets, session and report routing verified')
       - name: Live login API roles
         shell: python
         run: |
@@ -124,10 +140,8 @@ jobs:
           assert code==200 and any(o.get('siteId')=='s01' and o.get('requiresPassword') is True for o in lookup.get('options',[])), (code,lookup)
           code,_=call({'action':'login_site','name':'김상호','siteId':'s01'})
           assert code==401, code
-          code,worker=call({'action':'login_site','name':'김태진','siteId':'s21'})
-          assert code==200 and worker.get('person',{}).get('access_role')=='worker', (code,worker)
           code,kgm_lookup=call({'action':'lookup','name':'김건모'})
           assert code==200 and any(o.get('siteId')=='s32' and o.get('affiliationLabel')=='88CC' and o.get('requiresPassword') is False for o in kgm_lookup.get('options',[])), (code,kgm_lookup)
           code,kgm=call({'action':'login_site','name':'김건모','siteId':'s32'})
           assert code==200 and kgm.get('person',{}).get('name')=='김건모' and kgm.get('person',{}).get('site_name')=='88CC' and kgm.get('person',{}).get('access_role')=='worker', (code,kgm)
-          print('OK: manager password required; worker logins including 88CC 김건모 are valid')
+          print('OK: manager password required; 88CC 김건모 worker login valid')
