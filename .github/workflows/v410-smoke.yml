@@ -1,0 +1,51 @@
+name: v410 smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'auth-core-v410.js'
+      - 'app-control-v410.js'
+      - 'incident-sync-v410.js'
+      - 'site-directory-v410.js'
+      - 'site-directory-sync-v410.js'
+      - 'stable410.html'
+      - '.github/workflows/v410-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: JavaScript syntax
+        run: |
+          node --check auth-core-v410.js
+          node --check app-control-v410.js
+          node --check incident-sync-v410.js
+          node --check site-directory-v410.js
+          node --check site-directory-sync-v410.js
+      - name: Entry file references
+        shell: python
+        run: |
+          from pathlib import Path
+          from html.parser import HTMLParser
+          from urllib.parse import urlsplit
+
+          class Refs(HTMLParser):
+              def __init__(self):
+                  super().__init__(); self.refs=[]
+              def handle_starttag(self, tag, attrs):
+                  d=dict(attrs)
+                  if tag=='script' and d.get('src'): self.refs.append(d['src'])
+                  if tag=='link' and d.get('href'): self.refs.append(d['href'])
+
+          p=Refs(); p.feed(Path('stable410.html').read_text(encoding='utf-8'))
+          missing=[]
+          for ref in p.refs:
+              path=urlsplit(ref).path
+              if path.startswith(('http://','https://')): continue
+              if path and not Path(path).exists(): missing.append(path)
+          if missing:
+              raise SystemExit('Missing stable410 references: '+', '.join(sorted(set(missing))))
+          print(f'OK: {len(p.refs)} local asset references resolved')
