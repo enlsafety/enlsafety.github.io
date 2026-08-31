@@ -1,0 +1,48 @@
+/* E&L Accident Report App v4.1.0 - person/property report UI */
+.report-type-picker{max-width:920px;margin:0 auto}
+.report-type-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:18px}
+.report-type-card{position:relative;min-height:190px;border:2px solid #d6e5f2;border-radius:20px;background:#fff;padding:25px 22px;text-align:left;cursor:pointer;box-shadow:0 7px 20px rgba(29,83,128,.07);transition:.15s ease}
+.report-type-card:hover,.report-type-card:focus-visible{transform:translateY(-2px);border-color:#3b7fb8;box-shadow:0 10px 26px rgba(29,83,128,.12);outline:none}
+.report-type-card.person{background:linear-gradient(145deg,#fff,#f4faff)}
+.report-type-card.property{background:linear-gradient(145deg,#fff,#f6fbff)}
+.report-type-no{display:inline-flex;align-items:center;justify-content:center;min-width:40px;height:28px;border-radius:999px;background:#e8f4fd;color:#1e5d91;font-size:12px;font-weight:900}
+.report-type-card strong{display:block;margin:20px 0 8px;color:#17466f;font-size:28px;line-height:1.1}
+.report-type-card small{display:block;color:#62788a;font-size:15px;line-height:1.55;font-weight:700}
+.report-type-note{margin-top:15px;padding:12px 14px;border-radius:12px;background:#eef7fd;color:#416579;font-size:13px;font-weight:750}
+.report410-top-back{max-width:1040px;margin:0 auto 10px}.report410-top-back button{min-height:44px;border:1px solid #ccdce9;border-radius:11px;background:#fff;color:#315c7d;padding:0 14px;font-weight:850}
+.incident410-form{max-width:1040px;margin:0 auto}
+.incident410-form .section-head{align-items:flex-start}
+.report410-change{white-space:nowrap}
+.report410-section{margin-top:16px;padding:17px;border:1px solid #dbe7f0;border-radius:15px;background:#fbfdff}
+.report410-section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:14px;border-bottom:1px solid #e6eef5;padding-bottom:10px}
+.report410-section-head b{font-size:18px;color:#1b4f78}
+.report410-section-head small{color:#738695;font-size:12px;line-height:1.45;text-align:right}
+.report410-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.report410-wide{grid-column:1/-1}
+.report410-section .lbl{margin-top:11px}
+.report410-section .lbl:first-of-type{margin-top:0}
+.report410-section input,.report410-section select,.report410-section textarea{font-size:16px}
+.report410-section textarea{line-height:1.55}
+.report410-damage.person{border-color:#d5e7f6;background:#f9fcff}
+.report410-damage.property{border-color:#d7e7ee;background:#fbfeff}
+.report410-risk-grid{margin-top:12px;align-items:end}
+.report410-check{display:flex;align-items:center;gap:10px;min-height:54px;padding:11px 13px;border:1px solid #dce8f0;border-radius:11px;background:#fff;color:#475f70;font-weight:800;line-height:1.4}
+.report410-check input{width:22px;height:22px;flex:0 0 auto}
+.report410-photo .photo-box{margin-top:0}
+.report410-submit{min-height:58px;margin-top:18px;font-size:18px!important}
+@media(max-width:700px){
+  .report-type-grid{grid-template-columns:1fr;gap:12px}
+  .report-type-card{min-height:154px;padding:20px}
+  .report-type-card strong{font-size:25px;margin-top:15px}
+  .report410-grid{grid-template-columns:1fr}
+  .report410-wide{grid-column:auto}
+  .report410-section{padding:14px 12px}
+  .report410-section-head{display:block}
+  .report410-section-head b{display:block;font-size:19px}
+  .report410-section-head small{display:block;margin-top:5px;text-align:left;font-size:13px}
+  .incident410-form .section-head{display:block}
+  .report410-change{width:100%;min-height:48px;margin-top:10px}
+  .report410-section input,.report410-section select{min-height:54px;font-size:17px}
+  .report410-section textarea{font-size:17px;min-height:96px}
+  .report410-check{min-height:60px;font-size:15px}
+}
