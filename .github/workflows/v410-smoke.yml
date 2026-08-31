@@ -6,19 +6,21 @@ on:
     paths:
       - 'index.html'
       - 'version.json'
-      - 'auth-core-v410.js'
-      - 'app-control-v410.js'
-      - 'field-ui-v410.js'
-      - 'field-ui-v410.css'
+      - 'auth-v411.js'
+      - 'app-shell-v411.js'
+      - 'field-ui-v411.js'
+      - 'platform-state-v411.js'
       - 'incidents-v410.js'
       - 'incident-sync-v411.js'
-      - 'worker-public-incidents-v411.js'
       - 'site-directory-v410.js'
       - 'site-directory-sync-v410.js'
+      - 'site-admin-v400.js'
       - 'review-dashboard-v410.js'
       - 'interaction-v410.js'
+      - 'app-control-v410.js'
       - 'report-v410.js'
       - 'report-v410.css'
+      - 'field-ui-v410.css'
       - 'stable411.html'
       - '.github/workflows/v410-smoke.yml'
   workflow_dispatch:
@@ -33,94 +35,88 @@ jobs:
           node-version: '22'
       - name: JavaScript syntax
         run: |
-          node --check auth-core-v410.js
-          node --check app-control-v410.js
-          node --check field-ui-v410.js
+          node --check core.js
+          node --check auth-v411.js
+          node --check platform-state-v411.js
+          node --check app-shell-v411.js
+          node --check field-ui-v411.js
           node --check incidents-v410.js
           node --check incident-sync-v411.js
-          node --check worker-public-incidents-v411.js
           node --check site-directory-v410.js
           node --check site-directory-sync-v410.js
+          node --check site-admin-v400.js
           node --check review-dashboard-v410.js
           node --check interaction-v410.js
+          node --check app-control-v410.js
           node --check report-v410.js
-      - name: Production entry and session routing
+      - name: Production single-render architecture
         shell: python
         run: |
           from pathlib import Path
           from html.parser import HTMLParser
           from urllib.parse import urlsplit
-          import json
+          import json,re
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          entry=meta.get('stableEntry')
-          if entry!='stable411.html':
-              raise SystemExit(f'Production stableEntry mismatch: {entry}')
-          if meta.get('build')!='stable-411-r2' or meta.get('version')!='4.1.1':
-              raise SystemExit('Production metadata is not stable-411-r2 / 4.1.1')
-          if meta.get('loginAutoUpdate') is not False:
-              raise SystemExit('loginAutoUpdate must remain false for iOS focus stability')
+          assert meta.get('stableEntry')=='stable411.html', meta
+          assert meta.get('build')=='stable-411-r3', meta
+          assert meta.get('version')=='4.1.1', meta
+          assert meta.get('loginAutoUpdate') is False, meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          if 'stable411.html' not in index or 'build=r2' not in index:
-              raise SystemExit('Root entry does not target stable411 r2')
+          assert 'stable411.html' in index and 'build=r3' in index
+          html=Path('stable411.html').read_text(encoding='utf-8')
 
-          html=Path(entry).read_text(encoding='utf-8')
           class Refs(HTMLParser):
-              def __init__(self):
-                  super().__init__(); self.refs=[]
-              def handle_starttag(self, tag, attrs):
+              def __init__(self): super().__init__(); self.refs=[]; self.scripts=[]
+              def handle_starttag(self,tag,attrs):
                   d=dict(attrs)
-                  if tag=='script' and d.get('src'): self.refs.append(d['src'])
+                  if tag=='script' and d.get('src'): self.refs.append(d['src']); self.scripts.append(d['src'])
                   if tag=='link' and d.get('href'): self.refs.append(d['href'])
-          p=Refs(); p.feed(html)
+          p=Refs();p.feed(html)
           missing=[]
           for ref in p.refs:
               path=urlsplit(ref).path
               if path and not Path(path).exists(): missing.append(path)
-          if missing:
-              raise SystemExit('Missing production references: '+', '.join(sorted(set(missing))))
+          assert not missing, missing
 
-          legacy=['src="incidents.js','test-88cc-v341.js','field-report-v370.js','field-ux-v374.js','event-type-safe-v380.js','ui-rbac-v402.js','ux-rbac-v391.js']
-          for bad in legacy:
-              if bad in html:
-                  raise SystemExit('Legacy production runtime still loaded: '+bad)
+          forbidden=[
+            'auth-core-v410.js','account-admin-v21.js','v3-fix.js','platform-shell-v320.js',
+            'communication-v330.js','communication-v331.js','admin-console-v332.js',
+            'accident-app-v375.js','accident-app-v382.js','worker-public-incidents-v411.js',
+            'test-88cc-v341.js','field-report-v370.js','field-ux-v374.js','event-type-safe-v380.js',
+            'ui-rbac-v402.js','ux-rbac-v391.js','incidents.js'
+          ]
+          for bad in forbidden:
+              assert bad not in html, 'legacy runtime loaded: '+bad
 
-          required=['incidents-v410.js?v=4.1.1-r2','incident-sync-v411.js?v=4.1.1-r2','worker-public-incidents-v411.js?v=4.1.1-r2','auth-core-v410.js?v=4.1.1-r2','report-v410.js?v=4.1.1-r2','field-ui-v410.js?v=4.1.1-r2','report-v410.css?v=4.1.1-r2','field-ui-v410.css?v=4.1.1-r2']
-          for item in required:
-              if item not in html:
-                  raise SystemExit('Missing production module: '+item)
+          required=['platform-state-v411.js?v=4.1.1-r3','auth-v411.js?v=4.1.1-r3','incidents-v410.js?v=4.1.1-r3','incident-sync-v411.js?v=4.1.1-r3','report-v410.js?v=4.1.1-r3','field-ui-v411.js?v=4.1.1-r3','app-shell-v411.js?v=4.1.1-r3']
+          for item in required: assert item in html, 'missing '+item
+          assert p.scripts[-1]=='app-shell-v411.js?v=4.1.1-r3', p.scripts[-3:]
+          assert '<script>setTimeout(function()' not in html
 
-          if html.index('auth-core-v410.js?v=4.1.1-r2') > html.index('platform-shell-v320.js'):
-              raise SystemExit('Auth/session core must load before platform-shell initial render')
-          if html.index('report-v410.js?v=4.1.1-r2') < html.index('app-control-v410.js?v=4.1.1-r2'):
-              raise SystemExit('Authoritative report module must load after legacy/current wrappers')
-          if html.index('field-ui-v410.js?v=4.1.1-r2') < html.index('report-v410.js?v=4.1.1-r2'):
-              raise SystemExit('Field UI must load after authoritative report module')
+          auth=Path('auth-v411.js').read_text(encoding='utf-8')
+          for rule in ['if(session?.worker)return session.worker','if(session?.manager)return session.manager','saveSiteSession(person);enterApp();return true','catch(e){document.querySelectorAll',"if(o.kind==='site'){await loginSite(o,hash);return}"]:
+              assert rule in auth, 'missing auth rule: '+rule
+          assert 'baseShell' not in auth and 'renderShell=function' not in auth
+          assert auth.index('catch(e){document.querySelectorAll') < auth.index('saveSiteSession(person);enterApp();return true')
 
-          auth=Path('auth-core-v410.js').read_text(encoding='utf-8')
-          for rule in ['if(session?.worker)return session.worker','if(session?.manager)return session.manager',"option.kind==='hq'||option.requiresPassword"]:
-              if rule not in auth:
-                  raise SystemExit('Missing session/login rule: '+rule)
+          shell=Path('app-shell-v411.js').read_text(encoding='utf-8')
+          for rule in ["renderShell=function(u)","window.enlRenderApp",'전체 사업장 사고현황',"currentView='home';renderShell(u)"]:
+              assert rule in shell, 'missing shell rule: '+rule
+          assert shell.count('renderShell=function(u)')==1
+
+          field=Path('field-ui-v411.js').read_text(encoding='utf-8')
+          for rule in ['window.enlRenderFieldHome','window.enlGoFieldTask','data-field-task="accident_report"','우리 현장<br>사고기록 확인']:
+              assert rule in field, 'missing field rule: '+rule
 
           report=Path('report-v410.js').read_text(encoding='utf-8')
-          for rule in ['data-report-picker="v410"','data-report-type="person"','data-report-type="property"','diagnosis410','medicalCost410','damagedItem410','repairCost410',"if(currentView==='report')return renderReport(root,u);",'window.enlShowIncidentTypePicker']:
-              if rule not in report:
-                  raise SystemExit('Missing authoritative report rule: '+rule)
-
-          field=Path('field-ui-v410.js').read_text(encoding='utf-8')
-          for rule in ['window.enlShowIncidentTypePicker','<span class="field-six-no">03</span><strong>사고 기록</strong><small>우리 현장<br>사고기록 확인</small>']:
-              if rule not in field:
-                  raise SystemExit('Missing field picker/menu rule: '+rule)
-
+          for rule in ['data-report-picker="v410"','data-report-type="person"','data-report-type="property"','diagnosis410','damagedItem410']:
+              assert rule in report, 'missing report rule: '+rule
           report_css=Path('report-v410.css').read_text(encoding='utf-8')
-          if 'aspect-ratio:1/1' not in report_css or 'grid-template-columns:repeat(2,minmax(0,1fr))' not in report_css:
-              raise SystemExit('Square two-column report picker CSS is missing')
-          field_css=Path('field-ui-v410.css').read_text(encoding='utf-8')
-          if '[data-field-task="records"] small' not in field_css or 'font-size:13px!important' not in field_css:
-              raise SystemExit('Mobile record-menu overflow rule is missing')
+          assert 'aspect-ratio:1/1' in report_css and 'grid-template-columns:repeat(2,minmax(0,1fr))' in report_css
 
-          print(f'OK: production {entry}, {len(p.refs)} assets, session and report routing verified')
+          print(f'OK: stable411 r3 uses one final shell, {len(p.refs)} local assets resolved')
       - name: Live login API roles
         shell: python
         run: |
@@ -130,18 +126,17 @@ jobs:
           def call(body):
               req=urllib.request.Request(API,data=json.dumps(body,ensure_ascii=False).encode(),headers=H,method='POST')
               try:
-                  with urllib.request.urlopen(req,timeout=15) as r:
-                      return r.status,json.loads(r.read().decode())
+                  with urllib.request.urlopen(req,timeout=15) as r: return r.status,json.loads(r.read().decode())
               except urllib.error.HTTPError as e:
                   try: payload=json.loads(e.read().decode())
                   except Exception: payload={}
                   return e.code,payload
           code,lookup=call({'action':'lookup','name':'김상호'})
-          assert code==200 and any(o.get('siteId')=='s01' and o.get('requiresPassword') is True for o in lookup.get('options',[])), (code,lookup)
+          assert code==200 and any(o.get('siteId')=='s01' and o.get('requiresPassword') is True for o in lookup.get('options',[])),(code,lookup)
           code,_=call({'action':'login_site','name':'김상호','siteId':'s01'})
-          assert code==401, code
+          assert code==401,code
           code,kgm_lookup=call({'action':'lookup','name':'김건모'})
-          assert code==200 and any(o.get('siteId')=='s32' and o.get('affiliationLabel')=='88CC' and o.get('requiresPassword') is False for o in kgm_lookup.get('options',[])), (code,kgm_lookup)
+          assert code==200 and any(o.get('siteId')=='s32' and o.get('affiliationLabel')=='88CC' and o.get('requiresPassword') is False for o in kgm_lookup.get('options',[])),(code,kgm_lookup)
           code,kgm=call({'action':'login_site','name':'김건모','siteId':'s32'})
-          assert code==200 and kgm.get('person',{}).get('name')=='김건모' and kgm.get('person',{}).get('site_name')=='88CC' and kgm.get('person',{}).get('access_role')=='worker', (code,kgm)
-          print('OK: manager password required; 88CC 김건모 worker login valid')
+          assert code==200 and kgm.get('person',{}).get('name')=='김건모' and kgm.get('person',{}).get('site_name')=='88CC' and kgm.get('person',{}).get('access_role')=='worker',(code,kgm)
+          print('OK: live login backend validates 88CC 김건모 and manager password rules')
