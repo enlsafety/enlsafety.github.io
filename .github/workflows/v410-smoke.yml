@@ -67,7 +67,9 @@ jobs:
               raise SystemExit('Missing stable410 references: '+', '.join(sorted(set(missing))))
           if 'src="incidents.js' in html:
               raise SystemExit('Legacy incidents.js is still loaded')
-          for required in ['incidents-v410.js?v=4.1.0-r5','field-ui-v410.js?v=4.1.0-r5','field-ui-v410.css?v=4.1.0-r5','auth-core-v410.js?v=4.1.0-r5','review-dashboard-v410.js','report-v410.js?v=4.1.0-r6','report-v410.css?v=4.1.0-r6']:
+          if 'test-88cc-v341.js' in html:
+              raise SystemExit('Legacy 88CC test runtime is still loaded')
+          for required in ['incidents-v410.js?v=4.1.0-r5','field-ui-v410.js?v=4.1.0-r5','field-ui-v410.css?v=4.1.0-r5','auth-core-v410.js?v=4.1.0-r7','review-dashboard-v410.js','report-v410.js?v=4.1.0-r6','report-v410.css?v=4.1.0-r6']:
               if required not in html:
                   raise SystemExit('Missing required stable reference: '+required)
           if 'field-report-v370.js' in html or 'field-report-v370.css' in html or 'event-type-safe-v380.js' in html:
@@ -84,11 +86,11 @@ jobs:
           if "option.kind==='hq'||option.requiresPassword" not in auth:
               raise SystemExit('Site manager password routing is missing')
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          if meta.get('build')!='stable-410-r6':
-              raise SystemExit('version.json build is not stable-410-r6')
+          if meta.get('build')!='stable-410-r7':
+              raise SystemExit('version.json build is not stable-410-r7')
           if meta.get('loginAutoUpdate') is not False:
               raise SystemExit('loginAutoUpdate must remain false for iOS focus stability')
-          print(f'OK: {len(p.refs)} local asset references resolved; r6 rules present')
+          print(f'OK: {len(p.refs)} local asset references resolved; r7 rules present')
       - name: Live login API roles
         shell: python
         run: |
@@ -110,4 +112,8 @@ jobs:
           assert code==401, code
           code,worker=call({'action':'login_site','name':'김태진','siteId':'s21'})
           assert code==200 and worker.get('person',{}).get('access_role')=='worker', (code,worker)
-          print('OK: manager password required; worker passwordless login allowed')
+          code,kgm_lookup=call({'action':'lookup','name':'김건모'})
+          assert code==200 and any(o.get('siteId')=='s32' and o.get('affiliationLabel')=='88CC' and o.get('requiresPassword') is False for o in kgm_lookup.get('options',[])), (code,kgm_lookup)
+          code,kgm=call({'action':'login_site','name':'김건모','siteId':'s32'})
+          assert code==200 and kgm.get('person',{}).get('name')=='김건모' and kgm.get('person',{}).get('site_name')=='88CC' and kgm.get('person',{}).get('access_role')=='worker', (code,kgm)
+          print('OK: manager password required; worker logins including 88CC 김건모 are valid')
