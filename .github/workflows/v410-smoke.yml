@@ -7,6 +7,8 @@ on:
       - 'auth-core-v410.js'
       - 'app-control-v410.js'
       - 'field-ui-v410.js'
+      - 'field-ui-v410.css'
+      - 'incidents-v410.js'
       - 'incident-sync-v410.js'
       - 'site-directory-v410.js'
       - 'site-directory-sync-v410.js'
@@ -30,12 +32,13 @@ jobs:
           node --check auth-core-v410.js
           node --check app-control-v410.js
           node --check field-ui-v410.js
+          node --check incidents-v410.js
           node --check incident-sync-v410.js
           node --check site-directory-v410.js
           node --check site-directory-sync-v410.js
           node --check review-dashboard-v410.js
           node --check interaction-v410.js
-      - name: Entry file references
+      - name: Entry and permission rules
         shell: python
         run: |
           from pathlib import Path
@@ -59,14 +62,43 @@ jobs:
               if path and not Path(path).exists(): missing.append(path)
           if missing:
               raise SystemExit('Missing stable410 references: '+', '.join(sorted(set(missing))))
-          if 'review-dashboard-v403.js' in html:
-              raise SystemExit('Legacy review-dashboard-v403.js is still loaded')
-          for required in ['review-dashboard-v410.js','interaction-v410.js','auth-core-v410.js?v=4.1.0-r4','app-control-v410.js?v=4.1.0-r4']:
+          if 'src="incidents.js' in html:
+              raise SystemExit('Legacy incidents.js is still loaded')
+          for required in ['incidents-v410.js?v=4.1.0-r5','field-ui-v410.js?v=4.1.0-r5','field-ui-v410.css?v=4.1.0-r5','auth-core-v410.js?v=4.1.0-r5','review-dashboard-v410.js']:
               if required not in html:
-                  raise SystemExit('Missing required r4 reference: '+required)
+                  raise SystemExit('Missing required r5 reference: '+required)
+          src=Path('incidents-v410.js').read_text(encoding='utf-8')
+          for rule in ["i.status!=='rejected'", "position(u)==='현장소장'", "u.role==='worker'&&isAuthor(i,u)", "id=\"rejectInc\"", "i.status='reported'"]:
+              if rule not in src:
+                  raise SystemExit('Missing incident permission rule: '+rule)
+          auth=Path('auth-core-v410.js').read_text(encoding='utf-8')
+          if "option.kind==='hq'||option.requiresPassword" not in auth:
+              raise SystemExit('Site manager password routing is missing')
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          if meta.get('build')!='stable-410-r4':
-              raise SystemExit('version.json build is not stable-410-r4')
+          if meta.get('build')!='stable-410-r5':
+              raise SystemExit('version.json build is not stable-410-r5')
           if meta.get('loginAutoUpdate') is not False:
-              raise SystemExit('loginAutoUpdate must be false for iOS focus stability')
-          print(f'OK: {len(p.refs)} local asset references resolved; r4 stability checks passed')
+              raise SystemExit('loginAutoUpdate must remain false for iOS focus stability')
+          print(f'OK: {len(p.refs)} local asset references resolved; r5 rules present')
+      - name: Live login API roles
+        shell: python
+        run: |
+          import json, urllib.request, urllib.error
+          API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-login-v410'
+          H={'Content-Type':'application/json','X-ENL-App':'incident-report-v2','Origin':'https://enlsafety.github.io'}
+          def call(body):
+              req=urllib.request.Request(API,data=json.dumps(body,ensure_ascii=False).encode(),headers=H,method='POST')
+              try:
+                  with urllib.request.urlopen(req,timeout=15) as r:
+                      return r.status,json.loads(r.read().decode())
+              except urllib.error.HTTPError as e:
+                  try: payload=json.loads(e.read().decode())
+                  except Exception: payload={}
+                  return e.code,payload
+          code,lookup=call({'action':'lookup','name':'김상호'})
+          assert code==200 and any(o.get('siteId')=='s01' and o.get('requiresPassword') is True for o in lookup.get('options',[])), (code,lookup)
+          code,_=call({'action':'login_site','name':'김상호','siteId':'s01'})
+          assert code==401, code
+          code,worker=call({'action':'login_site','name':'김태진','siteId':'s21'})
+          assert code==200 and worker.get('person',{}).get('access_role')=='worker', (code,worker)
+          print('OK: manager password required; worker passwordless login allowed')
