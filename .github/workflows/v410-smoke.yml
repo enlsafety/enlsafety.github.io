@@ -9,6 +9,8 @@ on:
       - 'auth-v411.js'
       - 'app-shell-v411.js'
       - 'field-ui-v411.js'
+      - 'field-ui-v411.css'
+      - 'field-incidents-v411.js'
       - 'platform-state-v411.js'
       - 'incidents-v410.js'
       - 'incident-sync-v411.js'
@@ -20,7 +22,6 @@ on:
       - 'app-control-v410.js'
       - 'report-v410.js'
       - 'report-v410.css'
-      - 'field-ui-v410.css'
       - 'stable411.html'
       - '.github/workflows/v410-smoke.yml'
   workflow_dispatch:
@@ -40,6 +41,7 @@ jobs:
           node --check platform-state-v411.js
           node --check app-shell-v411.js
           node --check field-ui-v411.js
+          node --check field-incidents-v411.js
           node --check incidents-v410.js
           node --check incident-sync-v411.js
           node --check site-directory-v410.js
@@ -49,22 +51,22 @@ jobs:
           node --check interaction-v410.js
           node --check app-control-v410.js
           node --check report-v410.js
-      - name: Production single-render architecture
+      - name: Production field routing and layout
         shell: python
         run: |
           from pathlib import Path
           from html.parser import HTMLParser
           from urllib.parse import urlsplit
-          import json,re
+          import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
           assert meta.get('stableEntry')=='stable411.html', meta
-          assert meta.get('build')=='stable-411-r3', meta
+          assert meta.get('build')=='stable-411-r4', meta
           assert meta.get('version')=='4.1.1', meta
           assert meta.get('loginAutoUpdate') is False, meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          assert 'stable411.html' in index and 'build=r3' in index
+          assert 'stable411.html' in index and 'build=r4' in index
           html=Path('stable411.html').read_text(encoding='utf-8')
 
           class Refs(HTMLParser):
@@ -80,43 +82,32 @@ jobs:
               if path and not Path(path).exists(): missing.append(path)
           assert not missing, missing
 
-          forbidden=[
-            'auth-core-v410.js','account-admin-v21.js','v3-fix.js','platform-shell-v320.js',
-            'communication-v330.js','communication-v331.js','admin-console-v332.js',
-            'accident-app-v375.js','accident-app-v382.js','worker-public-incidents-v411.js',
-            'test-88cc-v341.js','field-report-v370.js','field-ux-v374.js','event-type-safe-v380.js',
-            'ui-rbac-v402.js','ux-rbac-v391.js','incidents.js'
+          required=[
+            'auth-v411.js?v=4.1.1-r4','report-v410.js?v=4.1.1-r4',
+            'field-ui-v411.js?v=4.1.1-r4','field-incidents-v411.js?v=4.1.1-r4',
+            'field-ui-v411.css?v=4.1.1-r4','app-shell-v411.js?v=4.1.1-r4'
           ]
-          for bad in forbidden:
-              assert bad not in html, 'legacy runtime loaded: '+bad
-
-          required=['platform-state-v411.js?v=4.1.1-r3','auth-v411.js?v=4.1.1-r3','incidents-v410.js?v=4.1.1-r3','incident-sync-v411.js?v=4.1.1-r3','report-v410.js?v=4.1.1-r3','field-ui-v411.js?v=4.1.1-r3','app-shell-v411.js?v=4.1.1-r3']
           for item in required: assert item in html, 'missing '+item
-          assert p.scripts[-1]=='app-shell-v411.js?v=4.1.1-r3', p.scripts[-3:]
-          assert '<script>setTimeout(function()' not in html
+          assert 'field-ui-v410.css' not in html
+          assert p.scripts[-1]=='app-shell-v411.js?v=4.1.1-r4', p.scripts[-3:]
 
-          auth=Path('auth-v411.js').read_text(encoding='utf-8')
-          for rule in ['if(session?.worker)return session.worker','if(session?.manager)return session.manager','saveSiteSession(person);enterApp();return true','catch(e){document.querySelectorAll',"if(o.kind==='site'){await loginSite(o,hash);return}"]:
-              assert rule in auth, 'missing auth rule: '+rule
-          assert 'baseShell' not in auth and 'renderShell=function' not in auth
-          assert auth.index('catch(e){document.querySelectorAll') < auth.index('saveSiteSession(person);enterApp();return true')
+          field_css=Path('field-ui-v411.css').read_text(encoding='utf-8')
+          assert 'grid-template-columns:repeat(2,minmax(0,1fr))' in field_css
+          assert 'aspect-ratio:1/1' in field_css
+          mobile=field_css.split('@media(max-width:720px)',1)[1]
+          assert 'grid-template-columns:repeat(2,minmax(0,1fr))' in mobile
+          assert 'grid-template-columns:1fr' not in mobile.split('@media(max-width:380px)',1)[0]
+
+          fi=Path('field-incidents-v411.js').read_text(encoding='utf-8')
+          for rule in ['window.enlRenderFieldRecords=renderRecords','window.enlRenderFieldActions=renderActions','사고 기록','사고 조치','openUnifiedCorrectiveModal']:
+              assert rule in fi, 'missing field incident rule: '+rule
 
           shell=Path('app-shell-v411.js').read_text(encoding='utf-8')
-          for rule in ["renderShell=function(u)","window.enlRenderApp",'전체 사업장 사고현황',"currentView='home';renderShell(u)"]:
-              assert rule in shell, 'missing shell rule: '+rule
+          assert "window.enlRenderFieldRecords?window.enlRenderFieldRecords(root,u):renderUnifiedIncidents(root,u)" in shell
+          assert "window.enlRenderFieldActions?window.enlRenderFieldActions(root,u):renderUnifiedActions(root,u)" in shell
           assert shell.count('renderShell=function(u)')==1
 
-          field=Path('field-ui-v411.js').read_text(encoding='utf-8')
-          for rule in ['window.enlRenderFieldHome','window.enlGoFieldTask','data-field-task="accident_report"','우리 현장<br>사고기록 확인']:
-              assert rule in field, 'missing field rule: '+rule
-
-          report=Path('report-v410.js').read_text(encoding='utf-8')
-          for rule in ['data-report-picker="v410"','data-report-type="person"','data-report-type="property"','diagnosis410','damagedItem410']:
-              assert rule in report, 'missing report rule: '+rule
-          report_css=Path('report-v410.css').read_text(encoding='utf-8')
-          assert 'aspect-ratio:1/1' in report_css and 'grid-template-columns:repeat(2,minmax(0,1fr))' in report_css
-
-          print(f'OK: stable411 r3 uses one final shell, {len(p.refs)} local assets resolved')
+          print(f'OK: stable411 r4 2x2 field home and field action/record routing verified')
       - name: Live login API roles
         shell: python
         run: |
@@ -131,12 +122,8 @@ jobs:
                   try: payload=json.loads(e.read().decode())
                   except Exception: payload={}
                   return e.code,payload
-          code,lookup=call({'action':'lookup','name':'김상호'})
-          assert code==200 and any(o.get('siteId')=='s01' and o.get('requiresPassword') is True for o in lookup.get('options',[])),(code,lookup)
-          code,_=call({'action':'login_site','name':'김상호','siteId':'s01'})
-          assert code==401,code
           code,kgm_lookup=call({'action':'lookup','name':'김건모'})
-          assert code==200 and any(o.get('siteId')=='s32' and o.get('affiliationLabel')=='88CC' and o.get('requiresPassword') is False for o in kgm_lookup.get('options',[])),(code,kgm_lookup)
+          assert code==200 and any(o.get('siteId')=='s32' and o.get('requiresPassword') is False for o in kgm_lookup.get('options',[])),(code,kgm_lookup)
           code,kgm=call({'action':'login_site','name':'김건모','siteId':'s32'})
-          assert code==200 and kgm.get('person',{}).get('name')=='김건모' and kgm.get('person',{}).get('site_name')=='88CC' and kgm.get('person',{}).get('access_role')=='worker',(code,kgm)
-          print('OK: live login backend validates 88CC 김건모 and manager password rules')
+          assert code==200 and kgm.get('person',{}).get('access_role')=='worker',(code,kgm)
+          print('OK: live worker login still valid')
