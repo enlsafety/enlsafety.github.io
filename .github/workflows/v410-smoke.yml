@@ -6,10 +6,14 @@ on:
     paths:
       - 'auth-core-v410.js'
       - 'app-control-v410.js'
+      - 'field-ui-v410.js'
       - 'incident-sync-v410.js'
       - 'site-directory-v410.js'
       - 'site-directory-sync-v410.js'
+      - 'review-dashboard-v410.js'
+      - 'interaction-v410.js'
       - 'stable410.html'
+      - 'version.json'
       - '.github/workflows/v410-smoke.yml'
   workflow_dispatch:
 
@@ -18,19 +22,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - name: JavaScript syntax
         run: |
           node --check auth-core-v410.js
           node --check app-control-v410.js
+          node --check field-ui-v410.js
           node --check incident-sync-v410.js
           node --check site-directory-v410.js
           node --check site-directory-sync-v410.js
+          node --check review-dashboard-v410.js
+          node --check interaction-v410.js
       - name: Entry file references
         shell: python
         run: |
           from pathlib import Path
           from html.parser import HTMLParser
           from urllib.parse import urlsplit
+          import json
 
           class Refs(HTMLParser):
               def __init__(self):
@@ -40,12 +51,22 @@ jobs:
                   if tag=='script' and d.get('src'): self.refs.append(d['src'])
                   if tag=='link' and d.get('href'): self.refs.append(d['href'])
 
-          p=Refs(); p.feed(Path('stable410.html').read_text(encoding='utf-8'))
+          html=Path('stable410.html').read_text(encoding='utf-8')
+          p=Refs(); p.feed(html)
           missing=[]
           for ref in p.refs:
               path=urlsplit(ref).path
-              if path.startswith(('http://','https://')): continue
               if path and not Path(path).exists(): missing.append(path)
           if missing:
               raise SystemExit('Missing stable410 references: '+', '.join(sorted(set(missing))))
-          print(f'OK: {len(p.refs)} local asset references resolved')
+          if 'review-dashboard-v403.js' in html:
+              raise SystemExit('Legacy review-dashboard-v403.js is still loaded')
+          for required in ['review-dashboard-v410.js','interaction-v410.js','auth-core-v410.js?v=4.1.0-r4','app-control-v410.js?v=4.1.0-r4']:
+              if required not in html:
+                  raise SystemExit('Missing required r4 reference: '+required)
+          meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
+          if meta.get('build')!='stable-410-r4':
+              raise SystemExit('version.json build is not stable-410-r4')
+          if meta.get('loginAutoUpdate') is not False:
+              raise SystemExit('loginAutoUpdate must be false for iOS focus stability')
+          print(f'OK: {len(p.refs)} local asset references resolved; r4 stability checks passed')
