@@ -4,154 +4,28 @@
   const VERSION='4.1.0';
   const INQUIRY_KEY='enl_safety_field_inquiries_v1';
   let fieldTask='home';
-  const isField=u=>!!u&&u.role==='field';
+  const isField=u=>!!u&&['field','worker'].includes(u.role);
   const title=u=>u?.position||'현장담당자';
   const siteName=u=>siteById?.(u?.siteId)?.name||'소속 사업장';
   const loadInquiries=()=>{try{const v=JSON.parse(localStorage.getItem(INQUIRY_KEY)||'[]');return Array.isArray(v)?v:[]}catch(e){return []}};
   const saveInquiries=v=>{try{localStorage.setItem(INQUIRY_KEY,JSON.stringify(v));return true}catch(e){alert('문의 저장에 실패했습니다.');return false}};
 
-  function setHub(){
-    try{enlPlatformSection='hub';localStorage.setItem(ENL_PLATFORM_SECTION_KEY,'hub')}catch(e){}
-    currentView='home';fieldTask='home';
-  }
+  function setHub(){try{enlPlatformSection='hub';localStorage.setItem(ENL_PLATFORM_SECTION_KEY,'hub')}catch(e){}currentView='home';fieldTask='home'}
   function fieldHome(u){setHub();renderShell(u||currentUser())}
-  window.enlFieldHome=fieldHome;
-  window.enlFieldSetTask=t=>{fieldTask=t||'home'};
-
-  function goTask(task,u){
-    fieldTask=task;
-    if(task==='inquiry'){
-      currentView='field-inquiry';
-      try{enlPlatformSection='hub';localStorage.setItem(ENL_PLATFORM_SECTION_KEY,'hub')}catch(e){}
-      return renderShell(u||currentUser());
-    }
-    try{enlPlatformSection='incident';localStorage.setItem(ENL_PLATFORM_SECTION_KEY,'incident')}catch(e){}
-    currentView=task==='accident_report'?'report':task==='accident_action'?'actions':'incidents';
-    renderShell(u||currentUser());
-  }
-
-  function renderHome(root,u){
-    if(!root)return;
-    root.innerHTML=`<section class="field-six-home">
-      <div class="field-six-head"><h2>${esc(siteName(u))}</h2><p>필요한 메뉴를 선택해 주세요.</p><span class="field-six-role">${esc(title(u))} · ${esc(u.name)}</span></div>
-      <div class="field-six-grid">
-        <button class="field-six-btn" data-field-task="accident_report"><span class="field-six-no">01</span><strong>사고 보고</strong><small>사고 발생 내용을<br>사진과 함께 보고</small></button>
-        <button class="field-six-btn" data-field-task="accident_action"><span class="field-six-no">02</span><strong>사고 조치</strong><small>사고 후 원인과 조치 내용을<br>등록하고 확인</small></button>
-        <button class="field-six-btn" data-field-task="records"><span class="field-six-no">03</span><strong>사고 기록</strong><small>우리 현장의 사고와 조치<br>기록을 확인</small></button>
-        <button class="field-six-btn" data-field-task="inquiry"><span class="field-six-no">04</span><strong>기타 문의</strong><small>안전관리자 정보 확인<br>및 문의</small></button>
-      </div>
-    </section>`;
-    root.querySelectorAll('[data-field-task]').forEach(b=>b.onclick=()=>goTask(b.dataset.fieldTask,u));
-  }
-
-  function addBack(root,u){
-    if(!root||root.querySelector('.field-task-back'))return;
-    const bar=document.createElement('div');bar.className='field-task-back';
-    bar.innerHTML=`<button type="button">← 현장 홈으로</button><span>${esc(siteName(u))}</span>`;
-    root.insertAdjacentElement('afterbegin',bar);
-    bar.querySelector('button').onclick=()=>fieldHome(u);
-  }
-
-  function safetyContact(){
-    return `<section id="fieldSafetyContact" class="field-safety-contact business-card-contact">
-      <div class="business-card-head"><span>안전관리자 정보</span><small>사고·안전 관련 문의는 아래 담당자에게 연락해 주세요.</small></div>
-      <div class="business-card-body">
-        <div class="business-card-name"><b>박태영</b><span>과장 · 경영관리부</span></div>
-        <div class="business-card-line"><span>회사</span><strong>(주)이앤엘</strong></div>
-        <div class="business-card-line"><span>전화</span><a href="tel:07086778554">070-8677-8554</a></div>
-        <div class="business-card-line"><span>휴대폰</span><a href="tel:01055668580">010-5566-8580</a></div>
-        <div class="business-card-line"><span>이메일</span><a href="mailto:hanarin0130@enlife.co.kr">hanarin0130@enlife.co.kr</a></div>
-        <div class="business-card-line address"><span>주소</span><strong>경기도 화성시 동탄순환대로823 702호<br>(영천동, 에이팩시티)</strong></div>
-        <div class="business-card-line"><span>홈페이지</span><a href="https://enlife.co.kr" target="_blank" rel="noopener">enlife.co.kr</a></div>
-      </div>
-    </section>`;
-  }
-
-  function renderInquiry(root,u){
-    const mine=loadInquiries().filter(x=>x.userId===u.id||(!x.userId&&x.userName===u.name)).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
-    root.innerHTML=`<div class="field-task-back"><button type="button" id="inqBack410">← 현장 홈으로</button><span>${esc(siteName(u))}</span></div>
-      <form id="fieldInquiryForm410" class="panel report-simple"><div class="section-head"><div><div class="ey">QUESTION</div><h2>기타 문의</h2><p>안전관리자 정보 확인 또는 문의사항을 남겨주세요.</p></div></div>
-      ${safetyContact()}
-      <div class="formgrid"><label class="lbl"><span>문의 구분 *</span><select id="inqType410"><option>앱 사용법</option><option>안전 관련 문의</option><option>기타</option></select></label><label class="lbl"><span>제목 *</span><input id="inqTitle410" required placeholder="문의 제목"></label></div>
-      <label class="lbl"><span>문의 내용 *</span><textarea id="inqBody410" rows="5" required placeholder="궁금한 내용을 적어주세요"></textarea></label><button class="primary full" type="submit">문의 보내기</button></form>
-      <section class="panel" style="margin-top:12px"><div class="section-head"><div><div class="ey">MY QUESTIONS</div><h2>내 문의 기록</h2><p>이 기기에서 등록한 문의를 확인합니다.</p></div></div><div class="field-inquiry-list">${mine.map(q=>`<div class="field-inquiry-card"><b>${esc(q.title)}</b><span>${esc(q.type)} · ${q.status==='answered'?'답변완료':'접수'}</span><p>${esc(q.body)}</p>${q.answer?`<div class="field-inquiry-answer"><b>본사 답변</b>${esc(q.answer)}</div>`:''}<small>${fmt(q.createdAt)}</small></div>`).join('')||'<div class="empty compact">등록한 문의가 없습니다.</div>'}</div></section>`;
-    document.getElementById('inqBack410').onclick=()=>fieldHome(u);
-    document.getElementById('fieldInquiryForm410').onsubmit=e=>{
-      e.preventDefault();const v=loadInquiries();
-      v.unshift({id:uid('inq'),siteId:u.siteId,userId:u.id,userName:u.name,position:title(u),type:document.getElementById('inqType410').value,title:document.getElementById('inqTitle410').value.trim(),body:document.getElementById('inqBody410').value.trim(),status:'open',answer:'',createdAt:nowISO(),updatedAt:nowISO()});
-      if(saveInquiries(v)){alert('문의가 등록되었습니다.');renderInquiry(root,u)}
-    };
-  }
+  window.enlFieldHome=fieldHome;window.enlFieldSetTask=t=>{fieldTask=t||'home'};
+  function goTask(task,u){fieldTask=task;if(task==='inquiry'){currentView='field-inquiry';try{enlPlatformSection='hub';localStorage.setItem(ENL_PLATFORM_SECTION_KEY,'hub')}catch(e){}return renderShell(u||currentUser())}try{enlPlatformSection='incident';localStorage.setItem(ENL_PLATFORM_SECTION_KEY,'incident')}catch(e){}currentView=task==='accident_report'?'report':task==='accident_action'?'actions':'incidents';renderShell(u||currentUser())}
+  function renderHome(root,u){if(!root)return;root.innerHTML=`<section class="field-six-home"><div class="field-six-head"><h2>${esc(siteName(u))}</h2><p>필요한 메뉴를 선택해 주세요.</p><span class="field-six-role">${esc(title(u))} · ${esc(u.name)}</span></div><div class="field-six-grid"><button class="field-six-btn" data-field-task="accident_report"><span class="field-six-no">01</span><strong>사고 보고</strong><small>사고 발생 내용을<br>사진과 함께 보고</small></button><button class="field-six-btn" data-field-task="accident_action"><span class="field-six-no">02</span><strong>사고 조치</strong><small>사고 후 원인과 조치 내용을<br>등록하고 확인</small></button><button class="field-six-btn" data-field-task="records"><span class="field-six-no">03</span><strong>사고 기록</strong><small>우리 현장의 사고와 조치<br>기록을 확인</small></button><button class="field-six-btn" data-field-task="inquiry"><span class="field-six-no">04</span><strong>기타 문의</strong><small>안전관리자 정보 확인<br>및 문의</small></button></div></section>`;root.querySelectorAll('[data-field-task]').forEach(b=>b.onclick=()=>goTask(b.dataset.fieldTask,u))}
+  function addBack(root,u){if(!root||root.querySelector('.field-task-back'))return;const bar=document.createElement('div');bar.className='field-task-back';bar.innerHTML=`<button type="button">← 현장 홈으로</button><span>${esc(siteName(u))}</span>`;root.insertAdjacentElement('afterbegin',bar);bar.querySelector('button').onclick=()=>fieldHome(u)}
+  function safetyContact(){return `<section id="fieldSafetyContact" class="field-safety-contact business-card-contact"><div class="business-card-head"><span>안전관리자 정보</span><small>사고·안전 관련 문의는 아래 담당자에게 연락해 주세요.</small></div><div class="business-card-body"><div class="business-card-name"><b>박태영</b><span>과장 · 경영관리부</span></div><div class="business-card-line"><span>회사</span><strong>(주)이앤엘</strong></div><div class="business-card-line"><span>전화</span><a href="tel:07086778554">070-8677-8554</a></div><div class="business-card-line"><span>휴대폰</span><a href="tel:01055668580">010-5566-8580</a></div><div class="business-card-line"><span>이메일</span><a href="mailto:hanarin0130@enlife.co.kr">hanarin0130@enlife.co.kr</a></div><div class="business-card-line address"><span>주소</span><strong>경기도 화성시 동탄순환대로823 702호<br>(영천동, 에이팩시티)</strong></div><div class="business-card-line"><span>홈페이지</span><a href="https://enlife.co.kr" target="_blank" rel="noopener">enlife.co.kr</a></div></div></section>`}
+  function renderInquiry(root,u){const mine=loadInquiries().filter(x=>x.userId===u.id||(!x.userId&&x.userName===u.name)).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));root.innerHTML=`<div class="field-task-back"><button type="button" id="inqBack410">← 현장 홈으로</button><span>${esc(siteName(u))}</span></div><form id="fieldInquiryForm410" class="panel report-simple"><div class="section-head"><div><div class="ey">QUESTION</div><h2>기타 문의</h2><p>안전관리자 정보 확인 또는 문의사항을 남겨주세요.</p></div></div>${safetyContact()}<div class="formgrid"><label class="lbl"><span>문의 구분 *</span><select id="inqType410"><option>앱 사용법</option><option>안전 관련 문의</option><option>기타</option></select></label><label class="lbl"><span>제목 *</span><input id="inqTitle410" required placeholder="문의 제목"></label></div><label class="lbl"><span>문의 내용 *</span><textarea id="inqBody410" rows="5" required placeholder="궁금한 내용을 적어주세요"></textarea></label><button class="primary full" type="submit">문의 보내기</button></form><section class="panel" style="margin-top:12px"><div class="section-head"><div><div class="ey">MY QUESTIONS</div><h2>내 문의 기록</h2><p>이 기기에서 등록한 문의를 확인합니다.</p></div></div><div class="field-inquiry-list">${mine.map(q=>`<div class="field-inquiry-card"><b>${esc(q.title)}</b><span>${esc(q.type)} · ${q.status==='answered'?'답변완료':'접수'}</span><p>${esc(q.body)}</p>${q.answer?`<div class="field-inquiry-answer"><b>본사 답변</b>${esc(q.answer)}</div>`:''}<small>${fmt(q.createdAt)}</small></div>`).join('')||'<div class="empty compact">등록한 문의가 없습니다.</div>'}</div></section>`;document.getElementById('inqBack410').onclick=()=>fieldHome(u);document.getElementById('fieldInquiryForm410').onsubmit=e=>{e.preventDefault();const v=loadInquiries();v.unshift({id:uid('inq'),siteId:u.siteId,userId:u.id,userName:u.name,position:title(u),type:document.getElementById('inqType410').value,title:document.getElementById('inqTitle410').value.trim(),body:document.getElementById('inqBody410').value.trim(),status:'open',answer:'',createdAt:nowISO(),updatedAt:nowISO()});if(saveInquiries(v)){alert('문의가 등록되었습니다.');renderInquiry(root,u)}}}
 
   try{const baseCategoryName=categoryName;categoryName=v=>v==='person'?'인사사고':baseCategoryName(v)}catch(e){}
-
-  if(typeof renderUnifiedReport==='function'){
-    const baseReport=renderUnifiedReport;
-    renderUnifiedReport=function(root,u){
-      baseReport(root,u);if(!isField(u))return;
-      const h=root.querySelector('.section-head h2'),p=root.querySelector('.section-head p'),cat=document.getElementById('category'),submit=root.querySelector('button[type="submit"]');
-      if(fieldTask==='accident_report'){
-        if(h)h.textContent='사고 보고';if(p)p.textContent='인사사고, 대물사고, 아차사고를 간단히 알려주세요.';
-        if(cat){cat.innerHTML='<option value="person">인사사고</option><option value="property">대물사고</option><option value="near_miss">아차사고</option>';cat.value='person';cat.onchange?.()}
-        if(submit)submit.textContent='사고 보고 보내기';
-      }
-      addBack(root,u);
-    };
-  }
-
-  if(typeof submitUnifiedIncident==='function'){
-    const baseSubmit=submitUnifiedIncident;
-    submitUnifiedIncident=async function(e,u){const field=isField(u);await baseSubmit(e,u);if(field){fieldTask='records';currentView='incidents';try{enlPlatformSection='incident'}catch(err){}renderShell(u)}};
-  }
-
-  if(typeof renderUnifiedActions==='function'){
-    const baseActions=renderUnifiedActions;
-    renderUnifiedActions=function(root,u){
-      if(!isField(u)||fieldTask!=='accident_action'){baseActions(root,u);if(isField(u))addBack(root,u);return}
-      const original=typeof actionAccessibleIncidents==='function'?actionAccessibleIncidents:null;
-      if(original)actionAccessibleIncidents=x=>original(x).filter(i=>['person','property','near_miss'].includes(i.category));
-      try{baseActions(root,u)}finally{if(original)actionAccessibleIncidents=original}
-      const h=root.querySelector('.section-head h2'),p=root.querySelector('.section-head p');if(h)h.textContent='사고 조치';if(p)p.textContent='발생한 사고를 선택하고 원인과 재발방지 조치 내용을 등록해 주세요.';addBack(root,u);
-    };
-  }
-
-  if(typeof renderUnifiedIncidents==='function'){
-    const baseIncidents=renderUnifiedIncidents;
-    renderUnifiedIncidents=function(root,u){baseIncidents(root,u);if(isField(u)){const h=root.querySelector('.section-head h2'),p=root.querySelector('.section-head p');if(h)h.textContent='사고 기록';if(p)p.textContent='우리 현장의 사고와 조치 기록을 확인합니다.';addBack(root,u)}};
-  }
-
-  if(typeof renderCurrentView==='function'){
-    const baseCurrent=renderCurrentView;
-    renderCurrentView=function(u){if(isField(u)&&currentView==='field-inquiry')return renderInquiry(document.getElementById('view'),u);return baseCurrent(u)};
-  }
-
-  if(typeof renderMore==='function'){
-    const baseMore=renderMore;
-    renderMore=function(root,u){
-      baseMore(root,u);if(u.role!=='safety')return;
-      const qs=loadInquiries(),open=qs.filter(q=>q.status!=='answered').length,box=document.createElement('section');box.className='panel hq-inquiry-panel';
-      box.innerHTML=`<div class="section-head"><div><div class="ey">FIELD QUESTIONS</div><h2>현장 기타 문의</h2><p>현장에서 등록한 앱 사용법·안전 관련 문의입니다. 미답변 ${open}건</p></div></div><div>${qs.map(q=>`<div class="hq-inquiry-row"><div class="hq-inquiry-main"><b>${esc(q.title)}</b><span>${esc(siteById(q.siteId)?.name||'-')} · ${esc(q.userName||'-')} · ${esc(q.type||'기타')}</span><small>${esc(q.body)} · ${fmt(q.createdAt)}</small>${q.answer?`<div class="field-inquiry-answer">답변: ${esc(q.answer)}</div>`:''}</div><div class="hq-inquiry-actions"><button class="small-btn" data-inq-answer="${q.id}">${q.status==='answered'?'답변수정':'답변'}</button></div></div>`).join('')||'<div class="empty compact">등록된 문의가 없습니다.</div>'}</div>`;
-      root.appendChild(box);box.querySelectorAll('[data-inq-answer]').forEach(b=>b.onclick=()=>{const all=loadInquiries(),q=all.find(x=>x.id===b.dataset.inqAnswer);if(!q)return;const ans=prompt('현장에 전달할 답변을 입력하세요.',q.answer||'');if(ans===null)return;q.answer=ans.trim();q.status=q.answer?'answered':'open';q.answeredBy=u.name;q.updatedAt=nowISO();saveInquiries(all);renderShell(u)})
-    };
-  }
-
-  if(typeof renderShell==='function'){
-    const baseShell=renderShell;
-    renderShell=function(u){
-      const r=baseShell(u);const shell=document.querySelector('.app-shell');if(shell)shell.classList.toggle('field-simple-mode',isField(u));
-      if(isField(u)){
-        let section='';try{section=enlPlatformSection||''}catch(e){}
-        if(currentView==='home'){
-          fieldTask='home';section='hub';
-          try{enlPlatformSection='hub';localStorage.setItem(ENL_PLATFORM_SECTION_KEY,'hub')}catch(e){}
-        }
-        const chip=document.querySelector('.user-chip small');if(chip)chip.textContent=`${title(u)} · ${siteName(u)}`;
-        const root=document.getElementById('view');if(fieldTask==='home'&&section==='hub'&&currentView==='home')renderHome(root,u);
-        const brand=document.querySelector('.topbar .brand');if(brand){brand.style.cursor='pointer';brand.onclick=()=>fieldHome(u)}
-      }
-      return r;
-    };
-  }
-
+  if(typeof renderUnifiedReport==='function'){const baseReport=renderUnifiedReport;renderUnifiedReport=function(root,u){baseReport(root,u);if(!isField(u))return;const h=root.querySelector('.section-head h2'),p=root.querySelector('.section-head p'),cat=document.getElementById('category'),submit=root.querySelector('button[type="submit"]');if(fieldTask==='accident_report'){if(h)h.textContent='사고 보고';if(p)p.textContent='인사사고, 대물사고, 아차사고를 간단히 알려주세요.';if(cat){cat.innerHTML='<option value="person">인사사고</option><option value="property">대물사고</option><option value="near_miss">아차사고</option>';cat.value='person';cat.onchange?.()}if(submit)submit.textContent='사고 보고 보내기'}addBack(root,u)}}
+  if(typeof submitUnifiedIncident==='function'){const baseSubmit=submitUnifiedIncident;submitUnifiedIncident=async function(e,u){const field=isField(u);await baseSubmit(e,u);if(field){fieldTask='records';currentView='incidents';try{enlPlatformSection='incident'}catch(err){}renderShell(u)}}}
+  if(typeof renderUnifiedActions==='function'){const baseActions=renderUnifiedActions;renderUnifiedActions=function(root,u){if(!isField(u)||fieldTask!=='accident_action'){baseActions(root,u);if(isField(u))addBack(root,u);return}const original=typeof actionAccessibleIncidents==='function'?actionAccessibleIncidents:null;if(original)actionAccessibleIncidents=x=>original(x).filter(i=>['person','property','near_miss'].includes(i.category));try{baseActions(root,u)}finally{if(original)actionAccessibleIncidents=original}const h=root.querySelector('.section-head h2'),p=root.querySelector('.section-head p');if(h)h.textContent='사고 조치';if(p)p.textContent='발생한 사고를 선택하고 원인과 재발방지 조치 내용을 등록해 주세요.';addBack(root,u)}}
+  if(typeof renderUnifiedIncidents==='function'){const baseIncidents=renderUnifiedIncidents;renderUnifiedIncidents=function(root,u){baseIncidents(root,u);if(isField(u)){const h=root.querySelector('.section-head h2'),p=root.querySelector('.section-head p');if(h)h.textContent='사고 기록';if(p&&!p.textContent)p.textContent='사고 기록을 확인합니다.';addBack(root,u)}}}
+  if(typeof renderCurrentView==='function'){const baseCurrent=renderCurrentView;renderCurrentView=function(u){if(isField(u)&&currentView==='field-inquiry')return renderInquiry(document.getElementById('view'),u);return baseCurrent(u)}}
+  if(typeof renderMore==='function'){const baseMore=renderMore;renderMore=function(root,u){baseMore(root,u);if(u.role!=='safety')return;const qs=loadInquiries(),open=qs.filter(q=>q.status!=='answered').length,box=document.createElement('section');box.className='panel hq-inquiry-panel';box.innerHTML=`<div class="section-head"><div><div class="ey">FIELD QUESTIONS</div><h2>현장 기타 문의</h2><p>현장에서 등록한 앱 사용법·안전 관련 문의입니다. 미답변 ${open}건</p></div></div><div>${qs.map(q=>`<div class="hq-inquiry-row"><div class="hq-inquiry-main"><b>${esc(q.title)}</b><span>${esc(siteById(q.siteId)?.name||'-')} · ${esc(q.userName||'-')} · ${esc(q.type||'기타')}</span><small>${esc(q.body)} · ${fmt(q.createdAt)}</small>${q.answer?`<div class="field-inquiry-answer">답변: ${esc(q.answer)}</div>`:''}</div><div class="hq-inquiry-actions"><button class="small-btn" data-inq-answer="${q.id}">${q.status==='answered'?'답변수정':'답변'}</button></div></div>`).join('')||'<div class="empty compact">등록된 문의가 없습니다.</div>'}</div>`;root.appendChild(box);box.querySelectorAll('[data-inq-answer]').forEach(b=>b.onclick=()=>{const all=loadInquiries(),q=all.find(x=>x.id===b.dataset.inqAnswer);if(!q)return;const ans=prompt('현장에 전달할 답변을 입력하세요.',q.answer||'');if(ans===null)return;q.answer=ans.trim();q.status=q.answer?'answered':'open';q.answeredBy=u.name;q.updatedAt=nowISO();saveInquiries(all);renderShell(u)})}}
+  if(typeof renderShell==='function'){const baseShell=renderShell;renderShell=function(u){const r=baseShell(u);const shell=document.querySelector('.app-shell');if(shell)shell.classList.toggle('field-simple-mode',isField(u));if(isField(u)){let section='';try{section=enlPlatformSection||''}catch(e){}if(currentView==='home'){fieldTask='home';section='hub';try{enlPlatformSection='hub';localStorage.setItem(ENL_PLATFORM_SECTION_KEY,'hub')}catch(e){}}const chip=document.querySelector('.user-chip small');if(chip)chip.textContent=`${title(u)} · ${siteName(u)}`;const root=document.getElementById('view');if(fieldTask==='home'&&section==='hub'&&currentView==='home')renderHome(root,u);const brand=document.querySelector('.topbar .brand');if(brand){brand.style.cursor='pointer';brand.onclick=()=>fieldHome(u)}}return r}}
   window.ENL_FIELD_UI_VERSION=VERSION;
 })();
