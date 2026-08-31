@@ -141,7 +141,10 @@
       const r=baseShell(u);const shell=document.querySelector('.app-shell');if(shell)shell.classList.toggle('field-simple-mode',isField(u));
       if(isField(u)){
         let section='';try{section=enlPlatformSection||''}catch(e){}
-        if(section==='hub'&&currentView==='home')fieldTask='home';
+        if(currentView==='home'){
+          fieldTask='home';section='hub';
+          try{enlPlatformSection='hub';localStorage.setItem(ENL_PLATFORM_SECTION_KEY,'hub')}catch(e){}
+        }
         const chip=document.querySelector('.user-chip small');if(chip)chip.textContent=`${title(u)} · ${siteName(u)}`;
         const root=document.getElementById('view');if(fieldTask==='home'&&section==='hub'&&currentView==='home')renderHome(root,u);
         const brand=document.querySelector('.topbar .brand');if(brand){brand.style.cursor='pointer';brand.onclick=()=>fieldHome(u)}
