@@ -37,8 +37,8 @@
     if(isField(u)){
       if(currentView==='home'||!currentView)return window.enlRenderFieldHome?.(root,u);
       if(currentView==='report'){const r=renderUnifiedReport(root,u);window.enlAddFieldBack?.(root,u);return r}
-      if(currentView==='incidents'){const r=renderUnifiedIncidents(root,u);window.enlAddFieldBack?.(root,u);return r}
-      if(currentView==='actions'){const r=renderUnifiedActions(root,u);window.enlAddFieldBack?.(root,u);return r}
+      if(currentView==='incidents')return window.enlRenderFieldRecords?window.enlRenderFieldRecords(root,u):renderUnifiedIncidents(root,u);
+      if(currentView==='actions')return window.enlRenderFieldActions?window.enlRenderFieldActions(root,u):renderUnifiedActions(root,u);
       if(currentView==='field-inquiry')return window.enlRenderFieldInquiry?.(root,u);
       if(currentView==='personnel')return window.enlRenderPersonnelPage?.(u);
       currentView='home';return window.enlRenderFieldHome?.(root,u);
