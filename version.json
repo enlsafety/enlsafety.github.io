@@ -1,9 +1,9 @@
 {
   "version": "4.1.0",
-  "build": "stable-410-r3",
+  "build": "stable-410-r4",
   "autoUpdate": false,
-  "loginAutoUpdate": true,
+  "loginAutoUpdate": false,
   "stableEntry": "stable410.html",
   "currentStableVersion": "4.1.0",
-  "updatedAt": "2026-08-31T10:56:00+09:00"
+  "updatedAt": "2026-08-31T11:25:00+09:00"
 }
