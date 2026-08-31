@@ -69,9 +69,13 @@ jobs:
               raise SystemExit('Legacy incidents.js is still loaded')
           if 'test-88cc-v341.js' in html:
               raise SystemExit('Legacy 88CC test runtime is still loaded')
-          for required in ['incidents-v410.js?v=4.1.0-r5','field-ui-v410.js?v=4.1.0-r8','field-ui-v410.css?v=4.1.0-r8','auth-core-v410.js?v=4.1.0-r7','review-dashboard-v410.js','report-v410.js?v=4.1.0-r6','report-v410.css?v=4.1.0-r8']:
+          for required in ['incidents-v410.js?v=4.1.0-r5','field-ui-v410.js?v=4.1.0-r9','field-ui-v410.css?v=4.1.0-r9','auth-core-v410.js?v=4.1.0-r7','review-dashboard-v410.js','report-v410.js?v=4.1.0-r9','report-v410.css?v=4.1.0-r9']:
               if required not in html:
                   raise SystemExit('Missing required stable reference: '+required)
+          if html.index('report-v410.js?v=4.1.0-r9') < html.index('ui-rbac-v402.js'):
+              raise SystemExit('v410 report module must load after legacy UI modules')
+          if html.index('field-ui-v410.js?v=4.1.0-r9') < html.index('report-v410.js?v=4.1.0-r9'):
+              raise SystemExit('field UI must load after authoritative report module')
           if 'field-report-v370.js' in html or 'field-report-v370.css' in html or 'event-type-safe-v380.js' in html:
               raise SystemExit('Legacy report patch is still loaded in stable410')
           src=Path('incidents-v410.js').read_text(encoding='utf-8')
@@ -79,13 +83,16 @@ jobs:
               if rule not in src:
                   raise SystemExit('Missing incident permission rule: '+rule)
           report=Path('report-v410.js').read_text(encoding='utf-8')
-          for rule in ["data-report-type=\"person\"", "data-report-type=\"property\"", "diagnosis410", "medicalCost410", "damagedItem410", "repairCost410"]:
+          for rule in ['data-report-picker="v410"','data-report-type="person"','data-report-type="property"','diagnosis410','medicalCost410','damagedItem410','repairCost410',"if(currentView==='report')return renderReport(root,u);",'window.enlShowIncidentTypePicker']:
               if rule not in report:
-                  raise SystemExit('Missing person/property report rule: '+rule)
+                  raise SystemExit('Missing authoritative report rule: '+rule)
           field=Path('field-ui-v410.js').read_text(encoding='utf-8')
-          for rule in ["window.enlResetIncidentReport?.()", "renderUnifiedReport(root,viewer)", '<span class="field-six-no">03</span><strong>사고 기록</strong><small>우리 현장 사고기록 확인</small>']:
+          for rule in ['window.enlShowIncidentTypePicker', '<span class="field-six-no">03</span><strong>사고 기록</strong><small>우리 현장<br>사고기록 확인</small>']:
               if rule not in field:
-                  raise SystemExit('Missing field report/menu rule: '+rule)
+                  raise SystemExit('Missing field picker/menu rule: '+rule)
+          field_css=Path('field-ui-v410.css').read_text(encoding='utf-8')
+          if '[data-field-task="records"] small' not in field_css or 'font-size:13px!important' not in field_css:
+              raise SystemExit('Mobile record-menu overflow rule is missing')
           report_css=Path('report-v410.css').read_text(encoding='utf-8')
           if 'aspect-ratio:1/1' not in report_css or 'grid-template-columns:repeat(2,minmax(0,1fr))' not in report_css:
               raise SystemExit('Square two-column report picker CSS is missing')
@@ -93,11 +100,11 @@ jobs:
           if "option.kind==='hq'||option.requiresPassword" not in auth:
               raise SystemExit('Site manager password routing is missing')
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          if meta.get('build')!='stable-410-r8':
-              raise SystemExit('version.json build is not stable-410-r8')
+          if meta.get('build')!='stable-410-r9':
+              raise SystemExit('version.json build is not stable-410-r9')
           if meta.get('loginAutoUpdate') is not False:
               raise SystemExit('loginAutoUpdate must remain false for iOS focus stability')
-          print(f'OK: {len(p.refs)} local asset references resolved; r8 rules present')
+          print(f'OK: {len(p.refs)} local asset references resolved; r9 authoritative picker rules present')
       - name: Live login API roles
         shell: python
         run: |
