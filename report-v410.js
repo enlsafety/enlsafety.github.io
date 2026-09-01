@@ -127,7 +127,7 @@
     const title=person?'대인사고 경위서':'대물사고 경위서';
     const desc=person?'부상·진단·진료비 등 인적 피해 중심으로 작성합니다.':'파손내용·복구비용·견적 등 물적 피해 중심으로 작성합니다.';
     root.innerHTML=`${topBack(u)}<form id="unifiedReportForm" class="panel report-simple incident410-form" data-report-type="${type}">
-      <div class="section-head"><div><div class="ey">${person?'PERSON INCIDENT':'PROPERTY INCIDENT'}</div><h2>${title}</h2><p>${desc}</p></div><button type="button" class="secondary report410-change" data-change-type>사고 종류 변경</button></div>
+      <div class="section-head"><div><div class="ey">${person?'PERSON INCIDENT':'PROPERTY INCIDENT'}</div><h2>${title}</h2><p>${desc}</p></div><button type="button" class="secondary report410-change" data-change-type>← 사고 종류 변경</button></div>
       <section class="report410-section"><div class="report410-section-head"><b>1. 사고 개요</b><small>언제, 어디서 발생했는지 입력합니다.</small></div>${commonTop(u)}</section>
       ${circumstanceSection(type)}${causeSection()}${person?personDamageSection():propertyDamageSection()}${closingSection(type)}
       <section class="report410-section report410-photo"><div class="report410-section-head"><b>6. 현장사진 *</b><small>사고장소와 피해상태가 확인되도록 1장 이상 등록해 주세요.</small></div>${photoPickerHtml('incident')}</section>
