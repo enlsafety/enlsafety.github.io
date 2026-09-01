@@ -3,6 +3,9 @@ const DB_KEY = 'enl_safety_v3';
 const SESSION_KEY = 'enl_safety_session_v3';
 const OLD_KEY = 'enl_accident_demo_v1';
 const MAX_PHOTOS = 8;
+const ATTACHMENT_API = 'https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-attachment-v411';
+const ATTACHMENT_CLIENT = 'incident-report-v2';
+const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 const DEMO_HASHES = {
   '1111':'0ffe1abd1a08215353c233d6e009613e95eec4253832a761af28ff37ac5a150c',
   '2222':'edee29f882543b956620b26d0ee0e7e950399b1c4222f5de05e06425b4c995e9',
@@ -22,13 +25,13 @@ const actionPhotoInput = document.getElementById('actionPhotoInput');
 function uid(prefix='id'){return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,8)}`}
 function nowISO(){return new Date().toISOString()}
 function localDT(d=new Date()){return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16)}
-function esc(v=''){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function esc(v=''){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]))}
 function fmt(v){if(!v)return '-';try{return new Intl.DateTimeFormat('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(v))}catch{return v}}
 function dday(v){if(!v)return '-';const a=new Date(v);a.setHours(0,0,0,0);const b=new Date();b.setHours(0,0,0,0);const n=Math.ceil((a-b)/86400000);return n===0?'오늘':n>0?`D-${n}`:`D+${Math.abs(n)}`}
 function siteById(id){return data.sites.find(s=>s.id===id)}
 function userById(id){return data.users.find(u=>u.id===id)}
 function currentUser(){return session?userById(session.userId):null}
-function roleName(role){return role==='field'?'현장소장':role==='safety'?'안전관리자':'최종관리자'}
+function roleName(role){return role==='worker'?'일반근로자':role==='field'?'현장관리':role==='safety'?'안전관리자':role==='executive'?'경영진':role==='manager'||role==='final'?'관리자':'사용자'}
 function categoryName(v){return v==='person'?'대인사고':v==='property'?'대물사고':'아차사고'}
 function statusName(v){return v==='reported'?'검토대기':v==='approved'?'승인':'종결'}
 function priorityName(v){return v==='urgent'?'긴급':v==='important'?'중요':'일반'}
@@ -54,7 +57,7 @@ function defaultData(){
     users:[
       {id:'u-field-demo',username:'field01',name:'동탄 현장소장',role:'field',siteId:'site-dongtan',passwordHash:DEMO_HASHES['1111'],active:true,createdAt:nowISO()},
       {id:'u-safety-demo',username:'safety',name:'안전관리자',role:'safety',siteId:null,passwordHash:DEMO_HASHES['2222'],active:true,createdAt:nowISO()},
-      {id:'u-final-demo',username:'manager',name:'최종관리자',role:'final',siteId:null,passwordHash:DEMO_HASHES['3333'],active:true,createdAt:nowISO()}
+      {id:'u-final-demo',username:'manager',name:'최종관리자',role:'manager',siteId:null,passwordHash:DEMO_HASHES['3333'],active:true,createdAt:nowISO()}
     ],
     incidents:[]
   };
@@ -131,9 +134,9 @@ function renderLogin(){
     <div class="demo-box"><b>테스트 계정</b>
       <div class="demo-row"><span>현장소장</span><span>field01 / 1111</span></div>
       <div class="demo-row"><span>안전관리자</span><span>safety / 2222</span></div>
-      <div class="demo-row"><span>최종관리자</span><span>manager / 3333</span></div>
+      <div class="demo-row"><span>관리자</span><span>manager / 3333</span></div>
     </div>
-    <div class="test-note">현재 버전은 화면·업무흐름 테스트용입니다. 계정과 사고 데이터는 이 브라우저에 저장되며, 실제 운영 전 Supabase 인증·실시간 저장으로 전환합니다.</div>
+    <div class="test-note">현재 버전은 화면·업무흐름 테스트용입니다.</div>
   </div></div>`;
   document.getElementById('loginForm').onsubmit=doLogin;
 }
@@ -162,7 +165,7 @@ function renderShell(u){
       <div class="role-banner">● ${roleBanner(u)}</div>
       ${renderNav(u)}
       <div id="view"></div>
-      <div class="footer-note">이앤엘 사고보고 ${APP_VERSION} · TEST MODE · 현재 브라우저 저장 방식</div>
+      <div class="footer-note">이앤엘 사고보고 ${APP_VERSION}</div>
     </main>
     <div id="modalRoot"></div>
   </div>`;
@@ -175,7 +178,7 @@ function renderShell(u){
 function roleBanner(u){
   if(u.role==='field')return `${siteById(u.siteId)?.name||'소속 사업장'} 사고 등록·누적기록·개선조치만 볼 수 있습니다.`;
   if(u.role==='safety')return '전체 사업장을 조회하고 사고 승인·수정·삭제·조치검토·현장/사용자 관리를 할 수 있습니다.';
-  return '안전관리자가 승인한 사고만 조회할 수 있습니다. 수정·삭제 권한은 없습니다.';
+  return '안전관리자가 승인한 사고만 조회할 수 있습니다.';
 }
 function renderNav(u){
   const items=u.role==='field'?[['report','사고 보고하기'],['action','사고 조치하기'],['history','우리 사업장 기록']]:u.role==='safety'?[['dashboard','대시보드'],['incidents','전체 사고'],['actions','개선조치'],['sites','현장관리'],['users','사용자관리']]:[['approved','승인 사고 조회']];
@@ -215,7 +218,7 @@ function renderReport(root,u){
     <label class="lbl"><span>사고 내용 *</span><textarea id="summary" rows="4" required placeholder="어디서 무엇을 하다가 어떻게 발생했는지"></textarea></label>
     <label class="lbl"><span>현장 즉시조치 *</span><textarea id="immediateAction" rows="3" required placeholder="응급조치, 작업중지, 접근통제, 병원이송 등"></textarea></label>
     <label class="lbl"><span><input id="potentialMajor" type="checkbox" style="width:auto;margin-right:6px">인명피해는 작아도 중대사고로 이어질 잠재위험이 큼</span></label>
-    <div class="law-box">관리등급은 <b>법적 등급이 아니라 내부 우선순위</b>입니다. 대인사고는 기본적으로 중요 이상으로 관리하고, 화재·폭발·붕괴·감전·질식·중장비 등 잠재 중대위험은 피해가 작아도 긴급으로 올립니다.</div>
+    <div class="law-box">관리등급은 <b>법적 등급이 아니라 내부 우선순위</b>입니다.</div>
     ${photoPickerHtml('incident')}
     <button class="primary full" type="submit">사고보고 등록</button>
   </form>
@@ -225,19 +228,38 @@ function renderReport(root,u){
   renderFieldMini(u);
 }
 function eventTypeOptions(selected=''){const arr=['넘어짐','부딪힘','베임/찔림','끼임','추락','차량/중장비','감전','화재/폭발','붕괴/전도','질식/중독','근골격','설비/시설 파손','기타'];return arr.map(x=>`<option ${x===selected?'selected':''}>${x}</option>`).join('')}
-function photoPickerHtml(kind){return `<div class="photo-box"><div class="photo-head"><b>${kind==='incident'?'현장사진':'개선조치 사진'}</b><small id="${kind}PhotoCount">0 / ${MAX_PHOTOS}장</small></div><div class="photo-actions"><button type="button" class="secondary" id="${kind}PhotoBtn">사진 선택 / 촬영</button></div><div id="${kind}Thumbs" class="thumbs"></div></div>`}
+
+function attachmentActor(){const u=currentUser?.();return u?{id:u.id||u.personnelId||u.username||'',name:u.name||'',role:u.role||'',position:u.position||u.jobTitle||'',siteId:u.siteId||''}:null}
+function ensureAttachmentStyle(){if(document.getElementById('enlAttachmentStyle411'))return;const s=document.createElement('style');s.id='enlAttachmentStyle411';s.textContent=`.attach-grid411{display:grid;grid-template-columns:repeat(auto-fill,minmax(125px,1fr));gap:9px}.attach-card411{position:relative;min-height:104px;border:1px solid #ccd9e4;border-radius:12px;background:#f8fbfd;overflow:hidden;display:flex;align-items:center;justify-content:center;text-align:center;padding:9px;box-sizing:border-box}.attach-card411 img{width:100%;height:100%;min-height:86px;object-fit:cover;border-radius:8px}.attach-card411 .attach-file411{display:grid;gap:5px;justify-items:center;color:#36536f;font-size:12px;font-weight:800;word-break:break-all}.attach-card411 .attach-icon411{font-size:30px}.attach-card411 .attach-open411{position:absolute;inset:0;border:0;background:transparent;cursor:pointer}.attach-card411 .attach-remove411{position:absolute;right:5px;top:5px;z-index:2;width:27px;height:27px;border:0;border-radius:999px;background:rgba(25,50,72,.78);color:#fff;font-weight:900}.attach-gallery411{margin-top:12px}.attach-gallery411 .attach-card411{min-height:110px}.attach-meta411{font-size:11px;color:#75879a}.photo-head small{white-space:nowrap}.photo-actions .secondary{font-weight:900}`;document.head.appendChild(s)}
+function attachmentKind(a){if(typeof a==='string')return 'image';return a?.kind||(String(a?.mime||'').includes('pdf')?'pdf':'image')}
+function attachmentName(a,i=0){if(typeof a==='string')return `사진 ${i+1}`;return a?.name||`${attachmentKind(a)==='pdf'?'PDF':'사진'} ${i+1}`}
+function persistAttachment(a){if(typeof a==='string')return a;if(!a||typeof a!=='object')return a;const {previewUrl,...rest}=a;return rest}
+function fileToBase64(file){return file.arrayBuffer().then(buf=>{const bytes=new Uint8Array(buf);let binary='';const chunk=0x8000;for(let i=0;i<bytes.length;i+=chunk)binary+=String.fromCharCode(...bytes.subarray(i,i+chunk));return btoa(binary)})}
+async function uploadAttachment(file,scope){const actor=attachmentActor();if(!actor)throw new Error('로그인 정보를 확인하지 못했습니다.');if(file.size>MAX_ATTACHMENT_BYTES)throw new Error('파일은 8MB 이하만 등록할 수 있습니다.');const mime=file.type||'';if(!(mime.startsWith('image/')||mime==='application/pdf'))throw new Error('사진 또는 PDF 파일만 등록할 수 있습니다.');const base64=await fileToBase64(file);const r=await fetch(ATTACHMENT_API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':ATTACHMENT_CLIENT},body:JSON.stringify({action:'upload',actor,scope,file:{name:file.name||'file',mime,size:file.size,base64}}),cache:'no-store'});const j=await r.json().catch(()=>({}));if(!r.ok||j?.ok===false)throw new Error(j?.message==='file_too_large'?'파일은 8MB 이하만 등록할 수 있습니다.':'파일 업로드에 실패했습니다.');return j.attachment}
+async function signAttachments(paths){const actor=attachmentActor();if(!actor||!paths.length)return{};const r=await fetch(ATTACHMENT_API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':ATTACHMENT_CLIENT},body:JSON.stringify({action:'sign',actor,paths}),cache:'no-store'});const j=await r.json().catch(()=>({}));return r.ok&&j?.ok!==false?(j.urls||{}):{}}
+async function openAttachment(a){if(!a)return;if(typeof a==='string'){const w=window.open('','_blank');if(w){w.document.write(`<meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;background:#111;height:100%;display:flex;align-items:center;justify-content:center}img{max-width:100%;max-height:100%;object-fit:contain}</style><img src="${a}">`);w.document.close()}return}const path=a.path;if(!path)return alert('첨부파일 경로를 확인할 수 없습니다.');const urls=await signAttachments([path]),url=urls[path];if(!url)return alert('첨부파일을 열지 못했습니다. 다시 시도해 주세요.');window.open(url,'_blank','noopener')}
+function attachmentCardHtml(a,i,{removable=false}={}){const kind=attachmentKind(a),name=attachmentName(a,i),preview=typeof a==='object'?a?.previewUrl:'';return `<div class="attach-card411" data-attach-card="${i}">${kind==='image'&&(typeof a==='string'||preview)?`<img src="${typeof a==='string'?a:preview}" alt="${esc(name)}">`:`<div class="attach-file411"><span class="attach-icon411">${kind==='pdf'?'📄':'🖼️'}</span><b>${esc(name)}</b>${typeof a==='object'&&a?.size?`<span class="attach-meta411">${Math.max(1,Math.round(a.size/1024))}KB</span>`:''}</div>`}<button type="button" class="attach-open411" data-attach-open="${i}" aria-label="${esc(name)} 원본 열기"></button>${removable?`<button type="button" class="attach-remove411" data-rm="${i}" aria-label="첨부 삭제">×</button>`:''}</div>`}
+function attachmentGalleryHtml(arr){const list=Array.isArray(arr)?arr:[];if(!list.length)return '';ensureAttachmentStyle();return `<div class="attach-grid411 attach-gallery411">${list.map((a,i)=>attachmentCardHtml(a,i)).join('')}</div>`}
+function bindAttachmentOpen(root,arr){const list=Array.isArray(arr)?arr:[];root?.querySelectorAll('[data-attach-open]').forEach(b=>b.onclick=()=>openAttachment(list[Number(b.dataset.attachOpen)]))}
+function photoPickerHtml(kind){ensureAttachmentStyle();return `<div class="photo-box"><div class="photo-head"><b>${kind==='incident'?'현장사진 / PDF':'개선조치 사진 / PDF'}</b><small id="${kind}PhotoCount">0 / ${MAX_PHOTOS}개</small></div><div class="photo-actions"><button type="button" class="secondary" id="${kind}PhotoBtn">사진·PDF 선택 / 촬영</button></div><div id="${kind}Thumbs" class="attach-grid411"></div></div>`}
 function bindPhotoButtons(){const a=document.getElementById('incidentPhotoBtn');if(a)a.onclick=()=>incidentPhotoInput.click();const b=document.getElementById('actionPhotoBtn');if(b)b.onclick=()=>actionPhotoInput.click()}
-incidentPhotoInput.onchange=async e=>{incidentPhotos=await addFiles(incidentPhotos,e.target.files);e.target.value='';renderPhotoThumbs('incident')};
-actionPhotoInput.onchange=async e=>{actionPhotos=await addFiles(actionPhotos,e.target.files);e.target.value='';renderPhotoThumbs('action')};
-async function addFiles(list,fileList){const left=MAX_PHOTOS-list.length;if(left<=0){alert('사진은 최대 8장까지 등록할 수 있습니다.');return list}const next=[...list];for(const f of [...fileList].slice(0,left)){try{next.push(await compressImage(f))}catch(e){console.warn(e)}}return next}
+incidentPhotoInput.onchange=async e=>{incidentPhotos=await addFiles(incidentPhotos,e.target.files,'incident');e.target.value='';renderPhotoThumbs('incident')};
+actionPhotoInput.onchange=async e=>{actionPhotos=await addFiles(actionPhotos,e.target.files,'action');e.target.value='';renderPhotoThumbs('action')};
+async function addFiles(list,fileList,kind='incident'){const left=MAX_PHOTOS-list.length;if(left<=0){alert('첨부파일은 최대 8개까지 등록할 수 있습니다.');return list}const next=[...list];for(const f of [...fileList].slice(0,left)){try{next.push(await uploadAttachment(f,kind==='action'?'action':'incident'))}catch(e){console.warn(e);alert(e?.message||'파일을 등록하지 못했습니다.')}}return next}
 function compressImage(file){return new Promise((resolve,reject)=>{const img=new Image(),url=URL.createObjectURL(file);img.onload=()=>{const max=1400,r=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=Math.round(img.width*r);c.height=Math.round(img.height*r);c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);resolve(c.toDataURL('image/jpeg',.72))};img.onerror=reject;img.src=url})}
-function renderPhotoThumbs(kind){const arr=kind==='incident'?incidentPhotos:actionPhotos;const root=document.getElementById(`${kind}Thumbs`),cnt=document.getElementById(`${kind}PhotoCount`);if(!root)return;root.innerHTML=arr.map((p,i)=>`<div class="thumb"><img src="${p}"><button type="button" data-rm="${i}">×</button></div>`).join('');cnt.textContent=`${arr.length} / ${MAX_PHOTOS}장`;root.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{arr.splice(Number(b.dataset.rm),1);if(kind==='incident')incidentPhotos=arr;else actionPhotos=arr;renderPhotoThumbs(kind)})}
+function renderPhotoThumbs(kind){ensureAttachmentStyle();const arr=kind==='incident'?incidentPhotos:actionPhotos,root=document.getElementById(`${kind}Thumbs`),cnt=document.getElementById(`${kind}PhotoCount`);if(!root)return;root.innerHTML=arr.map((a,i)=>attachmentCardHtml(a,i,{removable:true})).join('');if(cnt)cnt.textContent=`${arr.length} / ${MAX_PHOTOS}개`;bindAttachmentOpen(root,arr);root.querySelectorAll('[data-rm]').forEach(b=>b.onclick=e=>{e.stopPropagation();arr.splice(Number(b.dataset.rm),1);if(kind==='incident')incidentPhotos=arr;else actionPhotos=arr;renderPhotoThumbs(kind)})}
+
+window.enlPersistAttachment=persistAttachment;
+window.enlAttachmentGalleryHtml=attachmentGalleryHtml;
+window.enlBindAttachmentOpen=bindAttachmentOpen;
+window.enlOpenAttachment=openAttachment;
+window.enlAttachmentKind=attachmentKind;
 
 function fieldIncidents(u){return data.incidents.filter(i=>i.siteId===u.siteId).sort((a,b)=>new Date(b.occurredAt)-new Date(a.occurredAt))}
 function renderFieldMini(u){const arr=fieldIncidents(u);const el=document.getElementById('fieldStats');if(el)el.innerHTML=`<div class="card"><span>누적 사고</span><b>${arr.length}</b></div><div class="card important"><span>조치 필요</span><b>${arr.filter(i=>i.status!=='closed'&&i.corrective?.status!=='approved').length}</b></div>`;const r=document.getElementById('fieldRecent');if(r)r.innerHTML=arr.slice(0,5).map(i=>`<div class="summary-card"><div class="summary-top"><b>${fmt(i.occurredAt)}</b><span>${priorityBadge(i.priority)}</span></div><p>${esc(i.summary)}</p>${categoryBadge(i.category)}${statusBadge(i.status)}${actionBadge(i)}</div>`).join('')||'<div class="empty">등록된 사고가 없습니다.</div>'}
 async function submitIncident(e,u){
   e.preventDefault();const category=document.getElementById('category').value,severity=document.getElementById('severity').value,eventType=document.getElementById('eventType').value,leaveEstimate=document.getElementById('leaveEstimate').value,potentialMajor=document.getElementById('potentialMajor').checked;
-  const i={id:uid('inc'),siteId:u.siteId,category,eventType,severity,leaveEstimate,potentialMajor,injuredName:document.getElementById('injuredName').value.trim(),job:document.getElementById('job').value.trim(),summary:document.getElementById('summary').value.trim(),immediateAction:document.getElementById('immediateAction').value.trim(),photos:[...incidentPhotos],reporterName:u.name,reporterId:u.id,occurredAt:new Date(document.getElementById('occurredAt').value).toISOString(),createdAt:nowISO(),updatedAt:nowISO(),status:'reported',priority:computePriority(category,severity,eventType,potentialMajor,leaveEstimate),legalReview:computeLegalReview(category,severity,leaveEstimate),safetyNote:'',approvedBy:'',approvedAt:null,closedAt:null,corrective:null};
+  const i={id:uid('inc'),siteId:u.siteId,category,eventType,severity,leaveEstimate,potentialMajor,injuredName:document.getElementById('injuredName').value.trim(),job:document.getElementById('job').value.trim(),summary:document.getElementById('summary').value.trim(),immediateAction:document.getElementById('immediateAction').value.trim(),photos:[...incidentPhotos].map(persistAttachment),reporterName:u.name,reporterId:u.id,occurredAt:new Date(document.getElementById('occurredAt').value).toISOString(),createdAt:nowISO(),updatedAt:nowISO(),status:'reported',priority:computePriority(category,severity,eventType,potentialMajor,leaveEstimate),prioritySource:'auto',legalReview:computeLegalReview(category,severity,leaveEstimate),safetyNote:'',approvedBy:'',approvedAt:null,closedAt:null,corrective:null};
   data.incidents.unshift(i);saveData();incidentPhotos=[];alert(`사고가 접수되었습니다. 관리등급: ${priorityName(i.priority)}${i.legalReview?' / 법적 검토 필요':''}`);renderShell(u);
 }
 
