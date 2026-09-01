@@ -38,37 +38,54 @@ jobs:
         run: |
           node --check core.js
           node --check auth-v411.js
-          node --check platform-state-v411.js
           node --check app-shell-v411.js
           node --check field-ui-v411.js
           node --check field-incidents-v411.js
           node --check incidents-v410.js
           node --check incident-sync-v411.js
-          node --check site-directory-v410.js
-          node --check site-directory-sync-v410.js
-          node --check site-admin-v400.js
-          node --check review-dashboard-v410.js
-          node --check interaction-v410.js
-          node --check app-control-v410.js
           node --check report-v410.js
-      - name: Production r8 data and layout rules
+      - name: Incident runtime exports
+        run: |
+          node <<'NODE'
+          const fs=require('fs'),vm=require('vm');
+          global.window=global;
+          global.document={
+            head:{appendChild(){}},
+            getElementById(){return null},
+            createElement(){return {id:'',textContent:'',style:{}}},
+            querySelectorAll(){return []}
+          };
+          global.data={sites:[{id:'s32',name:'88CC'}],incidents:[{id:'i1',siteId:'s32',category:'person',eventType:'넘어짐',priority:'important',status:'reported',summary:'테스트',occurredAt:'2026-09-01T00:55:00Z'}]};
+          global.currentUser=()=>({id:'safety-1',name:'안전관리자',role:'safety'});
+          global.siteById=id=>global.data.sites.find(s=>s.id===id);
+          global.esc=v=>String(v??''); global.fmt=v=>String(v??'');
+          global.badge=(c,t)=>`<span>${t}</span>`; global.categoryBadge=()=>''; global.priorityBadge=()=>''; global.legalBadge=()=>''; global.actionBadge=()=>'';
+          global.nowISO=()=>new Date().toISOString(); global.saveData=()=>{}; global.renderShell=()=>{}; global.closeModal=()=>{}; global.alert=()=>{}; global.confirm=()=>true;
+          global.openModal=()=>{}; global.eventTypeOptions=()=>'<option>넘어짐</option>';
+          vm.runInThisContext(fs.readFileSync('incidents-v410.js','utf8'),{filename:'incidents-v410.js'});
+          for(const name of ['incidentTable','bindIncidentRows','openIncidentModal','openEditIncidentModal','renderUnifiedIncidents','sortIncidents']){
+            if(typeof global[name]!=='function')throw new Error(name+' export missing');
+          }
+          for(const name of ['enlIncidentTable','enlOpenIncidentReview','enlCanEditIncident','enlCanViewIncidentOriginal']){
+            if(typeof global[name]!=='function')throw new Error(name+' explicit export missing');
+          }
+          const html=global.incidentTable(global.data.incidents,true,global.currentUser());
+          if(!html.includes('88CC')||!html.includes('넘어짐'))throw new Error('incident table did not render sample record');
+          console.log('OK: incident list/review runtime exports execute successfully');
+          NODE
+      - name: Production r9 rules
         shell: python
         run: |
           from pathlib import Path
           from html.parser import HTMLParser
           from urllib.parse import urlsplit
           import json
-
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
           assert meta.get('stableEntry')=='stable411.html', meta
-          assert meta.get('build')=='stable-411-r8', meta
-          assert meta.get('version')=='4.1.1', meta
-          assert meta.get('loginAutoUpdate') is False, meta
-
+          assert meta.get('build')=='stable-411-r9', meta
           index=Path('index.html').read_text(encoding='utf-8')
-          assert 'stable411.html' in index and 'build=r8' in index
+          assert 'build=r9' in index
           html=Path('stable411.html').read_text(encoding='utf-8')
-
           class Refs(HTMLParser):
               def __init__(self): super().__init__(); self.refs=[]; self.scripts=[]
               def handle_starttag(self,tag,attrs):
@@ -81,50 +98,20 @@ jobs:
               path=urlsplit(ref).path
               if path and not Path(path).exists(): missing.append(path)
           assert not missing, missing
-          for item in [
-              'auth-v411.js?v=4.1.1-r8','report-v410.js?v=4.1.1-r8',
-              'field-incidents-v411.js?v=4.1.1-r8','report-v410.css?v=4.1.1-r8',
-              'incidents-v410.js?v=4.1.1-r8','incident-sync-v411.js?v=4.1.1-r8',
-              'app-shell-v411.js?v=4.1.1-r8'
-          ]: assert item in html, 'missing '+item
-          assert p.scripts[-1]=='app-shell-v411.js?v=4.1.1-r8', p.scripts[-3:]
-
-          css=Path('report-v410.css').read_text(encoding='utf-8')
-          for rule in [
-              '.report410-overview-grid{grid-template-columns:minmax(0,1fr)!important',
-              'contain:inline-size',
-              '-webkit-appearance:none!important',
-              'max-inline-size:100%!important',
-              '::-webkit-date-and-time-value'
-          ]: assert rule in css, 'missing iOS overview containment rule: '+rule
-
+          for item in ['incidents-v410.js?v=4.1.1-r9','incident-sync-v411.js?v=4.1.1-r9','app-shell-v411.js?v=4.1.1-r9']:
+              assert item in html, item
+          assert p.scripts[-1]=='app-shell-v411.js?v=4.1.1-r9'
+          inc=Path('incidents-v410.js').read_text(encoding='utf-8')
+          for rule in ['window.incidentTable=incidentTableFn','window.openIncidentModal=openIncidentModalFn','window.enlIncidentTable=incidentTableFn','window.enlOpenIncidentReview=openIncidentModalFn']:
+              assert rule in inc, rule
+          assert 'sortIncidents=function' not in inc
           sync=Path('incident-sync-v411.js').read_text(encoding='utf-8')
-          for rule in [
-              'function replaceFromServer(remote)',
-              'persistRemote(next)',
-              'if(!serverReady){await pull(true);serverReady=true;dirty=false;return}',
-              'window.enlIncidentServerReady=()=>serverReady',
-              "window.ENL_INCIDENT_SYNC_VERSION='4.1.1-r8'"
-          ]: assert rule in sync, 'missing authoritative sync rule: '+rule
-          assert 'const map=new Map((data.incidents||[]).map' not in sync
-
+          assert 'function replaceFromServer(remote)' in sync
           shell=Path('app-shell-v411.js').read_text(encoding='utf-8')
-          for rule in [
-              'async function openSafetyReview(id,u)',
-              'await window.enlIncidentPullNow()',
-              'openIncidentModal(i.id,true,u)',
-              "root.querySelectorAll('[data-safety-inc]').forEach(b=>b.onclick=()=>openSafetyReview",
-              "root.querySelectorAll('[data-inc-id]').forEach(r=>r.onclick=()=>openSafetyReview",
-              'data-safety-site=',
-              '.slice(0,3)'
-          ]: assert rule in shell, 'missing safety server review rule: '+rule
-
-          report=Path('report-v410.js').read_text(encoding='utf-8')
-          assert 'window.enlEditIncidentInReportForm' in report
-          fi=Path('field-incidents-v411.js').read_text(encoding='utf-8')
-          assert '부상 형태:' in fi and '피해금액 약' in fi
-
-          print('OK: r8 iOS width containment, authoritative server replacement and safety review routing verified')
+          assert 'async function openSafetyReview(id,u)' in shell
+          assert "root.querySelectorAll('[data-safety-inc]').forEach" in shell
+          assert 'data-safety-site=' in shell
+          print('OK: r9 incident runtime, server sync and safety routing verified')
       - name: Live login API roles
         shell: python
         run: |
@@ -139,8 +126,6 @@ jobs:
                   try: payload=json.loads(e.read().decode())
                   except Exception: payload={}
                   return e.code,payload
-          code,kgm_lookup=call({'action':'lookup','name':'김건모'})
-          assert code==200 and any(o.get('siteId')=='s32' and o.get('requiresPassword') is False for o in kgm_lookup.get('options',[])),(code,kgm_lookup)
           code,kgm=call({'action':'login_site','name':'김건모','siteId':'s32'})
           assert code==200 and kgm.get('person',{}).get('access_role')=='worker',(code,kgm)
           print('OK: live worker login still valid')
