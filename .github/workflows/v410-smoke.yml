@@ -51,7 +51,7 @@ jobs:
           node --check interaction-v410.js
           node --check app-control-v410.js
           node --check report-v410.js
-      - name: Production compact report controls
+      - name: Production r7 interaction rules
         shell: python
         run: |
           from pathlib import Path
@@ -61,12 +61,12 @@ jobs:
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
           assert meta.get('stableEntry')=='stable411.html', meta
-          assert meta.get('build')=='stable-411-r6', meta
+          assert meta.get('build')=='stable-411-r7', meta
           assert meta.get('version')=='4.1.1', meta
           assert meta.get('loginAutoUpdate') is False, meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          assert 'stable411.html' in index and 'build=r6' in index
+          assert 'stable411.html' in index and 'build=r7' in index
           html=Path('stable411.html').read_text(encoding='utf-8')
 
           class Refs(HTMLParser):
@@ -81,38 +81,60 @@ jobs:
               path=urlsplit(ref).path
               if path and not Path(path).exists(): missing.append(path)
           assert not missing, missing
+          for item in [
+              'auth-v411.js?v=4.1.1-r7','report-v410.js?v=4.1.1-r7',
+              'field-incidents-v411.js?v=4.1.1-r7','report-v410.css?v=4.1.1-r7',
+              'incidents-v410.js?v=4.1.1-r7','app-shell-v411.js?v=4.1.1-r7'
+          ]: assert item in html, 'missing '+item
+          assert p.scripts[-1]=='app-shell-v411.js?v=4.1.1-r7', p.scripts[-3:]
 
-          required=[
-            'auth-v411.js?v=4.1.1-r6','report-v410.js?v=4.1.1-r6',
-            'field-ui-v411.js?v=4.1.1-r6','field-incidents-v411.js?v=4.1.1-r6',
-            'field-ui-v411.css?v=4.1.1-r6','report-v410.css?v=4.1.1-r6',
-            'incidents-v410.js?v=4.1.1-r6','app-shell-v411.js?v=4.1.1-r6'
-          ]
-          for item in required: assert item in html, 'missing '+item
-          assert p.scripts[-1]=='app-shell-v411.js?v=4.1.1-r6', p.scripts[-3:]
-
-          report_css=Path('report-v410.css').read_text(encoding='utf-8')
+          css=Path('report-v410.css').read_text(encoding='utf-8')
           for rule in [
-              'input[type="date"],.report410-section input[type="time"]',
-              'min-height:44px!important;height:44px!important',
-              '.report410-change{appearance:none',
-              'border:2px solid #173b66!important',
-              'width:auto!important;min-height:42px!important'
-          ]:
-              assert rule in report_css, 'missing compact report rule: '+rule
+              '.report410-overview-control',
+              'width:100%!important;inline-size:100%!important',
+              'max-inline-size:100%!important',
+              '.report410-overview-cell',
+              'overflow:hidden',
+              'input[type="date"].report410-overview-control',
+              'input[type="time"].report410-overview-control'
+          ]: assert rule in css, 'missing overview width rule: '+rule
 
           report=Path('report-v410.js').read_text(encoding='utf-8')
-          assert '← 사고 종류 변경' in report
-          assert '← 현장 홈으로' in report
+          for rule in [
+              'let activeEditId=null',
+              'class="report410-overview-control" id="occurredDate410"',
+              'class="report410-overview-control" id="occurredTime410"',
+              'window.enlEditIncidentInReportForm',
+              "incidentPhotos=editing&&Array.isArray(i.photos)?[...i.photos]:[]",
+              "previousStatus==='reported'?'withdrawn_and_resubmitted':'resubmitted'",
+              '수정 후 다시 제출'
+          ]: assert rule in report, 'missing original-form edit rule: '+rule
 
           fi=Path('field-incidents-v411.js').read_text(encoding='utf-8')
-          assert '우리 사업장 사고 요약' in fi and '내가 보고한 사고' in fi
-          assert '일반근로자에게는 같은 사업장 사고의 업무상 필요한 요약정보만 표시합니다.' not in fi
+          for rule in [
+              'function personInjuryClass(i)',
+              '부상 형태:',
+              '피해금액 약',
+              "i?.reportDetails?.repairCost",
+              'window.enlEditIncidentInReportForm(i,u)',
+              '보고 회수 후 수정'
+          ]: assert rule in fi, 'missing worker summary/edit rule: '+rule
           public_block=fi.split('function workerPublicCards(arr){',1)[1].split('function myReportCards',1)[0]
-          for forbidden in ['reporterName','injuredName','diagnosis','medicalCost','repairCost','photos','i.summary','rejectionNote']:
+          for forbidden in ['reporterName','injuredName','diagnosis','medicalCost','photos','i.summary','rejectionNote']:
               assert forbidden not in public_block, 'private field leaked into worker public summary: '+forbidden
 
-          print('OK: r6 compact date/time controls, matching back button and simplified record intro verified')
+          shell=Path('app-shell-v411.js').read_text(encoding='utf-8')
+          for rule in [
+              'data-safety-status="all"','data-safety-status="reported"','data-safety-status="rejected"',
+              'data-safety-status="approved"','data-safety-status="closed"',
+              '.slice(0,3)',
+              'function renderSafetyList(root,u,filter=safetyListFilter)',
+              'function openSafetyList(u,filter={})',
+              'data-safety-site=',
+              '전체 사고목록'
+          ]: assert rule in shell, 'missing safety dashboard rule: '+rule
+
+          print('OK: r7 responsive overview, original-form editing, worker summaries and safety dashboard routing verified')
       - name: Live login API roles
         shell: python
         run: |
