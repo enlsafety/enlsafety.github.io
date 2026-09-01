@@ -6,20 +6,18 @@ on:
     paths:
       - 'index.html'
       - 'version.json'
+      - 'core.js'
       - 'auth-v411.js'
       - 'app-shell-v411.js'
       - 'field-ui-v411.js'
       - 'field-ui-v411.css'
       - 'field-incidents-v411.js'
-      - 'platform-state-v411.js'
       - 'incidents-v410.js'
       - 'incident-sync-v411.js'
+      - 'site-admin-v411.js'
       - 'site-directory-v410.js'
       - 'site-directory-sync-v410.js'
-      - 'site-admin-v400.js'
-      - 'review-dashboard-v410.js'
-      - 'interaction-v410.js'
-      - 'app-control-v410.js'
+      - 'v3-actions.js'
       - 'report-v410.js'
       - 'report-v410.css'
       - 'stable411.html'
@@ -43,37 +41,28 @@ jobs:
           node --check field-incidents-v411.js
           node --check incidents-v410.js
           node --check incident-sync-v411.js
+          node --check site-admin-v411.js
+          node --check v3-actions.js
           node --check report-v410.js
       - name: Incident runtime exports
         run: |
           node <<'NODE'
           const fs=require('fs'),vm=require('vm');
           global.window=global;
-          global.document={
-            head:{appendChild(){}},
-            getElementById(){return null},
-            createElement(){return {id:'',textContent:'',style:{}}},
-            querySelectorAll(){return []}
-          };
-          global.data={sites:[{id:'s32',name:'88CC'}],incidents:[{id:'i1',siteId:'s32',category:'person',eventType:'넘어짐',priority:'important',status:'reported',summary:'테스트',occurredAt:'2026-09-01T00:55:00Z'}]};
+          global.document={head:{appendChild(){}},getElementById(){return null},createElement(){return {id:'',textContent:'',style:{}}},querySelectorAll(){return []}};
+          global.data={sites:[{id:'s32',name:'88CC'}],users:[{id:'m1',name:'관리자1',role:'manager',active:true}],incidents:[{id:'i1',siteId:'s32',category:'person',eventType:'넘어짐',priority:'important',status:'approved',summary:'테스트',occurredAt:'2026-09-01T00:55:00Z',approvedAt:'2026-09-01T01:00:00Z',reportDetails:{place:'A코스',injuryDetail:'손가락 절상',incidentHow:'작업 중 넘어짐'},readReceipts:[]}]};
           global.currentUser=()=>({id:'safety-1',name:'안전관리자',role:'safety'});
-          global.siteById=id=>global.data.sites.find(s=>s.id===id);
-          global.esc=v=>String(v??''); global.fmt=v=>String(v??'');
-          global.badge=(c,t)=>`<span>${t}</span>`; global.categoryBadge=()=>''; global.priorityBadge=()=>''; global.legalBadge=()=>''; global.actionBadge=()=>'';
-          global.nowISO=()=>new Date().toISOString(); global.saveData=()=>{}; global.renderShell=()=>{}; global.closeModal=()=>{}; global.alert=()=>{}; global.confirm=()=>true;
-          global.openModal=()=>{}; global.eventTypeOptions=()=>'<option>넘어짐</option>';
+          global.siteById=id=>global.data.sites.find(s=>s.id===id);global.userById=id=>global.data.users.find(u=>u.id===id);
+          global.esc=v=>String(v??'');global.fmt=v=>String(v??'');global.roleName=r=>r==='executive'?'경영진':r==='manager'?'관리자':r==='safety'?'안전관리자':r;
+          global.badge=(c,t)=>`<span>${t}</span>`;global.categoryBadge=()=>'';global.priorityBadge=()=>'';global.legalBadge=()=>'';global.actionBadge=()=>'';
+          global.nowISO=()=>new Date().toISOString();global.saveData=()=>{};global.renderShell=()=>{};global.closeModal=()=>{};global.alert=()=>{};global.confirm=()=>true;global.openModal=()=>{};
           vm.runInThisContext(fs.readFileSync('incidents-v410.js','utf8'),{filename:'incidents-v410.js'});
-          for(const name of ['incidentTable','bindIncidentRows','openIncidentModal','openEditIncidentModal','renderUnifiedIncidents','sortIncidents']){
-            if(typeof global[name]!=='function')throw new Error(name+' export missing');
-          }
-          for(const name of ['enlIncidentTable','enlOpenIncidentReview','enlCanEditIncident','enlCanViewIncidentOriginal']){
-            if(typeof global[name]!=='function')throw new Error(name+' explicit export missing');
-          }
+          for(const name of ['incidentTable','openIncidentModal','enlIncidentQuickSummary','enlIncidentOverviewHtml','enlOpenIncidentReview'])if(typeof global[name]!=='function')throw new Error(name+' missing');
           const html=global.incidentTable(global.data.incidents,true,global.currentUser());
-          if(!html.includes('88CC')||!html.includes('넘어짐'))throw new Error('incident table did not render sample record');
-          console.log('OK: incident list/review runtime exports execute successfully');
+          if(!html.includes('88CC')||!html.includes('손가락 절상'))throw new Error('summary card failed');
+          console.log('OK: incident summary/review runtime exports execute');
           NODE
-      - name: Production r10 rules
+      - name: Production r11 rules
         shell: python
         run: |
           from pathlib import Path
@@ -81,60 +70,63 @@ jobs:
           from urllib.parse import urlsplit
           import json
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('stableEntry')=='stable411.html', meta
-          assert meta.get('build')=='stable-411-r10', meta
-          index=Path('index.html').read_text(encoding='utf-8')
-          assert 'build=r10' in index
+          assert meta.get('build')=='stable-411-r11',meta
+          assert meta.get('stableEntry')=='stable411.html',meta
+          index=Path('index.html').read_text(encoding='utf-8');assert 'build=r11' in index
           html=Path('stable411.html').read_text(encoding='utf-8')
-          class Refs(HTMLParser):
-              def __init__(self): super().__init__(); self.refs=[]; self.scripts=[]
-              def handle_starttag(self,tag,attrs):
-                  d=dict(attrs)
-                  if tag=='script' and d.get('src'): self.refs.append(d['src']); self.scripts.append(d['src'])
-                  if tag=='link' and d.get('href'): self.refs.append(d['href'])
-          p=Refs();p.feed(html)
-          missing=[]
+          assert 'enl-build" content="4.1.1-r11' in html
+          assert html.count('accept="image/*,application/pdf"')>=2
+          assert 'site-admin-v411.js?v=4.1.1-r11' in html
+          assert 'site-admin-v400.js' not in html
+          assert '/functions/v1/enl-login-v411' in html
+          class R(HTMLParser):
+            def __init__(self): super().__init__();self.refs=[];self.scripts=[]
+            def handle_starttag(self,t,a):
+              d=dict(a)
+              if t=='script' and d.get('src'):self.refs.append(d['src']);self.scripts.append(d['src'])
+              if t=='link' and d.get('href'):self.refs.append(d['href'])
+          p=R();p.feed(html);missing=[]
           for ref in p.refs:
-              path=urlsplit(ref).path
-              if path and not Path(path).exists(): missing.append(path)
-          assert not missing, missing
-          for item in ['incidents-v410.js?v=4.1.1-r10','incident-sync-v411.js?v=4.1.1-r10','report-v410.js?v=4.1.1-r10','app-shell-v411.js?v=4.1.1-r10']:
-              assert item in html, item
-          assert p.scripts[-1]=='app-shell-v411.js?v=4.1.1-r10'
-          inc=Path('incidents-v410.js').read_text(encoding='utf-8')
-          for rule in ['window.incidentTable=incidentTableFn','window.openIncidentModal=openIncidentModalFn','window.enlIncidentTable=incidentTableFn','window.enlOpenIncidentReview=openIncidentModalFn']:
-              assert rule in inc, rule
-          shell=Path('app-shell-v411.js').read_text(encoding='utf-8')
-          for rule in [
-              "['report','사고 등록']",
-              'function openSafetyReport(u)',
-              'id="safetyAdd411">과거 사고 등록',
-              "if(currentView==='report')return typeof renderUnifiedReport==='function'?renderUnifiedReport(root,u)"
-          ]: assert rule in shell, rule
+            path=urlsplit(ref).path
+            if path and not Path(path).exists():missing.append(path)
+          assert not missing,missing
+          assert p.scripts[-1]=='app-shell-v411.js?v=4.1.1-r11'
+          core=Path('core.js').read_text(encoding='utf-8')
+          for x in ['application/pdf','enl-attachment-v411','enlAttachmentGalleryHtml','enlBindAttachmentOpen','사진·PDF 선택 / 촬영']:assert x in core,x
+          auth=Path('auth-v411.js').read_text(encoding='utf-8')
+          for x in ['enl-login-v411','안전관리자</option>','관리자</option>','경영진</option>']:assert x in auth,x
           report=Path('report-v410.js').read_text(encoding='utf-8')
-          for rule in [
-              "['field','worker','safety'].includes(u.role)",
-              '<select id="reportSite" class="report410-overview-control" required>',
-              'id="occurredDate410" type="date"',
-              'id="occurredTime410" type="time"'
-          ]: assert rule in report, rule
+          for x in ['priorityManual411','prioritySource','현장사진 · PDF','map(persistAttachment)']:assert x in report,x
+          inc=Path('incidents-v410.js').read_text(encoding='utf-8')
+          for x in ['관리등급 최종 설정','승인 사고 열람 확인','enlIncidentQuickSummary','enlIncidentOverviewHtml','enlAttachmentGalleryHtml','ackIncident411']:assert x in inc,x
           sync=Path('incident-sync-v411.js').read_text(encoding='utf-8')
-          assert 'function replaceFromServer(remote)' in sync
-          print('OK: r10 safety historical incident entry, site selection and current incident runtime verified')
-      - name: Live login API roles
+          for x in ['enlIncidentAcknowledge','acknowledge','manager','executive']:assert x in sync,x
+          actions=Path('v3-actions.js').read_text(encoding='utf-8')
+          for x in ['enlIncidentOverviewHtml','enlAttachmentGalleryHtml','persistList(actionPhotos)']:assert x in actions,x
+          shell=Path('app-shell-v411.js').read_text(encoding='utf-8')
+          for x in ['recentHtml(recent)','enlIncidentQuickSummary','승인 사고 열람 · 확인']:assert x in shell,x
+          print('OK: r11 attachments, summaries, priority, roles and read tracking wired')
+      - name: Live current APIs
         shell: python
         run: |
-          import json, urllib.request, urllib.error
-          API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-login-v410'
+          import json,urllib.request,urllib.error
+          BASE='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/'
           H={'Content-Type':'application/json','X-ENL-App':'incident-report-v2','Origin':'https://enlsafety.github.io'}
-          def call(body):
-              req=urllib.request.Request(API,data=json.dumps(body,ensure_ascii=False).encode(),headers=H,method='POST')
-              try:
-                  with urllib.request.urlopen(req,timeout=15) as r: return r.status,json.loads(r.read().decode())
-              except urllib.error.HTTPError as e:
-                  try: payload=json.loads(e.read().decode())
-                  except Exception: payload={}
-                  return e.code,payload
-          code,kgm=call({'action':'login_site','name':'김건모','siteId':'s32'})
+          def call(fn,body):
+            req=urllib.request.Request(BASE+fn,data=json.dumps(body,ensure_ascii=False).encode(),headers=H,method='POST')
+            try:
+              with urllib.request.urlopen(req,timeout=20) as r:return r.status,json.loads(r.read().decode())
+            except urllib.error.HTTPError as e:
+              try:p=json.loads(e.read().decode())
+              except:p={}
+              return e.code,p
+          code,kgm=call('enl-login-v411',{'action':'login_site','name':'김건모','siteId':'s32'})
           assert code==200 and kgm.get('person',{}).get('access_role')=='worker',(code,kgm)
-          print('OK: live worker login still valid')
+          code,m=call('enl-login-v411',{'action':'lookup','name':'김두환'})
+          assert code==200 and any(x.get('role')=='manager' for x in m.get('options',[])),(code,m)
+          code,x=call('enl-login-v411',{'action':'lookup','name':'이실연'})
+          assert code==200 and any(o.get('role')=='executive' for o in x.get('options',[])),(code,x)
+          pid=kgm.get('person',{}).get('personnel_id')
+          code,a=call('enl-attachment-v411',{'action':'sign','actor':{'id':pid,'name':'김건모','role':'worker','siteId':'s32'},'paths':[]})
+          assert code==200 and a.get('ok') is True,(code,a)
+          print('OK: current login roles and attachment API live')
