@@ -73,7 +73,7 @@ jobs:
           if(!html.includes('88CC')||!html.includes('넘어짐'))throw new Error('incident table did not render sample record');
           console.log('OK: incident list/review runtime exports execute successfully');
           NODE
-      - name: Production r9 rules
+      - name: Production r10 rules
         shell: python
         run: |
           from pathlib import Path
@@ -82,9 +82,9 @@ jobs:
           import json
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
           assert meta.get('stableEntry')=='stable411.html', meta
-          assert meta.get('build')=='stable-411-r9', meta
+          assert meta.get('build')=='stable-411-r10', meta
           index=Path('index.html').read_text(encoding='utf-8')
-          assert 'build=r9' in index
+          assert 'build=r10' in index
           html=Path('stable411.html').read_text(encoding='utf-8')
           class Refs(HTMLParser):
               def __init__(self): super().__init__(); self.refs=[]; self.scripts=[]
@@ -98,20 +98,29 @@ jobs:
               path=urlsplit(ref).path
               if path and not Path(path).exists(): missing.append(path)
           assert not missing, missing
-          for item in ['incidents-v410.js?v=4.1.1-r9','incident-sync-v411.js?v=4.1.1-r9','app-shell-v411.js?v=4.1.1-r9']:
+          for item in ['incidents-v410.js?v=4.1.1-r10','incident-sync-v411.js?v=4.1.1-r10','report-v410.js?v=4.1.1-r10','app-shell-v411.js?v=4.1.1-r10']:
               assert item in html, item
-          assert p.scripts[-1]=='app-shell-v411.js?v=4.1.1-r9'
+          assert p.scripts[-1]=='app-shell-v411.js?v=4.1.1-r10'
           inc=Path('incidents-v410.js').read_text(encoding='utf-8')
           for rule in ['window.incidentTable=incidentTableFn','window.openIncidentModal=openIncidentModalFn','window.enlIncidentTable=incidentTableFn','window.enlOpenIncidentReview=openIncidentModalFn']:
               assert rule in inc, rule
-          assert 'sortIncidents=function' not in inc
+          shell=Path('app-shell-v411.js').read_text(encoding='utf-8')
+          for rule in [
+              "['report','사고 등록']",
+              'function openSafetyReport(u)',
+              'id="safetyAdd411">과거 사고 등록',
+              "if(currentView==='report')return typeof renderUnifiedReport==='function'?renderUnifiedReport(root,u)"
+          ]: assert rule in shell, rule
+          report=Path('report-v410.js').read_text(encoding='utf-8')
+          for rule in [
+              "['field','worker','safety'].includes(u.role)",
+              '<select id="reportSite" class="report410-overview-control" required>',
+              'id="occurredDate410" type="date"',
+              'id="occurredTime410" type="time"'
+          ]: assert rule in report, rule
           sync=Path('incident-sync-v411.js').read_text(encoding='utf-8')
           assert 'function replaceFromServer(remote)' in sync
-          shell=Path('app-shell-v411.js').read_text(encoding='utf-8')
-          assert 'async function openSafetyReview(id,u)' in shell
-          assert "root.querySelectorAll('[data-safety-inc]').forEach" in shell
-          assert 'data-safety-site=' in shell
-          print('OK: r9 incident runtime, server sync and safety routing verified')
+          print('OK: r10 safety historical incident entry, site selection and current incident runtime verified')
       - name: Live login API roles
         shell: python
         run: |
