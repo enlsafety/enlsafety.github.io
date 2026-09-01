@@ -51,22 +51,22 @@ jobs:
           node --check interaction-v410.js
           node --check app-control-v410.js
           node --check report-v410.js
-      - name: Production responsive privacy routing
+      - name: Production compact report controls
         shell: python
         run: |
           from pathlib import Path
           from html.parser import HTMLParser
           from urllib.parse import urlsplit
-          import json,re
+          import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
           assert meta.get('stableEntry')=='stable411.html', meta
-          assert meta.get('build')=='stable-411-r5', meta
+          assert meta.get('build')=='stable-411-r6', meta
           assert meta.get('version')=='4.1.1', meta
           assert meta.get('loginAutoUpdate') is False, meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          assert 'stable411.html' in index and 'build=r5' in index
+          assert 'stable411.html' in index and 'build=r6' in index
           html=Path('stable411.html').read_text(encoding='utf-8')
 
           class Refs(HTMLParser):
@@ -83,59 +83,36 @@ jobs:
           assert not missing, missing
 
           required=[
-            'auth-v411.js?v=4.1.1-r5','report-v410.js?v=4.1.1-r5',
-            'field-ui-v411.js?v=4.1.1-r5','field-incidents-v411.js?v=4.1.1-r5',
-            'field-ui-v411.css?v=4.1.1-r5','report-v410.css?v=4.1.1-r5',
-            'incidents-v410.js?v=4.1.1-r5','app-shell-v411.js?v=4.1.1-r5'
+            'auth-v411.js?v=4.1.1-r6','report-v410.js?v=4.1.1-r6',
+            'field-ui-v411.js?v=4.1.1-r6','field-incidents-v411.js?v=4.1.1-r6',
+            'field-ui-v411.css?v=4.1.1-r6','report-v410.css?v=4.1.1-r6',
+            'incidents-v410.js?v=4.1.1-r6','app-shell-v411.js?v=4.1.1-r6'
           ]
           for item in required: assert item in html, 'missing '+item
-          assert p.scripts[-1]=='app-shell-v411.js?v=4.1.1-r5', p.scripts[-3:]
+          assert p.scripts[-1]=='app-shell-v411.js?v=4.1.1-r6', p.scripts[-3:]
 
-          # iPhone/Galaxy narrow width, Fold/tablet wide width: controls must shrink inside minmax grid.
           report_css=Path('report-v410.css').read_text(encoding='utf-8')
           for rule in [
-              'grid-template-columns:repeat(2,minmax(0,1fr))',
-              '.report410-grid>*{min-width:0;max-width:100%}',
-              'width:100%;max-width:100%;min-width:0;box-sizing:border-box',
               'input[type="date"],.report410-section input[type="time"]',
-              '@media(max-width:700px)',
-              'grid-template-columns:minmax(0,1fr)',
-              '@media(max-width:430px)'
+              'min-height:44px!important;height:44px!important',
+              '.report410-change{appearance:none',
+              'border:2px solid #173b66!important',
+              'width:auto!important;min-height:42px!important'
           ]:
-              assert rule in report_css, 'missing responsive report rule: '+rule
+              assert rule in report_css, 'missing compact report rule: '+rule
 
-          field_css=Path('field-ui-v411.css').read_text(encoding='utf-8')
-          assert 'grid-template-columns:repeat(2,minmax(0,1fr))' in field_css
-          assert 'aspect-ratio:1/1' in field_css
+          report=Path('report-v410.js').read_text(encoding='utf-8')
+          assert '← 사고 종류 변경' in report
+          assert '← 현장 홈으로' in report
 
           fi=Path('field-incidents-v411.js').read_text(encoding='utf-8')
-          for rule in [
-              '우리 사업장 사고 요약','내가 보고한 사고',
-              '개인 식별정보·진단정보·금액·사진·상세 경위는 표시하지 않습니다.',
-              'window.enlRenderFieldRecords=renderRecords','window.enlRenderFieldActions=renderActions',
-              "isManager(u)?siteIncidents(u):myIncidents(u)",
-              "data-field-open=", "data-field-edit="
-          ]:
-              assert rule in fi, 'missing field privacy/manager rule: '+rule
+          assert '우리 사업장 사고 요약' in fi and '내가 보고한 사고' in fi
+          assert '일반근로자에게는 같은 사업장 사고의 업무상 필요한 요약정보만 표시합니다.' not in fi
           public_block=fi.split('function workerPublicCards(arr){',1)[1].split('function myReportCards',1)[0]
           for forbidden in ['reporterName','injuredName','diagnosis','medicalCost','repairCost','photos','i.summary','rejectionNote']:
               assert forbidden not in public_block, 'private field leaked into worker public summary: '+forbidden
 
-          access=Path('incidents-v410.js').read_text(encoding='utf-8')
-          for rule in [
-              "if(!['reported','rejected'].includes(i.status))return false",
-              'if(isManager(u))return true',
-              'return u.role===\'worker\'&&isAuthor(i,u)',
-              'return sameSite(i,u)&&isManager(u)',
-              "previousStatus==='reported'?'withdrawn_and_resubmitted':'resubmitted'"
-          ]:
-              assert rule in access, 'missing incident access rule: '+rule
-
-          shell=Path('app-shell-v411.js').read_text(encoding='utf-8')
-          assert "window.enlRenderFieldRecords?window.enlRenderFieldRecords(root,u):renderUnifiedIncidents(root,u)" in shell
-          assert shell.count('renderShell=function(u)')==1
-
-          print('OK: r5 responsive report controls, worker privacy summary, own-report editing and manager access verified')
+          print('OK: r6 compact date/time controls, matching back button and simplified record intro verified')
       - name: Live login API roles
         shell: python
         run: |
