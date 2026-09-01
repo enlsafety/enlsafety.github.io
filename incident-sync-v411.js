@@ -7,9 +7,10 @@
   let lastIds=new Set((data.incidents||[]).map(x=>x.id));
   let lastSig=signature(data.incidents||[]);
   const baseSaveData=saveData;
+  const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
 
-  function signature(arr){return JSON.stringify((arr||[]).map(i=>[i.id,i.updatedAt||'',i.status||'',i.corrective?.status||'',i.reporterId||'']).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))))}
-  function actor(){const u=currentUser();return u?{id:u.id||u.personnelId||u.username||'',name:u.name||'',role:u.role||'',position:u.position||u.jobTitle||'',siteId:u.siteId||''}:null}
+  function signature(arr){return JSON.stringify((arr||[]).map(i=>[i.id,i.updatedAt||'',i.status||'',i.priority||'',i.corrective?.status||'',i.reporterId||'',(i.readReceipts||[]).map(r=>`${r.userId}:${r.readAt}`).sort().join('|')]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))))}
+  function actor(){const u=currentUser();return u?{id:u.id||u.personnelId||u.username||'',name:u.name||'',role:roleNorm(u.role),position:u.position||u.jobTitle||'',siteId:u.siteId||''}:null}
   async function call(body,timeout=9000){const controller=typeof AbortController!=='undefined'?new AbortController():null;const timer=controller?setTimeout(()=>controller.abort(),timeout):null;try{const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify(body),signal:controller?.signal,cache:'no-store'});const j=await r.json().catch(()=>({}));if(!r.ok||j?.ok===false)throw new Error(j?.message||`sync_http_${r.status}`);return j}finally{if(timer)clearTimeout(timer)}}
 
   function persistRemote(next){
@@ -21,7 +22,7 @@
 
   function scopedRemote(remote,a){
     if(!Array.isArray(remote))return [];
-    if(a?.role==='safety'||a?.role==='final')return remote.filter(r=>r?.id);
+    if(['safety','manager','executive'].includes(a?.role))return remote.filter(r=>r?.id);
     if(a?.role==='field'||a?.role==='worker')return remote.filter(r=>r?.id&&String(r.siteId||'')===String(a.siteId||''));
     return [];
   }
@@ -36,6 +37,7 @@
 
   async function push(deletedIds=[]){
     const a=actor();if(!a||!serverReady)return;
+    if(['manager','executive'].includes(a.role))return;
     let incidents=[...(data.incidents||[])];
     if(a.role==='field')incidents=incidents.filter(i=>String(i.siteId||'')===String(a.siteId||''));
     if(a.role==='worker')incidents=incidents.filter(i=>String(i.siteId||'')===String(a.siteId||'')&&!i.workerPublicOnly);
@@ -52,12 +54,21 @@
     return changed;
   }
 
+  async function acknowledge(incidentId,u=currentUser()){
+    const a=u?{id:u.id||u.personnelId||u.username||'',name:u.name||'',role:roleNorm(u.role),position:u.position||u.jobTitle||'',siteId:u.siteId||''}:actor();
+    if(!a||!['manager','executive'].includes(a.role))throw new Error('forbidden');
+    const res=await call({action:'acknowledge',actor:a,role:a.role,incidentId},10000);
+    if(res?.incident){const next=(data.incidents||[]).map(i=>String(i.id)===String(incidentId)?res.incident:i);persistRemote(next)}else await pull(false);
+    return res;
+  }
+
   async function syncNow(deletedIds=[]){
-    if(!currentUser())return;
+    const a=actor();if(!a)return;
     if(syncing){pending=true;return}
     syncing=true;
     try{
       if(!serverReady){await pull(true);serverReady=true;dirty=false;return}
+      if(['manager','executive'].includes(a.role)){dirty=false;await pull(true);return}
       if(dirty||deletedIds.length){await push(deletedIds);dirty=false;await pull(true)}
       else await pull(true);
     }catch(e){console.warn('incident sync skipped',e)}
@@ -66,18 +77,21 @@
 
   saveData=function(){
     baseSaveData();if(applyingRemote)return;
-    const nowIds=new Set((data.incidents||[]).map(x=>x.id)),deleted=[...lastIds].filter(id=>!nowIds.has(id)),sig=signature(data.incidents||[]);
-    const changed=sig!==lastSig||deleted.length>0;lastIds=nowIds;lastSig=sig;if(changed)dirty=true;
+    const a=actor(),nowIds=new Set((data.incidents||[]).map(x=>x.id)),deleted=[...lastIds].filter(id=>!nowIds.has(id)),sig=signature(data.incidents||[]);
+    const changed=sig!==lastSig||deleted.length>0;lastIds=nowIds;lastSig=sig;
+    if(a&&['manager','executive'].includes(a.role)){dirty=false;return}
+    if(changed)dirty=true;
     if(changed&&currentUser())setTimeout(()=>syncNow(deleted),250);
   };
 
   window.enlIncidentApi=call;
   window.enlIncidentSyncNow=()=>syncNow([]);
   window.enlIncidentPullNow=()=>pull(true);
+  window.enlIncidentAcknowledge=acknowledge;
   window.enlIncidentServerReady=()=>serverReady;
 
   if(currentUser())setTimeout(()=>syncNow([]),120);
   setInterval(()=>{if(!currentUser())return;if(dirty)syncNow([]);else pull(true).catch(()=>{})},15000);
   window.addEventListener('online',()=>{if(currentUser())setTimeout(()=>syncNow([]),500)});
-  window.ENL_INCIDENT_SYNC_VERSION='4.1.1-r8';
+  window.ENL_INCIDENT_SYNC_VERSION='4.1.1-r11';
 })();
