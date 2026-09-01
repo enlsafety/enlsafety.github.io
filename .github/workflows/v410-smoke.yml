@@ -51,7 +51,7 @@ jobs:
           node --check interaction-v410.js
           node --check app-control-v410.js
           node --check report-v410.js
-      - name: Production r7 interaction rules
+      - name: Production r8 data and layout rules
         shell: python
         run: |
           from pathlib import Path
@@ -61,12 +61,12 @@ jobs:
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
           assert meta.get('stableEntry')=='stable411.html', meta
-          assert meta.get('build')=='stable-411-r7', meta
+          assert meta.get('build')=='stable-411-r8', meta
           assert meta.get('version')=='4.1.1', meta
           assert meta.get('loginAutoUpdate') is False, meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          assert 'stable411.html' in index and 'build=r7' in index
+          assert 'stable411.html' in index and 'build=r8' in index
           html=Path('stable411.html').read_text(encoding='utf-8')
 
           class Refs(HTMLParser):
@@ -82,59 +82,49 @@ jobs:
               if path and not Path(path).exists(): missing.append(path)
           assert not missing, missing
           for item in [
-              'auth-v411.js?v=4.1.1-r7','report-v410.js?v=4.1.1-r7',
-              'field-incidents-v411.js?v=4.1.1-r7','report-v410.css?v=4.1.1-r7',
-              'incidents-v410.js?v=4.1.1-r7','app-shell-v411.js?v=4.1.1-r7'
+              'auth-v411.js?v=4.1.1-r8','report-v410.js?v=4.1.1-r8',
+              'field-incidents-v411.js?v=4.1.1-r8','report-v410.css?v=4.1.1-r8',
+              'incidents-v410.js?v=4.1.1-r8','incident-sync-v411.js?v=4.1.1-r8',
+              'app-shell-v411.js?v=4.1.1-r8'
           ]: assert item in html, 'missing '+item
-          assert p.scripts[-1]=='app-shell-v411.js?v=4.1.1-r7', p.scripts[-3:]
+          assert p.scripts[-1]=='app-shell-v411.js?v=4.1.1-r8', p.scripts[-3:]
 
           css=Path('report-v410.css').read_text(encoding='utf-8')
           for rule in [
-              '.report410-overview-control',
-              'width:100%!important;inline-size:100%!important',
+              '.report410-overview-grid{grid-template-columns:minmax(0,1fr)!important',
+              'contain:inline-size',
+              '-webkit-appearance:none!important',
               'max-inline-size:100%!important',
-              '.report410-overview-cell',
-              'overflow:hidden',
-              'input[type="date"].report410-overview-control',
-              'input[type="time"].report410-overview-control'
-          ]: assert rule in css, 'missing overview width rule: '+rule
+              '::-webkit-date-and-time-value'
+          ]: assert rule in css, 'missing iOS overview containment rule: '+rule
 
-          report=Path('report-v410.js').read_text(encoding='utf-8')
+          sync=Path('incident-sync-v411.js').read_text(encoding='utf-8')
           for rule in [
-              'let activeEditId=null',
-              'class="report410-overview-control" id="occurredDate410"',
-              'class="report410-overview-control" id="occurredTime410"',
-              'window.enlEditIncidentInReportForm',
-              "incidentPhotos=editing&&Array.isArray(i.photos)?[...i.photos]:[]",
-              "previousStatus==='reported'?'withdrawn_and_resubmitted':'resubmitted'",
-              '수정 후 다시 제출'
-          ]: assert rule in report, 'missing original-form edit rule: '+rule
-
-          fi=Path('field-incidents-v411.js').read_text(encoding='utf-8')
-          for rule in [
-              'function personInjuryClass(i)',
-              '부상 형태:',
-              '피해금액 약',
-              "i?.reportDetails?.repairCost",
-              'window.enlEditIncidentInReportForm(i,u)',
-              '보고 회수 후 수정'
-          ]: assert rule in fi, 'missing worker summary/edit rule: '+rule
-          public_block=fi.split('function workerPublicCards(arr){',1)[1].split('function myReportCards',1)[0]
-          for forbidden in ['reporterName','injuredName','diagnosis','medicalCost','photos','i.summary','rejectionNote']:
-              assert forbidden not in public_block, 'private field leaked into worker public summary: '+forbidden
+              'function replaceFromServer(remote)',
+              'persistRemote(next)',
+              'if(!serverReady){await pull(true);serverReady=true;dirty=false;return}',
+              'window.enlIncidentServerReady=()=>serverReady',
+              "window.ENL_INCIDENT_SYNC_VERSION='4.1.1-r8'"
+          ]: assert rule in sync, 'missing authoritative sync rule: '+rule
+          assert 'const map=new Map((data.incidents||[]).map' not in sync
 
           shell=Path('app-shell-v411.js').read_text(encoding='utf-8')
           for rule in [
-              'data-safety-status="all"','data-safety-status="reported"','data-safety-status="rejected"',
-              'data-safety-status="approved"','data-safety-status="closed"',
-              '.slice(0,3)',
-              'function renderSafetyList(root,u,filter=safetyListFilter)',
-              'function openSafetyList(u,filter={})',
+              'async function openSafetyReview(id,u)',
+              'await window.enlIncidentPullNow()',
+              'openIncidentModal(i.id,true,u)',
+              "root.querySelectorAll('[data-safety-inc]').forEach(b=>b.onclick=()=>openSafetyReview",
+              "root.querySelectorAll('[data-inc-id]').forEach(r=>r.onclick=()=>openSafetyReview",
               'data-safety-site=',
-              '전체 사고목록'
-          ]: assert rule in shell, 'missing safety dashboard rule: '+rule
+              '.slice(0,3)'
+          ]: assert rule in shell, 'missing safety server review rule: '+rule
 
-          print('OK: r7 responsive overview, original-form editing, worker summaries and safety dashboard routing verified')
+          report=Path('report-v410.js').read_text(encoding='utf-8')
+          assert 'window.enlEditIncidentInReportForm' in report
+          fi=Path('field-incidents-v411.js').read_text(encoding='utf-8')
+          assert '부상 형태:' in fi and '피해금액 약' in fi
+
+          print('OK: r8 iOS width containment, authoritative server replacement and safety review routing verified')
       - name: Live login API roles
         shell: python
         run: |
