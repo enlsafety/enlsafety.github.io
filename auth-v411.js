@@ -1,24 +1,25 @@
 /* E&L Accident Report App v4.1.1 - authoritative authentication */
 (function(){
   'use strict';
-  const VERSION='4.1.1';
-  const LOGIN_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-login-v410';
+  const VERSION='4.1.1-r11';
+  const LOGIN_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-login-v411';
   const CLIENT='incident-report-v2';
   const MANAGER_POSITIONS=['현장소장','파트장','서무'];
   const norm=v=>String(v||'').replace(/\s+/g,'').trim().toLocaleLowerCase('ko-KR');
+  const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   const ex=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const siteLabel=id=>{try{return siteById?.(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}};
 
   currentUser=function(){
     try{
       if(session?.worker)return session.worker;
-      if(session?.manager)return session.manager;
-      if(session?.userId&&typeof userById==='function')return userById(session.userId);
+      if(session?.manager){if(session.manager.role==='final')session.manager.role='manager';return session.manager}
+      if(session?.userId&&typeof userById==='function'){const u=userById(session.userId);if(u?.role==='final')u.role='manager';return u}
     }catch(e){}
     return null;
   };
-  roleName=function(role){return role==='worker'?'일반근로자':role==='field'?'현장관리':role==='safety'?'안전관리자':role==='final'?'관리자':'사용자'};
-  function actor(u=currentUser?.()){return u?{id:u.id||u.personnelId||u.username||'',name:u.name||'',role:u.role||'',position:u.position||u.jobTitle||'',siteId:u.siteId||''}:null}
+  roleName=function(role){const r=roleNorm(role);return r==='worker'?'일반근로자':r==='field'?'현장관리':r==='safety'?'안전관리자':r==='executive'?'경영진':r==='manager'?'관리자':'사용자'};
+  function actor(u=currentUser?.()){return u?{id:u.id||u.personnelId||u.username||'',name:u.name||'',role:roleNorm(u.role),position:u.position||u.jobTitle||'',siteId:u.siteId||''}:null}
   window.enlCurrentActor=actor;
 
   async function api(body,timeout=10000){
@@ -47,7 +48,7 @@
   function renderOptions(options){
     lookupOptions=Array.isArray(options)?options:[];const wrap=document.getElementById('loginAff411');if(!wrap)return;
     if(!lookupOptions.length){wrap.hidden=true;return}
-    wrap.hidden=false;wrap.innerHTML=`<details class="login411-aff" open><summary>소속 선택 <span>⌄</span></summary><div class="login411-list">${lookupOptions.map((o,i)=>`<button type="button" class="login411-aff-btn" data-login411-aff="${i}"><span><b>${ex(o.affiliationLabel||'-')}</b><small>${ex(o.position||o.roleLabel||'')}${o.kind==='hq'?' · 관리자':o.requiresPassword?' · 비밀번호 필요':''}</small></span><span>›</span></button>`).join('')}</div></details>`;
+    wrap.hidden=false;wrap.innerHTML=`<details class="login411-aff" open><summary>소속 선택 <span>⌄</span></summary><div class="login411-list">${lookupOptions.map((o,i)=>`<button type="button" class="login411-aff-btn" data-login411-aff="${i}"><span><b>${ex(o.affiliationLabel||'-')}</b><small>${ex(o.position||o.roleLabel||'')}${o.kind==='hq'?` · ${ex(o.roleLabel||roleName(o.role))}`:o.requiresPassword?' · 비밀번호 필요':''}</small></span><span>›</span></button>`).join('')}</div></details>`;
     wrap.querySelectorAll('[data-login411-aff]').forEach(b=>b.onclick=()=>choose(Number(b.dataset.login411Aff)));
   }
   async function lookup(force=false){
@@ -61,7 +62,7 @@
   function bindLogin(){const n=document.getElementById('loginName411');if(!n||n.dataset.bound==='1')return;n.dataset.bound='1';n.addEventListener('input',()=>{clearTimeout(lookupTimer);clearChoice();status('이름 확인 중…');lookupTimer=setTimeout(()=>lookup(false),350)});n.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();clearTimeout(lookupTimer);lookup(true)}})}
   function renderLogin411(){
     css();if(document.querySelector('.login-v411')){bindLogin();return}
-    app.innerHTML=`<div class="login-page login-v411"><div class="login-card"><div class="login-brand"><div class="logo">E&L</div><div><h1>이앤엘 사고보고앱</h1><p>이름과 소속을 확인하고 로그인합니다.</p></div></div><label><span>이름</span><input id="loginName411" autocomplete="name" inputmode="text" enterkeyhint="done" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="예: 김건모"></label><div id="loginStatus411" class="login411-status">이름을 입력하면 소속이 표시됩니다.</div><div id="loginAff411" hidden></div><div id="loginPwWrap411" hidden></div><div class="login411-guide"><b>로그인 순서</b><br>① 이름 입력 → ② 소속 선택<br>일반근로자는 바로 로그인됩니다. 현장소장·파트장·서무는 휴대폰 번호 뒷 4자리 비밀번호를 입력합니다.</div><div class="login411-note">이앤엘 사고보고앱 v${VERSION}</div></div></div>`;bindLogin();
+    app.innerHTML=`<div class="login-page login-v411"><div class="login-card"><div class="login-brand"><div class="logo">E&L</div><div><h1>이앤엘 사고보고앱</h1><p>이름과 소속을 확인하고 로그인합니다.</p></div></div><label><span>이름</span><input id="loginName411" autocomplete="name" inputmode="text" enterkeyhint="done" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="예: 김건모"></label><div id="loginStatus411" class="login411-status">이름을 입력하면 소속이 표시됩니다.</div><div id="loginAff411" hidden></div><div id="loginPwWrap411" hidden></div><div class="login411-guide"><b>로그인 순서</b><br>① 이름 입력 → ② 소속 선택<br>일반근로자는 바로 로그인됩니다. 현장소장·파트장·서무와 본사 사용자는 비밀번호를 입력합니다.</div><div class="login411-note">이앤엘 사고보고앱 v4.1.1</div></div></div>`;bindLogin();
   }
   renderLogin=renderLogin411;window.enlRenderLogin=renderLogin411;
 
@@ -88,9 +89,10 @@
   function renderPassword(o){const box=document.getElementById('loginPwWrap411');if(!box)return;box.hidden=false;box.innerHTML=`<form id="loginPwForm411" class="login411-pw"><div class="login411-selected">${ex(o.affiliationLabel||'-')} · ${ex(o.position||o.roleLabel||'')}</div><label><span>비밀번호</span><input id="loginPassword411" type="password" inputmode="numeric" autocomplete="current-password" enterkeyhint="go" placeholder="${o.kind==='site'?'휴대폰 뒷 4자리':'비밀번호'}" required></label><button id="loginSubmit411" class="login411-submit" type="submit">로그인</button></form>`;document.getElementById('loginPwForm411').onsubmit=loginPassword}
   function mergeHq(user,passwordHash=''){
     if(!user?.id||!user?.name)return null;if(!Array.isArray(data.users))data.users=[];
-    let x=data.users.find(v=>String(v.id)===String(user.id))||data.users.find(v=>['safety','final'].includes(v.role)&&norm(v.name)===norm(user.name));
+    const role=roleNorm(user.role);
+    let x=data.users.find(v=>String(v.id)===String(user.id))||data.users.find(v=>['safety','manager','executive','final'].includes(v.role)&&norm(v.name)===norm(user.name));
     if(!x){x={id:user.id,createdAt:nowISO()};data.users.push(x)}
-    Object.assign(x,{username:user.name,name:user.name,role:user.role,department:user.department||'',position:user.position||'',siteId:null,active:user.active!==false,updatedAt:user.updatedAt||nowISO()});if(passwordHash)x.passwordHash=passwordHash;saveData();return x;
+    Object.assign(x,{username:user.name,name:user.name,role,department:user.department||'',position:user.position||'',siteId:null,active:user.active!==false,updatedAt:user.updatedAt||nowISO()});if(passwordHash)x.passwordHash=passwordHash;saveData();return x;
   }
   async function loginPassword(ev){
     ev.preventDefault();const o=selected,name=document.getElementById('loginName411')?.value.trim()||'',pw=document.getElementById('loginPassword411')?.value||'',btn=document.getElementById('loginSubmit411');if(!o||!name||!pw)return;
@@ -103,7 +105,7 @@
   }
 
   let hqSyncing=false;
-  async function syncHqUsers(u=currentUser?.()){if(hqSyncing||u?.role!=='safety')return;hqSyncing=true;try{const r=await api({action:'hq_list',actor:actor(u)});for(const x of r.users||[])mergeHq(x,(data.users||[]).find(v=>v.id===x.id)?.passwordHash||'')}catch(e){console.warn('HQ sync skipped',e)}finally{hqSyncing=false}}
+  async function syncHqUsers(u=currentUser?.()){if(hqSyncing||roleNorm(u?.role)!=='safety')return;hqSyncing=true;try{const r=await api({action:'hq_list',actor:actor(u)});for(const x of r.users||[])mergeHq(x,(data.users||[]).find(v=>v.id===x.id)?.passwordHash||'');try{window.dispatchEvent(new Event('enl-hq-users-synced'))}catch(e){}}catch(e){console.warn('HQ sync skipped',e)}finally{hqSyncing=false}}
   window.enlSyncHqUsers=syncHqUsers;
 
   function normalizePersonnel(list){const arr=Array.isArray(list)?list:[];return arr.filter(p=>{const suffix=` (${p.job_title||''})`;if(!String(p.name||'').endsWith(suffix))return true;const plain=String(p.name).slice(0,-suffix.length);return !arr.some(x=>x!==p&&x.site_id===p.site_id&&norm(x.name)===norm(plain)&&x.job_title===p.job_title)})}
@@ -115,8 +117,8 @@
   function renderPersonnelList(u,list){const box=document.getElementById('personnelList411');if(!box)return;box.innerHTML=`<div class="personnel-list">${list.map(p=>`<div class="person-row ${p.active?'':'inactive'}"><div><b>${ex(p.name)}</b><span>${ex(p.job_title||'일반근로자')} · ${p.active?'근무중':'퇴사'}</span></div><div class="person-actions"><button type="button" data-pe="${p.personnel_id}">수정</button><button type="button" data-pt="${p.personnel_id}">${p.active?'퇴사':'복직'}</button></div></div>`).join('')||'<div class="empty compact">등록된 근무자가 없습니다.</div>'}</div>`;box.querySelectorAll('[data-pe]').forEach(b=>b.onclick=()=>renderPersonnelPage(u,list.find(x=>String(x.personnel_id)===String(b.dataset.pe))));box.querySelectorAll('[data-pt]').forEach(b=>b.onclick=async()=>{const p=list.find(x=>String(x.personnel_id)===String(b.dataset.pt));if(!p)return;try{await api({action:'personnel_upsert',actor:actor(u),siteId:u.siteId,person:{personnelId:p.personnel_id,siteId:u.siteId,name:p.name,jobTitle:p.job_title,accessRole:p.access_role,active:!p.active}});renderPersonnelPage(u)}catch(e){alert('처리하지 못했습니다.')}})}
   window.enlRenderPersonnelPage=renderPersonnelPage;
 
-  openUserModal=function(user,u){const isNew=!user,role=user?.role==='safety'?'safety':'final';openModal(`<div class="modal-head"><div><h2>${isNew?'본사 사용자 생성':'본사 사용자 수정'}</h2></div><button class="x" data-close>×</button></div><form id="hqUserForm411"><div class="formgrid"><label class="lbl"><span>이름 *</span><input id="hqName411" value="${ex(user?.name||'')}" required></label><label class="lbl"><span>소속사업부</span><input id="hqDept411" value="${ex(user?.department||'')}"></label><label class="lbl"><span>직급</span><input id="hqPos411" value="${ex(user?.position||'')}"></label><label class="lbl"><span>역할</span><select id="hqRole411"><option value="safety" ${role==='safety'?'selected':''}>안전관리자</option><option value="final" ${role==='final'?'selected':''}>관리자</option></select></label></div><label class="lbl"><span>${isNew?'초기 비밀번호 *':'새 비밀번호 (선택)'}</span><input id="hqPw411" type="password" ${isNew?'required':''}></label><button class="primary full">저장</button></form>`);document.getElementById('hqUserForm411').onsubmit=async ev=>{ev.preventDefault();const name=document.getElementById('hqName411').value.trim(),department=document.getElementById('hqDept411').value.trim(),position=document.getElementById('hqPos411').value.trim(),role=document.getElementById('hqRole411').value,pw=document.getElementById('hqPw411').value,hash=pw?await sha256(pw):(user?.passwordHash||'');if(!hash)return alert('비밀번호를 입력해 주세요.');try{const r=await api({action:'hq_upsert',actor:actor(u),user:{id:user?.id||uid('u'),name,department,position,role,active:true,passwordHash:hash}});mergeHq({...r.user,id:r.user?.id||user?.id},hash);closeModal();renderShell(currentUser()||u)}catch(e){alert('본사 사용자 계정을 저장하지 못했습니다.')}}}
-  openAdminPasswordReset=function(target,u){if(!target)return;openModal(`<div class="modal-head"><h2>비밀번호 설정</h2><button class="x" data-close>×</button></div><form id="hqPwReset411"><label class="lbl"><span>새 비밀번호 *</span><input id="hqNewPw411" type="password" required></label><button class="primary full">저장</button></form>`);document.getElementById('hqPwReset411').onsubmit=async ev=>{ev.preventDefault();const hash=await sha256(document.getElementById('hqNewPw411').value);try{await api({action:'hq_upsert',actor:actor(u),user:{id:target.id,name:target.name,department:target.department||'',position:target.position||'',role:target.role,active:target.active!==false,passwordHash:hash}});target.passwordHash=hash;saveData();closeModal();renderShell(u)}catch(e){alert('비밀번호를 저장하지 못했습니다.')}}}
+  openUserModal=function(user,u){const isNew=!user,role=roleNorm(user?.role)||'manager';openModal(`<div class="modal-head"><div><h2>${isNew?'본사 사용자 생성':'본사 사용자 수정'}</h2></div><button class="x" data-close>×</button></div><form id="hqUserForm411"><div class="formgrid"><label class="lbl"><span>이름 *</span><input id="hqName411" value="${ex(user?.name||'')}" required></label><label class="lbl"><span>소속사업부</span><input id="hqDept411" value="${ex(user?.department||'')}"></label><label class="lbl"><span>직급</span><input id="hqPos411" value="${ex(user?.position||'')}"></label><label class="lbl"><span>역할군</span><select id="hqRole411"><option value="safety" ${role==='safety'?'selected':''}>안전관리자</option><option value="manager" ${role==='manager'?'selected':''}>관리자</option><option value="executive" ${role==='executive'?'selected':''}>경영진</option></select></label></div><div class="help" style="margin:10px 0">관리자·경영진은 안전관리자가 승인한 사고를 조회하고 ‘열람 확인’을 남길 수 있습니다.</div><label class="lbl"><span>${isNew?'초기 비밀번호 *':'새 비밀번호 (선택)'}</span><input id="hqPw411" type="password" ${isNew?'required':''}></label><button class="primary full">저장</button></form>`);document.getElementById('hqUserForm411').onsubmit=async ev=>{ev.preventDefault();const name=document.getElementById('hqName411').value.trim(),department=document.getElementById('hqDept411').value.trim(),position=document.getElementById('hqPos411').value.trim(),role=document.getElementById('hqRole411').value,pw=document.getElementById('hqPw411').value,hash=pw?await sha256(pw):(user?.passwordHash||'');if(!hash)return alert('비밀번호를 입력해 주세요.');try{const r=await api({action:'hq_upsert',actor:actor(u),user:{id:user?.id||uid('u'),name,department,position,role,active:true,passwordHash:hash}});mergeHq({...r.user,id:r.user?.id||user?.id},hash);await syncHqUsers(currentUser()||u);closeModal();renderShell(currentUser()||u)}catch(e){alert('본사 사용자 계정을 저장하지 못했습니다.')}}}
+  openAdminPasswordReset=function(target,u){if(!target)return;openModal(`<div class="modal-head"><h2>비밀번호 설정</h2><button class="x" data-close>×</button></div><form id="hqPwReset411"><label class="lbl"><span>새 비밀번호 *</span><input id="hqNewPw411" type="password" required></label><button class="primary full">저장</button></form>`);document.getElementById('hqPwReset411').onsubmit=async ev=>{ev.preventDefault();const hash=await sha256(document.getElementById('hqNewPw411').value);try{await api({action:'hq_upsert',actor:actor(u),user:{id:target.id,name:target.name,department:target.department||'',position:target.position||'',role:roleNorm(target.role),active:target.active!==false,passwordHash:hash}});target.passwordHash=hash;saveData();closeModal();renderShell(u)}catch(e){alert('비밀번호를 저장하지 못했습니다.')}}}
 
   css();
   window.ENL_AUTH_VERSION=VERSION;
