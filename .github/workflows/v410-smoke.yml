@@ -87,6 +87,9 @@ jobs:
           assert 'login-layout-v412.js?v=4.1.2-r16' in html
           assert 'security-v412.js?v=4.1.2-r16' in html
           assert 'workflow-v412.js?v=4.1.2-r16' in html
+          assert 'v3-actions.js?v=4.1.2-r16&amp;fix=action2' in html
+          assert 'field-incidents-v411.js?v=4.1.2-r16&amp;fix=action2' in html
+          assert 'app-shell-v411.js?v=4.1.2-r16&amp;fix=action2' in html
           assert 'site-admin-v400.js' not in html
           assert '/functions/v1/enl-login-v411' in html
           class R(HTMLParser):
@@ -114,14 +117,16 @@ jobs:
           sync=Path('incident-sync-v411.js').read_text(encoding='utf-8')
           for x in ['enlIncidentAcknowledge','acknowledge','manager','executive']:assert x in sync,x
           actions=Path('v3-actions.js').read_text(encoding='utf-8')
-          for x in ['enlIncidentOverviewHtml','enlAttachmentGalleryHtml','persistList(actionPhotos)']:assert x in actions,x
+          for x in ['enlIncidentOverviewHtml','enlAttachmentGalleryHtml','persistList(actionPhotos)','사고조치 반려','사고조치 승인','status===\'submitted\'','status===\'approved\'','enlOpenActionQueue']:assert x in actions,x
+          field=Path('field-incidents-v411.js').read_text(encoding='utf-8')
+          for x in ['보고승인 대기','미작성','사고조치 반려사유',"['submitted','approved']"]:assert x in field,x
           shell=Path('app-shell-v411.js').read_text(encoding='utf-8')
-          for x in ['recentHtml(recent)','enlIncidentQuickSummary','승인 사고 열람 · 확인']:assert x in shell,x
+          for x in ['recentHtml(recent)','enlIncidentQuickSummary','승인 사고조치','safetyActionReview411','조치 미작성','조치 검토대기']:assert x in shell,x
           security=Path('security-v412.js').read_text(encoding='utf-8')
           for x in ['designate_manager','invalid_password','wf412SiteAdminPassword']:assert x in security,x
           workflow=Path('workflow-v412.js').read_text(encoding='utf-8')
           for x in ['comment_add','inquiry_create','최종수정자']:assert x in workflow,x
-          print('OK: r16 login state, guide placement, security and workflow modules wired')
+          print('OK: r16 independent incident and corrective workflows wired')
       - name: Live current APIs
         shell: python
         run: |
@@ -145,4 +150,10 @@ jobs:
           pid=kgm.get('person',{}).get('personnel_id')
           code,a=call('enl-attachment-v411',{'action':'sign','actor':{'id':pid,'name':'김건모','role':'worker','siteId':'s32'},'paths':[]})
           assert code==200 and a.get('ok') is True,(code,a)
-          print('OK: current login roles and attachment API live')
+          code,p=call('enl-incident-sync-v411',{'action':'pull','actor':{'id':pid,'name':'김건모','role':'worker','siteId':'s32'},'role':'worker','siteId':'s32'})
+          assert code==200 and p.get('ok') is True,(code,p)
+          for i in p.get('incidents',[]):
+            if i.get('workerPublicOnly'):
+              c=i.get('corrective')
+              assert c is None or set(c.keys())<= {'status'},i
+          print('OK: current login roles, attachment and incident sync APIs live')
