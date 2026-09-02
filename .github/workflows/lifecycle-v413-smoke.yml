@@ -1,0 +1,59 @@
+name: lifecycle v413 smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'workflow-lifecycle-v413.js'
+      - 'stable412.html'
+      - '.github/workflows/lifecycle-v413-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  lifecycle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Lifecycle JavaScript syntax
+        run: node --check workflow-lifecycle-v413.js
+      - name: Lifecycle wiring and rules
+        shell: python
+        run: |
+          from pathlib import Path
+          js=Path('workflow-lifecycle-v413.js').read_text(encoding='utf-8')
+          html=Path('stable412.html').read_text(encoding='utf-8')
+          required=[
+            "prev?.status==='closed'&&String(i.status)==='reported'",
+            "status:'submitted'",
+            "String(i.status)==='approved'&&String(i.corrective?.status)==='approved'",
+            "i.status='closed'",
+            "#closeInc{display:none!important}",
+            "사고보고와 사고조치가 모두 승인되면 자동으로 종결",
+            "종결 사고조치",
+            "data-lifecycle-closed",
+          ]
+          for x in required: assert x in js,x
+          assert 'workflow-lifecycle-v413.js?v=4.1.2-r16&amp;fix=lifecycle1' in html
+          assert html.index('workflow-lifecycle-v413.js') < html.index('workflow-v412.js')
+          print('OK: two-stage report/action lifecycle wired')
+      - name: Live finalized incident view
+        shell: python
+        run: |
+          import json,urllib.request,urllib.error
+          url='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-incident-sync-v411'
+          headers={'Content-Type':'application/json','X-ENL-App':'incident-report-v2','Origin':'https://enlsafety.github.io'}
+          body={'action':'pull','actor':{'id':'u-final-manager','name':'김두환','role':'manager','position':'차장'},'role':'manager'}
+          req=urllib.request.Request(url,data=json.dumps(body,ensure_ascii=False).encode(),headers=headers,method='POST')
+          try:
+            with urllib.request.urlopen(req,timeout=20) as r:
+              data=json.loads(r.read().decode())
+          except urllib.error.HTTPError as e:
+            raise AssertionError((e.code,e.read().decode()))
+          assert data.get('ok') is True,data
+          closed=[i for i in data.get('incidents',[]) if i.get('status')=='closed']
+          assert closed, data
+          assert any((i.get('corrective') or {}).get('status')=='approved' and (i.get('corrective') or {}).get('actionDetail') for i in closed),closed
+          print('OK: finalized incident contains approved report and corrective detail')
