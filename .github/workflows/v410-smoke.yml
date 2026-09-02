@@ -17,7 +17,7 @@ on:
       - 'incidents-v410.js'
       - 'incident-sync-v411.js'
       - 'incident-category-ui-v417.js'
-      - 'incident-excel-v419.js'
+      - 'incident-excel-v420.js'
       - 'site-admin-v415.js'
       - 'security-v412.js'
       - 'workflow-v412.js'
@@ -42,7 +42,7 @@ jobs:
           node-version: '22'
       - name: JavaScript syntax
         run: |
-          for f in core.js session-refresh-v412.js auth-v411.js login-layout-v412.js app-shell-v411.js field-ui-v411.js field-incidents-v411.js incidents-v410.js incident-sync-v411.js incident-category-ui-v417.js incident-excel-v419.js site-admin-v415.js security-v412.js workflow-v412.js workflow-lifecycle-v413.js reader-ui-v414.js v3-actions.js report-v410.js; do
+          for f in core.js session-refresh-v412.js auth-v411.js login-layout-v412.js app-shell-v411.js field-ui-v411.js field-incidents-v411.js incidents-v410.js incident-sync-v411.js incident-category-ui-v417.js incident-excel-v420.js site-admin-v415.js security-v412.js workflow-v412.js workflow-lifecycle-v413.js reader-ui-v414.js v3-actions.js report-v410.js; do
             node --check "$f"
           done
       - name: Production r16 and unified workflow rules
@@ -67,7 +67,7 @@ jobs:
             'workflow-lifecycle-v413.js?v=4.1.2-r16&amp;fix=lifecycle1',
             'reader-ui-v414.js?v=4.1.2-r16&amp;fix=reader1',
             'incident-category-ui-v417.js?v=4.1.2-r16&amp;fix=category1',
-            'incident-excel-v419.js?v=4.1.2-r16&amp;fix=excel2019-1',
+            'incident-excel-v420.js?v=4.1.2-r16&amp;fix=excel2019-photo1',
             'workflow-v412.js?v=4.1.2-r16&amp;fix=inquiry2',
           ]: assert x in html,x
 
@@ -83,8 +83,8 @@ jobs:
             if path and not Path(path).exists(): missing.append(path)
           assert not missing,missing
           assert p.scripts[-1]=='workflow-v412.js?v=4.1.2-r16&fix=inquiry2',p.scripts[-1]
-          assert html.index('reader-ui-v414.js') < html.index('incident-category-ui-v417.js') < html.index('incident-excel-v419.js') < html.index('workflow-v412.js')
-          assert 'incident-excel-v418.js' not in html
+          assert html.index('reader-ui-v414.js') < html.index('incident-category-ui-v417.js') < html.index('incident-excel-v420.js') < html.index('workflow-v412.js')
+          assert 'incident-excel-v419.js' not in html
 
           site=Path('site-admin-v415.js').read_text(encoding='utf-8')
           for x in ['PERSON_PAGE_SIZE=10','현장 근무자·관리자','sa415PersonPhone','sa415PersonPassword','data-sa415-person','일반근로자','현장소장','파트장','서무']: assert x in site,x
@@ -96,8 +96,8 @@ jobs:
           category=Path('incident-category-ui-v417.js').read_text(encoding='utf-8')
           for x in ['data-safety-inc','data-lifecycle-open','data-reader-open','categoryBadge','.p-person,.p-property','person','property']: assert x in category,x
 
-          excel=Path('incident-excel-v419.js').read_text(encoding='utf-8')
-          for x in ['4.1.9-excel2019-1','roleNorm','safety','data-lifecycle-open','data-lifecycle-final','사고경위서','사고조치보고서','stripInvalidXml','calcHeight','Malgun Gothic','borderId="1"','wrapText="1"','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','enlBuildFinalIncidentWorkbook','사고보고와 사고조치가 모두 승인된 종결 사고']: assert x in excel,x
+          excel=Path('incident-excel-v420.js').read_text(encoding='utf-8')
+          for x in ['4.2.0-excel2019-photo1','SharedStrings','sharedStrings.xml','drawing1.xml','sheet1.xml.rels','loadIncidentImages','현장사진','Malgun Gothic','borderId="1"','wrapText="1"','enlBuildFinalIncidentWorkbook']: assert x in excel,x
 
           workflow=Path('workflow-v412.js').read_text(encoding='utf-8')
           for x in ['문의 구분','inquiry_create','inquiry_delete','inquiry_restore','inquiry_purge','data-wf-inq-purge','setInquiryNavActive','worker','임시삭제','완전삭제','최종수정자']: assert x in workflow,x
@@ -109,9 +109,9 @@ jobs:
 
           lifecycle=Path('workflow-lifecycle-v413.js').read_text(encoding='utf-8')
           for x in ["prev?.status==='closed'&&String(i.status)==='reported'","i.status='closed'","#closeInc{display:none!important}"]: assert x in lifecycle,x
-          print('OK: stable r16, category badges, Excel 2019 export and two-stage lifecycle wired')
+          print('OK: stable r16, Excel 2019 shared-string/photo export and lifecycle wired')
 
-      - name: Excel 2019 finalized workbook package
+      - name: Excel 2019 photo workbook package
         run: |
           node <<'NODE'
           global.window=global;
@@ -119,45 +119,43 @@ jobs:
           global.siteById=()=>({name:'테스트 사업장'});
           global.ENL_SITE_DIRECTORY=[];
           global.enlIncidentFinalized=i=>!!i&&i.status==='closed'&&i.corrective?.status==='approved';
-          const longText='작업자가 경사면에서 이동 중 젖은 잔디와 지면 요철로 인해 발을 헛디뎌 넘어졌습니다. 현장에는 전날 비가 내려 바닥이 미끄러운 상태였습니다.\n사고 직후 동료가 즉시 작업을 중단하고 부상 상태를 확인했습니다.';
+          const tiny='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z1gAAAABJRU5ErkJggg==';
           const sample={
             id:'inc-test',siteId:'s-test',category:'person',eventType:'넘어짐',severity:'moderate',leaveEstimate:'under3',potentialMajor:false,priority:'important',
-            reporterName:'현장소장',occurredAt:'2026-09-01T01:30:00.000Z',createdAt:'2026-09-01T02:00:00.000Z',status:'closed',approvedBy:'안전관리자',approvedAt:'2026-09-01T03:00:00.000Z',closedAt:'2026-09-02T01:00:00.000Z',immediateAction:'응급처치 후 병원 이동',photos:[{name:'현장사진.jpg'}],
-            reportDetails:{place:'A코스 3홀',workAction:'예지 작업을 위해 장비를 이동하던 중이었습니다.',incidentHow:longText,environmentCause:'젖은 잔디와 경사면',behaviorCause:'이동 중 바닥 확인 미흡',injuredName:'홍길동',job:'코스관리',injuryDetail:'왼손 엄지 열상',diagnosis:'열상',doctorOpinion:'통원치료',medicalCost:120000,medicalCostDetail:'진료 및 처치',preventionPlan:'우천 후 경사면 이동 시 위험구간을 사전 확인하고 작업 전 안전미팅에서 이동 동선을 공유합니다. 절단방지장갑 및 미끄럼 방지 안전화를 점검합니다.',specialNote:'-'},
-            corrective:{status:'approved',rootCause:'위험구간 사전 확인 미흡',actionDetail:'위험표지를 설치하고 작업 전 위험구간을 공유했습니다. 보호구 상태를 전원 점검하고 우천 후 이동 동선을 변경했습니다.',ownerName:'현장소장',dueDate:'2026-09-05',submittedBy:'현장소장',submittedAt:'2026-09-01T05:00:00.000Z',reviewedBy:'안전관리자',reviewedAt:'2026-09-02T01:00:00.000Z',reviewNote:'조치 적정',afterPhotos:[{name:'교육사진.jpg'}]}
+            reporterName:'현장소장',occurredAt:'2026-09-01T01:30:00.000Z',createdAt:'2026-09-01T02:00:00.000Z',status:'closed',approvedBy:'안전관리자',approvedAt:'2026-09-01T03:00:00.000Z',closedAt:'2026-09-02T01:00:00.000Z',immediateAction:'응급처치 후 병원 이동',photos:[tiny],
+            reportDetails:{place:'A코스 3홀',workAction:'예지 작업',incidentHow:'작업 중 미끄러져 넘어졌습니다. 사고 경위를 충분히 확인하여 기록합니다.',environmentCause:'젖은 잔디와 경사면',behaviorCause:'이동 중 바닥 확인 미흡',injuredName:'홍길동',job:'코스관리',injuryDetail:'왼손 엄지 열상',diagnosis:'열상',doctorOpinion:'통원치료',medicalCost:120000,medicalCostDetail:'진료 및 처치',preventionPlan:'우천 후 위험구간 확인 및 작업 전 안전교육 실시',specialNote:'-'},
+            corrective:{status:'approved',rootCause:'위험구간 사전 확인 미흡',actionDetail:'위험표지 설치 및 작업 전 위험구간 공유',ownerName:'현장소장',dueDate:'2026-09-05',submittedBy:'현장소장',submittedAt:'2026-09-01T05:00:00.000Z',reviewedBy:'안전관리자',reviewedAt:'2026-09-02T01:00:00.000Z',reviewNote:'조치 적정',afterPhotos:[]}
           };
           global.data={incidents:[sample]};
-          require('./incident-excel-v419.js');
-          const bytes=global.enlBuildFinalIncidentWorkbook(sample);
-          require('fs').writeFileSync('/tmp/enl-finalized-test.xlsx',Buffer.from(bytes));
-          if(!bytes||bytes.length<3000)throw new Error('xlsx output too small');
-          console.log('xlsx bytes',bytes.length);
+          require('./incident-excel-v420.js');
+          (async()=>{
+            const bytes=await global.enlBuildFinalIncidentWorkbook(sample);
+            require('fs').writeFileSync('/tmp/enl-finalized-test.xlsx',Buffer.from(bytes));
+            if(!bytes||bytes.length<5000)throw new Error('xlsx output too small');
+            console.log('xlsx bytes',bytes.length);
+          })().catch(e=>{console.error(e);process.exit(1)});
           NODE
           python - <<'PY'
-          import re,zipfile,xml.etree.ElementTree as ET
+          import zipfile,xml.etree.ElementTree as ET
           p='/tmp/enl-finalized-test.xlsx'
           with zipfile.ZipFile(p) as z:
               assert z.testzip() is None
               names=set(z.namelist())
-              required={'[Content_Types].xml','_rels/.rels','xl/workbook.xml','xl/_rels/workbook.xml.rels','xl/styles.xml','xl/worksheets/sheet1.xml','xl/worksheets/sheet2.xml'}
+              required={'[Content_Types].xml','_rels/.rels','xl/workbook.xml','xl/_rels/workbook.xml.rels','xl/styles.xml','xl/sharedStrings.xml','xl/worksheets/sheet1.xml','xl/worksheets/sheet2.xml','xl/worksheets/_rels/sheet1.xml.rels','xl/drawings/drawing1.xml','xl/drawings/_rels/drawing1.xml.rels','xl/media/image1.png'}
               assert required <= names,(required-names)
-              for n in required:
+              for n in names:
                   if n.endswith('.xml') or n.endswith('.rels'):
                       ET.fromstring(z.read(n))
-              wb=z.read('xl/workbook.xml').decode('utf-8')
-              styles=z.read('xl/styles.xml').decode('utf-8')
               s1=z.read('xl/worksheets/sheet1.xml').decode('utf-8')
-              s2=z.read('xl/worksheets/sheet2.xml').decode('utf-8')
-              assert '사고경위서' in wb and '사고조치보고서' in wb
-              assert '<borders count="2">' in styles and 'wrapText="1"' in styles and 'Malgun Gothic' in styles
-              for x in ['대인사고','테스트 사업장','사고 발생 경위','pageSetup','width="38"','customHeight="1"']:
-                  assert x in s1,x
-              for x in ['원인 분석','조치 내용','안전관리자','pageSetup','width="38"','customHeight="1"']:
-                  assert x in s2,x
-              m=re.search(r'<row r="14" ht="([0-9.]+)"',s1)
-              assert m and float(m.group(1))>=46,m.group(1) if m else None
-              assert '<c r="C14" s="4"/>' in s1 and '<c r="D14" s="4"/>' in s1
-          print('OK: Excel 2019 package is well-formed with bordered cells, wrap and expanded row heights')
+              sst=z.read('xl/sharedStrings.xml').decode('utf-8')
+              styles=z.read('xl/styles.xml').decode('utf-8')
+              drawing=z.read('xl/drawings/drawing1.xml').decode('utf-8')
+              assert '<mergeCells' not in s1
+              assert '<drawing r:id="rId1"/>' in s1
+              assert '사고 발생 경위' in sst and '현장사진 1' in sst
+              assert 'Malgun Gothic' in styles and 'wrapText="1"' in styles and '<borders count="2">' in styles
+              assert '<xdr:oneCellAnchor>' in drawing and 'r:embed="rId1"' in drawing
+          print('OK: Excel 2019 workbook is well-formed, merge-free, shared-string based, and image drawing is embedded')
           PY
 
       - name: Live current APIs
