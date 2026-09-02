@@ -1,0 +1,57 @@
+name: global update smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app-control-v410.js'
+      - 'incident-sync-v411.js'
+      - 'stable412.html'
+      - '.github/workflows/global-update-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  global-update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: |
+          node --check app-control-v410.js
+          node --check incident-sync-v411.js
+      - name: Role and refresh rules
+        shell: python
+        run: |
+          from pathlib import Path
+          html=Path('stable412.html').read_text(encoding='utf-8')
+          ctrl=Path('app-control-v410.js').read_text(encoding='utf-8')
+          sync=Path('incident-sync-v411.js').read_text(encoding='utf-8')
+          assert 'incident-sync-v411.js?v=4.1.2-r16&amp;fix=foreground1' in html
+          assert 'app-control-v410.js?v=4.1.2-r16&amp;fix=update5' in html
+          for x in ['최신버전으로 업데이트','새로고침','a?.role!==\'safety\'','data-enl-global-update','data-enl-refresh','enl-global-refresh','CONTROL_POLL_MS=60000','inquiry_count','enlIncidentSyncNow']:
+            assert x in ctrl,x
+          assert 'loginLatestBtn' in ctrl and "document.getElementById('loginLatestBtn')?.remove()" in ctrl
+          for x in ['setInterval','15000','pageshow','visibilitychange','document.visibilityState===\'visible\'']:
+            assert x in sync,x
+          print('OK: safety-only global update, user refresh, 15s foreground sync wired')
+      - name: Global control API security
+        shell: python
+        run: |
+          import json,urllib.request,urllib.error
+          URL='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-global-refresh'
+          H={'Content-Type':'application/json','X-ENL-App':'incident-report-v2','Origin':'https://enlsafety.github.io'}
+          req=urllib.request.Request(URL,headers=H,method='GET')
+          with urllib.request.urlopen(req,timeout=20) as r:
+            body=json.loads(r.read().decode())
+            assert r.status==200 and body.get('ok') is True and int(body.get('epoch',0))>=1,body
+          bad={'action':'global-refresh','actor':{'id':'u-final-manager','name':'관리자','role':'manager'},'passwordHash':'x','version':'test'}
+          req=urllib.request.Request(URL,data=json.dumps(bad).encode(),headers=H,method='POST')
+          try:
+            urllib.request.urlopen(req,timeout=20)
+            raise AssertionError('manager unexpectedly allowed')
+          except urllib.error.HTTPError as e:
+            assert e.code==403,e.code
+          print('OK: global update GET works and non-safety POST is forbidden')
