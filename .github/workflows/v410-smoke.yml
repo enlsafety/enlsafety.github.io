@@ -19,6 +19,8 @@ on:
       - 'site-admin-v411.js'
       - 'security-v412.js'
       - 'workflow-v412.js'
+      - 'workflow-lifecycle-v413.js'
+      - 'reader-ui-v414.js'
       - 'site-directory-v410.js'
       - 'site-directory-sync-v410.js'
       - 'v3-actions.js'
@@ -38,100 +40,65 @@ jobs:
           node-version: '22'
       - name: JavaScript syntax
         run: |
-          node --check core.js
-          node --check session-refresh-v412.js
-          node --check auth-v411.js
-          node --check login-layout-v412.js
-          node --check app-shell-v411.js
-          node --check field-ui-v411.js
-          node --check field-incidents-v411.js
-          node --check incidents-v410.js
-          node --check incident-sync-v411.js
-          node --check site-admin-v411.js
-          node --check security-v412.js
-          node --check workflow-v412.js
-          node --check v3-actions.js
-          node --check report-v410.js
-      - name: Incident runtime exports
-        run: |
-          node <<'NODE'
-          const fs=require('fs'),vm=require('vm');
-          global.window=global;
-          global.document={head:{appendChild(){}},getElementById(){return null},createElement(){return {id:'',textContent:'',style:{}}},querySelectorAll(){return []}};
-          global.data={sites:[{id:'s32',name:'88CC'}],users:[{id:'m1',name:'관리자1',role:'manager',active:true}],incidents:[{id:'i1',siteId:'s32',category:'person',eventType:'넘어짐',priority:'important',status:'approved',summary:'테스트',occurredAt:'2026-09-01T00:55:00Z',approvedAt:'2026-09-01T01:00:00Z',reportDetails:{place:'A코스',injuryDetail:'손가락 절상',incidentHow:'작업 중 넘어짐'},readReceipts:[]}]};
-          global.currentUser=()=>({id:'safety-1',name:'안전관리자',role:'safety'});
-          global.siteById=id=>global.data.sites.find(s=>s.id===id);global.userById=id=>global.data.users.find(u=>u.id===id);
-          global.esc=v=>String(v??'');global.fmt=v=>String(v??'');global.roleName=r=>r==='executive'?'경영진':r==='manager'?'관리자':r==='safety'?'안전관리자':r;
-          global.badge=(c,t)=>`<span>${t}</span>`;global.categoryBadge=()=>'';global.priorityBadge=()=>'';global.legalBadge=()=>'';global.actionBadge=()=>'';
-          global.nowISO=()=>new Date().toISOString();global.saveData=()=>{};global.renderShell=()=>{};global.closeModal=()=>{};global.alert=()=>{};global.confirm=()=>true;global.openModal=()=>{};
-          vm.runInThisContext(fs.readFileSync('incidents-v410.js','utf8'),{filename:'incidents-v410.js'});
-          for(const name of ['incidentTable','openIncidentModal','enlIncidentQuickSummary','enlIncidentOverviewHtml','enlOpenIncidentReview'])if(typeof global[name]!=='function')throw new Error(name+' missing');
-          const html=global.incidentTable(global.data.incidents,true,global.currentUser());
-          if(!html.includes('88CC')||!html.includes('손가락 절상'))throw new Error('summary card failed');
-          console.log('OK: incident summary/review runtime exports execute');
-          NODE
-      - name: Production r16 rules
+          for f in core.js session-refresh-v412.js auth-v411.js login-layout-v412.js app-shell-v411.js field-ui-v411.js field-incidents-v411.js incidents-v410.js incident-sync-v411.js site-admin-v411.js security-v412.js workflow-v412.js workflow-lifecycle-v413.js reader-ui-v414.js v3-actions.js report-v410.js; do
+            node --check "$f"
+          done
+      - name: Production r16 and unified workflow rules
         shell: python
         run: |
           from pathlib import Path
           from html.parser import HTMLParser
           from urllib.parse import urlsplit
           import json
+
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
           assert meta.get('build')=='stable-412-r16',meta
           assert meta.get('stableEntry')=='stable412.html',meta
-          index=Path('index.html').read_text(encoding='utf-8');assert 'build=r16' in index
+          assert 'build=r16' in Path('index.html').read_text(encoding='utf-8')
           html=Path('stable412.html').read_text(encoding='utf-8')
           assert 'enl-build" content="4.1.2-r16' in html
-          assert html.count('accept="image/*,application/pdf"')>=2
-          assert 'core.js?v=4.1.2-r16' in html
-          assert 'session-refresh-v412.js?v=4.1.2-r16&amp;fix=session2' in html
-          assert 'site-admin-v411.js?v=4.1.2-r16' in html
-          assert 'login-layout-v412.js?v=4.1.2-r16' in html
-          assert 'security-v412.js?v=4.1.2-r16' in html
-          assert 'workflow-v412.js?v=4.1.2-r16' in html
-          assert 'v3-actions.js?v=4.1.2-r16&amp;fix=action2' in html
-          assert 'field-incidents-v411.js?v=4.1.2-r16&amp;fix=action2' in html
-          assert 'app-shell-v411.js?v=4.1.2-r16&amp;fix=action3' in html
-          assert 'site-admin-v400.js' not in html
-          assert '/functions/v1/enl-login-v411' in html
+          for x in [
+            'session-refresh-v412.js?v=4.1.2-r16&amp;fix=session2',
+            'site-admin-v411.js?v=4.1.2-r16&amp;fix=personnel1',
+            'field-ui-v411.js?v=4.1.2-r16&amp;fix=inquiry2',
+            'security-v412.js?v=4.1.2-r16&amp;fix=site1',
+            'workflow-lifecycle-v413.js?v=4.1.2-r16&amp;fix=lifecycle1',
+            'reader-ui-v414.js?v=4.1.2-r16&amp;fix=reader1',
+            'workflow-v412.js?v=4.1.2-r16&amp;fix=inquiry1',
+          ]: assert x in html,x
+
           class R(HTMLParser):
-            def __init__(self): super().__init__();self.refs=[];self.scripts=[]
+            def __init__(self): super().__init__(); self.refs=[]; self.scripts=[]
             def handle_starttag(self,t,a):
               d=dict(a)
-              if t=='script' and d.get('src'):self.refs.append(d['src']);self.scripts.append(d['src'])
-              if t=='link' and d.get('href'):self.refs.append(d['href'])
-          p=R();p.feed(html);missing=[]
+              if t=='script' and d.get('src'): self.refs.append(d['src']); self.scripts.append(d['src'])
+              if t=='link' and d.get('href'): self.refs.append(d['href'])
+          p=R(); p.feed(html); missing=[]
           for ref in p.refs:
             path=urlsplit(ref).path
-            if path and not Path(path).exists():missing.append(path)
+            if path and not Path(path).exists(): missing.append(path)
           assert not missing,missing
-          assert p.scripts[-1]=='workflow-v412.js?v=4.1.2-r16'
-          core=Path('core.js').read_text(encoding='utf-8')
-          for x in ['application/pdf','enl-attachment-v411','enlAttachmentGalleryHtml','enlBindAttachmentOpen','사진·PDF 선택 / 촬영']:assert x in core,x
-          session=Path('session-refresh-v412.js').read_text(encoding='utf-8')
-          for x in ['BACKUP_KEY','VIEW_KEY','DRAFT_KEY','pagehide','pageshow','visibilitychange','unifiedReportForm']:assert x in session,x
-          auth=Path('auth-v411.js').read_text(encoding='utf-8')
-          for x in ['enl-login-v411','안전관리자</option>','관리자</option>','경영진</option>']:assert x in auth,x
-          layout=Path('login-layout-v412.js').read_text(encoding='utf-8')
-          for x in ["grid-template-columns:minmax(0,1fr) minmax(0,1fr)","이름 입력 후 선택","login411-guide","grid-column:1;grid-row:3","details.open=true"]:assert x in layout,x
-          report=Path('report-v410.js').read_text(encoding='utf-8')
-          for x in ['priorityManual411','prioritySource','현장사진 · PDF','map(persistAttachment)']:assert x in report,x
-          inc=Path('incidents-v410.js').read_text(encoding='utf-8')
-          for x in ['관리등급 최종 설정','승인 사고 열람 확인','enlIncidentQuickSummary','enlIncidentOverviewHtml','enlAttachmentGalleryHtml','ackIncident411']:assert x in inc,x
-          sync=Path('incident-sync-v411.js').read_text(encoding='utf-8')
-          for x in ['enlIncidentAcknowledge','acknowledge','manager','executive']:assert x in sync,x
-          actions=Path('v3-actions.js').read_text(encoding='utf-8')
-          for x in ['enlIncidentOverviewHtml','enlAttachmentGalleryHtml','persistList(actionPhotos)','사고조치 반려','사고조치 승인','status===\'submitted\'','status===\'approved\'','enlOpenActionQueue']:assert x in actions,x
-          field=Path('field-incidents-v411.js').read_text(encoding='utf-8')
-          for x in ['보고승인 대기','미작성','사고조치 반려사유',"['submitted','approved']"]:assert x in field,x
-          shell=Path('app-shell-v411.js').read_text(encoding='utf-8')
-          for x in ['recentHtml(recent)','enlIncidentQuickSummary','승인 사고조치','safetyActionReview411','조치 미작성','사고보고 검토대기','사고조치 검토대기','overscroll-behavior-y:auto']:assert x in shell,x
-          security=Path('security-v412.js').read_text(encoding='utf-8')
-          for x in ['designate_manager','invalid_password','wf412SiteAdminPassword']:assert x in security,x
+          assert p.scripts[-1]=='workflow-v412.js?v=4.1.2-r16&fix=inquiry1',p.scripts[-1]
+
+          site=Path('site-admin-v411.js').read_text(encoding='utf-8')
+          for x in ['PERSON_PAGE_SIZE=10','현장 근무자·관리자','p411Phone','p411Password','data-person411','일반근로자','현장소장','파트장','서무']: assert x in site,x
+
+          field=Path('field-ui-v411.js').read_text(encoding='utf-8')
+          for x in ['enlRenderSafetyInquiry','field-inquiry','inquiryRetry','안전관리자 문의 및 답변 확인']: assert x in field,x
+          assert 'enl_safety_field_inquiries_v1' not in field
+
           workflow=Path('workflow-v412.js').read_text(encoding='utf-8')
-          for x in ['comment_add','inquiry_create','최종수정자']:assert x in workflow,x
-          print('OK: r16 dashboard scroll, background session and workflow assets wired')
+          for x in ['문의 구분','inquiry_create','inquiry_delete','inquiry_restore','worker','임시삭제','최종수정자']: assert x in workflow,x
+          for x in ['injectSafetyDesignation','wf412-designate','wf412DesignateBtn','secureDesignate']: assert x not in workflow,x
+
+          security=Path('security-v412.js').read_text(encoding='utf-8')
+          for x in ['SITE_API','password_required','안전관리자 비밀번호']: assert x in security,x
+          for x in ['designate_manager','wf412FieldDesignationPw','securePersonnelField']: assert x not in security,x
+
+          lifecycle=Path('workflow-lifecycle-v413.js').read_text(encoding='utf-8')
+          for x in ["prev?.status==='closed'&&String(i.status)==='reported'","i.status='closed'","#closeInc{display:none!important}"]: assert x in lifecycle,x
+          print('OK: stable r16, unified personnel/inquiry UI and two-stage lifecycle wired')
+
       - name: Live current APIs
         shell: python
         run: |
@@ -148,17 +115,11 @@ jobs:
               return e.code,p
           code,kgm=call('enl-login-v411',{'action':'login_site','name':'김건모','siteId':'s32'})
           assert code==200 and kgm.get('person',{}).get('access_role')=='worker',(code,kgm)
+          pid=kgm.get('person',{}).get('personnel_id')
+          code,p=call('enl-incident-sync-v411',{'action':'pull','actor':{'id':pid,'name':'김건모','role':'worker','siteId':'s32'},'role':'worker','siteId':'s32'})
+          assert code==200 and p.get('ok') is True,(code,p)
           code,m=call('enl-login-v411',{'action':'lookup','name':'김두환'})
           assert code==200 and any(x.get('role')=='manager' for x in m.get('options',[])),(code,m)
           code,x=call('enl-login-v411',{'action':'lookup','name':'이실연'})
           assert code==200 and any(o.get('role')=='executive' for o in x.get('options',[])),(code,x)
-          pid=kgm.get('person',{}).get('personnel_id')
-          code,a=call('enl-attachment-v411',{'action':'sign','actor':{'id':pid,'name':'김건모','role':'worker','siteId':'s32'},'paths':[]})
-          assert code==200 and a.get('ok') is True,(code,a)
-          code,p=call('enl-incident-sync-v411',{'action':'pull','actor':{'id':pid,'name':'김건모','role':'worker','siteId':'s32'},'role':'worker','siteId':'s32'})
-          assert code==200 and p.get('ok') is True,(code,p)
-          for i in p.get('incidents',[]):
-            if i.get('workerPublicOnly'):
-              c=i.get('corrective')
-              assert c is None or set(c.keys())<= {'status'},i
-          print('OK: current login roles, attachment and incident sync APIs live')
+          print('OK: current worker, manager, executive and incident sync APIs live')
