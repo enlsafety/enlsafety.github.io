@@ -17,6 +17,7 @@ on:
       - 'incidents-v410.js'
       - 'incident-sync-v411.js'
       - 'incident-category-ui-v417.js'
+      - 'incident-excel-v418.js'
       - 'site-admin-v415.js'
       - 'security-v412.js'
       - 'workflow-v412.js'
@@ -41,7 +42,7 @@ jobs:
           node-version: '22'
       - name: JavaScript syntax
         run: |
-          for f in core.js session-refresh-v412.js auth-v411.js login-layout-v412.js app-shell-v411.js field-ui-v411.js field-incidents-v411.js incidents-v410.js incident-sync-v411.js incident-category-ui-v417.js site-admin-v415.js security-v412.js workflow-v412.js workflow-lifecycle-v413.js reader-ui-v414.js v3-actions.js report-v410.js; do
+          for f in core.js session-refresh-v412.js auth-v411.js login-layout-v412.js app-shell-v411.js field-ui-v411.js field-incidents-v411.js incidents-v410.js incident-sync-v411.js incident-category-ui-v417.js incident-excel-v418.js site-admin-v415.js security-v412.js workflow-v412.js workflow-lifecycle-v413.js reader-ui-v414.js v3-actions.js report-v410.js; do
             node --check "$f"
           done
       - name: Production r16 and unified workflow rules
@@ -66,6 +67,7 @@ jobs:
             'workflow-lifecycle-v413.js?v=4.1.2-r16&amp;fix=lifecycle1',
             'reader-ui-v414.js?v=4.1.2-r16&amp;fix=reader1',
             'incident-category-ui-v417.js?v=4.1.2-r16&amp;fix=category1',
+            'incident-excel-v418.js?v=4.1.2-r16&amp;fix=excel1',
             'workflow-v412.js?v=4.1.2-r16&amp;fix=inquiry2',
           ]: assert x in html,x
 
@@ -81,7 +83,7 @@ jobs:
             if path and not Path(path).exists(): missing.append(path)
           assert not missing,missing
           assert p.scripts[-1]=='workflow-v412.js?v=4.1.2-r16&fix=inquiry2',p.scripts[-1]
-          assert html.index('reader-ui-v414.js') < html.index('incident-category-ui-v417.js') < html.index('workflow-v412.js')
+          assert html.index('reader-ui-v414.js') < html.index('incident-category-ui-v417.js') < html.index('incident-excel-v418.js') < html.index('workflow-v412.js')
 
           site=Path('site-admin-v415.js').read_text(encoding='utf-8')
           for x in ['PERSON_PAGE_SIZE=10','현장 근무자·관리자','sa415PersonPhone','sa415PersonPassword','data-sa415-person','일반근로자','현장소장','파트장','서무']: assert x in site,x
@@ -93,6 +95,9 @@ jobs:
           category=Path('incident-category-ui-v417.js').read_text(encoding='utf-8')
           for x in ['data-safety-inc','data-lifecycle-open','data-reader-open','categoryBadge','.p-person,.p-property','person','property']: assert x in category,x
 
+          excel=Path('incident-excel-v418.js').read_text(encoding='utf-8')
+          for x in ['4.1.8-excel1','roleNorm','safety','data-lifecycle-open','data-lifecycle-final','사고경위서','사고조치보고서','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','enlBuildFinalIncidentWorkbook','사고보고와 사고조치가 모두 승인된 종결 사고']: assert x in excel,x
+
           workflow=Path('workflow-v412.js').read_text(encoding='utf-8')
           for x in ['문의 구분','inquiry_create','inquiry_delete','inquiry_restore','inquiry_purge','data-wf-inq-purge','setInquiryNavActive','worker','임시삭제','완전삭제','최종수정자']: assert x in workflow,x
           for x in ['injectSafetyDesignation','wf412-designate','wf412DesignateBtn','secureDesignate']: assert x not in workflow,x
@@ -103,7 +108,55 @@ jobs:
 
           lifecycle=Path('workflow-lifecycle-v413.js').read_text(encoding='utf-8')
           for x in ["prev?.status==='closed'&&String(i.status)==='reported'","i.status='closed'","#closeInc{display:none!important}"]: assert x in lifecycle,x
-          print('OK: stable r16, unified personnel/inquiry UI, category badges and two-stage lifecycle wired')
+          print('OK: stable r16, category badges, safety Excel export and two-stage lifecycle wired')
+
+      - name: Finalized Excel workbook package
+        run: |
+          node <<'NODE'
+          global.window=global;
+          global.alert=()=>{};
+          global.requestAnimationFrame=fn=>fn();
+          global.MutationObserver=class{constructor(fn){this.fn=fn}observe(){}};
+          global.document={
+            head:{appendChild(){}},body:{appendChild(){}},documentElement:{},
+            getElementById(){return null},addEventListener(){},querySelectorAll(){return []},
+            createElement(tag){return {tagName:tag,id:'',textContent:'',style:{},dataset:{},className:'',innerHTML:'',classList:{contains(){return false}},click(){},remove(){},insertAdjacentElement(){}}}
+          };
+          global.currentUser=()=>({role:'safety',name:'안전관리자'});
+          global.siteById=()=>({name:'테스트 사업장'});
+          global.ENL_SITE_DIRECTORY=[];
+          global.enlIncidentFinalized=i=>!!i&&i.status==='closed'&&i.corrective?.status==='approved';
+          const sample={
+            id:'inc-test',siteId:'s-test',category:'person',eventType:'절단/베임',severity:'moderate',leaveEstimate:'under3',potentialMajor:false,priority:'important',
+            reporterName:'현장소장',occurredAt:'2026-09-01T01:30:00.000Z',createdAt:'2026-09-01T02:00:00.000Z',status:'closed',approvedBy:'안전관리자',approvedAt:'2026-09-01T03:00:00.000Z',closedAt:'2026-09-02T01:00:00.000Z',immediateAction:'응급처치 후 병원 이동',photos:[{name:'현장사진.jpg'}],
+            reportDetails:{place:'A코스 3홀',workAction:'예지 작업',incidentHow:'작업 중 손가락 베임',environmentCause:'작업공간 협소',behaviorCause:'도구 취급 부주의',injuredName:'홍길동',job:'코스관리',injuryDetail:'왼손 엄지 열상',diagnosis:'열상',doctorOpinion:'통원치료',medicalCost:120000,medicalCostDetail:'진료 및 처치',preventionPlan:'절단방지장갑 착용 및 안전교육',specialNote:'-'},
+            corrective:{status:'approved',rootCause:'절단도구 취급 시 손 위치 불량',actionDetail:'절단방지장갑 지급 및 낫 작업 안전수칙 재교육',ownerName:'현장소장',dueDate:'2026-09-05',submittedBy:'현장소장',submittedAt:'2026-09-01T05:00:00.000Z',reviewedBy:'안전관리자',reviewedAt:'2026-09-02T01:00:00.000Z',reviewNote:'조치 적정',afterPhotos:[{name:'교육사진.jpg'}]}
+          };
+          global.data={incidents:[sample]};
+          require('./incident-excel-v418.js');
+          const bytes=global.enlBuildFinalIncidentWorkbook(sample);
+          require('fs').writeFileSync('/tmp/enl-finalized-test.xlsx',Buffer.from(bytes));
+          if(!bytes||bytes.length<3000)throw new Error('xlsx output too small');
+          console.log('xlsx bytes',bytes.length);
+          NODE
+          python - <<'PY'
+          import zipfile
+          p='/tmp/enl-finalized-test.xlsx'
+          with zipfile.ZipFile(p) as z:
+              assert z.testzip() is None
+              names=set(z.namelist())
+              required={'[Content_Types].xml','_rels/.rels','xl/workbook.xml','xl/_rels/workbook.xml.rels','xl/styles.xml','xl/worksheets/sheet1.xml','xl/worksheets/sheet2.xml'}
+              assert required <= names,(required-names)
+              wb=z.read('xl/workbook.xml').decode('utf-8')
+              s1=z.read('xl/worksheets/sheet1.xml').decode('utf-8')
+              s2=z.read('xl/worksheets/sheet2.xml').decode('utf-8')
+              assert '사고경위서' in wb and '사고조치보고서' in wb
+              for x in ['대인사고','테스트 사업장','사고 발생 경위','절단방지장갑 착용 및 안전교육','pageSetup']:
+                  assert x in s1,x
+              for x in ['원인 분석','조치 내용','절단방지장갑 지급 및 낫 작업 안전수칙 재교육','안전관리자','pageSetup']:
+                  assert x in s2,x
+          print('OK: finalized incident xlsx package, CRC and both sheets valid')
+          PY
 
       - name: Live current APIs
         shell: python
