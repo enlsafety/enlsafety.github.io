@@ -1,0 +1,49 @@
+name: mobile session smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'session-refresh-v412.js'
+      - 'app-control-v410.js'
+      - 'stable412.html'
+      - '.github/workflows/mobile-session-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  mobile-session:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: |
+          node --check session-refresh-v412.js
+          node --check app-control-v410.js
+      - name: Mobile persistence rules
+        shell: python
+        run: |
+          from pathlib import Path
+          session=Path('session-refresh-v412.js').read_text(encoding='utf-8')
+          control=Path('app-control-v410.js').read_text(encoding='utf-8')
+          html=Path('stable412.html').read_text(encoding='utf-8')
+          for x in [
+            "SESSION_TTL_MS=12*60*60*1000",
+            "mobile WebView can transiently lose the in-memory session",
+            "pageshow",
+            "visibilitychange",
+            "freeze",
+            "resume",
+            "enlRestoreForegroundSession",
+            "enlClearRefreshSession",
+            "clearSessionExplicit('logout')",
+          ]: assert x in session,x
+          assert "window.enlClearRefreshSession('manual_update')" in control
+          assert 'markBuildAndClearOnlyOnRealBuildChange' not in control
+          assert 'Passive reload/background return must not log the user out' in control
+          assert 'session-refresh-v412.js?v=4.1.2-r16&amp;fix=session2&amp;mobile=session3' in html
+          assert 'app-control-v410.js?v=4.1.2-r16&amp;fix=update4' in html
+          assert html.index('session-refresh-v412.js') < html.index('auth-v411.js')
+          print('OK: 12-hour local mobile session persistence and explicit update logout wired')
