@@ -7,6 +7,7 @@ on:
       - 'index.html'
       - 'version.json'
       - 'core.js'
+      - 'session-refresh-v412.js'
       - 'auth-v411.js'
       - 'login-layout-v412.js'
       - 'app-shell-v411.js'
@@ -38,6 +39,7 @@ jobs:
       - name: JavaScript syntax
         run: |
           node --check core.js
+          node --check session-refresh-v412.js
           node --check auth-v411.js
           node --check login-layout-v412.js
           node --check app-shell-v411.js
@@ -83,13 +85,14 @@ jobs:
           assert 'enl-build" content="4.1.2-r16' in html
           assert html.count('accept="image/*,application/pdf"')>=2
           assert 'core.js?v=4.1.2-r16' in html
+          assert 'session-refresh-v412.js?v=4.1.2-r16&amp;fix=session2' in html
           assert 'site-admin-v411.js?v=4.1.2-r16' in html
           assert 'login-layout-v412.js?v=4.1.2-r16' in html
           assert 'security-v412.js?v=4.1.2-r16' in html
           assert 'workflow-v412.js?v=4.1.2-r16' in html
           assert 'v3-actions.js?v=4.1.2-r16&amp;fix=action2' in html
           assert 'field-incidents-v411.js?v=4.1.2-r16&amp;fix=action2' in html
-          assert 'app-shell-v411.js?v=4.1.2-r16&amp;fix=action2' in html
+          assert 'app-shell-v411.js?v=4.1.2-r16&amp;fix=action3' in html
           assert 'site-admin-v400.js' not in html
           assert '/functions/v1/enl-login-v411' in html
           class R(HTMLParser):
@@ -106,6 +109,8 @@ jobs:
           assert p.scripts[-1]=='workflow-v412.js?v=4.1.2-r16'
           core=Path('core.js').read_text(encoding='utf-8')
           for x in ['application/pdf','enl-attachment-v411','enlAttachmentGalleryHtml','enlBindAttachmentOpen','사진·PDF 선택 / 촬영']:assert x in core,x
+          session=Path('session-refresh-v412.js').read_text(encoding='utf-8')
+          for x in ['BACKUP_KEY','VIEW_KEY','DRAFT_KEY','pagehide','pageshow','visibilitychange','unifiedReportForm']:assert x in session,x
           auth=Path('auth-v411.js').read_text(encoding='utf-8')
           for x in ['enl-login-v411','안전관리자</option>','관리자</option>','경영진</option>']:assert x in auth,x
           layout=Path('login-layout-v412.js').read_text(encoding='utf-8')
@@ -121,12 +126,12 @@ jobs:
           field=Path('field-incidents-v411.js').read_text(encoding='utf-8')
           for x in ['보고승인 대기','미작성','사고조치 반려사유',"['submitted','approved']"]:assert x in field,x
           shell=Path('app-shell-v411.js').read_text(encoding='utf-8')
-          for x in ['recentHtml(recent)','enlIncidentQuickSummary','승인 사고조치','safetyActionReview411','조치 미작성','조치 검토대기']:assert x in shell,x
+          for x in ['recentHtml(recent)','enlIncidentQuickSummary','승인 사고조치','safetyActionReview411','조치 미작성','사고보고 검토대기','사고조치 검토대기','overscroll-behavior-y:auto']:assert x in shell,x
           security=Path('security-v412.js').read_text(encoding='utf-8')
           for x in ['designate_manager','invalid_password','wf412SiteAdminPassword']:assert x in security,x
           workflow=Path('workflow-v412.js').read_text(encoding='utf-8')
           for x in ['comment_add','inquiry_create','최종수정자']:assert x in workflow,x
-          print('OK: r16 independent incident and corrective workflows wired')
+          print('OK: r16 dashboard scroll, background session and workflow assets wired')
       - name: Live current APIs
         shell: python
         run: |
