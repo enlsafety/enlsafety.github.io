@@ -65,6 +65,7 @@
       aff.hidden=false;delete aff.dataset.placeholder412;
       const summary=details.querySelector('summary');
       if(summary&&summary.firstChild&&summary.firstChild.textContent!=='소속 선택 ')summary.firstChild.textContent='소속 선택 ';
+      if(name&&details.dataset.autoOpened412!=='1'){details.dataset.autoOpened412='1';details.open=true}
       return;
     }
     const label=placeholderText(name,status?.textContent||'');
