@@ -45,10 +45,12 @@ jobs:
             "window.enlClearRefreshSession(reason)",
             "clearLoginForUpdate('manual_global_update')",
             "clearLoginForUpdate('global_update')",
-            "Passive reload/background return must not log the user out",
+            "window.addEventListener('pageshow',()=>{setTimeout(()=>{refreshControls();checkGlobalControl()},100)})",
+            "document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')setTimeout(()=>{refreshControls();checkGlobalControl()},100)})",
           ]: assert x in control,x
+          assert control.count('clearLoginForUpdate(')==3,control.count('clearLoginForUpdate(')
           assert 'markBuildAndClearOnlyOnRealBuildChange' not in control
           assert 'session-refresh-v412.js?v=4.1.2-r16&amp;fix=session2&amp;mobile=session3' in html
           assert 'app-control-v410.js?v=4.1.2-r16&amp;fix=update5' in html
           assert html.index('session-refresh-v412.js') < html.index('auth-v411.js')
-          print('OK: 12-hour local mobile session persistence and explicit/global update logout wired')
+          print('OK: 12-hour local mobile session persistence; foreground refresh preserves login; explicit/global update clears login')
