@@ -24,19 +24,20 @@
     return {entry,build,ver};
   }
   function clearLoginForUpdate(){
+    try{if(typeof window.enlClearRefreshSession==='function')window.enlClearRefreshSession('manual_update')}catch(e){}
     try{session=null;if(typeof saveSession==='function')saveSession()}catch(e){try{localStorage.removeItem('enl_safety_session_v3')}catch(_){} }
     try{localStorage.removeItem('enl_safety_session_refresh_v412')}catch(e){}
+    try{localStorage.removeItem('enl_safety_view_refresh_v412')}catch(e){}
+    try{localStorage.removeItem('enl_safety_report_draft_v412')}catch(e){}
     try{document.cookie='enl_safety_session_refresh_v412=; Path=/; Max-Age=0; SameSite=Lax; Secure'}catch(e){}
     try{currentView='';accountMenuOpen=false}catch(e){}
   }
-  function markBuildAndClearOnlyOnRealBuildChange(){
-    try{
-      const prev=localStorage.getItem(BUILD_KEY)||'';
-      if(prev&&prev!==CURRENT_BUILD)clearLoginForUpdate();
-      localStorage.setItem(BUILD_KEY,CURRENT_BUILD);
-    }catch(e){}
+  function rememberCurrentBuild(){
+    try{localStorage.setItem(BUILD_KEY,CURRENT_BUILD)}catch(e){}
   }
-  markBuildAndClearOnlyOnRealBuildChange();
+  // Passive reload/background return must not log the user out just because a newer build was deployed.
+  // Logout is tied to the user's explicit update button action below.
+  rememberCurrentBuild();
 
   function goLatest(t){
     const now=Date.now(),u=new URL(t.entry,location.href);
@@ -93,5 +94,5 @@
   const observer=new MutationObserver(()=>{if(queued)return;queued=true;queueMicrotask(()=>{queued=false;refreshControls()})});
   observer.observe(document.getElementById('app')||document.body,{childList:true,subtree:true});
   setTimeout(refreshControls,0);
-  window.ENL_UPDATE_CONTROL_VERSION=CURRENT_BUILD;
+  window.ENL_UPDATE_CONTROL_VERSION=`${CURRENT_BUILD}-update4`;
 })();
