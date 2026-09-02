@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'workflow-lifecycle-v413.js'
+      - 'reader-ui-v414.js'
       - 'stable412.html'
       - '.github/workflows/lifecycle-v413-smoke.yml'
   workflow_dispatch:
@@ -18,12 +19,15 @@ jobs:
         with:
           node-version: '22'
       - name: Lifecycle JavaScript syntax
-        run: node --check workflow-lifecycle-v413.js
+        run: |
+          node --check workflow-lifecycle-v413.js
+          node --check reader-ui-v414.js
       - name: Lifecycle wiring and rules
         shell: python
         run: |
           from pathlib import Path
           js=Path('workflow-lifecycle-v413.js').read_text(encoding='utf-8')
+          reader=Path('reader-ui-v414.js').read_text(encoding='utf-8')
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
             "prev?.status==='closed'&&String(i.status)==='reported'",
@@ -36,9 +40,19 @@ jobs:
             "data-lifecycle-closed",
           ]
           for x in required: assert x in js,x
+          reader_required=[
+            "document.querySelector('[data-shell-view=\"actions\"]')?.remove()",
+            "String(currentView)==='actions'",
+            "String(i.status)!=='approved'",
+            "승인 사고 · 종결 사고 열람",
+            "사고조치 미작성",
+            "사고조치 검토대기",
+          ]
+          for x in reader_required: assert x in reader,x
           assert 'workflow-lifecycle-v413.js?v=4.1.2-r16&amp;fix=lifecycle1' in html
-          assert html.index('workflow-lifecycle-v413.js') < html.index('workflow-v412.js')
-          print('OK: two-stage report/action lifecycle wired')
+          assert 'reader-ui-v414.js?v=4.1.2-r16&amp;fix=reader1' in html
+          assert html.index('workflow-lifecycle-v413.js') < html.index('reader-ui-v414.js') < html.index('workflow-v412.js')
+          print('OK: two-stage lifecycle and simplified reader UI wired')
       - name: Live finalized incident view
         shell: python
         run: |
@@ -53,7 +67,13 @@ jobs:
           except urllib.error.HTTPError as e:
             raise AssertionError((e.code,e.read().decode()))
           assert data.get('ok') is True,data
-          closed=[i for i in data.get('incidents',[]) if i.get('status')=='closed']
+          incidents=data.get('incidents',[])
+          assert all(i.get('status') in ('approved','closed') for i in incidents),incidents
+          closed=[i for i in incidents if i.get('status')=='closed']
           assert closed, data
           assert any((i.get('corrective') or {}).get('status')=='approved' and (i.get('corrective') or {}).get('actionDetail') for i in closed),closed
-          print('OK: finalized incident contains approved report and corrective detail')
+          for i in incidents:
+            c=i.get('corrective') or {}
+            if i.get('status')=='approved' and c.get('status')!='approved':
+              assert set(c.keys()) <= {'status'},c
+          print('OK: reader receives approved reports and finalized corrective detail only')
