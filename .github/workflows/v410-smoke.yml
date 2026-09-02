@@ -16,6 +16,7 @@ on:
       - 'field-incidents-v411.js'
       - 'incidents-v410.js'
       - 'incident-sync-v411.js'
+      - 'incident-category-ui-v417.js'
       - 'site-admin-v415.js'
       - 'security-v412.js'
       - 'workflow-v412.js'
@@ -40,7 +41,7 @@ jobs:
           node-version: '22'
       - name: JavaScript syntax
         run: |
-          for f in core.js session-refresh-v412.js auth-v411.js login-layout-v412.js app-shell-v411.js field-ui-v411.js field-incidents-v411.js incidents-v410.js incident-sync-v411.js site-admin-v415.js security-v412.js workflow-v412.js workflow-lifecycle-v413.js reader-ui-v414.js v3-actions.js report-v410.js; do
+          for f in core.js session-refresh-v412.js auth-v411.js login-layout-v412.js app-shell-v411.js field-ui-v411.js field-incidents-v411.js incidents-v410.js incident-sync-v411.js incident-category-ui-v417.js site-admin-v415.js security-v412.js workflow-v412.js workflow-lifecycle-v413.js reader-ui-v414.js v3-actions.js report-v410.js; do
             node --check "$f"
           done
       - name: Production r16 and unified workflow rules
@@ -64,6 +65,7 @@ jobs:
             'security-v412.js?v=4.1.2-r16&amp;fix=site1',
             'workflow-lifecycle-v413.js?v=4.1.2-r16&amp;fix=lifecycle1',
             'reader-ui-v414.js?v=4.1.2-r16&amp;fix=reader1',
+            'incident-category-ui-v417.js?v=4.1.2-r16&amp;fix=category1',
             'workflow-v412.js?v=4.1.2-r16&amp;fix=inquiry2',
           ]: assert x in html,x
 
@@ -79,6 +81,7 @@ jobs:
             if path and not Path(path).exists(): missing.append(path)
           assert not missing,missing
           assert p.scripts[-1]=='workflow-v412.js?v=4.1.2-r16&fix=inquiry2',p.scripts[-1]
+          assert html.index('reader-ui-v414.js') < html.index('incident-category-ui-v417.js') < html.index('workflow-v412.js')
 
           site=Path('site-admin-v415.js').read_text(encoding='utf-8')
           for x in ['PERSON_PAGE_SIZE=10','현장 근무자·관리자','sa415PersonPhone','sa415PersonPassword','data-sa415-person','일반근로자','현장소장','파트장','서무']: assert x in site,x
@@ -86,6 +89,9 @@ jobs:
           field=Path('field-ui-v411.js').read_text(encoding='utf-8')
           for x in ['enlRenderSafetyInquiry','field-inquiry','inquiryRetry','안전관리자 문의 및 답변 확인']: assert x in field,x
           assert 'enl_safety_field_inquiries_v1' not in field
+
+          category=Path('incident-category-ui-v417.js').read_text(encoding='utf-8')
+          for x in ['data-safety-inc','data-lifecycle-open','data-reader-open','categoryBadge','.p-person,.p-property','person','property']: assert x in category,x
 
           workflow=Path('workflow-v412.js').read_text(encoding='utf-8')
           for x in ['문의 구분','inquiry_create','inquiry_delete','inquiry_restore','inquiry_purge','data-wf-inq-purge','setInquiryNavActive','worker','임시삭제','완전삭제','최종수정자']: assert x in workflow,x
@@ -97,7 +103,7 @@ jobs:
 
           lifecycle=Path('workflow-lifecycle-v413.js').read_text(encoding='utf-8')
           for x in ["prev?.status==='closed'&&String(i.status)==='reported'","i.status='closed'","#closeInc{display:none!important}"]: assert x in lifecycle,x
-          print('OK: stable r16, unified personnel/inquiry UI and two-stage lifecycle wired')
+          print('OK: stable r16, unified personnel/inquiry UI, category badges and two-stage lifecycle wired')
 
       - name: Live current APIs
         shell: python
