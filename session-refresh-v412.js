@@ -154,7 +154,7 @@
       if(session){
         writePrimary();persistBackup(session,true);return;
       }
-      if(explicitClearArmed){writePrimary();clearBackup({draft:true});return}
+      if(explicitClearArmed){writePrimary();clearBackup({draft:true});explicitClearArmed=false;return}
       // A mobile WebView can transiently lose the in-memory session while backgrounding/recreating a page.
       // Do not treat that transient null as a user logout; recover the durable local session instead.
       const stored=readBackup();
@@ -164,8 +164,8 @@
     };
   }
 
-  // Arm explicit clearing before the normal logout click handler runs.
-  document.addEventListener('click',e=>{if(e.target?.closest?.('#logoutBtn'))explicitClearArmed=true},true);
+  // The visible logout button is an explicit user action, so clear the durable session before its normal handler runs.
+  document.addEventListener('click',e=>{if(e.target?.closest?.('#logoutBtn'))clearSessionExplicit('logout')},true);
 
   let draftTimer=null;
   function keepCurrent(){
