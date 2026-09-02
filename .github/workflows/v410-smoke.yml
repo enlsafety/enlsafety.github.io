@@ -16,7 +16,7 @@ on:
       - 'field-incidents-v411.js'
       - 'incidents-v410.js'
       - 'incident-sync-v411.js'
-      - 'site-admin-v411.js'
+      - 'site-admin-v415.js'
       - 'security-v412.js'
       - 'workflow-v412.js'
       - 'workflow-lifecycle-v413.js'
@@ -40,7 +40,7 @@ jobs:
           node-version: '22'
       - name: JavaScript syntax
         run: |
-          for f in core.js session-refresh-v412.js auth-v411.js login-layout-v412.js app-shell-v411.js field-ui-v411.js field-incidents-v411.js incidents-v410.js incident-sync-v411.js site-admin-v411.js security-v412.js workflow-v412.js workflow-lifecycle-v413.js reader-ui-v414.js v3-actions.js report-v410.js; do
+          for f in core.js session-refresh-v412.js auth-v411.js login-layout-v412.js app-shell-v411.js field-ui-v411.js field-incidents-v411.js incidents-v410.js incident-sync-v411.js site-admin-v415.js security-v412.js workflow-v412.js workflow-lifecycle-v413.js reader-ui-v414.js v3-actions.js report-v410.js; do
             node --check "$f"
           done
       - name: Production r16 and unified workflow rules
@@ -59,7 +59,7 @@ jobs:
           assert 'enl-build" content="4.1.2-r16' in html
           for x in [
             'session-refresh-v412.js?v=4.1.2-r16&amp;fix=session2',
-            'site-admin-v411.js?v=4.1.2-r16&amp;fix=personnel1',
+            'site-admin-v415.js?v=4.1.2-r16&amp;fix=personnel2',
             'field-ui-v411.js?v=4.1.2-r16&amp;fix=inquiry2',
             'security-v412.js?v=4.1.2-r16&amp;fix=site1',
             'workflow-lifecycle-v413.js?v=4.1.2-r16&amp;fix=lifecycle1',
@@ -80,8 +80,8 @@ jobs:
           assert not missing,missing
           assert p.scripts[-1]=='workflow-v412.js?v=4.1.2-r16&fix=inquiry1',p.scripts[-1]
 
-          site=Path('site-admin-v411.js').read_text(encoding='utf-8')
-          for x in ['PERSON_PAGE_SIZE=10','현장 근무자·관리자','p411Phone','p411Password','data-person411','일반근로자','현장소장','파트장','서무']: assert x in site,x
+          site=Path('site-admin-v415.js').read_text(encoding='utf-8')
+          for x in ['PERSON_PAGE_SIZE=10','현장 근무자·관리자','sa415PersonPhone','sa415PersonPassword','data-sa415-person','일반근로자','현장소장','파트장','서무']: assert x in site,x
 
           field=Path('field-ui-v411.js').read_text(encoding='utf-8')
           for x in ['enlRenderSafetyInquiry','field-inquiry','inquiryRetry','안전관리자 문의 및 답변 확인']: assert x in field,x
