@@ -90,8 +90,11 @@
   window.enlIncidentAcknowledge=acknowledge;
   window.enlIncidentServerReady=()=>serverReady;
 
+  function syncOnForeground(){if(!currentUser())return;setTimeout(()=>syncNow([]),120)}
   if(currentUser())setTimeout(()=>syncNow([]),120);
-  setInterval(()=>{if(!currentUser())return;if(dirty)syncNow([]);else pull(true).catch(()=>{})},15000);
+  setInterval(()=>{if(!currentUser()||document.visibilityState==='hidden')return;if(dirty)syncNow([]);else pull(true).catch(()=>{})},15000);
   window.addEventListener('online',()=>{if(currentUser())setTimeout(()=>syncNow([]),500)});
-  window.ENL_INCIDENT_SYNC_VERSION='4.1.1-r11';
+  window.addEventListener('pageshow',syncOnForeground);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncOnForeground()});
+  window.ENL_INCIDENT_SYNC_VERSION='4.1.1-r11-foreground1';
 })();
