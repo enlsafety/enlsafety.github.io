@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'ui-stability-v422.js'
+      - 'reader-ack-ux-v423.js'
       - 'stable412.html'
       - '.github/workflows/ui-stability-v422-smoke.yml'
   workflow_dispatch:
@@ -18,12 +19,15 @@ jobs:
         with:
           node-version: '22'
       - name: UI stability syntax
-        run: node --check ui-stability-v422.js
+        run: |
+          node --check ui-stability-v422.js
+          node --check reader-ack-ux-v423.js
       - name: UI stability wiring
         shell: python
         run: |
           from pathlib import Path
           js=Path('ui-stability-v422.js').read_text(encoding='utf-8')
+          ack=Path('reader-ack-ux-v423.js').read_text(encoding='utf-8')
           html=Path('stable412.html').read_text(encoding='utf-8')
           for x in [
             "4.2.2-ui-stability2",
@@ -34,6 +38,15 @@ jobs:
             "if(passwordHash)payload.passwordHash=passwordHash",
             "#enlPwaTop418.on::after"
           ]: assert x in js,x
+          for x in [
+            "4.2.3-reader-ack1",
+            "이 종결사고는 열람 확인이 필요합니다",
+            "이 종결사고 열람 확인하기",
+            "열람확인 필요",
+            "data-lifecycle-final",
+            "#ackIncident411"
+          ]: assert x in ack,x
           assert 'ui-stability-v422.js?v=4.1.2-r21&amp;fix=pc-hq1' in html
-          assert html.rfind('ui-stability-v422.js') > html.rfind('pwa-push-v418.js')
-          print('OK: stable header, inquiry/modal guard, HQ editor and desktop notification button wiring')
+          assert 'reader-ack-ux-v423.js?v=4.1.2-r21&amp;fix=closed-ack1' in html
+          assert html.rfind('reader-ack-ux-v423.js') > html.rfind('ui-stability-v422.js')
+          print('OK: stable shell, HQ editor and prominent finalized read acknowledgement wiring')
