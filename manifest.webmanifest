@@ -1,0 +1,22 @@
+{
+  "name": "이앤엘 사고보고앱",
+  "short_name": "사고보고",
+  "description": "이앤엘 현장 사고보고, 사고조치, 승인 및 안전문의 앱",
+  "lang": "ko-KR",
+  "id": "/stable412.html",
+  "start_url": "/stable412.html?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f4f9fd",
+  "theme_color": "#1e5d91",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "/pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
