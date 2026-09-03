@@ -11,6 +11,7 @@ on:
       - 'account-security-v420.js'
       - 'workflow-v412.js'
       - 'pwa-push-v418.js'
+      - 'push-session-v425.js'
       - 'sw-v418.js'
       - 'manifest.webmanifest'
       - 'incident-excel-v421.js'
@@ -32,11 +33,11 @@ jobs:
 
       - name: JavaScript syntax
         run: |
-          for f in core.js auth-v411.js account-security-v420.js login-layout-v412.js session-refresh-v412.js incident-sync-v411.js workflow-v412.js workflow-lifecycle-v413.js reader-ui-v414.js incident-excel-v421.js pwa-push-v418.js sw-v418.js; do
+          for f in core.js auth-v411.js account-security-v420.js login-layout-v412.js session-refresh-v412.js incident-sync-v411.js workflow-v412.js workflow-lifecycle-v413.js reader-ui-v414.js incident-excel-v421.js pwa-push-v418.js push-session-v425.js sw-v418.js; do
             node --check "$f"
           done
 
-      - name: Production r21 account security and Android launcher rules
+      - name: Production r22 account security push session and Android launcher rules
         shell: python
         run: |
           from pathlib import Path
@@ -45,20 +46,21 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-412-r21',meta
+          assert meta.get('build')=='stable-412-r22',meta
           assert meta.get('stableEntry')=='stable412.html',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='r21'",'beforeinstallprompt','사고보고앱 설치','Chrome으로 열기','stable412.html?entry=root&build=r21']: assert x in index,x
+          for x in ["const BUILD='r22'",'beforeinstallprompt','사고보고앱 설치','Chrome으로 열기','stable412.html?entry=root&build=r22',"/sw-v418.js?v=4.2.5-pwa3"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           for x in [
-            'enl-build" content="4.1.2-r21',
-            'manifest.webmanifest?v=4.1.2-r21',
+            'enl-build" content="4.1.2-r22',
+            'manifest.webmanifest?v=4.1.2-r22',
             'auth-v411.js?v=4.1.2-r19&amp;fix=pwa-login1',
             'workflow-v412.js?v=4.1.2-r19&amp;fix=inquiry-throttle1',
             'account-security-v420.js?v=4.1.2-r21&amp;fix=password1',
             'pwa-push-v418.js?v=4.1.2-r19&amp;fix=pwa-push2',
+            'push-session-v425.js?v=4.1.2-r22&amp;fix=ownership-deeplink1',
             'incident-excel-v421.js?v=4.1.2-r17&amp;fix=excel-report-attachments1',
           ]: assert x in html,x
 
@@ -75,6 +77,7 @@ jobs:
             if path and not Path(path).exists(): missing.append(path)
           assert not missing,missing
           assert 'account-security-v420.js?v=4.1.2-r21&fix=password1' in p.scripts
+          assert 'push-session-v425.js?v=4.1.2-r22&fix=ownership-deeplink1' in p.scripts
 
           auth=Path('auth-v411.js').read_text(encoding='utf-8')
           assert "const VERSION='4.1.1-r19-pwa-login1'" in auth
@@ -89,13 +92,16 @@ jobs:
           push=Path('pwa-push-v418.js').read_text(encoding='utf-8')
           for x in ["4.1.8-pwa-push2",'beforeinstallprompt','Notification.requestPermission','pushManager.subscribe','테스트 알림']: assert x in push,x
 
+          ps=Path('push-session-v425.js').read_text(encoding='utf-8')
+          for x in ["4.2.5-push-session1",'enl-push-claim-v425','claimForCurrentUser','openPendingIncident','enl_pending_push_incident_v425']: assert x in ps,x
+
           sw=Path('sw-v418.js').read_text(encoding='utf-8')
-          for x in ["4.1.8-pwa2","enl-pwa-418-r19","addEventListener('push'",'showNotification']: assert x in sw,x
+          for x in ["4.2.5-pwa3","enl-pwa-425-r21","addEventListener('push'",'showNotification','stable412.html?push=1&incident=']: assert x in sw,x
 
           manifest=json.loads(Path('manifest.webmanifest').read_text(encoding='utf-8'))
           assert manifest.get('display')=='standalone'
           assert manifest.get('start_url','').startswith('/stable412.html')
-          print('OK: r21 account security, Android launcher and stable runtime wiring')
+          print('OK: r22 account security, push ownership/deep links, Android launcher and stable runtime wiring')
 
       - name: Excel 2019 finalized workbook smoke
         run: |
@@ -112,7 +118,7 @@ jobs:
           (async()=>{const bytes=await global.enlBuildFinalIncidentWorkbook(sample);if(!bytes||bytes.length<10000)throw new Error('xlsx output too small');const b=Buffer.from(bytes);if(b[0]!==0x50||b[1]!==0x4b)throw new Error('xlsx zip signature missing');console.log('xlsx bytes',bytes.length)})().catch(e=>{console.error(e);process.exit(1)});
           NODE
 
-      - name: Live login incident push and account APIs
+      - name: Live login incident push account and claim APIs
         shell: python
         run: |
           import json,urllib.request,urllib.error
@@ -137,4 +143,6 @@ jobs:
           assert code==200 and h.get('ok') is True,(code,h)
           code,a=call('enl-account-v420',{'action':'health'})
           assert code==200 and a.get('ok') is True and a.get('version')=='4.2.0-account1',(code,a)
-          print('OK: login, incident sync, push and account APIs live')
+          code,c=call('enl-push-claim-v425',{'action':'health'})
+          assert code==200 and c.get('ok') is True and c.get('version')=='4.2.5-push-claim1',(code,c)
+          print('OK: login, incident sync, push, account and device-claim APIs live')
