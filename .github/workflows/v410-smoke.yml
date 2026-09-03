@@ -93,7 +93,7 @@ jobs:
           for x in ["4.1.8-pwa-push2",'beforeinstallprompt','Notification.requestPermission','pushManager.subscribe','테스트 알림']: assert x in push,x
 
           ps=Path('push-session-v425.js').read_text(encoding='utf-8')
-          for x in ["4.2.5-push-session1",'enl-push-claim-v425','claimForCurrentUser','openPendingIncident','enl_pending_push_incident_v425']: assert x in ps,x
+          for x in ["4.2.5-push-session2",'enl-push-claim-v425','claimForCurrentUser','openPendingIncident','primeWorkflowIncident','enl_pending_push_incident_v425']: assert x in ps,x
 
           sw=Path('sw-v418.js').read_text(encoding='utf-8')
           for x in ["4.2.5-pwa3","enl-pwa-425-r21","addEventListener('push'",'showNotification','stable412.html?push=1&incident=']: assert x in sw,x
