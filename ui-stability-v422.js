@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.2.2 - stable shell + HQ editor */
 (function(){
   'use strict';
-  const VERSION='4.2.2-ui-stability1';
+  const VERSION='4.2.2-ui-stability2';
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   const escx=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const actorOf=u=>{try{return window.enlCurrentActor?.()||{id:u?.id||u?.personnelId||u?.username||'',name:u?.name||'',role:roleNorm(u?.role),position:u?.position||u?.jobTitle||'',siteId:u?.siteId||''}}catch(e){return null}};
@@ -26,6 +26,10 @@
     if(document.querySelector('.modal-overlay,.modal-backdrop,[role="dialog"]'))return true;
     return false;
   }
+  function transientViewBusy(){
+    const inquiry=document.querySelector('[data-wf-inquiry-nav]');
+    return !!(inquiry?.classList.contains('on')&&document.querySelector('.wf412-page'));
+  }
   window.enlUiModalBusy=modalBusy;
 
   const baseRenderShell=window.renderShell;
@@ -42,7 +46,7 @@
       if(!u||u.active===false)return baseRenderShell(u);
       const id=userKey(u),shell=document.querySelector('.app-shell.shell-v411'),root=document.getElementById('view');
       if(shell&&root&&mountedUserId===id){
-        if(modalBusy())return root;
+        if(modalBusy()||transientViewBusy())return root;
         syncNavState();
         try{
           if(typeof window.renderCurrentView==='function')return window.renderCurrentView(u)||root;
