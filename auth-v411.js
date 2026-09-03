@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.1.1 - authoritative authentication */
 (function(){
   'use strict';
-  const VERSION='4.1.1-r11';
+  const VERSION='4.1.1-r19-pwa-login1';
   const LOGIN_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-login-v411';
   const CLIENT='incident-report-v2';
   const MANAGER_POSITIONS=['현장소장','파트장','서무'];
@@ -22,7 +22,7 @@
   function actor(u=currentUser?.()){return u?{id:u.id||u.personnelId||u.username||'',name:u.name||'',role:roleNorm(u.role),position:u.position||u.jobTitle||'',siteId:u.siteId||''}:null}
   window.enlCurrentActor=actor;
 
-  async function api(body,timeout=10000){
+  async function api(body,timeout=18000){
     const ctl=typeof AbortController!=='undefined'?new AbortController():null;
     const timer=ctl?setTimeout(()=>ctl.abort(),timeout):null;
     try{

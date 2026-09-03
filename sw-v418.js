@@ -1,5 +1,5 @@
-const ENL_SW_VERSION='4.1.8-pwa1';
-const CACHE_NAME='enl-pwa-418-r18';
+const ENL_SW_VERSION='4.1.8-pwa2';
+const CACHE_NAME='enl-pwa-418-r19';
 const OFFLINE_URL='/stable412.html?offline=1';
 
 self.addEventListener('install',event=>{

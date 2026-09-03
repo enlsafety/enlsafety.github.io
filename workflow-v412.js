@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.1.6 - approval comments, audit display and unified safety inquiries */
 (function(){
   'use strict';
-  const VERSION='4.1.6-inquiry2';
+  const VERSION='4.1.6-inquiry3-throttle1';
   const API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-workflow-v412';
   const CLIENT='incident-report-v2';
   const INQUIRY_CATEGORIES=['앱 사용법','안전 관련 문의','기타'];
@@ -16,6 +16,9 @@
   let activeIncidentId='';
   let inquiryBusy=false;
   let inquiryNavActive=false;
+  let inquiryCountBusy=false;
+  let inquiryCountLastAt=0;
+  let inquiryCountLastValue=null;
 
   async function api(body,timeout=12000){
     const ctl=typeof AbortController!=='undefined'?new AbortController():null;
@@ -139,8 +142,17 @@
     if(inquiryNavActive)setInquiryNavActive(true);
     if(r==='safety')markInquiryButton();
   }
-  async function markInquiryButton(){
-    const u=currentUser?.();if(roleNorm(u?.role)!=='safety')return;const b=document.querySelector('[data-wf-inquiry-nav]');if(!b)return;try{const r=await api({action:'inquiry_count',actor:actor(u)}),n=Number(r.count||0);b.innerHTML=`문의함${n>0?` <span class="wf412-nav-badge">${n>99?'99+':n}</span>`:''}`}catch(e){}
+  async function markInquiryButton(force=false){
+    const u=currentUser?.();if(roleNorm(u?.role)!=='safety')return;
+    const b=document.querySelector('[data-wf-inquiry-nav]');if(!b)return;
+    const now=Date.now();
+    const paint=n=>{const html=`문의함${n>0?` <span class=\"wf412-nav-badge\">${n>99?'99+':n}</span>`:''}`;if(b.innerHTML!==html)b.innerHTML=html};
+    if(inquiryCountBusy)return;
+    if(!force&&now-inquiryCountLastAt<15000){if(inquiryCountLastValue!==null)paint(inquiryCountLastValue);return}
+    inquiryCountBusy=true;
+    try{const r=await api({action:'inquiry_count',actor:actor(u)},8000),n=Number(r.count||0);inquiryCountLastAt=Date.now();inquiryCountLastValue=n;paint(n)}
+    catch(e){inquiryCountLastAt=Date.now()}
+    finally{inquiryCountBusy=false}
   }
 
   const observer=new MutationObserver(()=>{injectInquiryEntry();mountIncidentExtras();mountEditModifier()});
