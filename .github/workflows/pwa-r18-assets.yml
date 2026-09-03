@@ -1,0 +1,92 @@
+name: Prepare PWA r18 assets
+on:
+  push:
+    paths:
+      - '.github/workflows/pwa-r18-assets.yml'
+permissions:
+  contents: write
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix PWA client and create PNG icons
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import struct, zlib, json
+
+          js = Path('pwa-push-v418.js')
+          text = js.read_text(encoding='utf-8')
+          old = "btn.classList.toggle('warn',!on&&Notification?.permission==='denied')"
+          new = "btn.classList.toggle('warn',!on&&('Notification' in window)&&window.Notification.permission==='denied')"
+          if old not in text:
+              raise SystemExit('expected Notification expression not found')
+          js.write_text(text.replace(old,new), encoding='utf-8')
+
+          def png_chunk(kind, data):
+              return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data) & 0xffffffff)
+
+          def make_icon(size, path):
+              blue=(30,93,145,255); white=(255,255,255,255); sky=(141,215,255,255)
+              rows=[]
+              def inside_round(x,y,r):
+                  # Rounded-square mask while keeping transparent outside corners.
+                  if r <= x < size-r or r <= y < size-r: return True
+                  cx = r if x < r else size-r-1
+                  cy = r if y < r else size-r-1
+                  return (x-cx)*(x-cx)+(y-cy)*(y-cy) <= r*r
+              r=max(12,size//5)
+              pixels=[[ (0,0,0,0) for _ in range(size)] for __ in range(size)]
+              for y in range(size):
+                  for x in range(size):
+                      if inside_round(x,y,r): pixels[y][x]=blue
+              # Stylized white E on left, L on right. Keep all marks in maskable safe area.
+              def rect(x0,y0,x1,y1,c):
+                  x0=max(0,int(x0)); y0=max(0,int(y0)); x1=min(size,int(x1)); y1=min(size,int(y1))
+                  for yy in range(y0,y1):
+                      for xx in range(x0,x1): pixels[yy][xx]=c
+              s=size
+              rect(.23*s,.25*s,.31*s,.75*s,white)
+              rect(.23*s,.25*s,.48*s,.33*s,white)
+              rect(.23*s,.46*s,.45*s,.54*s,white)
+              rect(.23*s,.67*s,.48*s,.75*s,white)
+              rect(.55*s,.25*s,.63*s,.75*s,white)
+              rect(.55*s,.67*s,.79*s,.75*s,white)
+              # Small status dot.
+              cx,cy,rr=int(.77*s),int(.28*s),max(4,int(.065*s))
+              for yy in range(max(0,cy-rr),min(size,cy+rr+1)):
+                  for xx in range(max(0,cx-rr),min(size,cx+rr+1)):
+                      if (xx-cx)**2+(yy-cy)**2 <= rr**2: pixels[yy][xx]=sky
+              raw=b''.join(b'\x00'+bytes(sum((list(px) for px in row),[])) for row in pixels)
+              ihdr=struct.pack('>IIBBBBB',size,size,8,6,0,0,0)
+              out=b'\x89PNG\r\n\x1a\n'+png_chunk(b'IHDR',ihdr)+png_chunk(b'IDAT',zlib.compress(raw,9))+png_chunk(b'IEND',b'')
+              Path(path).write_bytes(out)
+
+          for n in (180,192,512): make_icon(n, f'pwa-icon-{n}.png')
+
+          manifest = json.loads(Path('manifest.webmanifest').read_text(encoding='utf-8'))
+          manifest['icons'] = [
+              {'src':'/pwa-icon-192.png','sizes':'192x192','type':'image/png','purpose':'any'},
+              {'src':'/pwa-icon-512.png','sizes':'512x512','type':'image/png','purpose':'any'},
+              {'src':'/pwa-icon-512.png','sizes':'512x512','type':'image/png','purpose':'maskable'}
+          ]
+          Path('manifest.webmanifest').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          sw=Path('sw-v418.js')
+          swtext=sw.read_text(encoding='utf-8').replace("icon:'/pwa-icon.svg'","icon:'/pwa-icon-192.png'").replace("badge:'/pwa-icon.svg'","badge:'/pwa-icon-192.png'")
+          sw.write_text(swtext,encoding='utf-8')
+          PY
+          file pwa-icon-180.png pwa-icon-192.png pwa-icon-512.png
+          python3 -m json.tool manifest.webmanifest >/dev/null
+          node --check pwa-push-v418.js
+          node --check sw-v418.js
+      - name: Commit prepared assets
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add pwa-push-v418.js sw-v418.js manifest.webmanifest pwa-icon-180.png pwa-icon-192.png pwa-icon-512.png
+          git commit -m 'Prepare PWA icons and browser-safe push client'
+          git push
