@@ -48,12 +48,13 @@ jobs:
             "claimForCurrentUser",
             "openPendingIncident",
             "primeWorkflowIncident",
-            "안전관리자 검토대기 단계"
+            "urgentReadOnly",
+            "안전관리자 검토 전 긴급사고"
           ]: assert x in ps,x
           for x in ["4.2.5-pwa3","incidentId","stable412.html?push=1&incident="]: assert x in sw,x
           assert 'push-session-v425.js?v=4.1.2-r22&amp;fix=ownership-deeplink1' in html
           assert html.rfind('push-session-v425.js') > html.rfind('reader-experience-v424.js')
-          print('OK: stable UI, device ownership claim, and push incident deep-link wiring')
+          print('OK: stable UI, device ownership claim, urgent read-only detail, and push incident deep-link wiring')
       - name: Live endpoint guards
         shell: python
         run: |
