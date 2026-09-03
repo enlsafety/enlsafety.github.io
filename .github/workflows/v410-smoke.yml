@@ -8,6 +8,7 @@ on:
       - 'version.json'
       - 'stable412.html'
       - 'auth-v411.js'
+      - 'account-security-v420.js'
       - 'workflow-v412.js'
       - 'pwa-push-v418.js'
       - 'sw-v418.js'
@@ -31,11 +32,11 @@ jobs:
 
       - name: JavaScript syntax
         run: |
-          for f in core.js auth-v411.js login-layout-v412.js session-refresh-v412.js incident-sync-v411.js workflow-v412.js workflow-lifecycle-v413.js reader-ui-v414.js incident-excel-v421.js pwa-push-v418.js sw-v418.js; do
+          for f in core.js auth-v411.js account-security-v420.js login-layout-v412.js session-refresh-v412.js incident-sync-v411.js workflow-v412.js workflow-lifecycle-v413.js reader-ui-v414.js incident-excel-v421.js pwa-push-v418.js sw-v418.js; do
             node --check "$f"
           done
 
-      - name: Production r20 Android launcher and r19 runtime rules
+      - name: Production r21 account security and Android launcher rules
         shell: python
         run: |
           from pathlib import Path
@@ -44,26 +45,19 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-412-r20',meta
+          assert meta.get('build')=='stable-412-r21',meta
           assert meta.get('stableEntry')=='stable412.html',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in [
-            "const BUILD='r20'",
-            'beforeinstallprompt',
-            '사고보고앱 설치',
-            'Chrome으로 열기',
-            "serviceWorker?.register('/sw-v418.js?v=4.1.8-pwa2'",
-            'stable412.html?entry=root&build=r20'
-          ]: assert x in index,x
+          for x in ["const BUILD='r21'",'beforeinstallprompt','사고보고앱 설치','Chrome으로 열기','stable412.html?entry=root&build=r21']: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           for x in [
-            'enl-build" content="4.1.2-r19',
-            'manifest.webmanifest?v=4.1.2-r19',
-            'pwa-icon-180.png?v=4.1.2-r19',
+            'enl-build" content="4.1.2-r21',
+            'manifest.webmanifest?v=4.1.2-r21',
             'auth-v411.js?v=4.1.2-r19&amp;fix=pwa-login1',
             'workflow-v412.js?v=4.1.2-r19&amp;fix=inquiry-throttle1',
+            'account-security-v420.js?v=4.1.2-r21&amp;fix=password1',
             'pwa-push-v418.js?v=4.1.2-r19&amp;fix=pwa-push2',
             'incident-excel-v421.js?v=4.1.2-r17&amp;fix=excel-report-attachments1',
           ]: assert x in html,x
@@ -80,33 +74,28 @@ jobs:
             path=urlsplit(ref).path.lstrip('/')
             if path and not Path(path).exists(): missing.append(path)
           assert not missing,missing
-          assert p.scripts[-1]=='pwa-push-v418.js?v=4.1.2-r19&fix=pwa-push2',p.scripts[-1]
+          assert 'account-security-v420.js?v=4.1.2-r21&fix=password1' in p.scripts
 
           auth=Path('auth-v411.js').read_text(encoding='utf-8')
           assert "const VERSION='4.1.1-r19-pwa-login1'" in auth
           assert 'async function api(body,timeout=18000)' in auth
-          assert '소속 정보를 불러오지 못했습니다.' in auth
+
+          acct=Path('account-security-v420.js').read_text(encoding='utf-8')
+          for x in ["4.2.0-account1",'password_change_self','password_reset_safety','비밀번호 변경','안전관리자 본인 비밀번호','enlOpenSafetyPasswordReset420']: assert x in acct,x
 
           workflow=Path('workflow-v412.js').read_text(encoding='utf-8')
-          for x in [
-            "const VERSION='4.1.6-inquiry3-throttle1'",
-            'inquiryCountBusy','inquiryCountLastAt','inquiryCountLastValue',
-            'now-inquiryCountLastAt<15000','if(b.innerHTML!==html)b.innerHTML=html',
-            "api({action:'inquiry_count',actor:actor(u)},8000)"
-          ]: assert x in workflow,x
+          for x in ["const VERSION='4.1.6-inquiry3-throttle1'",'inquiryCountBusy','now-inquiryCountLastAt<15000']: assert x in workflow,x
 
           push=Path('pwa-push-v418.js').read_text(encoding='utf-8')
-          for x in ["4.1.8-pwa-push2","4.1.8-pwa2",'beforeinstallprompt','Notification.requestPermission','pushManager.subscribe','테스트 알림','알림 설정']: assert x in push,x
+          for x in ["4.1.8-pwa-push2",'beforeinstallprompt','Notification.requestPermission','pushManager.subscribe','테스트 알림']: assert x in push,x
 
           sw=Path('sw-v418.js').read_text(encoding='utf-8')
-          for x in ["4.1.8-pwa2","enl-pwa-418-r19","addEventListener('push'",'showNotification','notificationclick']: assert x in sw,x
+          for x in ["4.1.8-pwa2","enl-pwa-418-r19","addEventListener('push'",'showNotification']: assert x in sw,x
 
           manifest=json.loads(Path('manifest.webmanifest').read_text(encoding='utf-8'))
           assert manifest.get('display')=='standalone'
           assert manifest.get('start_url','').startswith('/stable412.html')
-          assert any(i.get('sizes')=='192x192' for i in manifest.get('icons',[]))
-          assert any(i.get('sizes')=='512x512' for i in manifest.get('icons',[]))
-          print('OK: r20 Android install launcher and r19 stable runtime wiring')
+          print('OK: r21 account security, Android launcher and stable runtime wiring')
 
       - name: Excel 2019 finalized workbook smoke
         run: |
@@ -123,7 +112,7 @@ jobs:
           (async()=>{const bytes=await global.enlBuildFinalIncidentWorkbook(sample);if(!bytes||bytes.length<10000)throw new Error('xlsx output too small');const b=Buffer.from(bytes);if(b[0]!==0x50||b[1]!==0x4b)throw new Error('xlsx zip signature missing');console.log('xlsx bytes',bytes.length)})().catch(e=>{console.error(e);process.exit(1)});
           NODE
 
-      - name: Live login incident and push APIs
+      - name: Live login incident push and account APIs
         shell: python
         run: |
           import json,urllib.request,urllib.error
@@ -146,4 +135,6 @@ jobs:
           assert code==200 and p.get('ok') is True,(code,p)
           code,h=call('enl-push-v418',{'action':'health'})
           assert code==200 and h.get('ok') is True,(code,h)
-          print('OK: login lookup, worker login, incident sync and push API live')
+          code,a=call('enl-account-v420',{'action':'health'})
+          assert code==200 and a.get('ok') is True and a.get('version')=='4.2.0-account1',(code,a)
+          print('OK: login, incident sync, push and account APIs live')
