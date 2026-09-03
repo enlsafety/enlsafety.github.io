@@ -46,8 +46,8 @@ self.addEventListener('push',event=>{
     body,
     tag,
     renotify:true,
-    icon:'/pwa-icon.svg',
-    badge:'/pwa-icon.svg',
+    icon:'/pwa-icon-192.png',
+    badge:'/pwa-icon-192.png',
     data:payload,
     vibrate:[160,80,160]
   }));

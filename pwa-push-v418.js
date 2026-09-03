@@ -66,7 +66,7 @@
   async function subscriptionLabel(){const s=await currentSub();return s?'연결됨':'연결 필요'}
 
   async function updateTopButton(){
-    const btn=document.getElementById('enlPwaTop418');if(!btn)return;let on=false;try{on=Notification.permission==='granted'&&!!(await currentSub())}catch(e){}btn.classList.toggle('on',on);btn.classList.toggle('warn',!on&&Notification?.permission==='denied');btn.innerHTML=on?'<span class="enl418-dot"></span> 알림 켜짐':'🔔 알림 설정';btn.title=on?'알림 설정 및 테스트':'PWA 설치와 알림을 설정합니다.';
+    const btn=document.getElementById('enlPwaTop418');if(!btn)return;let on=false;try{on=Notification.permission==='granted'&&!!(await currentSub())}catch(e){}btn.classList.toggle('on',on);btn.classList.toggle('warn',!on&&('Notification' in window)&&window.Notification.permission==='denied');btn.innerHTML=on?'<span class="enl418-dot"></span> 알림 켜짐':'🔔 알림 설정';btn.title=on?'알림 설정 및 테스트':'PWA 설치와 알림을 설정합니다.';
   }
   async function renderStatus(){
     const install=document.getElementById('enl418InstallState'),perm=document.getElementById('enl418PermissionState'),sub=document.getElementById('enl418SubState');if(install)install.textContent=await installationLabel();if(perm)perm.textContent=permissionLabel();if(sub)sub.textContent=await subscriptionLabel();await updateTopButton();
