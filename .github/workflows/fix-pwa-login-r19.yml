@@ -43,29 +43,28 @@ jobs:
 
           p=Path('auth-v411.js')
           s=p.read_text(encoding='utf-8')
-          if "const VERSION='4.1.1-r11'" not in s or 'async function api(body,timeout=10000)' not in s:
-              raise SystemExit('auth expected version/timeout not found')
+          if "const VERSION='4.1.1-r11'" not in s or 'async function api(body,timeout=10000)' not in s: raise SystemExit('auth markers missing')
           s=s.replace("const VERSION='4.1.1-r11'","const VERSION='4.1.1-r19-pwa-login1'",1)
           s=s.replace('async function api(body,timeout=10000)','async function api(body,timeout=18000)',1)
           p.write_text(s,encoding='utf-8')
 
           p=Path('pwa-push-v418.js')
           s=p.read_text(encoding='utf-8')
-          if "4.1.8-pwa-push1" not in s or "4.1.8-pwa1" not in s: raise SystemExit('pwa client markers missing')
+          if "4.1.8-pwa-push1" not in s or "4.1.8-pwa1" not in s: raise SystemExit('pwa markers missing')
           s=s.replace("const VERSION='4.1.8-pwa-push1'","const VERSION='4.1.8-pwa-push2'",1)
           s=s.replace("const SW_URL='/sw-v418.js?v=4.1.8-pwa1'","const SW_URL='/sw-v418.js?v=4.1.8-pwa2'",1)
           p.write_text(s,encoding='utf-8')
 
           p=Path('sw-v418.js')
           s=p.read_text(encoding='utf-8')
-          if "enl-pwa-418-r18" not in s: raise SystemExit('service worker r18 cache missing')
+          if "enl-pwa-418-r18" not in s: raise SystemExit('sw marker missing')
           s=s.replace("const ENL_SW_VERSION='4.1.8-pwa1'","const ENL_SW_VERSION='4.1.8-pwa2'",1)
           s=s.replace("const CACHE_NAME='enl-pwa-418-r18'","const CACHE_NAME='enl-pwa-418-r19'",1)
           p.write_text(s,encoding='utf-8')
 
           p=Path('stable412.html')
           s=p.read_text(encoding='utf-8')
-          if '4.1.2-r18' not in s: raise SystemExit('stable r18 marker missing')
+          if '4.1.2-r18' not in s: raise SystemExit('stable marker missing')
           s=s.replace('4.1.2-r18','4.1.2-r19')
           s=s.replace('auth-v411.js?v=4.1.2-r16','auth-v411.js?v=4.1.2-r19&amp;fix=pwa-login1',1)
           s=s.replace('workflow-v412.js?v=4.1.2-r16&amp;fix=inquiry2','workflow-v412.js?v=4.1.2-r19&amp;fix=inquiry-throttle1',1)
@@ -74,35 +73,14 @@ jobs:
 
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
-          if 'build=r18' not in s: raise SystemExit('index r18 marker missing')
+          if 'build=r18' not in s: raise SystemExit('index marker missing')
           p.write_text(s.replace('build=r18','build=r19'),encoding='utf-8')
 
           p=Path('version.json')
           meta=json.loads(p.read_text(encoding='utf-8'))
           meta['build']='stable-412-r19'
-          meta['updatedAt']='2026-09-03T11:57:00+09:00'
+          meta['updatedAt']='2026-09-03T11:59:00+09:00'
           p.write_text(json.dumps(meta,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-
-          p=Path('.github/workflows/v410-smoke.yml')
-          s=p.read_text(encoding='utf-8')
-          s=s.replace('Production r18 PWA and unified workflow rules','Production r19 PWA and unified workflow rules')
-          s=s.replace('stable-412-r18','stable-412-r19')
-          s=s.replace('build=r18','build=r19')
-          s=s.replace('4.1.2-r18','4.1.2-r19')
-          s=s.replace('workflow-v412.js?v=4.1.2-r16&amp;fix=inquiry2','workflow-v412.js?v=4.1.2-r19&amp;fix=inquiry-throttle1')
-          s=s.replace('pwa-push-v418.js?v=4.1.2-r19&amp;fix=pwa-push1','pwa-push-v418.js?v=4.1.2-r19&amp;fix=pwa-push2')
-          s=s.replace("'시험 알림'","'테스트 알림'")
-          s=s.replace('stable r18, PWA push','stable r19, PWA push')
-          anchor="          workflow=Path('workflow-v412.js').read_text(encoding='utf-8')\n          for x in ['문의 구분','inquiry_create','inquiry_delete','inquiry_restore','inquiry_purge','data-wf-inq-purge','setInquiryNavActive','worker','임시삭제','완전삭제','최종수정자']: assert x in workflow,x\n"
-          add=anchor+"          for x in ['inquiryCountBusy','inquiryCountLastAt','inquiryCountLastValue','now-inquiryCountLastAt<15000','if(b.innerHTML!==html)b.innerHTML=html']: assert x in workflow,x\n          auth=Path('auth-v411.js').read_text(encoding='utf-8')\n          assert \"async function api(body,timeout=18000)\" in auth, 'PWA login timeout guard missing'\n"
-          if anchor not in s: raise SystemExit('smoke workflow anchor missing')
-          s=s.replace(anchor,add,1)
-          ref_anchor="            'session-refresh-v412.js?v=4.1.2-r16&amp;fix=session2',\n"
-          if ref_anchor not in s: raise SystemExit('smoke ref anchor missing')
-          s=s.replace(ref_anchor,ref_anchor+"            'auth-v411.js?v=4.1.2-r19&amp;fix=pwa-login1',\n",1)
-          p.write_text(s,encoding='utf-8')
-
-          Path('.github/workflows/fix-pwa-login-r19.yml').unlink()
       - name: Validate patched runtime
         shell: bash
         run: |
@@ -113,14 +91,15 @@ jobs:
           python3 -m json.tool version.json >/dev/null
           grep -q 'stable-412-r19' version.json
           grep -q 'inquiryCountBusy' workflow-v412.js
+          grep -q 'now-inquiryCountLastAt<15000' workflow-v412.js
           grep -q 'timeout=18000' auth-v411.js
           grep -q 'enl-pwa-418-r19' sw-v418.js
           grep -q 'workflow-v412.js?v=4.1.2-r19&amp;fix=inquiry-throttle1' stable412.html
-      - name: Commit fix
+      - name: Commit runtime fix
         shell: bash
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
+          git add workflow-v412.js auth-v411.js pwa-push-v418.js sw-v418.js stable412.html index.html version.json
           git commit -m 'Fix iPhone PWA login and inquiry count request storm'
           git push
