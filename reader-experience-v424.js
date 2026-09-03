@@ -1,8 +1,9 @@
-/* E&L Accident Report App v4.2.4 - reader nav alerts + own comment deletion */
+/* E&L Accident Report App v4.2.4 - reader nav alerts + instant own comment deletion */
 (function(){
   'use strict';
-  const VERSION='4.2.4-reader-experience1';
+  const VERSION='4.2.4-reader-experience2';
   const DELETE_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-comment-delete-v424';
+  const WORKFLOW_API_FRAGMENT='/functions/v1/enl-workflow-v412';
   const CLIENT='incident-report-v2';
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   const isReader=u=>['manager','executive'].includes(roleNorm(u?.role));
@@ -11,8 +12,9 @@
   const finalized=i=>!!i&&String(i.status||'')==='closed'&&String(i.corrective?.status||'')==='approved';
   const receiptFor=(i,u)=>(Array.isArray(i?.readReceipts)?i.readReceipts:[]).find(r=>String(r?.userId||'')===uid(u));
   const INQUIRY_SEEN_PREFIX='enl_reader_inquiry_seen_v424_';
+  const commentOwners=new Map();
   let inquiryBusy=false,inquiryLastAt=0,inquiryUnread=false;
-  let commentBusy=false,commentTimer=null,navQueued=false;
+  let navQueued=false;
 
   function css(){
     if(document.getElementById('reader424Css'))return;
@@ -78,24 +80,25 @@
     const r=await fetch(DELETE_API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify({action:'delete',actor:actor(u),commentId}),cache:'no-store'});
     const j=await r.json().catch(()=>({}));if(!r.ok||j?.ok===false){const e=new Error(j?.message||`http_${r.status}`);e.status=r.status;throw e}return j;
   }
-  async function decorateOwnComments(){
-    const u=currentUser?.();if(!isReader(u)||commentBusy)return;
-    const modal=document.querySelector('#modalRoot .modal'),final=modal?.querySelector('[data-lifecycle-final]'),box=modal?.querySelector('[data-wf-comments]'),list=box?.querySelector('.wf412-comments-list');
-    if(!modal||!final||!box||!list)return;
-    const cards=[...list.querySelectorAll('.wf412-comment')];if(!cards.length||cards.every(c=>c.dataset.enl424OwnerChecked==='1'))return;
-    const incidentId=String(final.getAttribute('data-lifecycle-final')||'');if(!incidentId||typeof window.enlWorkflowApi!=='function')return;
-    commentBusy=true;
-    try{
-      const r=await window.enlWorkflowApi({action:'comment_list',actor:actor(u),incidentId}),map=new Map((r?.comments||[]).map(c=>[String(c.comment_id||''),c]));
-      cards.forEach(card=>{
-        card.dataset.enl424OwnerChecked='1';const id=String(card.dataset.wfComment||''),c=map.get(id);if(!c||String(c.author_id||'')!==uid(u))return;
-        let actions=card.querySelector('.wf412-comment-actions');if(!actions){actions=document.createElement('div');actions.className='wf412-comment-actions';card.appendChild(actions)}
-        if(actions.querySelector('[data-enl424-comment-delete]'))return;
-        const b=document.createElement('button');b.type='button';b.className='wf412-own-delete';b.dataset.enl424CommentDelete=id;b.textContent='내 의견 삭제';
-        b.onclick=async ev=>{ev.preventDefault();ev.stopPropagation();if(!confirm('내가 작성한 이 의견을 삭제할까요?'))return;b.disabled=true;b.textContent='삭제 중…';try{await deleteComment(id,u);card.remove();if(!list.querySelector('.wf412-comment'))list.innerHTML='<div class="wf412-empty">등록된 관리자·경영진 의견이 없습니다.</div>'}catch(e){b.disabled=false;b.textContent='내 의견 삭제';alert(e?.message==='not_owner'?'본인이 작성한 의견만 삭제할 수 있습니다.':'의견을 삭제하지 못했습니다. 다시 시도해 주세요.')}};
-        actions.appendChild(b);
-      });
-    }catch(e){}finally{commentBusy=false}
+
+  function addDeleteButton(card,id,u,list){
+    let actions=card.querySelector('.wf412-comment-actions');if(!actions){actions=document.createElement('div');actions.className='wf412-comment-actions';card.appendChild(actions)}
+    if(actions.querySelector('[data-enl424-comment-delete]'))return;
+    const b=document.createElement('button');b.type='button';b.className='wf412-own-delete';b.dataset.enl424CommentDelete=id;b.textContent='내 의견 삭제';
+    b.onclick=async ev=>{ev.preventDefault();ev.stopPropagation();if(!confirm('내가 작성한 이 의견을 삭제할까요?'))return;b.disabled=true;b.textContent='삭제 중…';try{await deleteComment(id,u);commentOwners.delete(id);card.remove();if(!list.querySelector('.wf412-comment'))list.innerHTML='<div class="wf412-empty">등록된 관리자·경영진 의견이 없습니다.</div>'}catch(e){b.disabled=false;b.textContent='내 의견 삭제';alert(e?.message==='not_owner'?'본인이 작성한 의견만 삭제할 수 있습니다.':'의견을 삭제하지 못했습니다. 다시 시도해 주세요.')}};
+    actions.appendChild(b);
+  }
+
+  function decorateOwnComments(){
+    const u=currentUser?.();if(!isReader(u))return;
+    const list=document.querySelector('#modalRoot .modal [data-wf-comments] .wf412-comments-list');if(!list)return;
+    [...list.querySelectorAll('.wf412-comment')].forEach(card=>{
+      const id=String(card.dataset.wfComment||'');if(!id)return;
+      const owner=commentOwners.get(id);if(!owner)return;
+      card.dataset.enl424OwnerChecked='1';
+      if(String(owner)!==uid(u))return;
+      addDeleteButton(card,id,u,list);
+    });
   }
 
   function refreshNav(){
@@ -103,7 +106,23 @@
     if(isReader(u)){readerIncidentDots(u);refreshReaderInquiry(u,false)}
     else if(roleNorm(u.role)==='safety')safetyWorkDots(u);
   }
-  function schedule(){if(navQueued)return;navQueued=true;requestAnimationFrame(()=>{navQueued=false;refreshNav();clearTimeout(commentTimer);commentTimer=setTimeout(decorateOwnComments,80)})}
+  function schedule(){if(navQueued)return;navQueued=true;requestAnimationFrame(()=>{navQueued=false;refreshNav();decorateOwnComments()})}
+
+  // Capture the ownership data from the same comment_list response that paints the comments.
+  // This removes the old second network request that made the delete button appear late.
+  const priorFetch=window.fetch.bind(window);
+  window.fetch=async function(input,init){
+    const url=typeof input==='string'?input:String(input?.url||'');let body=null;
+    try{body=JSON.parse(init?.body||'null')}catch(e){}
+    const res=await priorFetch(input,init);
+    if(url.includes(WORKFLOW_API_FRAGMENT)&&body?.action==='comment_list'&&res?.ok){
+      try{
+        const j=await res.clone().json();
+        (j?.comments||[]).forEach(c=>{const id=String(c?.comment_id||'');if(id)commentOwners.set(id,String(c?.author_id||''))});
+      }catch(e){}
+    }
+    return res;
+  };
 
   css();
   document.addEventListener('click',e=>{
