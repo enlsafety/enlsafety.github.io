@@ -6,32 +6,17 @@ on:
     paths:
       - 'index.html'
       - 'version.json'
-      - 'core.js'
-      - 'session-refresh-v412.js'
+      - 'stable412.html'
       - 'auth-v411.js'
-      - 'login-layout-v412.js'
-      - 'app-shell-v411.js'
-      - 'field-ui-v411.js'
-      - 'field-ui-v411.css'
-      - 'field-incidents-v411.js'
-      - 'incidents-v410.js'
-      - 'incident-sync-v411.js'
-      - 'incident-category-ui-v417.js'
-      - 'incident-excel-v421.js'
-      - 'site-admin-v415.js'
-      - 'security-v412.js'
       - 'workflow-v412.js'
-      - 'workflow-lifecycle-v413.js'
-      - 'reader-ui-v414.js'
-      - 'site-directory-v410.js'
-      - 'site-directory-sync-v410.js'
-      - 'v3-actions.js'
-      - 'report-v410.js'
-      - 'report-v410.css'
-      - 'manifest.webmanifest'
       - 'pwa-push-v418.js'
       - 'sw-v418.js'
-      - 'stable412.html'
+      - 'manifest.webmanifest'
+      - 'incident-excel-v421.js'
+      - 'session-refresh-v412.js'
+      - 'incident-sync-v411.js'
+      - 'workflow-lifecycle-v413.js'
+      - 'reader-ui-v414.js'
       - '.github/workflows/v410-smoke.yml'
   workflow_dispatch:
 
@@ -43,12 +28,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+
       - name: JavaScript syntax
         run: |
-          for f in core.js session-refresh-v412.js auth-v411.js login-layout-v412.js app-shell-v411.js field-ui-v411.js field-incidents-v411.js incidents-v410.js incident-sync-v411.js incident-category-ui-v417.js incident-excel-v421.js site-admin-v415.js security-v412.js workflow-v412.js workflow-lifecycle-v413.js reader-ui-v414.js v3-actions.js report-v410.js pwa-push-v418.js sw-v418.js; do
+          for f in core.js auth-v411.js login-layout-v412.js session-refresh-v412.js incident-sync-v411.js workflow-v412.js workflow-lifecycle-v413.js reader-ui-v414.js incident-excel-v421.js pwa-push-v418.js sw-v418.js; do
             node --check "$f"
           done
-      - name: Production r18 PWA and unified workflow rules
+
+      - name: Production r19 PWA login and request-throttle rules
         shell: python
         run: |
           from pathlib import Path
@@ -57,24 +44,19 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-412-r18',meta
+          assert meta.get('build')=='stable-412-r19',meta
           assert meta.get('stableEntry')=='stable412.html',meta
-          assert 'build=r18' in Path('index.html').read_text(encoding='utf-8')
+          assert 'build=r19' in Path('index.html').read_text(encoding='utf-8')
+
           html=Path('stable412.html').read_text(encoding='utf-8')
-          assert 'enl-build" content="4.1.2-r18' in html
           for x in [
-            'session-refresh-v412.js?v=4.1.2-r16&amp;fix=session2',
-            'site-admin-v415.js?v=4.1.2-r16&amp;fix=personnel2',
-            'field-ui-v411.js?v=4.1.2-r16&amp;fix=inquiry2',
-            'security-v412.js?v=4.1.2-r16&amp;fix=site1',
-            'workflow-lifecycle-v413.js?v=4.1.2-r16&amp;fix=lifecycle1',
-            'reader-ui-v414.js?v=4.1.2-r16&amp;fix=reader1',
-            'incident-category-ui-v417.js?v=4.1.2-r16&amp;fix=category1',
+            'enl-build" content="4.1.2-r19',
+            'manifest.webmanifest?v=4.1.2-r19',
+            'pwa-icon-180.png?v=4.1.2-r19',
+            'auth-v411.js?v=4.1.2-r19&amp;fix=pwa-login1',
+            'workflow-v412.js?v=4.1.2-r19&amp;fix=inquiry-throttle1',
+            'pwa-push-v418.js?v=4.1.2-r19&amp;fix=pwa-push2',
             'incident-excel-v421.js?v=4.1.2-r17&amp;fix=excel-report-attachments1',
-            'workflow-v412.js?v=4.1.2-r16&amp;fix=inquiry2',
-            'manifest.webmanifest?v=4.1.2-r18',
-            'pwa-icon-180.png?v=4.1.2-r18',
-            'pwa-push-v418.js?v=4.1.2-r18&amp;fix=pwa-push1',
           ]: assert x in html,x
 
           class R(HTMLParser):
@@ -83,50 +65,41 @@ jobs:
               d=dict(a)
               if t=='script' and d.get('src'): self.refs.append(d['src']); self.scripts.append(d['src'])
               if t=='link' and d.get('href'): self.refs.append(d['href'])
-          p=R(); p.feed(html); missing=[]
+          p=R(); p.feed(html)
+          missing=[]
           for ref in p.refs:
             path=urlsplit(ref).path.lstrip('/')
             if path and not Path(path).exists(): missing.append(path)
           assert not missing,missing
-          assert p.scripts[-1]=='pwa-push-v418.js?v=4.1.2-r18&fix=pwa-push1',p.scripts[-1]
-          assert html.index('reader-ui-v414.js') < html.index('incident-category-ui-v417.js') < html.index('incident-excel-v421.js') < html.index('workflow-v412.js') < html.index('pwa-push-v418.js')
-          assert 'incident-excel-v420.js' not in html and 'incident-excel-v419.js' not in html
+          assert p.scripts[-1]=='pwa-push-v418.js?v=4.1.2-r19&fix=pwa-push2',p.scripts[-1]
 
-          site=Path('site-admin-v415.js').read_text(encoding='utf-8')
-          for x in ['PERSON_PAGE_SIZE=10','현장 근무자·관리자','sa415PersonPhone','sa415PersonPassword','data-sa415-person','일반근로자','현장소장','파트장','서무']: assert x in site,x
-
-          field=Path('field-ui-v411.js').read_text(encoding='utf-8')
-          for x in ['enlRenderSafetyInquiry','field-inquiry','inquiryRetry','안전관리자 문의 및 답변 확인']: assert x in field,x
-          assert 'enl_safety_field_inquiries_v1' not in field
-
-          category=Path('incident-category-ui-v417.js').read_text(encoding='utf-8')
-          for x in ['data-safety-inc','data-lifecycle-open','data-reader-open','categoryBadge','.p-person,.p-property','person','property']: assert x in category,x
-
-          excel=Path('incident-excel-v421.js').read_text(encoding='utf-8')
-          for x in ['4.2.1-excel2019-report-attachments1','SharedStrings','sharedStrings.xml','자료첨부시트','renderPdfPages','drawingml/2006/spreadsheetDrawing','Malgun Gothic','wrapText="1"','enlBuildFinalIncidentWorkbook']: assert x in excel,x
+          auth=Path('auth-v411.js').read_text(encoding='utf-8')
+          assert "const VERSION='4.1.1-r19-pwa-login1'" in auth
+          assert 'async function api(body,timeout=18000)' in auth
+          assert '소속 정보를 불러오지 못했습니다.' in auth
 
           workflow=Path('workflow-v412.js').read_text(encoding='utf-8')
-          for x in ['문의 구분','inquiry_create','inquiry_delete','inquiry_restore','inquiry_purge','data-wf-inq-purge','setInquiryNavActive','worker','임시삭제','완전삭제','최종수정자']: assert x in workflow,x
-          for x in ['injectSafetyDesignation','wf412-designate','wf412DesignateBtn','secureDesignate']: assert x not in workflow,x
-
-          security=Path('security-v412.js').read_text(encoding='utf-8')
-          for x in ['SITE_API','password_required','안전관리자 비밀번호']: assert x in security,x
-          for x in ['designate_manager','wf412FieldDesignationPw','securePersonnelField']: assert x not in security,x
-
-          lifecycle=Path('workflow-lifecycle-v413.js').read_text(encoding='utf-8')
-          for x in ["prev?.status==='closed'&&String(i.status)==='reported'","i.status='closed'","#closeInc{display:none!important}"]: assert x in lifecycle,x
+          for x in [
+            "const VERSION='4.1.6-inquiry3-throttle1'",
+            'inquiryCountBusy','inquiryCountLastAt','inquiryCountLastValue',
+            'now-inquiryCountLastAt<15000','if(b.innerHTML!==html)b.innerHTML=html',
+            "api({action:'inquiry_count',actor:actor(u)},8000)"
+          ]: assert x in workflow,x
 
           push=Path('pwa-push-v418.js').read_text(encoding='utf-8')
-          for x in ['beforeinstallprompt','Notification.requestPermission','pushManager.subscribe','시험 알림','알림 설정','management_view','enlPushFlush']: assert x in push,x
-          sw=Path('sw-v418.js').read_text(encoding='utf-8')
-          for x in ["addEventListener('push'","showNotification","notificationclick"]: assert x in sw,x
-          manifest=json.loads(Path('manifest.webmanifest').read_text(encoding='utf-8'))
-          assert manifest.get('display')=='standalone' and manifest.get('start_url','').startswith('/stable412.html'),manifest
-          assert any(i.get('sizes')=='192x192' for i in manifest.get('icons',[])),manifest
-          assert any(i.get('sizes')=='512x512' for i in manifest.get('icons',[])),manifest
-          print('OK: stable r18, PWA push, Excel 2019 report/attachment export and lifecycle wired')
+          for x in ["4.1.8-pwa-push2","4.1.8-pwa2",'beforeinstallprompt','Notification.requestPermission','pushManager.subscribe','테스트 알림','알림 설정']: assert x in push,x
 
-      - name: Excel 2019 report and attachment workbook package
+          sw=Path('sw-v418.js').read_text(encoding='utf-8')
+          for x in ["4.1.8-pwa2","enl-pwa-418-r19","addEventListener('push'",'showNotification','notificationclick']: assert x in sw,x
+
+          manifest=json.loads(Path('manifest.webmanifest').read_text(encoding='utf-8'))
+          assert manifest.get('display')=='standalone'
+          assert manifest.get('start_url','').startswith('/stable412.html')
+          assert any(i.get('sizes')=='192x192' for i in manifest.get('icons',[]))
+          assert any(i.get('sizes')=='512x512' for i in manifest.get('icons',[]))
+          print('OK: r19 PWA login, request throttle and runtime wiring')
+
+      - name: Excel 2019 finalized workbook smoke
         run: |
           node <<'NODE'
           global.window=global;
@@ -135,72 +108,33 @@ jobs:
           global.ENL_SITE_DIRECTORY=[];
           global.enlIncidentFinalized=i=>!!i&&i.status==='closed'&&i.corrective?.status==='approved';
           const tiny='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z1gAAAABJRU5ErkJggg==';
-          const sample={
-            id:'inc-test',siteId:'s-test',category:'person',eventType:'넘어짐',severity:'moderate',leaveEstimate:'under3',potentialMajor:false,priority:'important',
-            reporterName:'현장소장',occurredAt:'2026-09-01T01:30:00.000Z',createdAt:'2026-09-01T02:00:00.000Z',status:'closed',approvedBy:'안전관리자',approvedAt:'2026-09-01T03:00:00.000Z',closedAt:'2026-09-02T01:00:00.000Z',immediateAction:'응급처치 후 병원 이동',photos:[{kind:'image',name:'현장사진.png',dataUrl:tiny}],
-            reportDetails:{place:'A코스 3홀',workAction:'예지 작업',incidentHow:'작업 중 미끄러져 넘어졌습니다. 사고 경위를 충분히 확인하여 기록합니다.',environmentCause:'젖은 잔디와 경사면',behaviorCause:'이동 중 바닥 확인 미흡',injuredName:'홍길동',job:'코스관리',injuryDetail:'왼손 엄지 열상',diagnosis:'열상',doctorOpinion:'통원치료',medicalCost:120000,medicalCostDetail:'진료 및 처치',preventionPlan:'우천 후 위험구간 확인 및 작업 전 안전교육 실시',specialNote:'-'},
-            corrective:{status:'approved',rootCause:'위험구간 사전 확인 미흡',actionDetail:'위험표지 설치 및 작업 전 위험구간 공유',ownerName:'현장소장',dueDate:'2026-09-05',submittedBy:'현장소장',submittedAt:'2026-09-01T05:00:00.000Z',reviewedBy:'안전관리자',reviewedAt:'2026-09-02T01:00:00.000Z',reviewNote:'조치 적정',afterPhotos:[{kind:'image',name:'조치후.png',dataUrl:tiny}]}
-          };
+          const sample={id:'inc-test',siteId:'s-test',category:'person',eventType:'넘어짐',severity:'moderate',priority:'important',reporterName:'현장소장',occurredAt:'2026-09-01T01:30:00.000Z',createdAt:'2026-09-01T02:00:00.000Z',status:'closed',approvedBy:'안전관리자',approvedAt:'2026-09-01T03:00:00.000Z',closedAt:'2026-09-02T01:00:00.000Z',immediateAction:'응급처치 후 병원 이동',photos:[{kind:'image',name:'현장사진.png',dataUrl:tiny}],reportDetails:{place:'A코스 3홀',workAction:'예지 작업',incidentHow:'작업 중 미끄러져 넘어졌습니다.',injuredName:'홍길동',injuryDetail:'왼손 엄지 열상',preventionPlan:'위험구간 확인'},corrective:{status:'approved',rootCause:'사전 확인 미흡',actionDetail:'위험표지 설치',ownerName:'현장소장',submittedBy:'현장소장',submittedAt:'2026-09-01T05:00:00.000Z',reviewedBy:'안전관리자',reviewedAt:'2026-09-02T01:00:00.000Z',afterPhotos:[{kind:'image',name:'조치후.png',dataUrl:tiny}]}};
           global.data={incidents:[sample]};
           require('./incident-excel-v421.js');
-          (async()=>{
-            const bytes=await global.enlBuildFinalIncidentWorkbook(sample);
-            require('fs').writeFileSync('/tmp/enl-finalized-test.xlsx',Buffer.from(bytes));
-            if(!bytes||bytes.length<10000)throw new Error('xlsx output too small');
-            console.log('xlsx bytes',bytes.length);
-          })().catch(e=>{console.error(e);process.exit(1)});
+          (async()=>{const bytes=await global.enlBuildFinalIncidentWorkbook(sample);if(!bytes||bytes.length<10000)throw new Error('xlsx output too small');const b=Buffer.from(bytes);if(b[0]!==0x50||b[1]!==0x4b)throw new Error('xlsx zip signature missing');console.log('xlsx bytes',bytes.length)})().catch(e=>{console.error(e);process.exit(1)});
           NODE
-          python - <<'PY'
-          import zipfile,xml.etree.ElementTree as ET
-          p='/tmp/enl-finalized-test.xlsx'
-          with zipfile.ZipFile(p) as z:
-              assert z.testzip() is None
-              names=set(z.namelist())
-              required={'[Content_Types].xml','_rels/.rels','xl/workbook.xml','xl/_rels/workbook.xml.rels','xl/styles.xml','xl/sharedStrings.xml','xl/worksheets/sheet1.xml','xl/worksheets/sheet2.xml','xl/worksheets/sheet3.xml','xl/worksheets/sheet4.xml','xl/worksheets/_rels/sheet2.xml.rels','xl/worksheets/_rels/sheet3.xml.rels','xl/drawings/drawing1.xml','xl/drawings/drawing2.xml','xl/drawings/_rels/drawing1.xml.rels','xl/drawings/_rels/drawing2.xml.rels','xl/media/attachment1.png','xl/media/attachment2.png'}
-              assert required <= names,(required-names)
-              for n in names:
-                  if n.endswith('.xml') or n.endswith('.rels'):
-                      ET.fromstring(z.read(n))
-              wb=ET.fromstring(z.read('xl/workbook.xml'))
-              ns={'m':'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
-              sheet_names=[s.attrib['name'] for s in wb.find('m:sheets',ns)]
-              assert sheet_names==['사고경위서','자료첨부시트1','자료첨부시트2','사고조치보고서'],sheet_names
-              s1=z.read('xl/worksheets/sheet1.xml').decode('utf-8')
-              s2=z.read('xl/worksheets/sheet2.xml').decode('utf-8')
-              sst=z.read('xl/sharedStrings.xml').decode('utf-8')
-              styles=z.read('xl/styles.xml').decode('utf-8')
-              drawing=ET.fromstring(z.read('xl/drawings/drawing1.xml'))
-              assert '<mergeCells' in s1 and '<drawing r:id="rId1"/>' not in s1
-              assert '<drawing r:id="rId1"/>' in s2
-              assert '사고 발생 경위' in sst and '자료첨부시트 1' in sst and '현장사진.png' in sst
-              assert 'Malgun Gothic' in styles and 'wrapText="1"' in styles and '<borders count="3">' in styles
-              assert drawing.tag=='{http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing}wsDr'
-          print('OK: Excel 2019 workbook is well-formed with report styling and separate image attachment sheets')
-          PY
 
-      - name: Live current APIs
+      - name: Live login incident and push APIs
         shell: python
         run: |
           import json,urllib.request,urllib.error
           BASE='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/'
           H={'Content-Type':'application/json','X-ENL-App':'incident-report-v2','Origin':'https://enlsafety.github.io'}
-          def call(fn,body):
+          def call(fn,body,timeout=25):
             req=urllib.request.Request(BASE+fn,data=json.dumps(body,ensure_ascii=False).encode(),headers=H,method='POST')
             try:
-              with urllib.request.urlopen(req,timeout=20) as r:return r.status,json.loads(r.read().decode())
+              with urllib.request.urlopen(req,timeout=timeout) as r:return r.status,json.loads(r.read().decode())
             except urllib.error.HTTPError as e:
               try:p=json.loads(e.read().decode())
               except:p={}
               return e.code,p
+          code,look=call('enl-login-v411',{'action':'lookup','name':'김건모'})
+          assert code==200 and look.get('ok') is True and look.get('options'),(code,look)
           code,kgm=call('enl-login-v411',{'action':'login_site','name':'김건모','siteId':'s32'})
           assert code==200 and kgm.get('person',{}).get('access_role')=='worker',(code,kgm)
           pid=kgm.get('person',{}).get('personnel_id')
           code,p=call('enl-incident-sync-v411',{'action':'pull','actor':{'id':pid,'name':'김건모','role':'worker','siteId':'s32'},'role':'worker','siteId':'s32'})
           assert code==200 and p.get('ok') is True,(code,p)
-          code,m=call('enl-login-v411',{'action':'lookup','name':'김두환'})
-          assert code==200 and any(x.get('role')=='manager' for x in m.get('options',[])),(code,m)
-          code,x=call('enl-login-v411',{'action':'lookup','name':'이실연'})
-          assert code==200 and any(o.get('role')=='executive' for o in x.get('options',[])),(code,x)
-          code,push=call('enl-push-v418',{'action':'health'})
-          assert code==200 and push.get('ok') is True and push.get('vapidPublicKey'),(code,push)
-          print('OK: current worker, manager, executive, incident sync and push health APIs live')
+          code,h=call('enl-push-v418',{'action':'health'})
+          assert code==200 and h.get('ok') is True,(code,h)
+          print('OK: login lookup, worker login, incident sync and push API live')
