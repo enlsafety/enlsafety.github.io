@@ -42,11 +42,12 @@ jobs:
           for x in ["4.2.3-reader-ack1","이 종결사고는 열람 확인이 필요합니다","열람확인 필요"]: assert x in ack,x
           for x in ["4.2.4-reader-experience1","enl-comment-delete-v424","enl424-nav-dot","내 의견 삭제","normalizeNavActive"]: assert x in rx,x
           for x in [
-            "4.2.5-push-session1",
+            "4.2.5-push-session2",
             "enl-push-claim-v425",
             "PENDING_KEY='enl_pending_push_incident_v425'",
             "claimForCurrentUser",
             "openPendingIncident",
+            "primeWorkflowIncident",
             "안전관리자 검토대기 단계"
           ]: assert x in ps,x
           for x in ["4.2.5-pwa3","incidentId","stable412.html?push=1&incident="]: assert x in sw,x
