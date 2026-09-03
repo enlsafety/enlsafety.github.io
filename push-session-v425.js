@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.2.5 - push ownership + post-login deep links */
 (function(){
   'use strict';
-  const VERSION='4.2.5-push-session1';
+  const VERSION='4.2.5-push-session2';
   const CLAIM_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-claim-v425';
   const CLIENT='incident-report-v2';
   const SW_URL='/sw-v418.js?v=4.2.5-pwa3';
@@ -11,7 +11,7 @@
   let claimBusy=false,lastClaimKey='',openBusy=false,lastUserId='';
 
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
-  const actor=()=>{try{return window.enlCurrentActor?.()||null}catch(e){return null}};
+  const actor=()=>{try{return window.enlCurrentActor?.()||window.currentUser?.()||null}catch(e){try{return window.currentUser?.()||null}catch(_){return null}}};
   const userId=u=>String(u?.id||u?.personnelId||u?.username||'');
   const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 
@@ -57,16 +57,20 @@
     try{const p=JSON.parse(localStorage.getItem(PENDING_KEY)||'null');if(!p?.incidentId)return null;if(Date.now()-Number(p.at||0)>PENDING_TTL){localStorage.removeItem(PENDING_KEY);return null}return p}catch(e){return null}
   }
   function clearPending(){try{localStorage.removeItem(PENDING_KEY)}catch(e){}}
-  function incidentById(id){return (window.data?.incidents||[]).find(x=>String(x?.id||'')===String(id))||null}
-  function siteName(id){try{return window.siteById?.(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}}
-  function fmtx(v){try{return typeof window.fmt==='function'?window.fmt(v):(v?new Date(v).toLocaleString('ko-KR'):'-')}catch(e){return v||'-'}}
+  function incidents(){try{return typeof data!=='undefined'&&Array.isArray(data?.incidents)?data.incidents:(Array.isArray(window.data?.incidents)?window.data.incidents:[])}catch(e){return []}}
+  function incidentById(id){return incidents().find(x=>String(x?.id||'')===String(id))||null}
+  function siteName(id){try{return typeof siteById==='function'?siteById(id)?.name||id||'-':window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}}
+  function fmtx(v){try{return typeof fmt==='function'?fmt(v):(v?new Date(v).toLocaleString('ko-KR'):'-')}catch(e){return v||'-'}}
+  function primeWorkflowIncident(id){
+    try{const b=document.createElement('button');b.type='button';b.hidden=true;b.dataset.incId=String(id);document.body.appendChild(b);b.dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:false}));b.remove()}catch(e){}
+  }
 
   function showPendingReviewNotice(i){
     const title='긴급 사고가 접수되었습니다';
     const detail=`${siteName(i?.siteId)} · ${i?.eventType||i?.category||'사고'} · ${fmtx(i?.occurredAt)}`;
     const message='현재 안전관리자 검토대기 단계입니다. 안전관리자 승인 후 관리자·경영진 상세 열람 및 열람확인이 가능합니다.';
-    if(typeof window.openModal==='function'){
-      window.openModal(`<div class="modal-head"><div><div class="ey">URGENT INCIDENT</div><h2>${esc(title)}</h2><p>${esc(detail)}</p></div><button class="x" data-close>×</button></div><div style="padding:14px"><div style="padding:14px;border:2px solid #e2ad4f;border-radius:12px;background:#fff8e8;color:#624818;font-weight:850;line-height:1.6">${esc(message)}</div></div>`);
+    if(typeof openModal==='function'){
+      openModal(`<div class="modal-head"><div><div class="ey">URGENT INCIDENT</div><h2>${esc(title)}</h2><p>${esc(detail)}</p></div><button class="x" data-close>×</button></div><div style="padding:14px"><div style="padding:14px;border:2px solid #e2ad4f;border-radius:12px;background:#fff8e8;color:#624818;font-weight:850;line-height:1.6">${esc(message)}</div></div>`);
     }else alert(`${title}\n${detail}\n\n${message}`);
   }
 
@@ -79,11 +83,9 @@
       const i=incidentById(p.incidentId);if(!i)return;
       const r=roleNorm(u.role),status=String(i.status||'');
       if(['manager','executive'].includes(r)&&!['approved','closed'].includes(status)){
-        clearPending();
-        try{window.currentView='home';window.renderShell?.(window.currentUser?.()||u)}catch(e){}
-        setTimeout(()=>showPendingReviewNotice(i),80);return;
+        clearPending();setTimeout(()=>showPendingReviewNotice(i),80);return;
       }
-      clearPending();
+      clearPending();primeWorkflowIncident(i.id);
       setTimeout(()=>{
         try{
           if(typeof window.enlOpenIncidentReview==='function')window.enlOpenIncidentReview(i.id,r==='safety',window.currentUser?.()||u);
