@@ -40,7 +40,20 @@ jobs:
           html=Path('stable412.html').read_text(encoding='utf-8')
           for x in ["4.2.2-ui-stability2","window.renderShell=function(u)","if(modalBusy()||transientViewBusy())return root"]: assert x in stable,x
           for x in ["4.2.3-reader-ack1","이 종결사고는 열람 확인이 필요합니다","열람확인 필요"]: assert x in ack,x
-          for x in ["4.2.4-reader-experience1","enl-comment-delete-v424","enl424-nav-dot","내 의견 삭제","normalizeNavActive"]: assert x in rx,x
+          for x in [
+            "4.2.4-reader-experience2",
+            "enl-comment-delete-v424",
+            "enl424-nav-dot",
+            "내 의견 삭제",
+            "normalizeNavActive",
+            "commentOwners=new Map()",
+            "WORKFLOW_API_FRAGMENT",
+            "res.clone().json()",
+            "removes the old second network request"
+          ]: assert x in rx,x
+          start=rx.index('function decorateOwnComments()')
+          end=rx.index('function refreshNav()',start)
+          assert "enlWorkflowApi({action:'comment_list'" not in rx[start:end]
           for x in [
             "4.2.5-push-session2",
             "enl-push-claim-v425",
@@ -52,9 +65,10 @@ jobs:
             "안전관리자 검토 전 긴급사고"
           ]: assert x in ps,x
           for x in ["4.2.5-pwa3","incidentId","stable412.html?push=1&incident="]: assert x in sw,x
+          assert 'reader-experience-v424.js?v=4.1.2-r22&amp;fix=nav-comment2' in html
           assert 'push-session-v425.js?v=4.1.2-r22&amp;fix=ownership-deeplink1' in html
           assert html.rfind('push-session-v425.js') > html.rfind('reader-experience-v424.js')
-          print('OK: stable UI, device ownership claim, urgent read-only detail, and push incident deep-link wiring')
+          print('OK: instant own-comment delete, stable UI, urgent read-only detail, and push deep-link wiring')
       - name: Live endpoint guards
         shell: python
         run: |
