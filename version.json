@@ -1,9 +1,9 @@
 {
   "version": "4.1.2",
-  "build": "stable-412-r21",
+  "build": "stable-412-r22",
   "autoUpdate": false,
   "loginAutoUpdate": false,
   "stableEntry": "stable412.html",
   "currentStableVersion": "4.1.2",
-  "updatedAt": "2026-09-03T15:43:00+09:00"
+  "updatedAt": "2026-09-03T17:08:00+09:00"
 }
