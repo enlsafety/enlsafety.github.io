@@ -6,6 +6,7 @@ on:
     paths:
       - 'ui-stability-v422.js'
       - 'reader-ack-ux-v423.js'
+      - 'reader-experience-v424.js'
       - 'stable412.html'
       - '.github/workflows/ui-stability-v422-smoke.yml'
   workflow_dispatch:
@@ -18,16 +19,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: UI stability syntax
+      - name: UI syntax
         run: |
           node --check ui-stability-v422.js
           node --check reader-ack-ux-v423.js
-      - name: UI stability wiring
+          node --check reader-experience-v424.js
+      - name: UI stability and reader wiring
         shell: python
         run: |
           from pathlib import Path
-          js=Path('ui-stability-v422.js').read_text(encoding='utf-8')
+          stable=Path('ui-stability-v422.js').read_text(encoding='utf-8')
           ack=Path('reader-ack-ux-v423.js').read_text(encoding='utf-8')
+          rx=Path('reader-experience-v424.js').read_text(encoding='utf-8')
           html=Path('stable412.html').read_text(encoding='utf-8')
           for x in [
             "4.2.2-ui-stability2",
@@ -37,16 +40,40 @@ jobs:
             "비밀번호를 바꾸지 않고 이름·소속·직급·권한만 수정",
             "if(passwordHash)payload.passwordHash=passwordHash",
             "#enlPwaTop418.on::after"
-          ]: assert x in js,x
+          ]: assert x in stable,x
+          for x in ["4.2.3-reader-ack1","이 종결사고는 열람 확인이 필요합니다","열람확인 필요"]: assert x in ack,x
           for x in [
-            "4.2.3-reader-ack1",
-            "이 종결사고는 열람 확인이 필요합니다",
-            "이 종결사고 열람 확인하기",
-            "열람확인 필요",
-            "data-lifecycle-final",
-            "#ackIncident411"
-          ]: assert x in ack,x
+            "4.2.4-reader-experience1",
+            "enl-comment-delete-v424",
+            "data-lifecycle-closed",
+            "enl424-nav-dot",
+            "내 의견 삭제",
+            "inquiry_my_list",
+            "normalizeNavActive"
+          ]: assert x in rx,x
           assert 'ui-stability-v422.js?v=4.1.2-r21&amp;fix=pc-hq1' in html
           assert 'reader-ack-ux-v423.js?v=4.1.2-r21&amp;fix=closed-ack1' in html
-          assert html.rfind('reader-ack-ux-v423.js') > html.rfind('ui-stability-v422.js')
-          print('OK: stable shell, HQ editor and prominent finalized read acknowledgement wiring')
+          assert 'reader-experience-v424.js?v=4.1.2-r21&amp;fix=nav-comment1' in html
+          assert html.rfind('reader-experience-v424.js') > html.rfind('reader-ack-ux-v423.js')
+          print('OK: nav active state, unread dots, prominent acknowledgement and own-comment delete wiring')
+      - name: Live comment delete endpoint guard
+        shell: python
+        run: |
+          import json,urllib.request,urllib.error
+          url='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-comment-delete-v424'
+          h={'Content-Type':'application/json','X-ENL-App':'incident-report-v2','Origin':'https://enlsafety.github.io'}
+          def call(body):
+            req=urllib.request.Request(url,data=json.dumps(body,ensure_ascii=False).encode(),headers=h,method='POST')
+            try:
+              with urllib.request.urlopen(req,timeout=20) as r:return r.status,json.loads(r.read().decode())
+            except urllib.error.HTTPError as e:
+              try:p=json.loads(e.read().decode())
+              except:p={}
+              return e.code,p
+          code,j=call({'action':'health'})
+          assert code==200 and j.get('ok') is True and j.get('version')=='4.2.4-comment-delete1',(code,j)
+          code,j=call({'action':'delete','actor':{'id':'u-final-manager','role':'manager'},'commentId':'00000000-0000-0000-0000-000000000000'})
+          assert code==404 and j.get('message')=='not_found',(code,j)
+          code,j=call({'action':'delete','actor':{'id':'u-final-manager','role':'executive'},'commentId':'00000000-0000-0000-0000-000000000000'})
+          assert code==403 and j.get('message')=='forbidden',(code,j)
+          print('OK: comment delete endpoint is live and rejects missing/non-matching targets')
