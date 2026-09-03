@@ -1,5 +1,5 @@
-const ENL_SW_VERSION='4.1.8-pwa2';
-const CACHE_NAME='enl-pwa-418-r19';
+const ENL_SW_VERSION='4.2.5-pwa3';
+const CACHE_NAME='enl-pwa-425-r21';
 const OFFLINE_URL='/stable412.html?offline=1';
 
 self.addEventListener('install',event=>{
@@ -55,7 +55,12 @@ self.addEventListener('push',event=>{
 
 self.addEventListener('notificationclick',event=>{
   event.notification.close();
-  const target=String(event.notification?.data?.url||'https://enlsafety.github.io/');
+  const d=event.notification?.data&&typeof event.notification.data==='object'?event.notification.data:{};
+  const incidentId=String(d.incidentId||'').trim();
+  const kind=String(d.kind||'').trim();
+  const target=incidentId
+    ? `https://enlsafety.github.io/stable412.html?push=1&incident=${encodeURIComponent(incidentId)}${kind?`&kind=${encodeURIComponent(kind)}`:''}`
+    : String(d.url||'https://enlsafety.github.io/');
   event.waitUntil((async()=>{
     const list=await self.clients.matchAll({type:'window',includeUncontrolled:true});
     for(const client of list){
