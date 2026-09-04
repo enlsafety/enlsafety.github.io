@@ -1,0 +1,57 @@
+name: incident stats v426 smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'incident-stats-v426.js'
+      - 'stable412.html'
+      - '.github/workflows/incident-stats-v426-smoke.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'incident-stats-v426.js'
+      - 'stable412.html'
+      - '.github/workflows/incident-stats-v426-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  simple-stats:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: node --check incident-stats-v426.js
+      - name: Statistics wiring and scope
+        shell: python
+        run: |
+          from pathlib import Path
+          js=Path('incident-stats-v426.js').read_text(encoding='utf-8')
+          html=Path('stable412.html').read_text(encoding='utf-8')
+          required=[
+            "4.2.6-simple-stats2",
+            "['safety','manager','executive']",
+            "['approved','closed']",
+            "String(i.category||'')==='person'",
+            "String(i.category||'')==='property'",
+            '미종결 사고',
+            '월별 사고 발생',
+            '사고 유형 비율',
+            '사업장별 사고건수',
+            '간단 통계',
+            "b.dataset.shellView='stats'",
+            'Array.from({length:12}',
+            '.slice(0,10)'
+          ]
+          for marker in required:
+            assert marker in js, marker
+          assert 'fetch(' not in js, 'statistics module must not add network calls'
+          assert 'setInterval(' not in js, 'statistics module must not add polling'
+          assert 'MutationObserver' not in js, 'statistics module must not add observer loops'
+          script='incident-stats-v426.js?v=4.1.2-r23&amp;fix=simple-stats1'
+          assert script in html
+          assert html.index('app-shell-v411.js') < html.index('incident-stats-v426.js') < html.index('ui-stability-v422.js')
+          print('OK: lightweight role-scoped statistics are wired without network or polling')
