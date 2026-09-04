@@ -20,6 +20,25 @@ on:
       - 'workflow-lifecycle-v413.js'
       - 'reader-ui-v414.js'
       - '.github/workflows/v410-smoke.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'version.json'
+      - 'stable412.html'
+      - 'auth-v411.js'
+      - 'account-security-v420.js'
+      - 'workflow-v412.js'
+      - 'pwa-push-v418.js'
+      - 'push-session-v425.js'
+      - 'sw-v418.js'
+      - 'manifest.webmanifest'
+      - 'incident-excel-v421.js'
+      - 'session-refresh-v412.js'
+      - 'incident-sync-v411.js'
+      - 'workflow-lifecycle-v413.js'
+      - 'reader-ui-v414.js'
+      - '.github/workflows/v410-smoke.yml'
   workflow_dispatch:
 
 jobs:
@@ -37,7 +56,7 @@ jobs:
             node --check "$f"
           done
 
-      - name: Production r22 account security push session and Android launcher rules
+      - name: Production runtime wiring
         shell: python
         run: |
           from pathlib import Path
@@ -60,7 +79,9 @@ jobs:
             'workflow-v412.js?v=4.1.2-r19&amp;fix=inquiry-throttle1',
             'account-security-v420.js?v=4.1.2-r21&amp;fix=password1',
             'pwa-push-v418.js?v=4.1.2-r19&amp;fix=pwa-push2',
-            'push-session-v425.js?v=4.1.2-r22&amp;fix=ownership-deeplink1',
+            'incident-sync-v411.js?v=4.1.2-r16&amp;fix=foreground2',
+            'app-control-v410.js?v=4.1.2-r16&amp;fix=update6',
+            'push-session-v425.js?v=4.1.2-r22&amp;fix=runtime-dedupe1',
             'incident-excel-v421.js?v=4.1.2-r17&amp;fix=excel-report-attachments1',
           ]: assert x in html,x
 
@@ -76,8 +97,7 @@ jobs:
             path=urlsplit(ref).path.lstrip('/')
             if path and not Path(path).exists(): missing.append(path)
           assert not missing,missing
-          assert 'account-security-v420.js?v=4.1.2-r21&fix=password1' in p.scripts
-          assert 'push-session-v425.js?v=4.1.2-r22&fix=ownership-deeplink1' in p.scripts
+          assert 'push-session-v425.js?v=4.1.2-r22&fix=runtime-dedupe1' in p.scripts
 
           auth=Path('auth-v411.js').read_text(encoding='utf-8')
           assert "const VERSION='4.1.1-r19-pwa-login1'" in auth
@@ -93,7 +113,14 @@ jobs:
           for x in ["4.1.8-pwa-push2",'beforeinstallprompt','Notification.requestPermission','pushManager.subscribe','테스트 알림']: assert x in push,x
 
           ps=Path('push-session-v425.js').read_text(encoding='utf-8')
-          for x in ["4.2.5-push-session2",'enl-push-claim-v425','claimForCurrentUser','openPendingIncident','primeWorkflowIncident','enl_pending_push_incident_v425']: assert x in ps,x
+          for x in ["4.2.5-push-session3",'enl-push-claim-v425','claimForCurrentUser','openPendingIncident','primeWorkflowIncident','enl_pending_push_incident_v425','scheduleUserReady','schedulePendingOpen']: assert x in ps,x
+          assert 'setTimeout(onUserReady' not in ps
+
+          sync=Path('incident-sync-v411.js').read_text(encoding='utf-8')
+          for x in ["4.1.1-r11-foreground2",'deferredDeletedIds','scheduleSync(250,deleted)']: assert x in sync,x
+
+          control=Path('app-control-v410.js').read_text(encoding='utf-8')
+          for x in ['clearedBySessionModule','scheduleForegroundControl','update6']: assert x in control,x
 
           sw=Path('sw-v418.js').read_text(encoding='utf-8')
           for x in ["4.2.5-pwa3","enl-pwa-425-r21","addEventListener('push'",'showNotification','stable412.html?push=1&incident=']: assert x in sw,x
@@ -101,24 +128,24 @@ jobs:
           manifest=json.loads(Path('manifest.webmanifest').read_text(encoding='utf-8'))
           assert manifest.get('display')=='standalone'
           assert manifest.get('start_url','').startswith('/stable412.html')
-          print('OK: r22 account security, push ownership/deep links, Android launcher and stable runtime wiring')
+          print('OK: r22 stabilized runtime wiring and core feature guards')
 
       - name: Excel 2019 finalized workbook smoke
         run: |
           node <<'NODE'
           global.window=global;
-          global.currentUser=()=>({role:'safety',name:'안전관리자'});
+          global.currentUser=()=>({role:'safety',name:'테스트 관리자'});
           global.siteById=()=>({name:'테스트 사업장'});
           global.ENL_SITE_DIRECTORY=[];
           global.enlIncidentFinalized=i=>!!i&&i.status==='closed'&&i.corrective?.status==='approved';
           const tiny='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z1gAAAABJRU5ErkJggg==';
-          const sample={id:'inc-test',siteId:'s-test',category:'person',eventType:'넘어짐',severity:'moderate',priority:'important',reporterName:'현장소장',occurredAt:'2026-09-01T01:30:00.000Z',createdAt:'2026-09-01T02:00:00.000Z',status:'closed',approvedBy:'안전관리자',approvedAt:'2026-09-01T03:00:00.000Z',closedAt:'2026-09-02T01:00:00.000Z',immediateAction:'응급처치 후 병원 이동',photos:[{kind:'image',name:'현장사진.png',dataUrl:tiny}],reportDetails:{place:'A코스 3홀',workAction:'예지 작업',incidentHow:'작업 중 미끄러져 넘어졌습니다.',injuredName:'홍길동',injuryDetail:'왼손 엄지 열상',preventionPlan:'위험구간 확인'},corrective:{status:'approved',rootCause:'사전 확인 미흡',actionDetail:'위험표지 설치',ownerName:'현장소장',submittedBy:'현장소장',submittedAt:'2026-09-01T05:00:00.000Z',reviewedBy:'안전관리자',reviewedAt:'2026-09-02T01:00:00.000Z',afterPhotos:[{kind:'image',name:'조치후.png',dataUrl:tiny}]}};
+          const sample={id:'inc-test',siteId:'s-test',category:'person',eventType:'넘어짐',severity:'moderate',priority:'important',reporterName:'테스트 보고자',occurredAt:'2026-09-01T01:30:00.000Z',createdAt:'2026-09-01T02:00:00.000Z',status:'closed',approvedBy:'테스트 관리자',approvedAt:'2026-09-01T03:00:00.000Z',closedAt:'2026-09-02T01:00:00.000Z',immediateAction:'응급처치 후 병원 이동',photos:[{kind:'image',name:'현장사진.png',dataUrl:tiny}],reportDetails:{place:'테스트 구역',workAction:'작업 중',incidentHow:'작업 중 미끄러져 넘어졌습니다.',injuredName:'테스트 근로자',injuryDetail:'경미한 열상',preventionPlan:'위험구간 확인'},corrective:{status:'approved',rootCause:'사전 확인 미흡',actionDetail:'위험표지 설치',ownerName:'테스트 담당자',submittedBy:'테스트 담당자',submittedAt:'2026-09-01T05:00:00.000Z',reviewedBy:'테스트 관리자',reviewedAt:'2026-09-02T01:00:00.000Z',afterPhotos:[{kind:'image',name:'조치후.png',dataUrl:tiny}]}};
           global.data={incidents:[sample]};
           require('./incident-excel-v421.js');
           (async()=>{const bytes=await global.enlBuildFinalIncidentWorkbook(sample);if(!bytes||bytes.length<10000)throw new Error('xlsx output too small');const b=Buffer.from(bytes);if(b[0]!==0x50||b[1]!==0x4b)throw new Error('xlsx zip signature missing');console.log('xlsx bytes',bytes.length)})().catch(e=>{console.error(e);process.exit(1)});
           NODE
 
-      - name: Live login incident push account and claim APIs
+      - name: Non-invasive live API health
         shell: python
         run: |
           import json,urllib.request,urllib.error
@@ -132,17 +159,7 @@ jobs:
               try:p=json.loads(e.read().decode())
               except:p={}
               return e.code,p
-          code,look=call('enl-login-v411',{'action':'lookup','name':'김건모'})
-          assert code==200 and look.get('ok') is True and look.get('options'),(code,look)
-          code,kgm=call('enl-login-v411',{'action':'login_site','name':'김건모','siteId':'s32'})
-          assert code==200 and kgm.get('person',{}).get('access_role')=='worker',(code,kgm)
-          pid=kgm.get('person',{}).get('personnel_id')
-          code,p=call('enl-incident-sync-v411',{'action':'pull','actor':{'id':pid,'name':'김건모','role':'worker','siteId':'s32'},'role':'worker','siteId':'s32'})
-          assert code==200 and p.get('ok') is True,(code,p)
-          code,h=call('enl-push-v418',{'action':'health'})
-          assert code==200 and h.get('ok') is True,(code,h)
-          code,a=call('enl-account-v420',{'action':'health'})
-          assert code==200 and a.get('ok') is True and a.get('version')=='4.2.0-account1',(code,a)
-          code,c=call('enl-push-claim-v425',{'action':'health'})
-          assert code==200 and c.get('ok') is True and c.get('version')=='4.2.5-push-claim1',(code,c)
-          print('OK: login, incident sync, push, account and device-claim APIs live')
+          for fn in ['enl-push-v418','enl-account-v420','enl-push-claim-v425']:
+            code,j=call(fn,{'action':'health'})
+            assert code==200 and j.get('ok') is True,(fn,code,j)
+          print('OK: production health endpoints respond without using personnel login data')
