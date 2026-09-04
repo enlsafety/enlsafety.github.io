@@ -4,6 +4,8 @@
   const API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-incident-sync-v411';
   const CLIENT='incident-report-v2';
   let applyingRemote=false,syncing=false,pending=false,serverReady=false,dirty=false;
+  let syncTimer=null;
+  const deferredDeletedIds=new Set();
   let lastIds=new Set((data.incidents||[]).map(x=>x.id));
   let lastSig=signature(data.incidents||[]);
   const baseSaveData=saveData;
@@ -45,7 +47,10 @@
     await call({action:'push',actor:a,role:a.role,siteId:a.siteId,incidents,deletedIds:deletions});
   }
 
-  function canAutoRender(){return !document.querySelector('.modal')&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName||'')}
+  function canAutoRender(){
+    try{if(window.enlUiModalBusy?.())return false}catch(e){}
+    return !document.querySelector('.modal')&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName||'')
+  }
   async function pull(renderIfChanged=true){
     const a=actor();if(!a)return false;
     const res=await call({action:'pull',actor:a,role:a.role,siteId:a.siteId});
@@ -62,17 +67,31 @@
     return res;
   }
 
+  function scheduleSync(delay=250,deletedIds=[]){
+    (deletedIds||[]).forEach(id=>{if(id)deferredDeletedIds.add(id)});
+    if(syncTimer)clearTimeout(syncTimer);
+    syncTimer=setTimeout(()=>{syncTimer=null;syncNow([])},delay);
+  }
+
   async function syncNow(deletedIds=[]){
     const a=actor();if(!a)return;
+    (deletedIds||[]).forEach(id=>{if(id)deferredDeletedIds.add(id)});
+    if(syncTimer){clearTimeout(syncTimer);syncTimer=null}
     if(syncing){pending=true;return}
     syncing=true;
+    const queuedDeletes=[...deferredDeletedIds];deferredDeletedIds.clear();
+    let failed=false;
     try{
       if(!serverReady){await pull(true);serverReady=true;dirty=false;return}
       if(['manager','executive'].includes(a.role)){dirty=false;await pull(true);return}
-      if(dirty||deletedIds.length){await push(deletedIds);dirty=false;await pull(true)}
+      if(dirty||queuedDeletes.length){await push(queuedDeletes);dirty=false;await pull(true)}
       else await pull(true);
-    }catch(e){console.warn('incident sync skipped',e)}
-    finally{syncing=false;if(pending){pending=false;setTimeout(()=>syncNow([]),500)}}
+    }catch(e){failed=true;queuedDeletes.forEach(id=>deferredDeletedIds.add(id));console.warn('incident sync skipped',e)}
+    finally{
+      syncing=false;
+      if(pending){pending=false;scheduleSync(500)}
+      else if(!failed&&deferredDeletedIds.size)scheduleSync(250)
+    }
   }
 
   saveData=function(){
@@ -81,7 +100,7 @@
     const changed=sig!==lastSig||deleted.length>0;lastIds=nowIds;lastSig=sig;
     if(a&&['manager','executive'].includes(a.role)){dirty=false;return}
     if(changed)dirty=true;
-    if(changed&&currentUser())setTimeout(()=>syncNow(deleted),250);
+    if(changed&&currentUser())scheduleSync(250,deleted);
   };
 
   window.enlIncidentApi=call;
@@ -90,11 +109,11 @@
   window.enlIncidentAcknowledge=acknowledge;
   window.enlIncidentServerReady=()=>serverReady;
 
-  function syncOnForeground(){if(!currentUser())return;setTimeout(()=>syncNow([]),120)}
-  if(currentUser())setTimeout(()=>syncNow([]),120);
-  setInterval(()=>{if(!currentUser()||document.visibilityState==='hidden')return;if(dirty)syncNow([]);else pull(true).catch(()=>{})},15000);
-  window.addEventListener('online',()=>{if(currentUser())setTimeout(()=>syncNow([]),500)});
+  function syncOnForeground(){if(!currentUser())return;scheduleSync(120)}
+  if(currentUser())scheduleSync(120);
+  setInterval(()=>{if(!currentUser()||document.visibilityState==='hidden'||syncing||syncTimer)return;if(dirty||deferredDeletedIds.size)syncNow([]);else pull(true).catch(()=>{})},15000);
+  window.addEventListener('online',()=>{if(currentUser())scheduleSync(500)});
   window.addEventListener('pageshow',syncOnForeground);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncOnForeground()});
-  window.ENL_INCIDENT_SYNC_VERSION='4.1.1-r11-foreground1';
+  window.ENL_INCIDENT_SYNC_VERSION='4.1.1-r11-foreground2';
 })();
