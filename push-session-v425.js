@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.2.5 - push ownership + post-login deep links */
 (function(){
   'use strict';
-  const VERSION='4.2.5-push-session2';
+  const VERSION='4.2.5-push-session3';
   const CLAIM_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-claim-v425';
   const CLIENT='incident-report-v2';
   const SW_URL='/sw-v418.js?v=4.2.5-pwa3';
@@ -9,6 +9,7 @@
   const PENDING_KEY='enl_pending_push_incident_v425';
   const PENDING_TTL=30*60*1000;
   let claimBusy=false,lastClaimKey='',openBusy=false,lastUserId='';
+  let readyTimer=null,pendingOpenTimer=null,claimTimer=null;
 
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   const actor=()=>{try{return window.enlCurrentActor?.()||window.currentUser?.()||null}catch(e){try{return window.currentUser?.()||null}catch(_){return null}}};
@@ -115,18 +116,30 @@
     }finally{openBusy=false}
   }
 
+  function schedulePendingOpen(delay=220){
+    if(pendingOpenTimer)clearTimeout(pendingOpenTimer);
+    pendingOpenTimer=setTimeout(()=>{pendingOpenTimer=null;openPendingIncident()},delay);
+  }
   function onUserReady(){
     const u=actor();const id=userId(u);
     if(!u){lastUserId='';return}
-    if(id!==lastUserId){lastUserId=id;lastClaimKey='';setTimeout(()=>claimForCurrentUser(true),120)}
-    setTimeout(openPendingIncident,220);
+    if(id!==lastUserId){
+      lastUserId=id;lastClaimKey='';
+      if(claimTimer)clearTimeout(claimTimer);
+      claimTimer=setTimeout(()=>{claimTimer=null;claimForCurrentUser(true)},120);
+    }
+    schedulePendingOpen(220);
+  }
+  function scheduleUserReady(delay=120){
+    if(readyTimer)clearTimeout(readyTimer);
+    readyTimer=setTimeout(()=>{readyTimer=null;onUserReady()},delay);
   }
 
   savePendingFromUrl();registerSw();
   const baseShell=window.renderShell;
-  if(typeof baseShell==='function')window.renderShell=function(u){const out=baseShell.apply(this,arguments);setTimeout(onUserReady,60);return out};
-  window.addEventListener('pageshow',()=>setTimeout(onUserReady,120));
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')setTimeout(onUserReady,120)});
-  setTimeout(onUserReady,150);
+  if(typeof baseShell==='function')window.renderShell=function(u){const out=baseShell.apply(this,arguments);scheduleUserReady(60);return out};
+  window.addEventListener('pageshow',()=>scheduleUserReady(120));
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')scheduleUserReady(120)});
+  scheduleUserReady(150);
   window.ENL_PUSH_SESSION_VERSION=VERSION;
 })();

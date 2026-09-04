@@ -11,6 +11,16 @@ on:
       - 'sw-v418.js'
       - 'stable412.html'
       - '.github/workflows/ui-stability-v422-smoke.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ui-stability-v422.js'
+      - 'reader-ack-ux-v423.js'
+      - 'reader-experience-v424.js'
+      - 'push-session-v425.js'
+      - 'sw-v418.js'
+      - 'stable412.html'
+      - '.github/workflows/ui-stability-v422-smoke.yml'
   workflow_dispatch:
 
 jobs:
@@ -55,20 +65,23 @@ jobs:
           end=rx.index('function refreshNav()',start)
           assert "enlWorkflowApi({action:'comment_list'" not in rx[start:end]
           for x in [
-            "4.2.5-push-session2",
+            "4.2.5-push-session3",
             "enl-push-claim-v425",
             "PENDING_KEY='enl_pending_push_incident_v425'",
             "claimForCurrentUser",
             "openPendingIncident",
             "primeWorkflowIncident",
             "urgentReadOnly",
+            "scheduleUserReady",
+            "schedulePendingOpen",
             "안전관리자 검토 전 긴급사고"
           ]: assert x in ps,x
+          assert "setTimeout(onUserReady" not in ps
           for x in ["4.2.5-pwa3","incidentId","stable412.html?push=1&incident="]: assert x in sw,x
           assert 'reader-experience-v424.js?v=4.1.2-r22&amp;fix=nav-comment2' in html
-          assert 'push-session-v425.js?v=4.1.2-r22&amp;fix=ownership-deeplink1' in html
+          assert 'push-session-v425.js?v=4.1.2-r22&amp;fix=runtime-dedupe1' in html
           assert html.rfind('push-session-v425.js') > html.rfind('reader-experience-v424.js')
-          print('OK: instant own-comment delete, stable UI, urgent read-only detail, and push deep-link wiring')
+          print('OK: instant own-comment delete, stable UI, urgent read-only detail, and deduplicated push readiness')
       - name: Live endpoint guards
         shell: python
         run: |

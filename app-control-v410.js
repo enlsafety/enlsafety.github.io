@@ -37,12 +37,20 @@
     return {entry,build,ver};
   }
   function clearLoginForUpdate(reason='manual_update'){
-    try{if(typeof window.enlClearRefreshSession==='function')window.enlClearRefreshSession(reason)}catch(e){}
-    try{session=null;if(typeof saveSession==='function')saveSession()}catch(e){try{localStorage.removeItem('enl_safety_session_v3')}catch(_){} }
-    try{localStorage.removeItem('enl_safety_session_refresh_v412')}catch(e){}
-    try{localStorage.removeItem('enl_safety_view_refresh_v412')}catch(e){}
-    try{localStorage.removeItem('enl_safety_report_draft_v412')}catch(e){}
-    try{document.cookie='enl_safety_session_refresh_v412=; Path=/; Max-Age=0; SameSite=Lax; Secure'}catch(e){}
+    let clearedBySessionModule=false;
+    try{
+      if(typeof window.enlClearRefreshSession==='function'){
+        window.enlClearRefreshSession(reason);
+        clearedBySessionModule=true;
+      }
+    }catch(e){}
+    if(!clearedBySessionModule){
+      try{session=null;if(typeof saveSession==='function')saveSession()}catch(e){try{localStorage.removeItem('enl_safety_session_v3')}catch(_){} }
+      try{localStorage.removeItem('enl_safety_session_refresh_v412')}catch(e){}
+      try{localStorage.removeItem('enl_safety_view_refresh_v412')}catch(e){}
+      try{localStorage.removeItem('enl_safety_report_draft_v412')}catch(e){}
+      try{document.cookie='enl_safety_session_refresh_v412=; Path=/; Max-Age=0; SameSite=Lax; Secure'}catch(e){}
+    }
     try{currentView='';accountMenuOpen=false}catch(e){}
   }
   function rememberCurrentBuild(){try{localStorage.setItem(BUILD_KEY,CURRENT_BUILD)}catch(e){}}
@@ -151,9 +159,15 @@
   let queued=false;
   const observer=new MutationObserver(()=>{if(queued)return;queued=true;queueMicrotask(()=>{queued=false;refreshControls()})});
   observer.observe(document.getElementById('app')||document.body,{childList:true,subtree:true});
-  setTimeout(()=>{refreshControls();checkGlobalControl()},500);
+
+  let foregroundControlTimer=null;
+  function scheduleForegroundControl(delay=100){
+    if(foregroundControlTimer)clearTimeout(foregroundControlTimer);
+    foregroundControlTimer=setTimeout(()=>{foregroundControlTimer=null;refreshControls();checkGlobalControl()},delay);
+  }
+  scheduleForegroundControl(500);
   setInterval(checkGlobalControl,CONTROL_POLL_MS);
-  window.addEventListener('pageshow',()=>{setTimeout(()=>{refreshControls();checkGlobalControl()},100)});
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')setTimeout(()=>{refreshControls();checkGlobalControl()},100)});
-  window.ENL_UPDATE_CONTROL_VERSION=`${CURRENT_BUILD}-update5`;
+  window.addEventListener('pageshow',()=>scheduleForegroundControl(100));
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')scheduleForegroundControl(100)});
+  window.ENL_UPDATE_CONTROL_VERSION=`${CURRENT_BUILD}-update6`;
 })();
