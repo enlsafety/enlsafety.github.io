@@ -8,6 +8,13 @@ on:
       - 'incident-sync-v411.js'
       - 'stable412.html'
       - '.github/workflows/global-update-smoke.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app-control-v410.js'
+      - 'incident-sync-v411.js'
+      - 'stable412.html'
+      - '.github/workflows/global-update-smoke.yml'
   workflow_dispatch:
 
 jobs:
@@ -22,21 +29,22 @@ jobs:
         run: |
           node --check app-control-v410.js
           node --check incident-sync-v411.js
-      - name: Role and refresh rules
+      - name: Role refresh and dedupe rules
         shell: python
         run: |
           from pathlib import Path
           html=Path('stable412.html').read_text(encoding='utf-8')
           ctrl=Path('app-control-v410.js').read_text(encoding='utf-8')
           sync=Path('incident-sync-v411.js').read_text(encoding='utf-8')
-          assert 'incident-sync-v411.js?v=4.1.2-r16&amp;fix=foreground1' in html
-          assert 'app-control-v410.js?v=4.1.2-r16&amp;fix=update5' in html
-          for x in ['최신버전으로 업데이트','새로고침','a?.role!==\'safety\'','data-enl-global-update','data-enl-refresh','enl-global-refresh','CONTROL_POLL_MS=60000','inquiry_count','enlIncidentSyncNow']:
+          assert 'incident-sync-v411.js?v=4.1.2-r16&amp;fix=foreground2' in html
+          assert 'app-control-v410.js?v=4.1.2-r16&amp;fix=update6' in html
+          for x in ['최신버전으로 업데이트','새로고침','a?.role!==\'safety\'','data-enl-global-update','data-enl-refresh','enl-global-refresh','CONTROL_POLL_MS=60000','inquiry_count','enlIncidentSyncNow','clearedBySessionModule','scheduleForegroundControl']:
             assert x in ctrl,x
           assert 'loginLatestBtn' in ctrl and "document.getElementById('loginLatestBtn')?.remove()" in ctrl
-          for x in ['setInterval','15000','pageshow','visibilitychange','document.visibilityState===\'visible\'']:
+          for x in ['setInterval','15000','pageshow','visibilitychange','document.visibilityState===\'visible\'','deferredDeletedIds','scheduleSync(250,deleted)','syncing||syncTimer','4.1.1-r11-foreground2']:
             assert x in sync,x
-          print('OK: safety-only global update, user refresh, 15s foreground sync wired')
+          assert "setTimeout(()=>syncNow(deleted),250)" not in sync
+          print('OK: safety-only global update preserved; duplicate foreground checks and incident sync timers are coalesced')
       - name: Global control API security
         shell: python
         run: |
