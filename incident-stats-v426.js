@@ -69,7 +69,7 @@
     if(!canUseStats(u))return;
     const nav=document.querySelector('.shell411-nav');if(!nav)return;
     let b=nav.querySelector('[data-stats426-nav]');
-    if(!b){b=document.createElement('button');b.type='button';b.className='stats426-nav';b.dataset.stats426Nav='1';b.textContent='간단 통계';nav.appendChild(b)}
+    if(!b){b=document.createElement('button');b.type='button';b.className='stats426-nav';b.dataset.stats426Nav='1';b.dataset.shellView='stats';b.textContent='간단 통계';nav.appendChild(b)}
     nav.querySelectorAll('button').forEach(x=>x.classList.toggle('on',currentView==='stats'?x===b:x!==b&&x.classList.contains('on')));
     b.onclick=()=>{currentView='stats';try{enlPlatformSection='incident';localStorage.setItem(ENL_PLATFORM_SECTION_KEY,enlPlatformSection)}catch(e){}window.renderShell?.(u)};
   }
