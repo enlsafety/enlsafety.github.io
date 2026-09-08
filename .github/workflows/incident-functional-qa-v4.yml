@@ -5,6 +5,13 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/incident-functional-qa-v4.yml'
+      - 'qa-functional-v3.mjs'
+      - 'qa-functional-v4-wrapper.mjs'
+      - 'stable412.html'
+      - 'v3-actions.js'
+      - 'incident-sync-v411.js'
+      - 'workflow-lifecycle-v413.js'
+      - 'sync-conflict-v428.js'
   workflow_dispatch:
 
 jobs:
@@ -31,4 +38,4 @@ jobs:
           name: incident-functional-qa-v4
           path: qa-functional-v3
           if-no-files-found: warn
-# rerun: post-r25-baseline-20260909
+# rerun: server-sync-v5-20260909
