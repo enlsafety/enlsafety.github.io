@@ -31,4 +31,4 @@ jobs:
           name: incident-functional-qa-v4
           path: qa-functional-v3
           if-no-files-found: warn
-# rerun: uuid-trigger-type-fix-20260908
+# rerun: visible-ui-controls-20260908
