@@ -1,0 +1,32 @@
+name: incident live QA
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/incident-live-qa.yml'
+  workflow_dispatch:
+
+jobs:
+  live-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser test runtime
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 --no-save
+          npx playwright install --with-deps chromium
+      - name: Run live incident QA
+        run: node qa-live-mini.mjs
+      - name: Upload QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: incident-live-qa
+          path: qa-artifacts
+          if-no-files-found: warn
