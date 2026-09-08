@@ -24,6 +24,10 @@ src=src.replace(
   "await fp.locator('.topbar .brand').click();await fp.locator('[data-field-task=\"accident_action\"]').click();await fp.locator(`[data-field-action=\"${id}\"]`).click();"
 );
 src=src.replace(
+  "await dg;await fp.waitForTimeout(700);let x=(await pull(safety)).find(i=>i.id===id);x?.corrective?.status==='submitted'?pass('현장 사고조치 검토대기 제출'):fail('현장 사고조치 검토대기 제출',{status:x?.corrective?.status});",
+  "const actionDialog=await dg;const correctiveStart=Date.now();let x=null;for(let q=0;q<20;q++){x=(await pull(safety)).find(i=>i.id===id);if(x?.corrective?.status==='submitted')break;await fp.waitForTimeout(500);}const correctiveMs=Date.now()-correctiveStart;R.timings.push({action:'ui-corrective-submit-to-server',ms:correctiveMs,status:x?.corrective?.status||''});x?.corrective?.status==='submitted'?pass('현장 사고조치 검토대기 제출',{ms:correctiveMs,dialog:actionDialog}):fail('현장 사고조치 검토대기 제출',{status:x?.corrective?.status,ms:correctiveMs,dialog:actionDialog});"
+);
+src=src.replace(
   "await loginPage(sp,accounts.safety);await syncPage(sp);await sp.evaluate(id=>window.openUnifiedCorrectiveModal?.(id,currentUser()),id);",
   "await loginPage(sp,accounts.safety);await syncPage(sp);await sp.locator('[data-shell-view=\"actions\"]').click();await sp.locator(`[data-unified-action=\"${id}\"]`).click();"
 );
