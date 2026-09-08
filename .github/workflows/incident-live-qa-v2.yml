@@ -1,0 +1,33 @@
+name: incident live QA v2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/incident-live-qa-v2.yml'
+  workflow_dispatch:
+
+jobs:
+  live-qa-v2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 --no-save
+          npx playwright install --with-deps chromium
+      - name: Run hardened live QA
+        timeout-minutes: 7
+        run: node qa-live-v2.mjs
+      - name: Upload QA v2 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: incident-live-qa-v2
+          path: qa-artifacts-v2
+          if-no-files-found: warn
