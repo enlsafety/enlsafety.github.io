@@ -31,4 +31,4 @@ jobs:
           name: incident-functional-qa-v4
           path: qa-functional-v3
           if-no-files-found: warn
-# rerun: corrective-sync-diagnostic-20260908
+# rerun: post-r25-baseline-20260909
