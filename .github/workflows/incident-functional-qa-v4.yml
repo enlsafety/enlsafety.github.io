@@ -38,4 +38,4 @@ jobs:
           name: incident-functional-qa-v4
           path: qa-functional-v3
           if-no-files-found: warn
-# rerun: server-sync-v5-20260909
+# rerun: server-sync-v6-final-20260909
