@@ -25,7 +25,7 @@ src=src.replace(
 );
 src=src.replace(
   "await dg;await fp.waitForTimeout(700);let x=(await pull(safety)).find(i=>i.id===id);x?.corrective?.status==='submitted'?pass('현장 사고조치 검토대기 제출'):fail('현장 사고조치 검토대기 제출',{status:x?.corrective?.status});",
-  "const actionDialog=await dg;const localAfter=await fp.evaluate(id=>{const i=(data.incidents||[]).find(x=>String(x.id)===String(id));return {correctiveStatus:i?.corrective?.status||'',updatedAt:i?.updatedAt||'',serverReady:window.enlIncidentServerReady?.()||false,syncVersion:i?._syncVersion??null,syncBase:i?._syncBaseVersion??null,mutation:i?._syncMutationId||''}},id);const correctiveStart=Date.now();let x=null;for(let q=0;q<12;q++){x=(await pull(safety)).find(i=>i.id===id);if(x?.corrective?.status==='submitted')break;await fp.waitForTimeout(500);}const correctiveMs=Date.now()-correctiveStart;const syncEvents=await fp.evaluate(()=>window.__qaSyncEvents||[]);R.timings.push({action:'ui-corrective-submit-to-server',ms:correctiveMs,status:x?.corrective?.status||''});x?.corrective?.status==='submitted'?pass('현장 사고조치 검토대기 제출',{ms:correctiveMs,localAfter,syncEvents}):fail('현장 사고조치 검토대기 제출',{status:x?.corrective?.status,ms:correctiveMs,localAfter,syncEvents});"
+  "const actionDialog=await dg;const localAfter=await fp.evaluate(id=>{const i=(data.incidents||[]).find(x=>String(x.id)===String(id));return {correctiveStatus:i?.corrective?.status||'',updatedAt:i?.updatedAt||'',serverReady:window.enlIncidentServerReady?.()||false,syncVersion:i?._syncVersion??null,syncBase:i?._syncBaseVersion??null,mutation:i?._syncMutationId||''}},id);const correctiveStart=Date.now();let x=null;for(let q=0;q<30;q++){x=(await pull(safety)).find(i=>i.id===id);if(x?.corrective?.status==='submitted')break;await fp.waitForTimeout(500);}const correctiveMs=Date.now()-correctiveStart;const syncEvents=await fp.evaluate(()=>window.__qaSyncEvents||[]);R.timings.push({action:'ui-corrective-submit-to-server',ms:correctiveMs,status:x?.corrective?.status||''});x?.corrective?.status==='submitted'?pass('현장 사고조치 검토대기 제출',{ms:correctiveMs,localAfter,syncEvents,dialog:actionDialog}):fail('현장 사고조치 검토대기 제출',{status:x?.corrective?.status,ms:correctiveMs,localAfter,syncEvents,dialog:actionDialog});"
 );
 src=src.replace(
   "await loginPage(sp,accounts.safety);await syncPage(sp);await sp.evaluate(id=>window.openUnifiedCorrectiveModal?.(id,currentUser()),id);",
@@ -34,6 +34,13 @@ src=src.replace(
 src=src.replace(
   "}else{fail('안전관리자 사고조치 UI 승인',{reason:'승인버튼 없음'});x=(await pull(safety)).find(i=>i.id===id);await push(safety,[{...x,corrective:{...x.corrective,status:'approved',reviewedBy:safety.name,reviewedAt:iso()},updatedAt:iso(8000)}]);}",
   "}else{fail('안전관리자 사고조치 UI 승인',{reason:'승인버튼 없음'});}"
+);
+
+// A conflict is now a successful safety control when one writer succeeds and
+// the stale concurrent writer receives an explicit 409/enl_sync_conflict.
+src=src.replace(
+  /await phase\('동일 사고 동시수정',async\(\)=>\{[\s\S]*?\}\);\n\nawait phase\('중복요청 멱등성'/,
+  `await phase('동일 사고 동시수정',async()=>{const a=accounts.site,b=accounts.part,id=\`test-\${run}-race\`;cleanupIds.push(id);await push(a,[incident(id,a.siteId,a,'[RACE]')]);const base=(await pull(safety)).find(x=>x.id===id),stamp=iso(15000),pa={...base,summary:'RACE-A',updatedAt:stamp},pb={...base,summary:'RACE-B',updatedAt:stamp};const req=(who,payload)=>api(SYNC,{action:'push',actor:who,role:who.role,siteId:who.siteId||'',incidents:[payload],deletedIds:[]},{allowError:true});const [x,y]=await Promise.all([req(a,pa),req(b,pb)]),final=(await pull(safety)).find(z=>z.id===id),all=[x,y],success=all.filter(r=>r.ok&&Number(r.j?.pushed)===1).length,conflicts=all.filter(r=>r.status===409||String(r.j?.message||'').includes('enl_sync_conflict')).length;if(success===1&&conflicts===1)pass('동시수정 충돌 감지',{a:{status:x.status,...x.j},b:{status:y.status,...y.j},final:final?.summary});else{fail('동시수정 충돌 감지',{a:{status:x.status,...x.j},b:{status:y.status,...y.j},final:final?.summary});R.errors.push({severity:'P1',root:'OPTIMISTIC_LOCK_NOT_ENFORCED',name:'동일 버전 동시수정 제어 실패'});}});\n\nawait phase('중복요청 멱등성'`
 );
 
 fs.writeFileSync('qa-functional-v4-generated.mjs',src);
