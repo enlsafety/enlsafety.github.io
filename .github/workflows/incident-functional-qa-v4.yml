@@ -1,0 +1,33 @@
+name: incident functional QA v4
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/incident-functional-qa-v4.yml'
+  workflow_dispatch:
+
+jobs:
+  functional-qa-v4:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Playwright Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 --no-save
+          npx playwright install --with-deps chromium
+      - name: Run corrected functional QA
+        timeout-minutes: 8
+        run: node qa-functional-v4-wrapper.mjs
+      - name: Upload QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: incident-functional-qa-v4
+          path: qa-functional-v3
+          if-no-files-found: warn
