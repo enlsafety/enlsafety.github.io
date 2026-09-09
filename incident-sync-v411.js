@@ -86,7 +86,14 @@
     const queuedDeletes=[...deferredDeletedIds];deferredDeletedIds.clear();
     let failed=false;
     try{
-      if(!serverReady){await pull(true);serverReady=true;dirty=false;return}
+      if(!serverReady){
+        await pull(true);serverReady=true;
+        if(['manager','executive'].includes(a.role)){dirty=false;return}
+        // A local save may have happened while the first pull was in flight.
+        // Preserve and flush it instead of clearing dirty and losing the edit.
+        if(dirty||queuedDeletes.length){await push(queuedDeletes);dirty=false;await pull(true)}
+        return;
+      }
       if(['manager','executive'].includes(a.role)){dirty=false;await pull(true);return}
       if(dirty||queuedDeletes.length){await push(queuedDeletes);dirty=false;await pull(true)}
       else await pull(true);
@@ -119,5 +126,5 @@
   window.addEventListener('online',()=>{if(currentUser())scheduleSync(500)});
   window.addEventListener('pageshow',syncOnForeground);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncOnForeground()});
-  window.ENL_INCIDENT_SYNC_VERSION='4.1.1-r12-dirty-pull-guard';
+  window.ENL_INCIDENT_SYNC_VERSION='4.1.1-r13-initial-dirty-flush';
 })();
