@@ -55,4 +55,4 @@ jobs:
           console.log(`QA summary: PASS=${r?.summary?.pass||0} FAIL=${fail} P1=${p1} UNTESTED=${r?.summary?.untested||0}`);
           if(fail>0||p1>0)process.exit(1);
           NODE
-# release-gate: direct-db-recovery-20260909
+# release-gate: rerun-after-backend-v8-attachment-v2-20260909
