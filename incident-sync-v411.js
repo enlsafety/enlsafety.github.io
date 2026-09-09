@@ -54,6 +54,10 @@
   async function pull(renderIfChanged=true){
     const a=actor();if(!a)return false;
     const res=await call({action:'pull',actor:a,role:a.role,siteId:a.siteId});
+    // A local save can happen while this request is in flight. Never let an
+    // older pull response overwrite unsent local changes; the queued sync will
+    // push the dirty state first and then perform a fresh pull.
+    if(dirty){serverReady=true;return false}
     const changed=replaceFromServer(res?.incidents||[]);serverReady=true;
     if(changed&&renderIfChanged&&canAutoRender())setTimeout(()=>{try{renderShell(currentUser())}catch(e){}},0);
     return changed;
@@ -115,5 +119,5 @@
   window.addEventListener('online',()=>{if(currentUser())scheduleSync(500)});
   window.addEventListener('pageshow',syncOnForeground);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncOnForeground()});
-  window.ENL_INCIDENT_SYNC_VERSION='4.1.1-r11-foreground2';
+  window.ENL_INCIDENT_SYNC_VERSION='4.1.1-r12-dirty-pull-guard';
 })();
