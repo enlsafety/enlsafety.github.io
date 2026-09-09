@@ -36,6 +36,14 @@ src=src.replace(
   "}else{fail('안전관리자 사고조치 UI 승인',{reason:'승인버튼 없음'});}"
 );
 
+// Corrective approval is asynchronous: the visible UI action saves locally,
+// then the incident sync pushes the approved corrective and automatic closure.
+// Verify real server convergence with a bounded poll instead of a 700 ms race.
+src=src.replace(
+  "x=(await pull(safety)).find(i=>i.id===id);x?.status==='closed'&&x?.corrective?.status==='approved'?pass('조치승인 후 자동종결'):fail('조치승인 후 자동종결',{report:x?.status,corrective:x?.corrective?.status});",
+  "const closeStart=Date.now();for(let q=0;q<30;q++){x=(await pull(safety)).find(i=>i.id===id);if(x?.status==='closed'&&x?.corrective?.status==='approved')break;await sp.waitForTimeout(500);}const closeMs=Date.now()-closeStart;R.timings.push({action:'ui-corrective-approve-to-closed',ms:closeMs,report:x?.status||'',corrective:x?.corrective?.status||''});x?.status==='closed'&&x?.corrective?.status==='approved'?pass('조치승인 후 자동종결',{ms:closeMs}):fail('조치승인 후 자동종결',{report:x?.status,corrective:x?.corrective?.status,ms:closeMs});"
+);
+
 // A conflict is now a successful safety control when one writer succeeds and
 // the stale concurrent writer receives an explicit 409/enl_sync_conflict.
 src=src.replace(
