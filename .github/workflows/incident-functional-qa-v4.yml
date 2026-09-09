@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: incident-functional-qa-v4
+  group: incident-functional-qa-v5
   cancel-in-progress: false
 
 jobs:
@@ -55,4 +55,4 @@ jobs:
           console.log(`QA summary: PASS=${r?.summary?.pass||0} FAIL=${fail} P1=${p1} UNTESTED=${r?.summary?.untested||0}`);
           if(fail>0||p1>0)process.exit(1);
           NODE
-# release-gate: rerun-after-backend-v8-attachment-v2-20260909
+# release-gate: v5-queue-reset-corrective-convergence-20260909
