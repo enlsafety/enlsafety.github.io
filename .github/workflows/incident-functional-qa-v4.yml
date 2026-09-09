@@ -14,6 +14,10 @@ on:
       - 'sync-conflict-v428.js'
   workflow_dispatch:
 
+concurrency:
+  group: incident-functional-qa-v4
+  cancel-in-progress: false
+
 jobs:
   functional-qa-v4:
     runs-on: ubuntu-latest
@@ -38,4 +42,17 @@ jobs:
           name: incident-functional-qa-v4
           path: qa-functional-v3
           if-no-files-found: warn
-# rerun: server-sync-v6-final-20260909
+      - name: Fail workflow on QA failures
+        if: always()
+        run: |
+          node - <<'NODE'
+          const fs=require('fs');
+          const p='qa-functional-v3/result.json';
+          if(!fs.existsSync(p)){console.error('QA result.json missing');process.exit(1)}
+          const r=JSON.parse(fs.readFileSync(p,'utf8'));
+          const fail=Number(r?.summary?.fail||0);
+          const p1=Number(r?.summary?.p1||0);
+          console.log(`QA summary: PASS=${r?.summary?.pass||0} FAIL=${fail} P1=${p1} UNTESTED=${r?.summary?.untested||0}`);
+          if(fail>0||p1>0)process.exit(1);
+          NODE
+# release-gate: direct-db-recovery-20260909
