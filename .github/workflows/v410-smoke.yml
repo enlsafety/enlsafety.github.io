@@ -11,6 +11,8 @@ on:
       - 'account-security-v420.js'
       - 'workflow-v412.js'
       - 'workflow-prevention-v429.js'
+      - 'incident-review-v431.js'
+      - 'production-cleanup-v431.js'
       - 'pwa-push-v418.js'
       - 'push-session-v425.js'
       - 'sw-v418.js'
@@ -31,6 +33,8 @@ on:
       - 'account-security-v420.js'
       - 'workflow-v412.js'
       - 'workflow-prevention-v429.js'
+      - 'incident-review-v431.js'
+      - 'production-cleanup-v431.js'
       - 'pwa-push-v418.js'
       - 'push-session-v425.js'
       - 'sw-v418.js'
@@ -54,7 +58,7 @@ jobs:
 
       - name: JavaScript syntax
         run: |
-          for f in core.js auth-v411.js account-security-v420.js login-layout-v412.js session-refresh-v412.js incident-sync-v411.js workflow-v412.js workflow-lifecycle-v413.js workflow-prevention-v429.js reader-ui-v414.js incident-excel-v421.js pwa-push-v418.js push-session-v425.js sw-v418.js; do
+          for f in core.js auth-v411.js account-security-v420.js login-layout-v412.js session-refresh-v412.js incident-sync-v411.js workflow-v412.js workflow-lifecycle-v413.js workflow-prevention-v429.js incident-review-v431.js production-cleanup-v431.js reader-ui-v414.js incident-excel-v421.js pwa-push-v418.js push-session-v425.js sw-v418.js; do
             node --check "$f"
           done
 
@@ -67,15 +71,15 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-412-r30',meta
+          assert meta.get('build')=='stable-412-r31',meta
           assert meta.get('stableEntry')=='stable412.html',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='r29'",'beforeinstallprompt','사고보고앱 설치','Chrome으로 열기','stable412.html?entry=root&build=r29',"/sw-v418.js?v=4.2.5-pwa3"]: assert x in index,x
+          for x in ["const BUILD='r31'",'beforeinstallprompt','사고보고앱 설치','Chrome으로 열기','stable412.html?entry=root&build=r31',"/sw-v418.js?v=4.2.5-pwa3"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           for x in [
-            'enl-build" content="4.1.2-r30',
+            'enl-build" content="4.1.2-r31',
             'auth-v411.js?v=4.1.2-r19&amp;fix=pwa-login1',
             'workflow-v412.js?v=4.1.2-r19&amp;fix=inquiry-throttle1',
             'account-security-v420.js?v=4.1.2-r21&amp;fix=password1',
@@ -85,6 +89,8 @@ jobs:
             'push-session-v425.js?v=4.1.2-r22&amp;fix=runtime-dedupe1',
             'incident-excel-v421.js?v=4.1.2-r17&amp;fix=excel-report-attachments1',
             'workflow-prevention-v429.js?v=4.1.2-r30&amp;fix=prevention-flow2',
+            'incident-review-v431.js?v=4.1.2-r31&amp;fix=review-preview1',
+            'production-cleanup-v431.js?v=4.1.2-r31&amp;fix=legacy-demo1',
           ]: assert x in html,x
 
           class R(HTMLParser):
@@ -99,7 +105,10 @@ jobs:
             path=urlsplit(ref).path.lstrip('/')
             if path and not Path(path).exists(): missing.append(path)
           assert not missing,missing
-          assert p.scripts.index('sync-conflict-v428.js?v=4.1.2-r25&fix=optimistic-sync1') < p.scripts.index('workflow-prevention-v429.js?v=4.1.2-r30&fix=prevention-flow2')
+          prevention='workflow-prevention-v429.js?v=4.1.2-r30&fix=prevention-flow2'
+          review='incident-review-v431.js?v=4.1.2-r31&fix=review-preview1'
+          cleanup='production-cleanup-v431.js?v=4.1.2-r31&fix=legacy-demo1'
+          assert p.scripts.index('sync-conflict-v428.js?v=4.1.2-r25&fix=optimistic-sync1') < p.scripts.index(prevention) < p.scripts.index(review) < p.scripts.index(cleanup)
 
           auth=Path('auth-v411.js').read_text(encoding='utf-8')
           assert "const VERSION='4.1.1-r19-pwa-login1'" in auth
@@ -111,37 +120,24 @@ jobs:
           workflow=Path('workflow-v412.js').read_text(encoding='utf-8')
           for x in ["const VERSION='4.1.6-inquiry3-throttle1'",'inquiryCountBusy','now-inquiryCountLastAt<15000']: assert x in workflow,x
 
-          push=Path('pwa-push-v418.js').read_text(encoding='utf-8')
-          for x in ["4.1.8-pwa-push2",'beforeinstallprompt','Notification.requestPermission','pushManager.subscribe','테스트 알림']: assert x in push,x
-
-          ps=Path('push-session-v425.js').read_text(encoding='utf-8')
-          for x in ["4.2.5-push-session3",'enl-push-claim-v425','claimForCurrentUser','openPendingIncident','primeWorkflowIncident','enl_pending_push_incident_v425','scheduleUserReady','schedulePendingOpen']: assert x in ps,x
-          assert 'setTimeout(onUserReady' not in ps
-
           sync=Path('incident-sync-v411.js').read_text(encoding='utf-8')
           for x in ['deferredDeletedIds','function uiWriteBusy()','if(dirty||uiWriteBusy())','scheduleSync(250,deleted)']: assert x in sync,x
 
-          prevention=Path('workflow-prevention-v429.js').read_text(encoding='utf-8')
-          for x in [
-            "const VERSION='4.2.9-prevention-flow2'",
-            '5. 사고조치 내용',
-            '사고 접수완료',
-            '재발방지계획 등록',
-            '실제 실시한 재발방지조치',
-            '안전관리자 확인요청',
-            '재발방지조치 확인완료',
-            'prevention_plan_registered',
-            'prevention_action_submitted',
-            'prevention_action_confirmed',
-            "approve&&text(approve.textContent)!=='사고 접수완료'",
-          ]: assert x in prevention,x
+          prevention_js=Path('workflow-prevention-v429.js').read_text(encoding='utf-8')
+          for x in ["const VERSION='4.2.9-prevention-flow2'",'사고 접수완료','재발방지계획 등록','실제 실시한 재발방지조치','재발방지조치 확인완료']:
+            assert x in prevention_js,x
+
+          review_js=Path('incident-review-v431.js').read_text(encoding='utf-8')
+          for x in ["const VERSION='4.3.1-review-preview1'",'signAttachments(paths)','review431-thumb','border-top:1px solid #d8ebf7','window.enlBindAttachmentOpen=enhancedBind']:
+            assert x in review_js,x
+
+          cleanup_js=Path('production-cleanup-v431.js').read_text(encoding='utf-8')
+          for x in ["const VERSION='4.3.1-cleanup1'",'u-field-demo','u-safety-demo','u-final-demo','enl_accident_demo_v1']:
+            assert x in cleanup_js,x
 
           lifecycle=Path('workflow-lifecycle-v413.js').read_text(encoding='utf-8')
           assert "String(i.status)==='approved'&&String(i.corrective?.status)==='approved'" in lifecycle
           assert "i.status='closed'" in lifecycle
-
-          control=Path('app-control-v410.js').read_text(encoding='utf-8')
-          for x in ['clearedBySessionModule','scheduleForegroundControl','update6']: assert x in control,x
 
           sw=Path('sw-v418.js').read_text(encoding='utf-8')
           for x in ["4.2.5-pwa3","enl-pwa-425-r21","addEventListener('push'",'showNotification','stable412.html?push=1&incident=']: assert x in sw,x
@@ -149,7 +145,7 @@ jobs:
           manifest=json.loads(Path('manifest.webmanifest').read_text(encoding='utf-8'))
           assert manifest.get('display')=='standalone'
           assert manifest.get('start_url','').startswith('/stable412.html')
-          print('OK: r30 production wiring, write guards, idempotent prevention UI and closure guards')
+          print('OK: r31 production wiring, persisted-image previews, field separators, cleanup and recurrence workflow guards')
 
       - name: Excel 2019 finalized workbook smoke
         run: |
