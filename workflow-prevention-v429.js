@@ -2,7 +2,7 @@
 (function(){
   'use strict';
 
-  const VERSION='4.2.9-prevention-flow1';
+  const VERSION='4.2.9-prevention-flow2';
   const LEGACY_SENTINEL='후속 단계에서 안전관리자가 별도 수립';
   const MANAGER_POSITIONS=['현장소장','파트장','서무'];
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
@@ -11,7 +11,7 @@
   const isField=u=>['field','worker'].includes(String(u?.role||''));
   const isSiteManager=u=>isField(u)&&MANAGER_POSITIONS.includes(String(u?.position||u?.jobTitle||''));
   const text=v=>String(v??'').trim();
-  const ex=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const ex=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[m]));
   const now=()=>typeof nowISO==='function'?nowISO():new Date().toISOString();
   const siteName=id=>{try{return siteById?.(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}};
   const userId=u=>String(u?.personnelId||u?.id||'');
@@ -96,7 +96,7 @@
   function reportUiRewrite(root=document){
     patchReportForm(root);
     root.querySelectorAll?.('.inc411-kv').forEach(row=>{const key=row.querySelector('b'),val=row.querySelector('span');if(!key)return;const k=text(key.textContent);if(k==='즉시 조치')key.textContent='사고조치 내용';if(k==='재발방지대책'){if(!val||['','-',LEGACY_SENTINEL].includes(text(val.textContent)))row.remove();else key.textContent='기존 재발방지대책(전환 전)'}});
-    const approve=root.querySelector?.('#approveInc');if(approve)approve.textContent='사고 접수완료';
+    const approve=root.querySelector?.('#approveInc');if(approve&&text(approve.textContent)!=='사고 접수완료')approve.textContent='사고 접수완료';
     root.querySelectorAll?.('option[value="approved"]').forEach(o=>{if(text(o.textContent)==='승인')o.textContent='접수완료'});
     root.querySelectorAll?.('.field411-badge,.pill,.shell411-recent-status span,.inc411-card-tags span,.shell411-stat span,.shell411-site span').forEach(el=>{const t=text(el.textContent);if(t==='승인')el.textContent='접수완료';else if(t==='사고조치 검토대기')el.textContent='재발방지조치 확인대기';else if(t==='조치 미작성')el.textContent='계획 수립대기'});
     root.querySelectorAll?.('.field411-meta span,.field411-public-state .field411-badge,.field411-manager-note,.shell411-head p,.section-head p').forEach(el=>{
