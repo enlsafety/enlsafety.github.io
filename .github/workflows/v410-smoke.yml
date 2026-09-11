@@ -67,7 +67,7 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-412-r29',meta
+          assert meta.get('build')=='stable-412-r30',meta
           assert meta.get('stableEntry')=='stable412.html',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
@@ -75,7 +75,7 @@ jobs:
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           for x in [
-            'enl-build" content="4.1.2-r29',
+            'enl-build" content="4.1.2-r30',
             'auth-v411.js?v=4.1.2-r19&amp;fix=pwa-login1',
             'workflow-v412.js?v=4.1.2-r19&amp;fix=inquiry-throttle1',
             'account-security-v420.js?v=4.1.2-r21&amp;fix=password1',
@@ -84,7 +84,7 @@ jobs:
             'app-control-v410.js?v=4.1.2-r16&amp;fix=update6',
             'push-session-v425.js?v=4.1.2-r22&amp;fix=runtime-dedupe1',
             'incident-excel-v421.js?v=4.1.2-r17&amp;fix=excel-report-attachments1',
-            'workflow-prevention-v429.js?v=4.1.2-r29&amp;fix=prevention-flow1',
+            'workflow-prevention-v429.js?v=4.1.2-r30&amp;fix=prevention-flow2',
           ]: assert x in html,x
 
           class R(HTMLParser):
@@ -99,7 +99,7 @@ jobs:
             path=urlsplit(ref).path.lstrip('/')
             if path and not Path(path).exists(): missing.append(path)
           assert not missing,missing
-          assert p.scripts.index('sync-conflict-v428.js?v=4.1.2-r25&fix=optimistic-sync1') < p.scripts.index('workflow-prevention-v429.js?v=4.1.2-r29&fix=prevention-flow1')
+          assert p.scripts.index('sync-conflict-v428.js?v=4.1.2-r25&fix=optimistic-sync1') < p.scripts.index('workflow-prevention-v429.js?v=4.1.2-r30&fix=prevention-flow2')
 
           auth=Path('auth-v411.js').read_text(encoding='utf-8')
           assert "const VERSION='4.1.1-r19-pwa-login1'" in auth
@@ -123,6 +123,7 @@ jobs:
 
           prevention=Path('workflow-prevention-v429.js').read_text(encoding='utf-8')
           for x in [
+            "const VERSION='4.2.9-prevention-flow2'",
             '5. 사고조치 내용',
             '사고 접수완료',
             '재발방지계획 등록',
@@ -132,6 +133,7 @@ jobs:
             'prevention_plan_registered',
             'prevention_action_submitted',
             'prevention_action_confirmed',
+            "approve&&text(approve.textContent)!=='사고 접수완료'",
           ]: assert x in prevention,x
 
           lifecycle=Path('workflow-lifecycle-v413.js').read_text(encoding='utf-8')
@@ -147,7 +149,7 @@ jobs:
           manifest=json.loads(Path('manifest.webmanifest').read_text(encoding='utf-8'))
           assert manifest.get('display')=='standalone'
           assert manifest.get('start_url','').startswith('/stable412.html')
-          print('OK: r29 production wiring, write guards, prevention workflow and closure guards')
+          print('OK: r30 production wiring, write guards, idempotent prevention UI and closure guards')
 
       - name: Excel 2019 finalized workbook smoke
         run: |
