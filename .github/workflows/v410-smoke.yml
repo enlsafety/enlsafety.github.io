@@ -13,6 +13,8 @@ on:
       - 'workflow-prevention-v429.js'
       - 'incident-review-v431.js'
       - 'production-cleanup-v431.js'
+      - 'workflow-enhancements-v432.js'
+      - 'responsive-v432.css'
       - 'pwa-push-v418.js'
       - 'push-session-v425.js'
       - 'sw-v418.js'
@@ -35,6 +37,8 @@ on:
       - 'workflow-prevention-v429.js'
       - 'incident-review-v431.js'
       - 'production-cleanup-v431.js'
+      - 'workflow-enhancements-v432.js'
+      - 'responsive-v432.css'
       - 'pwa-push-v418.js'
       - 'push-session-v425.js'
       - 'sw-v418.js'
@@ -58,7 +62,7 @@ jobs:
 
       - name: JavaScript syntax
         run: |
-          for f in core.js auth-v411.js account-security-v420.js login-layout-v412.js session-refresh-v412.js incident-sync-v411.js workflow-v412.js workflow-lifecycle-v413.js workflow-prevention-v429.js incident-review-v431.js production-cleanup-v431.js reader-ui-v414.js incident-excel-v421.js pwa-push-v418.js push-session-v425.js sw-v418.js; do
+          for f in core.js auth-v411.js account-security-v420.js login-layout-v412.js session-refresh-v412.js incident-sync-v411.js workflow-v412.js workflow-lifecycle-v413.js workflow-prevention-v429.js incident-review-v431.js production-cleanup-v431.js workflow-enhancements-v432.js reader-ui-v414.js incident-excel-v421.js pwa-push-v418.js push-session-v425.js sw-v418.js; do
             node --check "$f"
           done
 
@@ -71,15 +75,15 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-412-r31',meta
+          assert meta.get('build')=='stable-412-r32',meta
           assert meta.get('stableEntry')=='stable412.html',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='r31'",'beforeinstallprompt','사고보고앱 설치','Chrome으로 열기','stable412.html?entry=root&build=r31',"/sw-v418.js?v=4.2.5-pwa3"]: assert x in index,x
+          for x in ["const BUILD='r32'",'beforeinstallprompt','사고보고앱 설치','Chrome으로 열기','stable412.html?entry=root&build=r32',"/sw-v418.js?v=4.2.5-pwa3"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           for x in [
-            'enl-build" content="4.1.2-r31',
+            'enl-build" content="4.1.2-r32',
             'auth-v411.js?v=4.1.2-r19&amp;fix=pwa-login1',
             'workflow-v412.js?v=4.1.2-r19&amp;fix=inquiry-throttle1',
             'account-security-v420.js?v=4.1.2-r21&amp;fix=password1',
@@ -91,6 +95,8 @@ jobs:
             'workflow-prevention-v429.js?v=4.1.2-r30&amp;fix=prevention-flow2',
             'incident-review-v431.js?v=4.1.2-r31&amp;fix=review-preview1',
             'production-cleanup-v431.js?v=4.1.2-r31&amp;fix=legacy-demo1',
+            'responsive-v432.css?v=4.1.2-r32',
+            'workflow-enhancements-v432.js?v=4.1.2-r32&amp;fix=workflow-ux1',
           ]: assert x in html,x
 
           class R(HTMLParser):
@@ -108,7 +114,8 @@ jobs:
           prevention='workflow-prevention-v429.js?v=4.1.2-r30&fix=prevention-flow2'
           review='incident-review-v431.js?v=4.1.2-r31&fix=review-preview1'
           cleanup='production-cleanup-v431.js?v=4.1.2-r31&fix=legacy-demo1'
-          assert p.scripts.index('sync-conflict-v428.js?v=4.1.2-r25&fix=optimistic-sync1') < p.scripts.index(prevention) < p.scripts.index(review) < p.scripts.index(cleanup)
+          enhancement='workflow-enhancements-v432.js?v=4.1.2-r32&fix=workflow-ux1'
+          assert p.scripts.index('sync-conflict-v428.js?v=4.1.2-r25&fix=optimistic-sync1') < p.scripts.index(prevention) < p.scripts.index(review) < p.scripts.index(cleanup) < p.scripts.index(enhancement)
 
           auth=Path('auth-v411.js').read_text(encoding='utf-8')
           assert "const VERSION='4.1.1-r19-pwa-login1'" in auth
@@ -135,6 +142,24 @@ jobs:
           for x in ["const VERSION='4.3.1-cleanup1'",'u-field-demo','u-safety-demo','u-final-demo','enl_accident_demo_v1']:
             assert x in cleanup_js,x
 
+          enhancement_js=Path('workflow-enhancements-v432.js').read_text(encoding='utf-8')
+          for x in [
+            "const VERSION='4.3.2-workflow-enhancements1'",
+            "MANAGER_POSITIONS=['현장소장','파트장','서무']",
+            "confirm('수신완료 처리 하시겠습니까?')",
+            '실제 조치 완료일 *',
+            'attachments().length<1',
+            '재발방지조치 결과 작성 권한이 없습니다.',
+            "currentView='stats'",
+            '작업자 성명 *',
+            'lastSmartPull<8000',
+            'data-prev432-who',
+          ]: assert x in enhancement_js,x
+
+          responsive=Path('responsive-v432.css').read_text(encoding='utf-8')
+          for x in ['env(safe-area-inset-left)','@media(min-width:721px) and (max-width:1100px)','@media(max-width:480px)','@media(max-width:360px)','.stats426-filter','.inc411-overview{grid-template-columns:repeat(4']:
+            assert x in responsive,x
+
           lifecycle=Path('workflow-lifecycle-v413.js').read_text(encoding='utf-8')
           assert "String(i.status)==='approved'&&String(i.corrective?.status)==='approved'" in lifecycle
           assert "i.status='closed'" in lifecycle
@@ -145,7 +170,7 @@ jobs:
           manifest=json.loads(Path('manifest.webmanifest').read_text(encoding='utf-8'))
           assert manifest.get('display')=='standalone'
           assert manifest.get('start_url','').startswith('/stable412.html')
-          print('OK: r31 production wiring, persisted-image previews, field separators, cleanup and recurrence workflow guards')
+          print('OK: r32 production wiring, receipt confirmation, role-gated prevention evidence, dashboard landing and responsive layout')
 
       - name: Excel 2019 finalized workbook smoke
         run: |
