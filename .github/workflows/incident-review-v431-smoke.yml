@@ -1,0 +1,45 @@
+name: incident review v431 smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'incident-review-v431.js'
+      - 'production-cleanup-v431.js'
+      - 'stable412.html'
+      - '.github/workflows/incident-review-v431-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  review-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: |
+          node --check incident-review-v431.js
+          node --check production-cleanup-v431.js
+      - name: Review preview and cleanup wiring
+        shell: python
+        run: |
+          from pathlib import Path
+          review=Path('incident-review-v431.js').read_text(encoding='utf-8')
+          cleanup=Path('production-cleanup-v431.js').read_text(encoding='utf-8')
+          html=Path('stable412.html').read_text(encoding='utf-8')
+          required=[
+            'signAttachments(paths)',
+            'review431-thumb',
+            'border-top:1px solid #d8ebf7',
+            'window.enlBindAttachmentOpen=enhancedBind',
+            '미리보기 불러오는 중',
+          ]
+          for x in required: assert x in review,x
+          for x in ['u-field-demo','u-safety-demo','u-final-demo','enl_accident_demo_v1']:
+            assert x in cleanup,x
+          assert 'incident-review-v431.js?v=4.1.2-r31&amp;fix=review-preview1' in html
+          assert 'production-cleanup-v431.js?v=4.1.2-r31&amp;fix=legacy-demo1' in html
+          assert html.index('workflow-prevention-v429.js') < html.index('incident-review-v431.js') < html.index('production-cleanup-v431.js')
+          print('OK: stored incident images hydrate to thumbnails, detail rows are separated, legacy local demo records are purged')
