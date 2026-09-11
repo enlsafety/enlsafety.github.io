@@ -29,22 +29,22 @@ jobs:
         run: |
           node --check app-control-v410.js
           node --check incident-sync-v411.js
-      - name: Role refresh and dedupe rules
+      - name: Role refresh, dedupe and form-write guard rules
         shell: python
         run: |
           from pathlib import Path
           html=Path('stable412.html').read_text(encoding='utf-8')
           ctrl=Path('app-control-v410.js').read_text(encoding='utf-8')
           sync=Path('incident-sync-v411.js').read_text(encoding='utf-8')
-          assert 'incident-sync-v411.js?v=4.1.2-r16&amp;fix=foreground2' in html
+          assert 'incident-sync-v411.js?v=4.1.2-r28&amp;fix=form-write-guard1' in html
           assert 'app-control-v410.js?v=4.1.2-r16&amp;fix=update6' in html
           for x in ['최신버전으로 업데이트','새로고침','a?.role!==\'safety\'','data-enl-global-update','data-enl-refresh','enl-global-refresh','CONTROL_POLL_MS=60000','inquiry_count','enlIncidentSyncNow','clearedBySessionModule','scheduleForegroundControl']:
             assert x in ctrl,x
           assert 'loginLatestBtn' in ctrl and "document.getElementById('loginLatestBtn')?.remove()" in ctrl
-          for x in ['setInterval','15000','pageshow','visibilitychange','document.visibilityState===\'visible\'','deferredDeletedIds','scheduleSync(250,deleted)','syncing||syncTimer','4.1.1-r11-foreground2']:
+          for x in ['setInterval','15000','pageshow','visibilitychange','document.visibilityState===\'visible\'','deferredDeletedIds','scheduleSync(250,deleted)','syncing||syncTimer','function uiWriteBusy()','if(dirty||uiWriteBusy())']:
             assert x in sync,x
           assert "setTimeout(()=>syncNow(deleted),250)" not in sync
-          print('OK: safety-only global update preserved; duplicate foreground checks and incident sync timers are coalesced')
+          print('OK: safety-only global update, coalesced sync timers and report-form write protection are preserved')
       - name: Global control API security
         shell: python
         run: |
