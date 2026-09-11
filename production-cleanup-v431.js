@@ -1,8 +1,9 @@
 /* E&L Accident Report App v4.3.1 - production legacy cleanup */
 (function(){
   'use strict';
-  const VERSION='4.3.1-cleanup1';
-  const DEMO_USER_IDS=new Set(['u-field-demo','u-safety-demo','u-final-demo']);
+  const VERSION='4.3.1-cleanup2';
+  /* u-safety-demo is the production safety-manager account id, so it must not be removed. */
+  const DEMO_USER_IDS=new Set(['u-field-demo','u-final-demo']);
   const DEMO_SITES=new Map([
     ['site-dongtan','동탄 현장'],
     ['site-yongin','용인 현장'],
@@ -32,9 +33,7 @@
   }
 
   function removeLegacyDemoUi(){
-    try{
-      document.querySelectorAll('.demo-box,.secure-note.demo').forEach(el=>el.remove());
-    }catch(e){}
+    try{document.querySelectorAll('.demo-box,.secure-note.demo').forEach(el=>el.remove())}catch(e){}
   }
 
   cleanLegacyLocalData();
