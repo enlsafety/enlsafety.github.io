@@ -6,6 +6,7 @@ on:
     paths:
       - 'workflow-prevention-v429.js'
       - 'stable412.html'
+      - '.github/workflows/prevention-flow-v429-smoke.yml'
   workflow_dispatch:
 
 jobs:
@@ -26,6 +27,7 @@ jobs:
           html=Path('stable412.html').read_text(encoding='utf-8')
           lifecycle=Path('workflow-lifecycle-v413.js').read_text(encoding='utf-8')
           required=[
+            "const VERSION='4.2.9-prevention-flow2'",
             '5. 사고조치 내용',
             '재발방지계획 등록',
             '실제 실시한 재발방지조치',
@@ -36,11 +38,12 @@ jobs:
             'prevention_action_confirmed',
             "c.status='approved'",
             "save('in_progress')",
+            "approve&&text(approve.textContent)!=='사고 접수완료'",
           ]
           for x in required:
             assert x in js, x
-          assert 'workflow-prevention-v429.js?v=4.1.2-r29&amp;fix=prevention-flow1' in html
+          assert 'workflow-prevention-v429.js?v=4.1.2-r30&amp;fix=prevention-flow2' in html
           assert html.index('sync-conflict-v428.js') < html.index('workflow-prevention-v429.js')
           assert "String(i.status)==='approved'&&String(i.corrective?.status)==='approved'" in lifecycle
           assert "i.status='closed'" in lifecycle
-          print('OK: report -> acceptance -> plan -> field action -> confirmation -> closure is wired')
+          print('OK: report -> acceptance -> safety plan -> field action -> safety confirmation -> closure is wired without rewrite loop')
