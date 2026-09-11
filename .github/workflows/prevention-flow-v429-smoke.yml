@@ -1,0 +1,46 @@
+name: prevention flow v429 smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'workflow-prevention-v429.js'
+      - 'stable412.html'
+  workflow_dispatch:
+
+jobs:
+  prevention-flow:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: node --check workflow-prevention-v429.js
+      - name: Workflow wiring and lifecycle rules
+        shell: python
+        run: |
+          from pathlib import Path
+          js=Path('workflow-prevention-v429.js').read_text(encoding='utf-8')
+          html=Path('stable412.html').read_text(encoding='utf-8')
+          lifecycle=Path('workflow-lifecycle-v413.js').read_text(encoding='utf-8')
+          required=[
+            '5. 사고조치 내용',
+            '재발방지계획 등록',
+            '실제 실시한 재발방지조치',
+            '안전관리자 확인요청',
+            '재발방지조치 확인완료',
+            'prevention_plan_registered',
+            'prevention_action_submitted',
+            'prevention_action_confirmed',
+            "c.status='approved'",
+            "save('in_progress')",
+          ]
+          for x in required:
+            assert x in js, x
+          assert 'workflow-prevention-v429.js?v=4.1.2-r29&amp;fix=prevention-flow1' in html
+          assert html.index('sync-conflict-v428.js') < html.index('workflow-prevention-v429.js')
+          assert "String(i.status)==='approved'&&String(i.corrective?.status)==='approved'" in lifecycle
+          assert "i.status='closed'" in lifecycle
+          print('OK: report -> acceptance -> plan -> field action -> confirmation -> closure is wired')
