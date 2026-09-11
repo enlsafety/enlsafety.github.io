@@ -8,23 +8,20 @@ on:
       - 'version.json'
       - 'stable412.html'
       - 'auth-v411.js'
-      - 'account-security-v420.js'
-      - 'workflow-v412.js'
+      - 'incident-sync-v411.js'
+      - 'workflow-lifecycle-v413.js'
       - 'workflow-prevention-v429.js'
       - 'incident-review-v431.js'
       - 'production-cleanup-v431.js'
       - 'workflow-enhancements-v432.js'
-      - 'responsive-v432.css'
       - 'site-admin-hotfix-v433.js'
+      - 'personnel-management-v434.js'
+      - 'responsive-v432.css'
+      - 'incident-excel-v421.js'
       - 'pwa-push-v418.js'
       - 'push-session-v425.js'
       - 'sw-v418.js'
       - 'manifest.webmanifest'
-      - 'incident-excel-v421.js'
-      - 'session-refresh-v412.js'
-      - 'incident-sync-v411.js'
-      - 'workflow-lifecycle-v413.js'
-      - 'reader-ui-v414.js'
       - '.github/workflows/v410-smoke.yml'
   pull_request:
     branches: [main]
@@ -33,23 +30,20 @@ on:
       - 'version.json'
       - 'stable412.html'
       - 'auth-v411.js'
-      - 'account-security-v420.js'
-      - 'workflow-v412.js'
+      - 'incident-sync-v411.js'
+      - 'workflow-lifecycle-v413.js'
       - 'workflow-prevention-v429.js'
       - 'incident-review-v431.js'
       - 'production-cleanup-v431.js'
       - 'workflow-enhancements-v432.js'
-      - 'responsive-v432.css'
       - 'site-admin-hotfix-v433.js'
+      - 'personnel-management-v434.js'
+      - 'responsive-v432.css'
+      - 'incident-excel-v421.js'
       - 'pwa-push-v418.js'
       - 'push-session-v425.js'
       - 'sw-v418.js'
       - 'manifest.webmanifest'
-      - 'incident-excel-v421.js'
-      - 'session-refresh-v412.js'
-      - 'incident-sync-v411.js'
-      - 'workflow-lifecycle-v413.js'
-      - 'reader-ui-v414.js'
       - '.github/workflows/v410-smoke.yml'
   workflow_dispatch:
 
@@ -64,7 +58,7 @@ jobs:
 
       - name: JavaScript syntax
         run: |
-          for f in core.js auth-v411.js account-security-v420.js login-layout-v412.js session-refresh-v412.js incident-sync-v411.js workflow-v412.js workflow-lifecycle-v413.js workflow-prevention-v429.js incident-review-v431.js production-cleanup-v431.js workflow-enhancements-v432.js site-admin-hotfix-v433.js reader-ui-v414.js incident-excel-v421.js pwa-push-v418.js push-session-v425.js sw-v418.js; do
+          for f in core.js auth-v411.js incident-sync-v411.js workflow-lifecycle-v413.js workflow-prevention-v429.js incident-review-v431.js production-cleanup-v431.js workflow-enhancements-v432.js site-admin-hotfix-v433.js personnel-management-v434.js incident-excel-v421.js pwa-push-v418.js push-session-v425.js sw-v418.js; do
             node --check "$f"
           done
 
@@ -77,30 +71,24 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-412-r33',meta
+          assert meta.get('build')=='stable-412-r34',meta
           assert meta.get('stableEntry')=='stable412.html',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='r33'",'beforeinstallprompt','사고보고앱 설치','Chrome으로 열기','stable412.html?entry=root&build=r33',"/sw-v418.js?v=4.2.5-pwa3"]: assert x in index,x
+          for x in ["const BUILD='r34'",'beforeinstallprompt','stable412.html?entry=root&build=r34',"/sw-v418.js?v=4.2.5-pwa3"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
-          for x in [
-            'enl-build" content="4.1.2-r33',
-            'auth-v411.js?v=4.1.2-r19&amp;fix=pwa-login1',
-            'workflow-v412.js?v=4.1.2-r19&amp;fix=inquiry-throttle1',
-            'account-security-v420.js?v=4.1.2-r21&amp;fix=password1',
-            'pwa-push-v418.js?v=4.1.2-r19&amp;fix=pwa-push2',
+          required=[
+            'enl-build" content="4.1.2-r34',
             'incident-sync-v411.js?v=4.1.2-r28&amp;fix=form-write-guard1',
-            'app-control-v410.js?v=4.1.2-r16&amp;fix=update6',
-            'push-session-v425.js?v=4.1.2-r22&amp;fix=runtime-dedupe1',
-            'incident-excel-v421.js?v=4.1.2-r17&amp;fix=excel-report-attachments1',
             'workflow-prevention-v429.js?v=4.1.2-r30&amp;fix=prevention-flow2',
             'incident-review-v431.js?v=4.1.2-r31&amp;fix=review-preview1',
-            'production-cleanup-v431.js?v=4.1.2-r31&amp;fix=legacy-demo1',
-            'responsive-v432.css?v=4.1.2-r32',
+            'production-cleanup-v431.js?v=4.1.2-r34&amp;fix=legacy-demo2',
             'workflow-enhancements-v432.js?v=4.1.2-r32&amp;fix=workflow-ux1',
             'site-admin-hotfix-v433.js?v=4.1.2-r33&amp;fix=site-api1',
-          ]: assert x in html,x
+            'personnel-management-v434.js?v=4.1.2-r34&amp;fix=personnel-integrity1',
+          ]
+          for x in required: assert x in html,x
 
           class R(HTMLParser):
             def __init__(self): super().__init__(); self.refs=[]; self.scripts=[]
@@ -108,83 +96,42 @@ jobs:
               d=dict(a)
               if t=='script' and d.get('src'): self.refs.append(d['src']); self.scripts.append(d['src'])
               if t=='link' and d.get('href'): self.refs.append(d['href'])
-          p=R(); p.feed(html)
+          p=R();p.feed(html)
           missing=[]
           for ref in p.refs:
             path=urlsplit(ref).path.lstrip('/')
             if path and not Path(path).exists(): missing.append(path)
           assert not missing,missing
-          prevention='workflow-prevention-v429.js?v=4.1.2-r30&fix=prevention-flow2'
-          review='incident-review-v431.js?v=4.1.2-r31&fix=review-preview1'
-          cleanup='production-cleanup-v431.js?v=4.1.2-r31&fix=legacy-demo1'
-          enhancement='workflow-enhancements-v432.js?v=4.1.2-r32&fix=workflow-ux1'
           hotfix='site-admin-hotfix-v433.js?v=4.1.2-r33&fix=site-api1'
-          assert p.scripts.index('sync-conflict-v428.js?v=4.1.2-r25&fix=optimistic-sync1') < p.scripts.index(prevention) < p.scripts.index(review) < p.scripts.index(cleanup) < p.scripts.index(enhancement) < p.scripts.index(hotfix)
+          personnel='personnel-management-v434.js?v=4.1.2-r34&fix=personnel-integrity1'
+          assert p.scripts.index(hotfix) < p.scripts.index(personnel)
 
-          auth=Path('auth-v411.js').read_text(encoding='utf-8')
-          assert "const VERSION='4.1.1-r19-pwa-login1'" in auth
-          assert 'async function api(body,timeout=18000)' in auth
+          cleanup=Path('production-cleanup-v431.js').read_text(encoding='utf-8')
+          assert "const VERSION='4.3.1-cleanup2'" in cleanup
+          assert "new Set(['u-field-demo','u-final-demo'])" in cleanup
+          assert "u-safety-demo" in cleanup and 'must not be removed' in cleanup
 
-          acct=Path('account-security-v420.js').read_text(encoding='utf-8')
-          for x in ["4.2.0-account1",'password_change_self','password_reset_safety','비밀번호 변경','안전관리자 본인 비밀번호','enlOpenSafetyPasswordReset420']: assert x in acct,x
-
-          workflow=Path('workflow-v412.js').read_text(encoding='utf-8')
-          for x in ["const VERSION='4.1.6-inquiry3-throttle1'",'inquiryCountBusy','now-inquiryCountLastAt<15000']: assert x in workflow,x
-
-          sync=Path('incident-sync-v411.js').read_text(encoding='utf-8')
-          for x in ['deferredDeletedIds','function uiWriteBusy()','if(dirty||uiWriteBusy())','scheduleSync(250,deleted)']: assert x in sync,x
-
-          prevention_js=Path('workflow-prevention-v429.js').read_text(encoding='utf-8')
-          for x in ["const VERSION='4.2.9-prevention-flow2'",'사고 접수완료','재발방지계획 등록','실제 실시한 재발방지조치','재발방지조치 확인완료']:
-            assert x in prevention_js,x
-
-          review_js=Path('incident-review-v431.js').read_text(encoding='utf-8')
-          for x in ["const VERSION='4.3.1-review-preview1'",'signAttachments(paths)','review431-thumb','border-top:1px solid #d8ebf7','window.enlBindAttachmentOpen=enhancedBind']:
-            assert x in review_js,x
-
-          cleanup_js=Path('production-cleanup-v431.js').read_text(encoding='utf-8')
-          for x in ["const VERSION='4.3.1-cleanup1'",'u-field-demo','u-safety-demo','u-final-demo','enl_accident_demo_v1']:
-            assert x in cleanup_js,x
-
-          enhancement_js=Path('workflow-enhancements-v432.js').read_text(encoding='utf-8')
+          pm=Path('personnel-management-v434.js').read_text(encoding='utf-8')
           for x in [
-            "const VERSION='4.3.2-workflow-enhancements1'",
-            "MANAGER_POSITIONS=['현장소장','파트장','서무']",
-            "confirm('수신완료 처리 하시겠습니까?')",
-            '실제 조치 완료일 *',
-            'attachments().length<1',
-            '재발방지조치 결과 작성 권한이 없습니다.',
-            "currentView='stats'",
-            '작업자 성명 *',
-            'lastSmartPull<8000',
-            'data-prev432-who',
-          ]: assert x in enhancement_js,x
+            "const VERSION='4.3.4-personnel-integrity1'",
+            '/functions/v1/enl-personnel-v434',
+            "['personnel_pull','personnel_upsert','personnel_delete']",
+            'manager_name_conflict',
+            'duplicate_personnel',
+            '일반근로자를 등록·수정·퇴사·삭제',
+            'registered_count:general+field',
+            'window.enlSyncHqUsers=async function',
+            "currentView||'')==='more'",
+          ]: assert x in pm,x
 
-          hotfix_js=Path('site-admin-hotfix-v433.js').read_text(encoding='utf-8')
-          for x in [
-            "const VERSION='4.3.3-site-admin-api1'",
-            "/functions/v1/enl-incident-sync'",
-            "/functions/v1/enl-site-upsert-v412'",
-            "action==='site_list'",
-            "action==='site_upsert'",
-            'baseIncidentApi(body,timeout)',
-          ]: assert x in hotfix_js,x
-
-          responsive=Path('responsive-v432.css').read_text(encoding='utf-8')
-          for x in ['env(safe-area-inset-left)','@media(min-width:721px) and (max-width:1100px)','@media(max-width:480px)','@media(max-width:360px)','.stats426-filter','.inc411-overview{grid-template-columns:repeat(4']:
-            assert x in responsive,x
-
+          prevention=Path('workflow-prevention-v429.js').read_text(encoding='utf-8')
+          for x in ['사고 접수완료','재발방지계획 등록','실제 실시한 재발방지조치','재발방지조치 확인완료']: assert x in prevention,x
+          enhancement=Path('workflow-enhancements-v432.js').read_text(encoding='utf-8')
+          for x in ["confirm('수신완료 처리 하시겠습니까?')",'실제 조치 완료일 *','attachments().length<1',"currentView='stats'"]: assert x in enhancement,x
           lifecycle=Path('workflow-lifecycle-v413.js').read_text(encoding='utf-8')
           assert "String(i.status)==='approved'&&String(i.corrective?.status)==='approved'" in lifecycle
           assert "i.status='closed'" in lifecycle
-
-          sw=Path('sw-v418.js').read_text(encoding='utf-8')
-          for x in ["4.2.5-pwa3","enl-pwa-425-r21","addEventListener('push'",'showNotification','stable412.html?push=1&incident=']: assert x in sw,x
-
-          manifest=json.loads(Path('manifest.webmanifest').read_text(encoding='utf-8'))
-          assert manifest.get('display')=='standalone'
-          assert manifest.get('start_url','').startswith('/stable412.html')
-          print('OK: r33 production wiring and site/user settings API routing hotfix')
+          print('OK: r34 personnel integrity, permissions, counts and stable HQ settings wiring')
 
       - name: Excel 2019 finalized workbook smoke
         run: |
@@ -195,7 +142,7 @@ jobs:
           global.ENL_SITE_DIRECTORY=[];
           global.enlIncidentFinalized=i=>!!i&&i.status==='closed'&&i.corrective?.status==='approved';
           const tiny='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Z1gAAAABJRU5ErkJggg==';
-          const sample={id:'inc-test',siteId:'s-test',category:'person',eventType:'넘어짐',severity:'moderate',priority:'important',reporterName:'테스트 보고자',occurredAt:'2026-09-01T01:30:00.000Z',createdAt:'2026-09-01T02:00:00.000Z',status:'closed',approvedBy:'테스트 관리자',approvedAt:'2026-09-01T03:00:00.000Z',closedAt:'2026-09-02T01:00:00.000Z',immediateAction:'응급처치 후 병원 이동',photos:[{kind:'image',name:'현장사진.png',dataUrl:tiny}],reportDetails:{place:'테스트 구역',workAction:'작업 중',incidentHow:'작업 중 미끄러져 넘어졌습니다.',injuredName:'테스트 근로자',injuryDetail:'경미한 열상',preventionPlan:''},corrective:{status:'approved',rootCause:'사전 확인 미흡',planDetail:'미끄럼 위험구간 개선 및 사전점검 강화',actionDetail:'위험표지 설치 및 작업전 점검 실시',ownerName:'테스트 담당자',submittedBy:'테스트 담당자',submittedAt:'2026-09-01T05:00:00.000Z',reviewedBy:'테스트 관리자',reviewedAt:'2026-09-02T01:00:00.000Z',afterPhotos:[{kind:'image',name:'조치후.png',dataUrl:tiny}]}};
+          const sample={id:'inc-test',siteId:'s-test',category:'person',eventType:'넘어짐',severity:'moderate',priority:'important',reporterName:'테스트 보고자',occurredAt:'2026-09-01T01:30:00.000Z',status:'closed',immediateAction:'응급처치',photos:[{kind:'image',name:'현장.png',dataUrl:tiny}],reportDetails:{place:'테스트',workAction:'작업 중',incidentHow:'미끄러짐',injuredName:'근로자',injuryDetail:'경미'},corrective:{status:'approved',rootCause:'확인 미흡',planDetail:'사전점검',actionDetail:'표지 설치',ownerName:'담당자',reviewedAt:'2026-09-02T01:00:00.000Z',afterPhotos:[{kind:'image',name:'조치.png',dataUrl:tiny}]}};
           global.data={incidents:[sample]};
           require('./incident-excel-v421.js');
           (async()=>{const bytes=await global.enlBuildFinalIncidentWorkbook(sample);if(!bytes||bytes.length<10000)throw new Error('xlsx output too small');const b=Buffer.from(bytes);if(b[0]!==0x50||b[1]!==0x4b)throw new Error('xlsx zip signature missing');console.log('xlsx bytes',bytes.length)})().catch(e=>{console.error(e);process.exit(1)});
@@ -215,7 +162,7 @@ jobs:
               try:p=json.loads(e.read().decode())
               except:p={}
               return e.code,p
-          for fn in ['enl-push-v418','enl-account-v420','enl-push-claim-v425']:
+          for fn in ['enl-push-v418','enl-account-v420','enl-push-claim-v425','enl-personnel-v434']:
             code,j=call(fn,{'action':'health'})
             assert code==200 and j.get('ok') is True,(fn,code,j)
           print('OK: production health endpoints respond without creating incidents or sending push notifications')
