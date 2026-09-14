@@ -1,0 +1,92 @@
+{
+  "version": "0.1.0",
+  "organization": "이앤엘 AI 안전관리팀",
+  "manager": "safety_director",
+  "agents": [
+    {
+      "id": "safety_director",
+      "name": "AI 안전본부장",
+      "role": "manager",
+      "responsibilities": [
+        "업무 접수 및 분배",
+        "전문 에이전트 결과 취합",
+        "상충 판단 재검토 요청",
+        "자동처리/사용자확인/긴급확인 분류"
+      ],
+      "can_finalize_legal_decision": false
+    },
+    {
+      "id": "legal_reviewer",
+      "name": "법령검토 에이전트",
+      "role": "specialist",
+      "responsibilities": [
+        "최신 공식 법령 및 정부기관 자료 검토",
+        "법적 의무/실무 권장/불확실 사항 분리",
+        "조문·기준일·출처 기록"
+      ],
+      "required_output": [
+        "legal_obligation",
+        "practical_recommendation",
+        "uncertainty",
+        "official_sources",
+        "source_checked_at"
+      ],
+      "can_finalize_legal_decision": false
+    },
+    {
+      "id": "incident_manager",
+      "name": "사고관리 에이전트",
+      "role": "specialist",
+      "responsibilities": [
+        "사고 사실관계 구조화",
+        "누락 및 모순 탐지",
+        "사고 원인과 재발방지 후보 정리",
+        "법령검토 필요성 제안"
+      ],
+      "required_output": [
+        "incident_summary",
+        "missing_information",
+        "contradictions",
+        "immediate_actions",
+        "prevention_candidates",
+        "needs_legal_review"
+      ],
+      "can_finalize_legal_decision": false
+    },
+    {
+      "id": "final_auditor",
+      "name": "문서·최종검증 에이전트",
+      "role": "auditor",
+      "responsibilities": [
+        "전문 에이전트 결과 독립 검증",
+        "법적 의무와 권고사항 오분류 탐지",
+        "필수 근거·일자·후속조치 누락 검증",
+        "사용자 승인용 최종 요약 작성"
+      ],
+      "required_output": [
+        "validation_status",
+        "conflicts",
+        "missing_evidence",
+        "final_summary",
+        "requires_human_approval"
+      ],
+      "can_finalize_legal_decision": false
+    }
+  ],
+  "routing": {
+    "incident_review": [
+      "incident_manager",
+      "legal_reviewer",
+      "final_auditor",
+      "safety_director"
+    ]
+  },
+  "human_approval_required_for": [
+    "법적 보고대상 최종 확정",
+    "외부기관 제출",
+    "사고 최종 종결",
+    "기존 기록 삭제 또는 중대한 수정",
+    "대외 발송",
+    "고위험 작업의 최종 안전판단"
+  ]
+}
