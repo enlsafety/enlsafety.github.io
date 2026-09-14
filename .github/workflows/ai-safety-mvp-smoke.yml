@@ -1,0 +1,58 @@
+name: AI Safety MVP Smoke
+
+on:
+  push:
+    branches:
+      - feature/ai-safety-team-mvp
+    paths:
+      - 'ai-safety-team-v440.js'
+      - 'stable412.html'
+      - 'ai/**'
+      - '.github/workflows/ai-safety-mvp-smoke.yml'
+  pull_request:
+    paths:
+      - 'ai-safety-team-v440.js'
+      - 'stable412.html'
+      - 'ai/**'
+      - '.github/workflows/ai-safety-mvp-smoke.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JavaScript syntax
+        run: node --check ai-safety-team-v440.js
+
+      - name: AI team wiring and safety invariants
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          html = Path('stable412.html').read_text(encoding='utf-8')
+          ui = Path('ai-safety-team-v440.js').read_text(encoding='utf-8')
+          edge = Path('ai/edge/enl-ai-safety-v440/index.ts').read_text(encoding='utf-8')
+          manifest = json.loads(Path('ai/agents.manifest.json').read_text(encoding='utf-8'))
+          migration = Path('ai/migrations/20260914_ai_safety_team_mvp.sql').read_text(encoding='utf-8')
+
+          assert 'ai-safety-team-v440.js?v=4.4.0-ai1' in html
+          assert 'enl-ai-build" content="4.4.0-ai1' in html
+          assert 'data-view="ai-team"' in ui
+          assert "const VIEW='ai-team'" in ui
+          assert '사진과 사고자 이름은 전송하지 않고' in ui
+          assert 'OPENAI_API_KEY' in edge
+          assert 'gpt-5.6-terra' in edge and 'gpt-5.6-sol' in edge
+          for domain in ['law.go.kr','moel.go.kr','kosha.or.kr']:
+              assert domain in edge
+          for table in ['ai_workflows','ai_agent_runs','ai_findings','ai_approvals']:
+              assert table in migration
+          assert 'enable row level security' in migration.lower()
+          agents = {a['id'] for a in manifest['agents']}
+          assert agents == {'safety_director','legal_reviewer','incident_manager','final_auditor'}
+          assert manifest['manager'] == 'safety_director'
+          assert 'can_finalize_legal_decision' in manifest['agents'][0]
+          assert not any('sk-' in p.read_text(encoding='utf-8', errors='ignore') for p in [Path('ai-safety-team-v440.js'), Path('ai/edge/enl-ai-safety-v440/index.ts')])
+          print('OK: AI safety MVP UI, 4-agent manifest, official-source guardrails and server-only schema')
+          PY
