@@ -16,6 +16,7 @@ on:
       - 'workflow-enhancements-v432.js'
       - 'site-admin-hotfix-v433.js'
       - 'personnel-management-v434.js'
+      - 'legal-review-v435.js'
       - 'responsive-v432.css'
       - 'incident-excel-v421.js'
       - 'pwa-push-v418.js'
@@ -38,6 +39,7 @@ on:
       - 'workflow-enhancements-v432.js'
       - 'site-admin-hotfix-v433.js'
       - 'personnel-management-v434.js'
+      - 'legal-review-v435.js'
       - 'responsive-v432.css'
       - 'incident-excel-v421.js'
       - 'pwa-push-v418.js'
@@ -58,7 +60,7 @@ jobs:
 
       - name: JavaScript syntax
         run: |
-          for f in core.js auth-v411.js incident-sync-v411.js workflow-lifecycle-v413.js workflow-prevention-v429.js incident-review-v431.js production-cleanup-v431.js workflow-enhancements-v432.js site-admin-hotfix-v433.js personnel-management-v434.js incident-excel-v421.js pwa-push-v418.js push-session-v425.js sw-v418.js; do
+          for f in core.js auth-v411.js incident-sync-v411.js workflow-lifecycle-v413.js workflow-prevention-v429.js incident-review-v431.js production-cleanup-v431.js workflow-enhancements-v432.js site-admin-hotfix-v433.js personnel-management-v434.js legal-review-v435.js incident-excel-v421.js pwa-push-v418.js push-session-v425.js sw-v418.js; do
             node --check "$f"
           done
 
@@ -71,15 +73,15 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-412-r34',meta
+          assert meta.get('build')=='stable-412-r35',meta
           assert meta.get('stableEntry')=='stable412.html',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='r34'",'beforeinstallprompt','stable412.html?entry=root&build=r34',"/sw-v418.js?v=4.2.5-pwa3"]: assert x in index,x
+          for x in ["const BUILD='r35'",'beforeinstallprompt','stable412.html?entry=root&build=r35',"/sw-v418.js?v=4.2.5-pwa3"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.1.2-r34',
+            'enl-build" content="4.1.2-r35',
             'incident-sync-v411.js?v=4.1.2-r28&amp;fix=form-write-guard1',
             'workflow-prevention-v429.js?v=4.1.2-r30&amp;fix=prevention-flow2',
             'incident-review-v431.js?v=4.1.2-r31&amp;fix=review-preview1',
@@ -87,6 +89,7 @@ jobs:
             'workflow-enhancements-v432.js?v=4.1.2-r32&amp;fix=workflow-ux1',
             'site-admin-hotfix-v433.js?v=4.1.2-r33&amp;fix=site-api1',
             'personnel-management-v434.js?v=4.1.2-r34&amp;fix=personnel-integrity1',
+            'legal-review-v435.js?v=4.1.2-r35&amp;fix=legal-simplify1',
           ]
           for x in required: assert x in html,x
 
@@ -104,7 +107,8 @@ jobs:
           assert not missing,missing
           hotfix='site-admin-hotfix-v433.js?v=4.1.2-r33&fix=site-api1'
           personnel='personnel-management-v434.js?v=4.1.2-r34&fix=personnel-integrity1'
-          assert p.scripts.index(hotfix) < p.scripts.index(personnel)
+          legal='legal-review-v435.js?v=4.1.2-r35&fix=legal-simplify1'
+          assert p.scripts.index(hotfix) < p.scripts.index(personnel) < p.scripts.index(legal)
 
           cleanup=Path('production-cleanup-v431.js').read_text(encoding='utf-8')
           assert "const VERSION='4.3.1-cleanup2'" in cleanup
@@ -124,6 +128,15 @@ jobs:
             "currentView||'')==='more'",
           ]: assert x in pm,x
 
+          legal_js=Path('legal-review-v435.js').read_text(encoding='utf-8')
+          for x in [
+            "const VERSION='4.3.5-legal-simplify1'",
+            '법정 보고 검토 필요',
+            "modal.querySelector('.inc411-priority-box')?.remove()",
+            "modal.querySelector('#saveNote')?.remove()",
+            "legalReviewStatus='reviewed'",
+          ]: assert x in legal_js,x
+
           prevention=Path('workflow-prevention-v429.js').read_text(encoding='utf-8')
           for x in ['사고 접수완료','재발방지계획 등록','실제 실시한 재발방지조치','재발방지조치 확인완료']: assert x in prevention,x
           enhancement=Path('workflow-enhancements-v432.js').read_text(encoding='utf-8')
@@ -131,7 +144,7 @@ jobs:
           lifecycle=Path('workflow-lifecycle-v413.js').read_text(encoding='utf-8')
           assert "String(i.status)==='approved'&&String(i.corrective?.status)==='approved'" in lifecycle
           assert "i.status='closed'" in lifecycle
-          print('OK: r34 personnel integrity, permissions, counts and stable HQ settings wiring')
+          print('OK: r35 simplified statutory review, stable wiring and existing production controls')
 
       - name: Excel 2019 finalized workbook smoke
         run: |
