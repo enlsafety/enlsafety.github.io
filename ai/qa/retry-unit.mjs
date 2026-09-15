@@ -14,3 +14,5 @@ calls=0;await assert.rejects(requestWithBackoff({}, {...options,fetcher:async()=
 for(const [status,category] of [[401,'authentication'],[403,'permission'],[404,'model'],[500,'upstream_unavailable']])assert.equal(diagnostic(reject(status,'other'),{}).category,category);
 assert.equal(diagnostic(reject(429),{error:{code:'rate_limit_exceeded',message:'Token quota per minute reached'}}).category,'rate_limit');
 console.log('PASS: bounded retry, Retry-After seconds/date, permanent quota no retry, deadline, timeout ambiguity, diagnostic redaction');
+
+assert.equal(diagnostic(reject(429),{error:{param:'max_output_tokens'}}).param,'max_output_tokens');

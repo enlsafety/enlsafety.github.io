@@ -2,7 +2,7 @@
 (function(){
   'use strict';
 
-  const VERSION='4.4.0-control-room2';
+  const VERSION='4.4.0-control-room3';
   const API='https://zgwxzfvvpqgdedyobwmg.supabase.co/functions/v1/enl-ai-safety-v440';
   const CLIENT='incident-report-v2';
   const VIEW='ai-team';

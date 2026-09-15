@@ -5,6 +5,8 @@ on:
     branches:
       - feature/ai-safety-team-mvp
     paths:
+      - 'auth-v411.js'
+      - 'account-security-v420.js'
       - 'ai-safety-team-v440.js'
       - 'stable412.html'
       - 'ai/**'
@@ -12,6 +14,8 @@ on:
       - '.github/workflows/ai-safety-mvp-smoke.yml'
   pull_request:
     paths:
+      - 'auth-v411.js'
+      - 'account-security-v420.js'
       - 'ai-safety-team-v440.js'
       - 'stable412.html'
       - 'ai/**'
@@ -29,7 +33,10 @@ jobs:
           node-version: '24'
 
       - name: JavaScript syntax
-        run: node --check ai-safety-team-v440.js
+        run: |
+          node --check ai-safety-team-v440.js
+          node --check auth-v411.js
+          node --check account-security-v420.js
 
       - name: AI team wiring and safety invariants
         run: |
@@ -43,8 +50,8 @@ jobs:
           manifest = json.loads(Path('ai/agents.manifest.json').read_text(encoding='utf-8'))
           migration = Path('ai/migrations/20260914_ai_safety_team_mvp.sql').read_text(encoding='utf-8')
 
-          assert 'ai-safety-team-v440.js?v=4.4.0-control-room2' in html
-          assert 'enl-ai-build" content="4.4.0-control-room2' in html
+          assert 'ai-safety-team-v440.js?v=4.4.0-control-room3' in html
+          assert 'enl-ai-build" content="4.4.0-control-room3' in html
           assert 'data-view="ai-team"' in ui
           assert "const VIEW='ai-team'" in ui
           assert '사진과 사고자 이름은 전송하지 않고' in ui
@@ -82,6 +89,8 @@ jobs:
         run: QA_LIFECYCLE=1 node ai/qa/browser.mjs
       - name: Existing app integration (all remote requests intercepted)
         run: node ai/qa/app-smoke.mjs
+      - name: Login and password reset (stateful mock API)
+        run: node ai/qa/account-browser.mjs
       - name: Build staging-only preview
         run: python ai/qa/build-staging.py
       - uses: actions/upload-artifact@v4

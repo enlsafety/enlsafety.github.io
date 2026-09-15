@@ -1,6 +1,6 @@
 # AI 안전관리본부 상황실 — Staging 안정화
 
-2026-09-15 / 앱·API `4.4.0-control-room2` / staging Edge v11 ACTIVE.
+2026-09-15 / 앱·API `4.4.0-control-room3` / staging Edge v12 ACTIVE.
 브랜치 `feature/ai-safety-team-mvp`, Supabase `zgwxzfvvpqgdedyobwmg`만 수정했다. main·운영 DB는 수정하지 않았다.
 
 ## 구현
@@ -41,9 +41,23 @@
 ## 남은 제한
 
 - 실물 iPhone, 설치된 PWA 서비스워커/OS 복귀/실제 키보드는 미검증이다. 연결 복구는 페이지 유지 중 API 통신 모사이며 오프라인 cold start 검사가 아니다.
-- 기존 `openAdminPasswordReset is not defined`는 AI 모듈을 제외한 기준 앱에서도 발생한다. 추가 오류와 구분해 회귀검사한다.
+- 기존 `openAdminPasswordReset is not defined` 시작 오류를 수정했다. AI 모듈 포함/제외 양쪽 시작 오류 0건을 검사한다.
 - 상황실은 본사 안전관리자 공동 업무 화면이다. 담당자별 데이터 분리는 구현하지 않았다. worker/manager/executive와 무인증 접근은 거부한다.
 - 보안 advisor는 서버 전용 RLS 테이블의 정책 없음 INFO만 반환했다. 브라우저 직접 접근 차단을 위한 구성이다. https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy
 - 타임라인 최근 120건, 최근 완료 60건/주의 상태 최대 200건. 실제 모델 토큰만 표시하며 가격은 추정하지 않는다.
 
 참고: https://developers.openai.com/api/docs/guides/error-codes · https://developers.openai.com/api/docs/guides/rate-limits · https://supabase.com/docs/guides/cron
+
+
+## 후속 안정화: 비밀번호와 진단 (2026-09-15)
+
+- auth-v411.js의 strict mode에서 미선언 식별자 대입이 앱 초기화를 중단했다. window에 명시적으로 등록하도록 수정했다.
+- staging 계정 API는 기존 자체 인증의 서명 세션을 요구한다. 로그인 응답의 sessionToken을 저장하고 인증·계정 API에 X-ENL-Session으로 전달한다. 본인 비밀번호 변경 후 무효화된 토큰과 복귀용 세션을 정리하고 새 로그인으로 안내한다.
+- 안전관리자 이외 사용자는 관리자 재설정 화면을 열 수 없다. 기존 서버의 본인 증명·역할 검증은 그대로 유지한다.
+- Chromium/WebKit 실제 UI + 상태를 유지하는 모의 API로 로그인, 로그아웃, 잘못된 증명 거부, 재설정, 구 비밀번호 거부, 새 비밀번호 로그인, 본인 변경, reload 후 이전 세션 미복원을 검사했다. `node ai/qa/account-browser.mjs`.
+- 이 앱은 이메일 링크/Supabase Auth 계정 방식이 아니다. 본사/현장 자체 계정과 관리자의 비밀번호 재설정 방식을 유지했다. 이메일 발송·링크 수신은 구현하거나 검증하지 않았다. 실제 staging 계정 변경 HTTP E2E는 미검증이다.
+- 실패 진단에 error.param, model, job ID, agent, 시작/종료/처리시간을 추가했다. 응답이 있는 실패에는 HTTP status, type/code, 허용된 응답 헤더, attempts/retry_count가 남는다. 네트워크/처리 실패는 HTTP status를 null로 남기며 임의 상태를 만들지 않는다. 성공 metadata에도 status 200과 retry_count를 저장한다.
+- 새 AI 호출 없이 기존 staging 실패 기록을 다시 읽었다. 이전 실패 4건의 diagnostic은 모두 null이어서 429 원인을 확정할 새 근거는 없었다. 외부 runner로 권한 거부를 우회하는 작업은 수행하지 않았다.
+- 실제 AI 4개 시나리오·429 원인 확정·실물 iPhone 검증이 남아 A/B 종결 조건에 도달하지 않았다.
+
+실물 iPhone 체크 (최대 5개): Safari 로그인/재설정, 홈 화면 PWA 실행, 세로/가로 상세와 키보드, 백그라운드 복귀, 네트워크 재연결과 새로고침.

@@ -25,7 +25,7 @@ export function diagnostic(response: Response, raw: any, secrets: string[] = [])
   for (const key of ['x-request-id','retry-after','retry-after-ms','x-ratelimit-limit-requests','x-ratelimit-limit-tokens','x-ratelimit-remaining-requests','x-ratelimit-remaining-tokens','x-ratelimit-reset-requests','x-ratelimit-reset-tokens']) {
     const value=response.headers.get(key); if(value) headers[key]=scrubDiagnostic(value,secrets);
   }
-  return {http_status:response.status,type,code,message,category,headers,observed_at:new Date().toISOString()};
+  return {http_status:response.status,type,code,param:raw?.error?.param==null?null:scrubDiagnostic(raw.error.param,secrets),message,category,headers,observed_at:new Date().toISOString()};
 }
 export class AIServiceError extends Error {
   diagnostic: ReturnType<typeof diagnostic>;
@@ -55,7 +55,7 @@ export async function requestWithBackoff(body: unknown, options: {
   const serverMs=Number(response.headers.get('retry-after-ms'));
   const headerWait=serverMs>0?serverMs:retryAfterMs(response.headers.get('retry-after'),clock());
   const wait=Math.max(headerWait||0,1000*2**(attempt-1)+Math.floor((options.random||Math.random)()*300));
-  Object.assign(d,{attempts:attempt,retry_not_before:d.category==='rate_limit'?new Date(clock()+wait).toISOString():null});
+  Object.assign(d,{attempts:attempt,retry_count:attempt-1,duration_ms:clock()-started,retry_not_before:d.category==='rate_limit'?new Date(clock()+wait).toISOString():null});
   if(!['rate_limit','upstream_unavailable'].includes(d.category)||attempt>=3||wait+1000>=deadline-clock())throw error;
   await options.onRetry?.({attempt,next_attempt:attempt+1,delay_ms:wait,category:d.category});
   await sleep(wait);

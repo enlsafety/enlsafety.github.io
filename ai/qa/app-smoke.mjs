@@ -8,7 +8,7 @@ await page.evaluate(()=>{data.sites=[{id:'qa',name:'QA 가상사업장',active:t
 const nav=await page.evaluate(()=>renderNav(currentUser()));assert(nav.includes('ai-team'));
 for(const view of ['dashboard','incidents','actions','sites','users','ai-team']){await page.evaluate(v=>{currentView=v;renderCurrentView(currentUser());},view);await page.waitForTimeout(100);assert((await page.locator('#view').innerText()).length>0,view);}
 await page.evaluate(()=>{session={manager:{id:'field-qa',name:'현장 QA',role:'field',siteId:'qa'}};currentView='report';renderCurrentView(currentUser());});await page.getByText('대인사고',{exact:true}).click();assert(await page.locator('form').count()>0);assert(await page.locator('textarea').count()>0);assert(!(await page.evaluate(()=>renderNav(currentUser()))).includes('ai-team'));assert.equal(await page.locator('.ai440').count(),0);
-assert.deepEqual(errors,baselineErrors);console.log('Unchanged pre-existing startup errors:',baselineErrors);console.log(`PASS: actual app scripts, login, safety navigation, dashboard/incidents/actions/sites/users, field report and safety-only AI; ${remote} remote requests intercepted, no production access`);await browser.close();
+assert.deepEqual(baselineErrors,[]);assert.deepEqual(errors,[]);console.log('PASS: no startup errors with or without AI module');console.log(`PASS: actual app scripts, login, safety navigation, dashboard/incidents/actions/sites/users, field report and safety-only AI; ${remote} remote requests intercepted, no production access`);await browser.close();
 
 
 

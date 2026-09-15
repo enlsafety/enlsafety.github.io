@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.2.0 - account password controls */
 (function(){
   'use strict';
-  const VERSION='4.2.0-account1';
+  const VERSION='4.2.0-account2';
   const ACCOUNT_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-account-v420';
   const CLIENT='incident-report-v2';
   const FIELD_TITLES=['현장소장','파트장','서무'];
@@ -14,7 +14,7 @@
   async function api(body,timeout=15000){
     const ctl=typeof AbortController!=='undefined'?new AbortController():null,timer=ctl?setTimeout(()=>ctl.abort(),timeout):null;
     try{
-      const r=await fetch(ACCOUNT_API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify(body),signal:ctl?.signal,cache:'no-store'});
+      const r=await fetch(ACCOUNT_API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT,...(typeof session!=='undefined'&&session?.serverToken?{'X-ENL-Session':session.serverToken}:{})},body:JSON.stringify(body),signal:ctl?.signal,cache:'no-store'});
       const j=await r.json().catch(()=>({}));if(!r.ok||j?.ok===false){const e=new Error(j?.message||`http_${r.status}`);e.status=r.status;throw e}return j;
     }finally{if(timer)clearTimeout(timer)}
   }
@@ -40,7 +40,7 @@
       ev.preventDefault();const current=document.getElementById('enl420Current').value,newPw=document.getElementById('enl420New').value,newPw2=document.getElementById('enl420New2').value;
       if(newPw.length<4)return alert('새 비밀번호는 4자 이상 입력해 주세요.');if(newPw!==newPw2)return alert('새 비밀번호가 서로 다릅니다.');if(current===newPw)return alert('현재 비밀번호와 다른 비밀번호를 입력해 주세요.');
       const submit=ev.currentTarget.querySelector('button[type="submit"]');submit.disabled=true;submit.textContent='변경 중…';
-      try{const currentPasswordHash=await hash(current),newPasswordHash=await hash(newPw);await api({action:'password_change_self',actor:actor(u),currentPasswordHash,newPasswordHash});syncLocalPassword(newPasswordHash);closeModal();alert('비밀번호가 변경되었습니다. 다음 로그인부터 새 비밀번호를 사용해 주세요.')}
+      try{const currentPasswordHash=await hash(current),newPasswordHash=await hash(newPw);await api({action:'password_change_self',actor:actor(u),currentPasswordHash,newPasswordHash});syncLocalPassword(newPasswordHash);closeModal();if(typeof session!=='undefined'&&session?.serverToken){if(typeof window.enlClearRefreshSession==='function')window.enlClearRefreshSession('password_changed');else{session=null;saveSession();currentView=''}renderLogin();alert('비밀번호가 변경되었습니다. 새 비밀번호로 다시 로그인해 주세요.')}else alert('비밀번호가 변경되었습니다. 다음 로그인부터 새 비밀번호를 사용해 주세요.')}
       catch(e){submit.disabled=false;submit.textContent='비밀번호 변경';if(e?.message==='current_password_incorrect')alert('현재 비밀번호가 맞지 않습니다.');else if(e?.message==='same_password')alert('현재 비밀번호와 다른 비밀번호를 입력해 주세요.');else alert('비밀번호를 변경하지 못했습니다. 다시 시도해 주세요.')}
     };
   }
@@ -61,6 +61,7 @@
 
   const previousAdminReset=window.openAdminPasswordReset;
   window.openAdminPasswordReset=function(target,u){
+    if(roleNorm(currentUser?.()?.role)!=='safety')return;
     if(roleNorm((u||currentUser?.())?.role)==='safety'&&target&&['manager','executive','final'].includes(String(target.role||'')))return safetyResetTarget({kind:'hq',id:target.id,name:target.name,role:roleNorm(target.role)});
     if(typeof previousAdminReset==='function')return previousAdminReset(target,u);
   };
