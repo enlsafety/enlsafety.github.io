@@ -61,3 +61,9 @@
 - 실제 AI 4개 시나리오·429 원인 확정·실물 iPhone 검증이 남아 A/B 종결 조건에 도달하지 않았다.
 
 실물 iPhone 체크 (최대 5개): Safari 로그인/재설정, 홈 화면 PWA 실행, 세로/가로 상세와 키보드, 백그라운드 복귀, 네트워크 재연결과 새로고침.
+
+## 사용자 1회 요청용 진단 경로
+
+control-room4: 업무 상세의 `진단정보 — 전달용` 읽기 전용 입력창에서 JSON 전체를 복사한다. 안전관리자 인증 `get_workflow` 응답의 허용된 진단 항목만 표시하며 질의 원문·인증 헤더·키는 제외한다.
+최종 실패는 ai_agent_runs.output_payload._meta.error, 자동 재시도 전 429는 ai_agent_events.metadata.diagnostic에 저장한다. 재시도 후 성공해도 앞선 429 이벤트는 남는다. Retry-After가 제공되지 않으면 전달용 보고서에 null로 표시한다.
+진단 한정 검사 `node ai/qa/diagnostics.mjs` 통과: 필수 항목, 재시도 후 성공 기록, 마지막 실패, secret 제외, 상세 화면 표시. 실제 API 호출은 하지 않았다. 사용자 요청에 따라 기존 회귀 QA는 재실행하지 않는다.

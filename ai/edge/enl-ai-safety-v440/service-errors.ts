@@ -57,7 +57,7 @@ export async function requestWithBackoff(body: unknown, options: {
   const wait=Math.max(headerWait||0,1000*2**(attempt-1)+Math.floor((options.random||Math.random)()*300));
   Object.assign(d,{attempts:attempt,retry_count:attempt-1,duration_ms:clock()-started,retry_not_before:d.category==='rate_limit'?new Date(clock()+wait).toISOString():null});
   if(!['rate_limit','upstream_unavailable'].includes(d.category)||attempt>=3||wait+1000>=deadline-clock())throw error;
-  await options.onRetry?.({attempt,next_attempt:attempt+1,delay_ms:wait,category:d.category});
+  await options.onRetry?.({attempt,next_attempt:attempt+1,delay_ms:wait,category:d.category,diagnostic:d});
   await sleep(wait);
  }
  throw new Error('unreachable');

@@ -50,8 +50,8 @@ jobs:
           manifest = json.loads(Path('ai/agents.manifest.json').read_text(encoding='utf-8'))
           migration = Path('ai/migrations/20260914_ai_safety_team_mvp.sql').read_text(encoding='utf-8')
 
-          assert 'ai-safety-team-v440.js?v=4.4.0-control-room3' in html
-          assert 'enl-ai-build" content="4.4.0-control-room3' in html
+          assert 'ai-safety-team-v440.js?v=4.4.0-control-room4' in html
+          assert 'enl-ai-build" content="4.4.0-control-room4' in html
           assert 'data-view="ai-team"' in ui
           assert "const VIEW='ai-team'" in ui
           assert '사진과 사고자 이름은 전송하지 않고' in ui
