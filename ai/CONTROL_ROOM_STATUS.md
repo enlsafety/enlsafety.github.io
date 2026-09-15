@@ -1,6 +1,6 @@
 # AI 안전관리본부 상황실 — Staging 안정화
 
-2026-09-15 / 앱·API `4.4.0-control-room2` / staging Edge v10 ACTIVE.
+2026-09-15 / 앱·API `4.4.0-control-room2` / staging Edge v11 ACTIVE.
 브랜치 `feature/ai-safety-team-mvp`, Supabase `zgwxzfvvpqgdedyobwmg`만 수정했다. main·운영 DB는 수정하지 않았다.
 
 ## 구현

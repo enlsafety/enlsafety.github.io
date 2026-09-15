@@ -105,4 +105,3 @@ begin
 end $$;
 revoke all on function public.ai_control_transition(text,uuid,jsonb,text) from public,anon,authenticated;
 grant execute on function public.ai_control_transition(text,uuid,jsonb,text) to service_role;
-
