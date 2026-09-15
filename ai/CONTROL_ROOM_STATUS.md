@@ -1,64 +1,49 @@
-# AI 안전관리본부 상황실 — Staging
+# AI 안전관리본부 상황실 — Staging 안정화
 
-2026-09-15 / 앱·API `4.4.0-control-room1` / Edge 배포 버전 8.
-작업 브랜치 `feature/ai-safety-team-mvp`, DB `enl-incident-staging` (`zgwxzfvvpqgdedyobwmg`).
-main과 프로덕션 Supabase는 변경하지 않았다.
+2026-09-15 / 앱·API `4.4.0-control-room2` / staging Edge v10 ACTIVE.
+브랜치 `feature/ai-safety-team-mvp`, Supabase `zgwxzfvvpqgdedyobwmg`만 수정했다. main·운영 DB는 수정하지 않았다.
 
 ## 구현
 
-업무지시/검토·상황실 탭, 에이전트 좌석 4개, 상태·단계·진행률·시간,
-업무별 인계 흐름, LIVE TIMELINE, 에이전트·업무 상세, 공식 근거,
-누락정보·의견 차이, 실제 토큰, 승인·보류·재검토·실패 재시도.
+- 3초 polling은 조회만 한다. queued 업무가 있어도 DB write/RPC/AI 호출을 하지 않는다.
+- 접수·명시적 재시도·단계 완료 때만 서명된 worker를 호출한다. 단계별 lease 120초, 모델 호출 총 90초, 동시 업무 최대 4건.
+- 동일 request ID와 동일 요청자의 진행 중 동일 입력은 중복 생성하지 않는다. 버튼 잠금, 불명확한 접수 실패 시 request ID 재사용.
+- 일시적 HTTP 429/5xx만 최대 2회 추가 재시도한다. 지수형 대기·Retry-After·총 90초 예산을 적용한다. 전송/timeout 오류는 이미 수락됐을 가능성이 있어 자동 재전송하지 않는다.
+- 명시적인 quota/credit·인증·권한·모델 오류는 자동 재시도하지 않는다. type/code/message, 허용된 rate-limit 헤더, request ID, 시도 횟수를 비밀값 제거 후 저장한다. 화면에는 한국어 안내를 제공한다.
+- 실패와 진단정보는 원자적으로 저장하며 retry_not_before를 서버에서 강제한다.
+- 매분 DB cron은 만료 lease/2분 이상 인계 대기를 실패로 정리한다. 네트워크나 AI를 호출하지 않는다. 명시적 재시도는 새 업무를 만들고 이전 기록을 보존한다.
+- 일반 안전관리 질의 입력과 완료 업무 재검토를 지원한다. 질의는 최소화된 기존 입력, 사고는 최신 staging 사고와 검토 의견을 사용한다.
+- 필요한 DOM만 갱신해 카드 identity, 스크롤 기준 이벤트, 상세 메모/포커스를 보존한다. 모바일 safe-area, visible viewport, 주요 버튼 44px을 적용한다.
 
-`ai_agent_events`와 서버 전용 `ai_control_transition`을 추가했다.
-업무 상태·실행 기록·이벤트·승인 전환은 한 트랜잭션으로 저장한다.
-120초 lease와 원자적 claim으로 중복 실행을 막으며 모델 호출은 단계당 90초로 제한한다.
-각 단계는 별도 서명된 서버 호출로 인계한다. 인계 누락·만료는 인증 조회에서 복구한다.
-만료된 실행은 실패와 재시도 상태를 제공한다. 동시 진행은 최대 4건이다.
-재검토는 최신 스테이징 사고와 검토 의견으로 새 업무를 생성하고 이전 기록을 보존한다.
+4개 에이전트는 순차 실행한다. 필요한 단계가 실패하면 해당 업무를 실패 처리하고 이전 완료 결과를 보존한다. 다른 업무와 상황실 조회는 계속된다. 임의 모델 교체·결제·한도 증액은 하지 않았다.
 
-## 검증
+## 검증 범위
 
-| 구분 | 결과 |
-|---|---|
-| Edge 단위 검증 | 통과: 공개 메시지 추출, 개인정보 최소화, HTTPS 공식 출처, 도구 근거 대조, 실제 usage, 위조 worker 서명 거부 |
-| Staging DB 전환 | 통과: fixture 4단계, 인계 3건, 중복 claim/idempotency, 잘못된 lease 거부, 보류/재검토/실패/재시도. 모든 fixture는 rollback |
-| PC/iPhone UI | 통과: Chromium 1440/390px, WebKit 390/320px. 갱신, 상세, 메모 보존, 승인/보류/재시도, 비동기 접수, 로그아웃 정리, 잘림 검사 |
-| 기존 앱 연결 | 통과: 실제 전체 스크립트의 로그인 화면, 대시보드/사고/조치/현장/사용자 메뉴, 현장 사고등록 화면. 원격 요청을 모두 가로채 운영 데이터 미접촉 |
-| 실제 API 권한 | 통과: 무인증·권한위조 조회와 위조 worker 거부, 안전관리자 조회, 입력 payload/인증값 응답 제외 |
-| 실제 AI A/B/C | **미통과**: 합성 사고 3건 모두 첫 에이전트에서 OpenAI HTTP 429. 4인 실행 완료와 실제 법령 출처 검증은 확인 불가 |
-| 실제 AI D | 통과: 429 → agent/workflow failed → 실패 이벤트 저장. 재시도 시 새 업무 생성·이전 기록 보존. 재시도도 429 |
+- Edge 단위 검사: 개인정보 최소화, 도구의 실제 공식 URL 대조, 위조 서명 거부, usage 추출.
+- 모의 HTTP 검사: 일시적 429, quota, 인증/권한/모델, Retry-After 초/날짜, 3회 상한, 90초 예산, 전송 오류 중복 방지.
+- queued fixture가 있는 인증 조회 18회: write/RPC/dispatch/AI 호출 모두 0회.
+- 실제 staging DB rollback fixture: 4단계/3인계, 접수/claim 중복 방지, lease 만료, 보류/승인, 완료 후 재검토, retry cooldown, 오류 metadata, 질의 source 보존. cron 실제 실행 succeeded 확인.
+- UI: Chromium 1440/390, WebKit 390/320. 모의 API이며 실제 AI 검증과 구분한다.
+- Safari lifecycle: WebKit standalone 플래그 모사, 세로/가로/키보드 높이, DOM/스크롤/포커스, reload, visibility 복귀, API 연결 끊김/복구.
+- 기존 앱: 모든 원격 요청을 가로챈 전체 스크립트의 로그인 화면·메뉴·사고 입력 화면. 실제 사고 저장 DB 검사는 아님.
+- CI: Deno typecheck, 위 자동 검사, staging 미리보기 build, 스크린샷 artifact. 최종 실행 결과는 해당 commit의 Actions를 확인한다.
 
-429의 구체적 원인은 확정하지 않았다. API의 결제/사용 한도 또는 rate limit 확인 후 A/B/C를 재실행해야 한다.
-모델 결과를 모의 데이터로 바꿔 성공으로 표시하지 않는다.
+## 실제 AI와 외부 제한
 
-## 제한
+이전 v1 실제 합성 사고 3건과 재시도 1건은 첫 에이전트에서 HTTP 429로 실패했다. 당시 저장된 오류에는 type/code/message/headers가 없어 quota와 RPM/TPM을 구분할 수 없다.
+이번 실제 API 진단 명령은 네트워크 EACCES 후 권한 확대 자동 거부(`sandbox_approval: false`)로 실행되지 않았다. **429 원인 미확정**, 모델/프로젝트 접근권한 미확인, 실제 A/B/C/D 성공 E2E 미실행이다. 배포 후 실제 HTTP smoke도 미실행이다. quota 부족이라고 추정하지 않는다.
 
-- 기존 자체 인증에 맞춰 직접 Realtime 구독 대신 안전관리자 인증 API를 3초마다 조회한다.
-  숨김 탭 15초, 연결 실패 시 최대 30초이며 마지막 확인 시각을 표시한다.
-- 화면이 닫힌 동안 서버 인계에 실패하면 다음 인증 조회에서 재개한다. 별도 상시 scheduler는 없다.
-- 가격을 추정하지 않는다. 완료된 Responses API의 토큰만 집계한다.
-- 타임라인 최근 120건, 최근 완료 60건/주의 상태 최대 200건 목록. 업무 상세에는 해당 업무 전체 이벤트가 있다.
-- 의미상 모순은 최종검증 finding과 처리 의견 차이로 표시하며 모든 충돌 탐지를 보장하지 않는다.
-- 실제 iPhone 기기/PWA 설치·푸시와 기존 사고 저장/승인의 실제 DB 회귀시험은 남아 있다.
-- 기존 `openAdminPasswordReset is not defined` 시작 오류는 AI 모듈을 제외해도 동일했다. 이번 변경으로 추가되지 않았다.
-- DB 보안 점검은 서버 전용 RLS의 정책 없음 안내뿐이었다. 성능 점검의 기존 중복 인덱스·push 인덱스 안내는 범위 밖이라 보존했다.
+네트워크 실행이 허용된 환경에서 승인된 임시 staging 안전관리자 계정 파일 `{id, credential}`을 저장소 밖에 준비하고 `ENL_QA_CREDENTIAL_FILE`에 경로를 지정한다. `node ai/qa/live-matrix.mjs`가 모델 접근 진단 후 일반/법령/정보부족/복합 질의, 중복 접수, 보류/승인, 완료 후 재검토를 실제 API로 검사한다. 실패하면 진단정보를 남기고 중단하며 mock으로 대체하지 않는다. 검사 후 임시 계정을 비활성화·인증값 교체한다. 이번 임시 계정은 비활성화·교체했고 로컬 인증 파일도 삭제했다.
 
-## 미리보기와 QA 실행
+로컬 검증: `node ai/qa/edge-unit.mjs`, `node ai/qa/retry-unit.mjs`, `node ai/qa/read-only-poll.mjs`, `node ai/qa/browser.mjs`, `QA_LIFECYCLE=1 node ai/qa/browser.mjs`, `node ai/qa/app-smoke.mjs`.
+`python ai/qa/build-staging.py`의 `ai/qa/artifacts/staging`을 독립 프로필 localhost:8729에서 제공한다. 루트 앱의 운영 주소로 QA하지 않는다. 공개 staging 프런트엔드 도메인은 배포하지 않았다.
 
-기존 루트 앱에는 운영 주소가 남아 있으므로 feature 체크아웃을 그대로 운영 데이터에 연결해 QA하지 않는다.
-`python ai/qa/build-staging.py`는 기존 앱 복사본의 Supabase·앱 이동 주소를 staging/localhost로 바꾼다.
-`ai/qa/artifacts/staging`을 **독립 브라우저 프로필에서 localhost:8729**로 제공한다.
-GitHub QA artifact에 미리보기와 모의 UI 스크린샷을 포함한다. 공개 스테이징 도메인은 별도로 배포하지 않았다.
+## 남은 제한
 
-- `node ai/qa/edge-unit.mjs`
-- `node ai/qa/browser.mjs` (Playwright 1.55.0 Chromium/WebKit)
-- `node ai/qa/app-smoke.mjs`
-- `ai/qa/transitions.sql` (staging 전용, rollback)
-- `node ai/qa/live-read.mjs` (선택적 실제 API 읽기 QA, 외부 임시 계정 파일 필요)
+- 실물 iPhone, 설치된 PWA 서비스워커/OS 복귀/실제 키보드는 미검증이다. 연결 복구는 페이지 유지 중 API 통신 모사이며 오프라인 cold start 검사가 아니다.
+- 기존 `openAdminPasswordReset is not defined`는 AI 모듈을 제외한 기준 앱에서도 발생한다. 추가 오류와 구분해 회귀검사한다.
+- 상황실은 본사 안전관리자 공동 업무 화면이다. 담당자별 데이터 분리는 구현하지 않았다. worker/manager/executive와 무인증 접근은 거부한다.
+- 보안 advisor는 서버 전용 RLS 테이블의 정책 없음 INFO만 반환했다. 브라우저 직접 접근 차단을 위한 구성이다. https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy
+- 타임라인 최근 120건, 최근 완료 60건/주의 상태 최대 200건. 실제 모델 토큰만 표시하며 가격은 추정하지 않는다.
 
-인증정보는 코드·로그·스크린샷에 남기지 않는다. 실제 QA 임시 계정은 검증 후 비활성화한다.
-
-참고: [OpenAI 웹 검색](https://developers.openai.com/api/docs/guides/tools-web-search),
-[Supabase 실행 제한](https://supabase.com/docs/guides/functions/limits),
-[백그라운드 작업](https://supabase.com/docs/guides/functions/background-tasks).
+참고: https://developers.openai.com/api/docs/guides/error-codes · https://developers.openai.com/api/docs/guides/rate-limits · https://supabase.com/docs/guides/cron

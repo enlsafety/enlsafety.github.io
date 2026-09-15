@@ -43,8 +43,8 @@ jobs:
           manifest = json.loads(Path('ai/agents.manifest.json').read_text(encoding='utf-8'))
           migration = Path('ai/migrations/20260914_ai_safety_team_mvp.sql').read_text(encoding='utf-8')
 
-          assert 'ai-safety-team-v440.js?v=4.4.0-control-room1' in html
-          assert 'enl-ai-build" content="4.4.0-control-room1' in html
+          assert 'ai-safety-team-v440.js?v=4.4.0-control-room2' in html
+          assert 'enl-ai-build" content="4.4.0-control-room2' in html
           assert 'data-view="ai-team"' in ui
           assert "const VIEW='ai-team'" in ui
           assert '사진과 사고자 이름은 전송하지 않고' in ui
@@ -63,13 +63,23 @@ jobs:
           print('OK: AI safety MVP UI, 4-agent manifest, official-source guardrails and server-only schema')
           PY
       - name: Edge privacy and source verification
-        run: node ai/qa/edge-unit.mjs
+        run: |
+          node ai/qa/edge-unit.mjs
+          node ai/qa/retry-unit.mjs
+          node ai/qa/read-only-poll.mjs
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Edge typecheck
+        run: deno check ai/edge/enl-ai-safety-v440/index.ts
       - name: Install isolated browser QA
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
           npx playwright install --with-deps chromium webkit
       - name: Desktop and iPhone control room QA (mock API)
         run: node ai/qa/browser.mjs
+      - name: Safari lifecycle and standalone emulation (mock API)
+        run: QA_LIFECYCLE=1 node ai/qa/browser.mjs
       - name: Existing app integration (all remote requests intercepted)
         run: node ai/qa/app-smoke.mjs
       - name: Build staging-only preview

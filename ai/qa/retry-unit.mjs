@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {diagnostic,scrubDiagnostic,requestWithBackoff,retryAfterMs} from '../edge/enl-ai-safety-v440/service-errors.ts';
+assert.equal(scrubDiagnostic('key customSECRET org-123 sk-test-value',['customSECRET']),'key [key removed] [account removed] [key removed]');
+assert.equal(retryAfterMs('5',0),5000);assert.equal(retryAfterMs('Thu, 01 Jan 1970 00:00:08 GMT',0),8000);
+let calls=0,time=0,waits=[],events=[];const headers={Authorization:'Bearer test-credential'};
+const reject=(status,code='rate_limit_exceeded',retry='2')=>new Response(JSON.stringify({error:{type:code,code,message:'redacted diagnostic'}}),{status,headers:{'Retry-After':retry,'x-request-id':'request-test'}});
+const options={headers,clock:()=>time,sleep:async ms=>{waits.push(ms);time+=ms;},random:()=>0,onRetry:async e=>events.push(e)};
+const success=await requestWithBackoff({}, {...options,fetcher:async()=>{calls++;return calls<3?reject(429):new Response('{"id":"real-format-fixture"}');}});
+assert.equal(calls,3);assert.deepEqual(waits,[2000,2000]);assert.equal(events.length,2);assert.equal(success.attempts,3);
+calls=0;await assert.rejects(requestWithBackoff({}, {...options,fetcher:async()=>{calls++;return reject(429,'insufficient_quota');}}),e=>e.diagnostic.category==='quota');assert.equal(calls,1);
+calls=0;await assert.rejects(requestWithBackoff({}, {...options,fetcher:async()=>{calls++;return reject(429,'rate_limit_exceeded','120');}}),e=>e.diagnostic.headers['retry-after']==='120');assert.equal(calls,1);
+calls=0;await assert.rejects(requestWithBackoff({}, {...options,fetcher:async()=>{calls++;return reject(429);}}));assert.equal(calls,3);
+calls=0;await assert.rejects(requestWithBackoff({}, {...options,fetcher:async()=>{calls++;throw Error('network failure after POST dispatch');}}));assert.equal(calls,1);
+for(const [status,category] of [[401,'authentication'],[403,'permission'],[404,'model'],[500,'upstream_unavailable']])assert.equal(diagnostic(reject(status,'other'),{}).category,category);
+assert.equal(diagnostic(reject(429),{error:{code:'rate_limit_exceeded',message:'Token quota per minute reached'}}).category,'rate_limit');
+console.log('PASS: bounded retry, Retry-After seconds/date, permanent quota no retry, deadline, timeout ambiguity, diagnostic redaction');

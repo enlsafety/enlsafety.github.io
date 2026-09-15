@@ -1,8 +1,8 @@
 import fs from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';import {stripTypeScriptTypes} from 'node:module';
-let source=fs.readFileSync(new URL('../edge/enl-ai-safety-v440/index.ts',import.meta.url),'utf8').replace(/^import .*;\r?\n/gm,'');
+let source=fs.readFileSync(new URL('../edge/enl-ai-safety-v440/service-errors.ts',import.meta.url),'utf8').replace(/^export /gm,'')+'\n'+fs.readFileSync(new URL('../edge/enl-ai-safety-v440/index.ts',import.meta.url),'utf8').replace(/^import .*;\r?\n/gm,'');
 source+='\nglobalThis.testAPI={extractText,officialUrl,minimized,normalizeResult,publicError,callAgent,internalValid};';
 let outgoing,reply;
-const sandbox={Deno:{env:{get:key=>key==='OPENAI_API_KEY'?'unit-test-only':undefined},serve:()=>{}},crypto:globalThis.crypto,TextEncoder,TextDecoder,URL,Date,AbortController,AbortSignal,setTimeout,clearTimeout,atob,btoa,fetch:async(url,options)=>{outgoing=JSON.parse(options.body);return {ok:true,json:async()=>reply};},EdgeRuntime:{waitUntil:()=>{}}};
+const sandbox={Deno:{env:{get:key=>key==='OPENAI_API_KEY'?'unit-test-only':undefined},serve:()=>{}},crypto:globalThis.crypto,TextEncoder,TextDecoder,URL,Date,DOMException,AbortController,AbortSignal,setTimeout,clearTimeout,atob,btoa,fetch:async(url,options)=>{outgoing=JSON.parse(options.body);return new Response(JSON.stringify(reply));},EdgeRuntime:{waitUntil:()=>{}}};
 vm.createContext(sandbox);vm.runInContext(stripTypeScriptTypes(source),sandbox);const a=sandbox.testAPI;
 assert.equal(a.extractText({output:[{type:'reasoning',content:[{text:'PRIVATE REASONING'}]},{type:'message',content:[{text:'PUBLIC'}]}]}),'PUBLIC');
 for(const u of ['javascript:alert(1)','https://law.go.kr.evil.test','http://law.go.kr','https://user:pass@law.go.kr'])assert.equal(a.officialUrl(u),false);
