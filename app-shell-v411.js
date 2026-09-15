@@ -17,7 +17,7 @@
   `;document.head.appendChild(s)}
 
   function logout(){session=null;saveSession();currentView='';try{enlPlatformSection='hub';localStorage.setItem(ENL_PLATFORM_SECTION_KEY,'hub')}catch(e){}renderLogin()}
-  function navItems(u){if(isField(u))return [];if(roleNorm(u.role)==='safety')return [['home','사고현황'],['report','사고 등록'],['incidents','전체 사고'],['actions','사고 조치'],['more','사용자·현장 설정']];return [['home','사고현황'],['incidents','승인 사고'],['actions','승인 사고조치']]}
+  function navItems(u){if(isField(u))return [];if(roleNorm(u.role)==='safety')return [['home','사고현황'],['report','사고 등록'],['incidents','전체 사고'],['actions','사고 조치'],['more','사용자·현장 설정'],['ai-team','AI 안전팀']];return [['home','사고현황'],['incidents','승인 사고'],['actions','승인 사고조치']]}
   function navHtml(u){const items=navItems(u);return items.length?`<nav class="shell411-nav">${items.map(([v,t])=>`<button type="button" data-shell-view="${v}" class="${currentView===v?'on':''}">${t}</button>`).join('')}</nav>`:''}
   function openSafetyReport(u){window.enlResetIncidentReport?.();currentView='report';try{enlPlatformSection='incident';localStorage.setItem(ENL_PLATFORM_SECTION_KEY,enlPlatformSection)}catch(e){}renderShell(u)}
 
@@ -48,7 +48,7 @@
 
   function route(root,u){const role=roleNorm(u.role);if(isField(u)){if(currentView==='home'||!currentView)return window.enlRenderFieldHome?.(root,u);if(currentView==='report'){const r=window.renderUnifiedReport?.(root,u);window.enlAddFieldBack?.(root,u);return r}if(currentView==='incidents')return window.enlRenderFieldRecords?window.enlRenderFieldRecords(root,u):window.renderUnifiedIncidents?.(root,u);if(currentView==='actions')return window.enlRenderFieldActions?window.enlRenderFieldActions(root,u):window.renderUnifiedActions?.(root,u);if(currentView==='field-inquiry')return window.enlRenderFieldInquiry?.(root,u);if(currentView==='personnel')return window.enlRenderPersonnelPage?.(u);currentView='home';return window.enlRenderFieldHome?.(root,u)}if(role==='safety'){if(currentView==='home'||currentView==='dashboard'||!currentView)return renderSafetyHome(root,u);if(currentView==='report')return window.renderUnifiedReport?.(root,u);if(currentView==='incidents')return renderSafetyList(root,u,safetyListFilter);if(currentView==='actions')return window.renderUnifiedActions?.(root,u);if(currentView==='more')return window.renderMore?.(root,u);currentView='home';return renderSafetyHome(root,u)}if(currentView==='incidents')return window.renderUnifiedIncidents?.(root,u);if(currentView==='actions')return window.renderUnifiedActions?.(root,u);return renderReaderHome(root,u)}
 
-  window.renderShell=function(u){if(!u||u.active===false)return renderLogin();css();buildShell(u);const root=document.getElementById('view');route(root,u);return root};
+  window.renderShell=function(u){if(!u||u.active===false)return renderLogin();css();buildShell(u);const root=document.getElementById('view');window.renderCurrentView(u);return root};
   window.renderCurrentView=function(u){const root=document.getElementById('view');return route(root,u)};
   window.defaultViewFor=function(){return 'home'};
   window.render=function(){const u=currentUser?.();if(!u)return renderLogin();if(!currentView)currentView='home';return renderShell(u)};
