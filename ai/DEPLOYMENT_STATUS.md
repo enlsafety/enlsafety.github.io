@@ -1,5 +1,8 @@
 # 이앤엘 AI 안전관리팀 — Staging 상태
 
+> 최신 상황실 구현·검증 상태는 [CONTROL_ROOM_STATUS.md](CONTROL_ROOM_STATUS.md)를 참고한다.
+> 아래는 최초 MVP 기록이며, 실제 AI 완료 QA는 429 응답으로 아직 통과하지 못했다.
+
 기준일: 2026-09-14
 브랜치: `feature/ai-safety-team-mvp`
 

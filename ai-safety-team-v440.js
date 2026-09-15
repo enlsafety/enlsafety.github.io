@@ -2,7 +2,7 @@
 (function(){
   'use strict';
 
-  const VERSION='4.4.0-ui-mvp1';
+  const VERSION='4.4.0-control-room1';
   const API='https://zgwxzfvvpqgdedyobwmg.supabase.co/functions/v1/enl-ai-safety-v440';
   const CLIENT='incident-report-v2';
   const VIEW='ai-team';
@@ -10,6 +10,8 @@
   let healthState=null;
   let workflows=[];
   let busy=false;
+  let owner='',generation=0,timer=null,tab='control',room={runs:[],events:[]},selected='',modal=null,detail=null,agentFilter='',failures=0,lastSync=null;
+  const AGENTS=['incident_manager','legal_reviewer','final_auditor','safety_director'];
 
   const txt=v=>String(v??'').trim();
   const roleNorm=v=>txt(v)==='final'?'manager':txt(v);
@@ -24,6 +26,7 @@
     return [...new Uint8Array(buf)].map(x=>x.toString(16).padStart(2,'0')).join('');
   }
   async function ensureCredential(force=false){
+    const identity=txt(actor()?.id);if(identity!==owner){credentialHash='';owner=identity;}
     if(force)credentialHash='';
     if(credentialHash)return credentialHash;
     const u=currentUser?.();
@@ -33,7 +36,8 @@
     credentialHash=await sha256Hex(pw);
     return credentialHash;
   }
-  async function post(body,{auth=true,retry=true,timeout=120000}={}){
+  async function post(body,{auth=true,retry=false,timeout=20000}={}){
+    const requestOwner=txt(actor()?.id);
     const headers={'Content-Type':'application/json','X-ENL-App':CLIENT};
     const payload={...body};
     if(auth){
@@ -51,6 +55,7 @@
         }
         throw e;
       }
+      if(auth&&(txt(actor()?.id)!==requestOwner||roleNorm(actor()?.role)!=='safety'))throw new Error('forbidden');
       return j;
     }finally{clearTimeout(timer)}
   }
@@ -86,96 +91,73 @@
   const baseCurrent=window.renderCurrentView;
   if(typeof baseCurrent==='function')window.renderCurrentView=function(u){
     if(currentView===VIEW&&roleNorm(u?.role)==='safety')return renderAI(document.getElementById('view'),u);
-    return baseCurrent.apply(this,arguments);
+    stop();return baseCurrent.apply(this,arguments);
   };
 
-  async function refreshWorkflows({silent=false}={}){
-    if(busy)return;busy=true;
-    try{
-      const r=await post({action:'list_workflows',limit:40});workflows=r.workflows||[];if(currentView===VIEW)paintWorkflows();
-    }catch(e){if(!silent&&e?.message!=='credential_cancelled')alert(messageFor(e))}
-    finally{busy=false}
+  function active(){return typeof currentView!=='undefined'&&currentView===VIEW&&roleNorm(actor()?.role)==='safety';}
+  function stop(){clearTimeout(timer);generation++;credentialHash='';owner='';workflows=[];room={runs:[],events:[]};closeModal();}
+  function closeModal(){if(modal){const back=modal.returnFocus;modal.remove();modal=null;detail=null;agentFilter='';back?.focus?.();}}
+  function elapsed(start,end){if(!start)return '—';const seconds=Math.max(0,Math.floor(((end?Date.parse(end):Date.now())-Date.parse(start))/1000));return Number.isFinite(seconds)?`${Math.floor(seconds/60)}분 ${seconds%60}초`:'—';}
+  function clock(v){return v?new Date(v).toLocaleTimeString('en-GB',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'}):'—';}
+  function stageLabel(s){return ({received:'업무수신',analyzing:'분석중',checking_sources:'자료확인',verifying:'검증중',handoff:'인계중',completed:'완료',failed:'오류',needs_review:'확인 필요'})[s]||statusLabel(s);}
+  function sourceLinks(arr){const seen=new Set();return (arr||[]).filter(s=>{try{const u=new URL(s.url);if(u.protocol!=='https:'||u.username||u.password||!['law.go.kr','moel.go.kr','kosha.or.kr'].some(h=>u.hostname===h||u.hostname.endsWith('.'+h))||seen.has(s.url))return false;seen.add(s.url);return true;}catch{return false;}}).map(s=>`<a href="${ex(s.url)}" target="_blank" rel="noopener noreferrer">${ex(s.title||s.url)}${s.url.includes('kosha.or.kr')?' · 공단 자료(법령과 구분)':''}</a>`).join('');}
+  function controlCss(){ensureCss();if(document.getElementById('aiControlCss'))return;const s=document.createElement('style');s.id='aiControlCss';s.textContent=`
+   .ai440 *{box-sizing:border-box}.ai440>*,#ai440ControlPane,.ai440-panel{min-width:0}.ai440 select{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;appearance:none}.ai440{color:#244b66;min-width:0}.ai440 button:focus-visible,.ai440-modal button:focus-visible{outline:3px solid #0b78b8;outline-offset:3px}.ai440-tabs{display:flex;gap:8px;flex-wrap:wrap}.ai440-tabs button[aria-selected=true]{background:#164f78;color:#fff}.ai440-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.ai440-seats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.ai440-seat{position:relative;text-align:left;padding:18px;border:1px solid #cbdde9;border-radius:16px;background:#fff;color:#234a64;cursor:pointer;min-width:0}.ai440-seat h3{font-size:15px;margin:12px 0}.ai440-seat p{font-size:13px;line-height:1.5;overflow-wrap:anywhere}.ai440-seat small{display:block;color:#61798b;line-height:1.6}.ai440-seat.is-running{border-color:#2783b2;box-shadow:inset 0 3px #2783b2}.ai440-seat.is-failed{border-color:#b45b59}.ai440-seat progress{display:block;width:100%;height:8px;margin:12px 0;accent-color:#2678a5}.ai440-light{display:inline-block;width:8px;height:8px;border-radius:50%;background:#9bafbb;margin-right:7px}.is-running .ai440-light{background:#1383b6;animation:aiGlow 2s ease-in-out infinite}.is-failed .ai440-light{background:#b64646}.is-completed .ai440-light{background:#38845c}@keyframes aiGlow{50%{opacity:.35}}@media(prefers-reduced-motion:reduce){.ai440-light{animation:none!important}}.ai440-flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:16px 0}.ai440-node{position:relative;padding:12px 7px;border:1px solid #d0e0eb;border-radius:10px;text-align:center;font-size:12px;background:#f4f8fb}.ai440-node:not(:last-child):after{content:'→';position:absolute;right:-14px;top:12px;color:#7296ae}.ai440-node.current{background:#e3f3ff;border-color:#2783b2;font-weight:900}.ai440-node.done{background:#eef8f1;color:#34704f}.ai440-control-grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:14px}.ai440-timeline{list-style:none;padding:0;margin:0;max-height:510px;overflow:auto}.ai440-timeline li{display:grid;grid-template-columns:68px minmax(0,1fr);gap:12px;border-bottom:1px solid #e5edf3;padding:13px 0;font-size:12px;line-height:1.55}.ai440-timeline time{font-variant-numeric:tabular-nums;color:#6f8594}.ai440-timeline strong,.ai440-timeline small{display:block;overflow-wrap:anywhere}.ai440-timeline small{color:#738795}.ai440-timeline button{border:0;padding:0;background:none;text-align:left;color:#244b66;cursor:pointer}.ai440-connection{font-size:12px;color:#387555}.ai440-connection.stale{color:#a06b20}.ai440-muted{font-size:12px;color:#6b8294;line-height:1.6}.ai440-error{color:#943e3e;background:#fff4f3;padding:12px;border-radius:10px}.ai440-row strong{overflow-wrap:anywhere}.ai440-row{min-width:0}.ai440-modalbox{width:min(1000px,100%);box-sizing:border-box;overflow-wrap:anywhere}.ai440-modalbox *{box-sizing:border-box}.ai440-detail-meta{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;margin:12px 0}.ai440-usage{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0}.ai440-usage div{background:#f1f7fb;border-radius:10px;padding:12px;font-size:12px}.ai440-usage b{display:block;margin-top:5px;font-size:18px}.ai440-detail-actions{position:sticky;bottom:-18px;background:#fff;padding:12px 0;border-top:1px solid #d8e4ed}.ai440-run small{display:block;line-height:1.6;white-space:pre-wrap}.ai440-modalhead{position:sticky;top:-18px;background:#fff;padding:10px 0;z-index:1}.ai440-close{flex-shrink:0;cursor:pointer}.ai440-agent-picker{max-width:100%;margin:12px 0}.ai440-notice{font-size:12px;padding:10px;border-radius:10px;background:#f1f7fc;line-height:1.6}
+   @media(max-width:900px){.ai440-seats{grid-template-columns:repeat(2,minmax(0,1fr))}.ai440-control-grid{grid-template-columns:1fr}.ai440-stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+   @media(max-width:480px){.ai440-seats{grid-template-columns:1fr}.ai440-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.ai440-seat{padding:15px}.ai440-flow{gap:10px}.ai440-node{font-size:10px;padding:10px 3px}.ai440-node:not(:last-child):after{right:-10px}.ai440-panel{padding:14px}.ai440-usage{grid-template-columns:1fr}.ai440-modal{padding:8px}.ai440-modalbox{padding:14px}.ai440-row{grid-template-columns:minmax(0,1fr)}.ai440-pill{justify-self:start}.ai440-hero h2{font-size:21px}.ai440-btn{white-space:normal;line-height:1.5;padding:9px 12px}.ai440-detail-actions{bottom:-14px}.ai440-timeline li{gap:6px;grid-template-columns:60px minmax(0,1fr)}}
+  `;document.head.appendChild(s);}
+  function incidentOptions(){const arr=typeof accessibleIncidents==='function'?accessibleIncidents(currentUser?.()):data.incidents||[];return arr.slice(0,100).map(i=>`<option value="${ex(i.id)}">${ex(siteName(i.siteId))} · ${ex(i.summary||i.category||'사고')}</option>`).join('');}
+  async function renderAI(root){
+   if(!root||!active())return;const nextOwner=txt(actor()?.id);if(owner&&owner!==nextOwner)stop();owner=nextOwner;clearTimeout(timer);const ticket=++generation;controlCss();
+   root.innerHTML=`<div class="ai440"><section class="ai440-hero"><div><div class="ai440-ey">E&L AI SAFETY CONTROL ROOM</div><h2>AI 안전관리본부 상황실</h2><p>검토 과정과 인계 현황을 확인하고, 책임이 필요한 판단을 승인합니다.</p></div><div><b>STAGING</b><div id="ai440Connection" class="ai440-connection" role="status">연결 확인 중…</div></div></section><div class="ai440-tabs" role="tablist" aria-label="AI 안전팀 화면"><button class="ai440-btn secondary" role="tab" data-ai-tab="review">업무지시/검토</button><button class="ai440-btn secondary" role="tab" data-ai-tab="control">상황실</button></div><div id="ai440Error" role="alert"></div><section id="ai440ReviewPane" class="ai440-panel"><h3>사고 검토 지시</h3><p>사진과 사고자 이름은 전송하지 않고, 스테이징에 저장된 사고의 최소 업무정보를 검토합니다.</p><label for="ai440Incident">검토할 사고</label><select id="ai440Incident" class="ai440-select"><option value="">사고 선택</option>${incidentOptions()}</select><div class="ai440-actions"><button id="ai440Review" class="ai440-btn">검토 시작</button><button id="ai440Refresh" class="ai440-btn secondary">연결 다시 확인</button></div><p class="ai440-muted">검토 지시 후 상황실에서 진행 상태를 확인할 수 있습니다. 법적 최종판정은 사람이 승인합니다.</p></section><div id="ai440ControlPane"><div id="ai440Stats" class="ai440-stats"></div><div id="ai440Seats" class="ai440-seats" style="margin-top:14px"></div><section class="ai440-panel" style="margin-top:14px"><h3>업무 인계 흐름</h3><select id="ai440FlowSelect" class="ai440-select" aria-label="인계 흐름을 볼 업무"></select><div id="ai440Flow"></div><p class="ai440-muted">진행률은 확인된 업무 단계 기준입니다. AI의 내부 추론은 저장하거나 표시하지 않습니다.</p></section></div><div class="ai440-control-grid"><section class="ai440-panel"><h3>LIVE TIMELINE</h3><p>서버에 저장된 업무 이벤트 · 최신순 120개</p><div id="ai440Timeline"></div></section><section class="ai440-panel"><h3>AI 업무 목록</h3><p>진행·승인대기·보류·오류와 최근 완료 업무</p><div id="ai440WorkflowList" class="ai440-list"></div></section></div></div>`;
+   root.querySelectorAll('[data-ai-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.aiTab;paintTab();});paintTab();
+   document.getElementById('ai440Review').onclick=reviewSelected;
+   document.getElementById('ai440Refresh').onclick=()=>{credentialHash='';failures=0;refreshRoom(ticket);};
+   document.getElementById('ai440FlowSelect').onchange=e=>{selected=e.target.value;paintFlow();};
+   await refreshRoom(ticket);
   }
-  function messageFor(e){
-    const m=e?.message||String(e||'');
-    if(m==='openai_not_configured')return 'OpenAI API 키 연결이 아직 완료되지 않았습니다.';
-    if(m==='authentication_required')return '안전관리자 인증에 실패했습니다. 비밀번호를 다시 확인해 주세요.';
-    if(m==='credential_cancelled')return '인증이 취소되었습니다.';
-    if(m==='forbidden')return '안전관리자 권한이 필요합니다.';
-    if(m==='Failed to fetch')return 'AI 안전관리팀 서버에 연결하지 못했습니다.';
-    return `AI 안전관리팀 처리 중 오류가 발생했습니다. (${m})`;
+  function paintTab(){document.querySelectorAll('[data-ai-tab]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.aiTab===tab)));document.getElementById('ai440ReviewPane').hidden=tab!=='review';document.getElementById('ai440ControlPane').hidden=tab!=='control';}
+  async function refreshRoom(ticket=generation){
+   clearTimeout(timer);if(!active()||ticket!==generation)return;
+   if(busy){timer=setTimeout(()=>refreshRoom(ticket),1000);return;}busy=true;
+   try{const r=await post({action:'control_room'});if(ticket!==generation||!active())return;workflows=r.workflows||[];room={runs:r.runs||[],events:r.events||[]};failures=0;lastSync=Date.now();document.getElementById('ai440Error').textContent='';paintRoom();
+    if(modal&&detail){const id=detail.workflow.id;const d=await post({action:'get_workflow',workflowId:id});if(ticket===generation&&modal&&detail?.workflow.id===id){detail=d;paintDetail();}}
+   }catch(e){if(ticket!==generation)return;failures++;const box=document.getElementById('ai440Error');if(box){box.className='ai440-error';box.textContent=messageFor(e);}if(['authentication_required','credential_cancelled','forbidden'].includes(e.message)){credentialHash='';failures=99;}}
+   finally{busy=false;if(ticket===generation&&active()){const c=document.getElementById('ai440Connection');if(c){c.className='ai440-connection'+(failures?' stale':'');c.textContent=failures?`연결 끊김 · ${lastSync?'마지막 확인 '+clock(lastSync):'연결 다시 확인 필요'}`:'자동 갱신 · 3초 · '+clock(lastSync);}if(failures<99)timer=setTimeout(()=>refreshRoom(ticket),document.hidden?15000:Math.min(30000,3000*2**Math.min(failures,3)));}}
   }
-  function counts(){return {running:workflows.filter(w=>w.status==='running'||w.status==='queued').length,waiting:workflows.filter(w=>w.status==='awaiting_approval').length,done:workflows.filter(w=>w.status==='completed').length,failed:workflows.filter(w=>w.status==='failed').length}}
-  function paintCounts(){const c=counts();[['run',c.running],['wait',c.waiting],['done',c.done],['fail',c.failed]].forEach(([k,v])=>{const e=document.querySelector(`[data-ai440-count="${k}"]`);if(e)e.textContent=String(v)})}
-  function paintWorkflows(){
-    paintCounts();const wrap=document.getElementById('ai440WorkflowList');if(!wrap)return;
-    if(!workflows.length){wrap.innerHTML='<div class="ai440-empty">아직 AI 검토 이력이 없습니다.</div>';return}
-    wrap.innerHTML=workflows.map(w=>`<button class="ai440-row" data-ai440-workflow="${ex(w.id)}"><span><strong>${ex(siteName((data.incidents||[]).find(i=>String(i.id)===String(w.source_id))?.siteId)||'사고 검토')} · ${ex(w.input_summary||w.source_id||'-')}</strong><small>${ex(agentLabel(w.current_agent))} · ${ex(fmtSafe(w.created_at))}</small></span><span class="ai440-pill ${statusClass(w.status)}">${ex(statusLabel(w.status))}</span></button>`).join('');
-    wrap.querySelectorAll('[data-ai440-workflow]').forEach(b=>b.onclick=()=>openWorkflow(b.dataset.ai440Workflow));
+  function messageFor(e){return ({incident_not_synced:'선택한 사고가 스테이징에 없습니다. 스테이징 사고 동기화를 먼저 확인해 주세요.',authentication_required:'안전관리자 인증이 만료되었습니다. 업무지시/검토 탭에서 연결을 다시 확인해 주세요.',credential_cancelled:'인증이 취소되었습니다. 연결 다시 확인을 눌러 주세요.',forbidden:'안전관리자 권한이 필요합니다.',state_changed_or_busy:'업무 상태가 변경됐거나 처리 중입니다. 최신 상태를 확인해 주세요.',request_failed:'요청을 처리하지 못했습니다. 진행 중 업무 수와 서버 연결을 확인해 주세요.'})[e?.message]||'서버 연결을 확인하지 못했습니다. 잠시 후 다시 시도합니다.';}
+  function latestRun(agent){return room.runs.filter(r=>r.agent_id===agent).sort((a,b)=>(b.status==='running')-(a.status==='running')||b.created_at.localeCompare(a.created_at))[0];}
+  function eventFor(run){return room.events.filter(e=>e.agent_run_id===run?.id).sort((a,b)=>b.created_at.localeCompare(a.created_at)||(b.event_seq||0)-(a.event_seq||0));}
+  function paintRoom(){
+   const working=new Set(room.runs.filter(r=>r.status==='running').map(r=>r.agent_id));
+   const counts=[['근무 중 에이전트',working.size],['진행 중 업무',workflows.filter(w=>['queued','running'].includes(w.status)).length],['태영 확인 필요',workflows.filter(w=>['awaiting_approval','on_hold'].includes(w.status)).length],['오류',workflows.filter(w=>w.status==='failed').length],['긴급 검토',workflows.filter(w=>w.priority==='urgent'&&!['completed','cancelled','re_review_requested'].includes(w.status)).length]];
+   document.getElementById('ai440Stats').innerHTML=counts.map(([label,n])=>`<div class="ai440-card"><span>${label}</span><b>${n}</b></div>`).join('');
+   document.getElementById('ai440Seats').innerHTML=AGENTS.map(agent=>{const run=latestRun(agent),events=eventFor(run),w=workflows.find(w=>w.id===run?.workflow_id),status=run?.status==='running'?(events[0]?.status||'analyzing'):(run?.status||'queued'),progress=run?.status==='completed'?100:Math.max(0,...events.map(e=>e.progress||0)),jobs=room.runs.filter(r=>r.agent_id===agent&&r.status==='running').length;return `<button class="ai440-seat is-${ex(run?.status||'queued')}" data-agent="${agent}"><span class="ai440-light"></span><span class="ai440-pill ${statusClass(run?.status)}">${stageLabel(status)}${jobs>1?' · '+jobs+'건':''}</span><h3>${agentLabel(agent)}</h3><p>${ex(w?.input_summary||'새 검토 업무를 기다리고 있습니다.')}</p><small>시작 ${clock(run?.started_at)} · ${elapsed(run?.started_at,run?.completed_at)}</small><progress value="${progress}" max="100" aria-label="${agentLabel(agent)} 진행률"></progress><small>${progress}% · ${run?.status==='completed'?'담당 검토 완료':stageLabel(status)}</small>${events.slice(0,3).map(e=>`<small>· ${ex(e.title)}</small>`).join('')}</button>`;}).join('');
+   document.querySelectorAll('[data-agent]').forEach(b=>b.onclick=()=>{const run=latestRun(b.dataset.agent);if(run)openWorkflow(run.workflow_id,b.dataset.agent);else alert('아직 담당 업무 기록이 없습니다.');});
+   if(!workflows.some(w=>w.id===selected))selected=workflows.find(w=>['running','queued'].includes(w.status))?.id||workflows[0]?.id||'';
+   const select=document.getElementById('ai440FlowSelect');const options=workflows.map(w=>`<option value="${ex(w.id)}">${ex(w.input_summary||w.source_id)} · ${statusLabel(w.status)}</option>`).join('');if(select.innerHTML!==options)select.innerHTML=options;select.value=selected;paintFlow();
+   document.getElementById('ai440Timeline').innerHTML=timeline(room.events,true);
+   document.getElementById('ai440WorkflowList').innerHTML=workflows.length?workflows.map(w=>`<button class="ai440-row" data-workflow="${ex(w.id)}"><span><strong>${ex(w.input_summary||w.source_id)}</strong><small>${fmtSafe(w.created_at)} · ${ex(agentLabel(w.current_agent))}${w.retry_of?' · 재검토':''}</small></span><span class="ai440-pill ${statusClass(w.status)}">${w.priority==='urgent'?'긴급 · ':''}${statusLabel(w.status)}</span></button>`).join(''):'<div class="ai440-empty">아직 검토 업무가 없습니다.</div>';
+   document.querySelectorAll('[data-workflow]').forEach(b=>b.onclick=()=>openWorkflow(b.dataset.workflow));
   }
-  function incidentOptions(){
-    const arr=typeof accessibleIncidents==='function'?accessibleIncidents(currentUser?.()):[...(data.incidents||[])];
-    return arr.slice(0,80).map(i=>`<option value="${ex(i.id)}">${ex(siteName(i.siteId))} · ${ex(fmtSafe(i.occurredAt||i.createdAt))} · ${ex(typeof categoryName==='function'?categoryName(i.category):i.category||'사고')}</option>`).join('');
+  function flow(w,runs){return `<div class="ai440-flow">${AGENTS.map(a=>{const r=runs.find(r=>r.agent_id===a);return `<div class="ai440-node ${r?.status==='running'?'current':r?.status==='completed'?'done':''}">${agentLabel(a)}<br>${r?statusLabel(r.status):'대기'}</div>`;}).join('')}</div>`;}
+  function paintFlow(){const w=workflows.find(w=>w.id===selected);document.getElementById('ai440Flow').innerHTML=w?flow(w,room.runs.filter(r=>r.workflow_id===w.id)):'<div class="ai440-empty">업무를 지시하면 인계 흐름이 표시됩니다.</div>';}
+  function timeline(events,links=false){return events.length?`<ol class="ai440-timeline">${events.map(e=>`<li><time>${clock(e.created_at)}</time><div>${links?`<button data-workflow="${ex(e.workflow_id)}">`:''}<strong>${ex(agentLabel(e.agent_id))} · ${ex(e.title)}</strong>${links?'</button>':''}<small>${ex(e.detail||'')}${links?' · 업무 '+ex(e.workflow_id.slice(0,8)):''}</small></div></li>`).join('')}</ol>`:'<div class="ai440-empty">저장된 업무 이벤트가 없습니다.</div>';}
+  async function reviewSelected(){const select=document.getElementById('ai440Incident'),id=select?.value;if(!id){select?.focus();return;}const btn=document.getElementById('ai440Review');btn.disabled=true;btn.textContent='업무 접수 중…';try{const r=await post({action:'review_incident',incidentId:id,requestId:crypto.randomUUID()});selected=r.workflowId;tab='control';paintTab();await refreshRoom();await openWorkflow(r.workflowId);}catch(e){alert(messageFor(e));}finally{btn.disabled=false;btn.textContent='검토 시작';}}
+  async function openWorkflow(id,agent=''){
+   const ticket=generation;try{const r=await post({action:'get_workflow',workflowId:id});if(ticket!==generation||!active())return;closeModal();detail=r;agentFilter=agent;modal=document.createElement('div');modal.className='ai440-modal';modal.returnFocus=document.activeElement;
+    modal.innerHTML=`<section class="ai440-modalbox" role="dialog" aria-modal="true" aria-labelledby="ai440DetailTitle"><div class="ai440-modalhead"><h3 id="ai440DetailTitle">${agent?agentLabel(agent)+' 상세':'업무 상세'}</h3><button class="ai440-close" aria-label="닫기">×</button></div><div id="ai440DetailContent"></div><div class="ai440-detail-actions"><label for="ai440DecisionNote">검토 의견</label><textarea id="ai440DecisionNote" class="ai440-note" placeholder="승인·보류·재검토 의견(선택)"></textarea><div id="ai440Decisions" class="ai440-actions"></div><p class="ai440-muted">법적 최종판정은 안전관리자가 확인합니다.</p></div></section>`;
+    document.body.appendChild(modal);modal.querySelector('.ai440-close').onclick=closeModal;modal.onclick=e=>{if(e.target===modal)closeModal();};modal.onkeydown=e=>{if(e.key==='Escape')closeModal();if(e.key==='Tab'){const items=[...modal.querySelectorAll('button,textarea,a,select')].filter(x=>!x.disabled&&x.offsetParent!==null),first=items[0],last=items.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}}};paintDetail();modal.querySelector('.ai440-close').focus();
+   }catch(e){alert(messageFor(e));}
   }
-  async function renderAI(root,u){
-    ensureCss();
-    root.innerHTML=`<div class="ai440">
-      <section class="ai440-hero"><div><div class="ai440-ey">E&L AI SAFETY TEAM</div><h2>AI 안전관리팀</h2><p>사고관리 → 법령검토 → 문서·최종검증 → AI 안전본부장 순서로 검토하고, 책임이 필요한 판단은 안전관리자에게 올립니다.</p></div><div id="ai440Health" class="ai440-health"><b>연결 확인 중</b>AI 안전관리팀 상태를 확인하고 있습니다.</div></section>
-      <div class="ai440-cards"><div class="ai440-card"><span>진행/대기</span><b data-ai440-count="run">0</b></div><div class="ai440-card wait"><span>태영 확인 필요</span><b data-ai440-count="wait">0</b></div><div class="ai440-card"><span>검토 완료</span><b data-ai440-count="done">0</b></div><div class="ai440-card bad"><span>오류</span><b data-ai440-count="fail">0</b></div></div>
-      <div class="ai440-grid">
-        <section class="ai440-panel"><h3>사고 1건 AI 검토</h3><p>사진과 사고자 이름은 전송하지 않고, 안전검토에 필요한 최소 정보만 서버에서 다시 정리합니다.</p><select id="ai440Incident" class="ai440-select"><option value="">사고 선택</option>${incidentOptions()}</select><div class="ai440-actions"><button id="ai440Review" class="ai440-btn">AI 안전관리팀 검토 시작</button><button id="ai440Refresh" class="ai440-btn secondary">현황 새로고침</button></div>
-          <div class="ai440-team"><div class="ai440-agent"><b>사고관리</b><small>사실·누락·원인 후보</small></div><div class="ai440-agent"><b>법령검토</b><small>최신 공식근거 확인</small></div><div class="ai440-agent"><b>최종검증</b><small>모순·과잉판단 검증</small></div><div class="ai440-agent"><b>안전본부장</b><small>최종보고·승인 분류</small></div></div>
-        </section>
-        <section class="ai440-panel"><h3>최근 AI 업무</h3><p>완료·진행·승인대기 업무를 한 곳에서 확인합니다.</p><div id="ai440WorkflowList" class="ai440-list"><div class="ai440-empty">불러오는 중…</div></div></section>
-      </div>
-    </div>`;
-    document.getElementById('ai440Refresh').onclick=()=>refreshWorkflows();
-    document.getElementById('ai440Review').onclick=reviewSelected;
-    const h=await loadHealth();const box=document.getElementById('ai440Health');
-    if(box){
-      if(h?.ok&&h.openaiConfigured){box.className='ai440-health';box.innerHTML=`<b>AI 서버 연결됨</b>${ex(h.version||VERSION)} · 전문 에이전트 준비 완료`}
-      else if(h?.ok){box.className='ai440-health bad';box.innerHTML='<b>AI 모델 연결 대기</b>백엔드는 준비됐지만 OpenAI API 키 설정이 필요합니다.'}
-      else{box.className='ai440-health bad';box.innerHTML=`<b>서버 연결 확인 필요</b>${ex(h?.message||'상태를 확인하지 못했습니다.')}`}
-    }
-    if(h?.ok&&h.openaiConfigured)refreshWorkflows({silent:true});else{workflows=[];paintWorkflows()}
+  function paintDetail(){if(!modal||!detail)return;const w=detail.workflow,runs=(detail.runs||[]).filter(r=>!agentFilter||r.agent_id===agentFilter),events=(detail.events||[]).filter(e=>!agentFilter||e.agent_id===agentFilter),findings=(detail.findings||[]).filter(f=>!agentFilter||f.agent_id===agentFilter),usage=runs.map(r=>r.output_payload?._meta?.usage).filter(Boolean),sum=k=>usage.reduce((n,u)=>n+(Number(u[k])||0),0),sources=runs.flatMap(r=>r.output_payload?.official_sources||[]),conflicts=findings.filter(f=>f.finding_type==='contradiction');
+   const html=`<div class="ai440-summary">${ex(w.input_summary)}</div><div class="ai440-detail-meta"><span>${statusLabel(w.status)}</span><span>우선순위: ${ex(({urgent:'긴급',high:'높음',normal:'보통',low:'낮음'})[w.priority]||w.priority)}</span><span>사람 승인: ${w.requires_human_approval?'필요':'불필요'}</span><span>총 처리시간: ${elapsed(w.started_at,w.completed_at)}</span></div>${flow(w,detail.runs||[])}${agentFilter?`<p class="ai440-notice">선택 업무: ${ex(w.id.slice(0,8))} · 다음 단계: ${agentFilter==='safety_director'?'최종 취합 / 사람 확인':agentLabel(AGENTS[AGENTS.indexOf(agentFilter)+1])}</p>`:''}<div class="ai440-summary">${ex(agentFilter?runs[0]?.result_summary||'담당 검토 진행 중':w.result_summary||'검토 진행 중')}</div>${conflicts.length?`<div class="ai440-error"><b>의견 충돌 감지 · 사용자 확인 필요</b>${conflicts.map(f=>`<p>${ex(f.detail)}</p>`).join('')}</div>`:''}<div class="ai440-usage">${[['input_tokens','입력 토큰'],['output_tokens','출력 토큰'],['total_tokens','전체 토큰']].map(([k,label])=>`<div>${label}<b>${usage.length?sum(k).toLocaleString():'미집계'}</b></div>`).join('')}</div><p class="ai440-muted">${usage.length}/${runs.length}개 에이전트의 실제 사용량 · 가격 기준 미연결로 비용은 표시하지 않습니다.</p>${runs.map(r=>`<div class="ai440-run"><b>${agentLabel(r.agent_id)}</b> · ${statusLabel(r.status)}<small>시작 ${clock(r.started_at)} · ${elapsed(r.started_at,r.completed_at)} · 토큰 ${r.output_payload?._meta?.usage?.total_tokens??'미집계'}</small><small>${ex(r.result_summary||r.error_message||'처리 중')}</small>${(r.output_payload?.missing_information||[]).map(m=>`<small>확인 필요: ${ex(m)}</small>`).join('')}</div>`).join('')}<h4>검토 사항</h4>${findings.map(f=>`<div class="ai440-find ${ex(f.severity)}"><h4>${ex(f.title)}</h4><p>${ex(f.detail)}</p>${f.legal_obligation?`<p>법적 의무 검토: ${ex(f.legal_obligation)}</p>`:''}${f.practical_recommendation?`<p>실무 권장: ${ex(f.practical_recommendation)}</p>`:''}${f.uncertainty?`<p>확인 필요: ${ex(f.uncertainty)}</p>`:''}</div>`).join('')||'<p class="ai440-muted">아직 검토 사항이 없습니다.</p>'}<h4>공식 근거</h4><div class="ai440-sources">${sourceLinks(sources)||'<p class="ai440-muted">확인된 공식 검색 근거가 없습니다.</p>'}</div><h4>업무 타임라인</h4>${timeline(events)}${(detail.approvals||[]).map(a=>`<p class="ai440-notice">승인 기록: ${ex(({pending:'대기',approved:'승인',held:'보류',recheck_requested:'재검토 요청'})[a.status]||a.status)} · ${ex(a.decision_note||'')}</p>`).join('')}`;
+   const content=modal.querySelector('#ai440DetailContent');if(content.innerHTML!==html)content.innerHTML=html;
+   const actionBox=modal.querySelector('#ai440Decisions'),allowed=['awaiting_approval','on_hold'].includes(w.status),actions=w.status==='failed'?[['retry','실패 업무 재시도']]:allowed?[['approved','승인'],['held','보류'],['re_review','재검토 요청']]:[];
+   const signature=actions.map(a=>a[0]).join();if(actionBox.dataset.signature!==signature){actionBox.dataset.signature=signature;actionBox.innerHTML=actions.map(([key,label])=>`<button class="ai440-btn ${key==='approved'?'':'secondary'}" data-decision="${key}">${label}</button>`).join('');actionBox.querySelectorAll('[data-decision]').forEach(b=>b.onclick=()=>decide(b.dataset.decision));}
+   modal.querySelector('.ai440-detail-actions').hidden=!actions.length;modal.querySelector('#ai440DecisionNote').hidden=!allowed;
   }
-  async function reviewSelected(){
-    if(!healthState?.openaiConfigured){alert('OpenAI API 키 연결 후 사용할 수 있습니다.');return}
-    const id=document.getElementById('ai440Incident')?.value||'';if(!id){alert('검토할 사고를 선택해 주세요.');return}
-    const i=(data.incidents||[]).find(x=>String(x.id)===String(id));if(!i){alert('사고 정보를 찾지 못했습니다.');return}
-    const btn=document.getElementById('ai440Review');btn.disabled=true;const old=btn.textContent;btn.textContent='4개 에이전트 검토 중…';
-    try{
-      const r=await post({action:'review_incident',incidentId:id,incidentSnapshot:incidentSnapshot(i)},{timeout:180000});
-      await refreshWorkflows({silent:true});
-      alert(r.requiresHumanApproval?'AI 검토가 완료됐습니다. 안전관리자 확인이 필요한 결과가 있습니다.':'AI 검토가 완료됐습니다.');
-      if(r.workflowId)openWorkflow(r.workflowId);
-    }catch(e){alert(messageFor(e))}finally{btn.disabled=false;btn.textContent=old}
-  }
-  async function openWorkflow(id){
-    try{
-      const r=await post({action:'get_workflow',workflowId:id});renderWorkflowModal(r);
-    }catch(e){alert(messageFor(e))}
-  }
-  function sourceLinks(arr){
-    const seen=new Set(),out=[];for(const s of arr||[]){const url=txt(s?.url);if(!url||seen.has(url))continue;seen.add(url);out.push(`<a href="${ex(url)}" target="_blank" rel="noopener noreferrer">${ex(s?.title||url)}</a>`)}return out.join('')
-  }
-  function renderWorkflowModal(r){
-    const w=r.workflow||{},runs=r.runs||[],findings=r.findings||[],approval=(r.approvals||[]).slice(-1)[0];
-    const layer=document.createElement('div');layer.className='ai440-modal';
-    layer.innerHTML=`<div class="ai440-modalbox"><div class="ai440-modalhead"><div><div class="ai440-ey">AI REVIEW</div><h3>${ex(statusLabel(w.status))}</h3><small>${ex(fmtSafe(w.created_at))}</small></div><button class="ai440-close" type="button">×</button></div>
-      <div class="ai440-summary">${ex(w.result_summary||w.input_summary||'검토 결과를 준비 중입니다.')}</div>
-      <div>${runs.map(x=>`<div class="ai440-run"><b>${ex(agentLabel(x.agent_id))}</b> · ${ex(statusLabel(x.status))}<br><small>${ex(x.result_summary||x.error_message||'처리 기록')}</small></div>`).join('')}</div>
-      <div>${findings.map(f=>`<div class="ai440-find ${ex(f.severity||'')}"><h4>${ex(f.title||f.finding_type||'검토사항')}</h4><p>${ex(f.detail||'')}</p>${f.legal_obligation?`<p><b>법적 의무</b> ${ex(f.legal_obligation)}</p>`:''}${f.practical_recommendation?`<p><b>실무 권장</b> ${ex(f.practical_recommendation)}</p>`:''}${f.uncertainty?`<p><b>확인 필요</b> ${ex(f.uncertainty)}</p>`:''}<div class="ai440-sources">${sourceLinks(f.official_sources)}</div></div>`).join('')}</div>
-      ${w.status==='awaiting_approval'?`<textarea id="ai440DecisionNote" class="ai440-note" placeholder="승인·보류·재검토 의견(선택)"></textarea><div class="ai440-actions"><button class="ai440-btn" data-ai440-decision="approved">승인</button><button class="ai440-btn warn" data-ai440-decision="held">보류</button><button class="ai440-btn secondary" data-ai440-decision="re_review">재검토 요청</button></div>`:approval?`<div class="ai440-summary"><b>최종 처리</b> ${ex(statusLabel(w.status))}${approval.decision_note?`<br>${ex(approval.decision_note)}`:''}</div>`:''}
-    </div>`;
-    document.body.appendChild(layer);layer.querySelector('.ai440-close').onclick=()=>layer.remove();layer.onclick=e=>{if(e.target===layer)layer.remove()};
-    layer.querySelectorAll('[data-ai440-decision]').forEach(b=>b.onclick=async()=>{
-      if(!confirm(`${b.textContent} 처리할까요?`))return;
-      b.disabled=true;try{await post({action:'decide_workflow',workflowId:w.id,decision:b.dataset.ai440Decision,note:layer.querySelector('#ai440DecisionNote')?.value||''});layer.remove();await refreshWorkflows({silent:true});alert('처리했습니다.')}catch(e){b.disabled=false;alert(messageFor(e))}
-    });
-  }
-
-  window.ENL_AI_SAFETY_VERSION=VERSION;
-  window.enlAiSafetyApi=post;
-  window.enlRenderAiSafetyTeam=renderAI;
+  async function decide(decision){if(!detail)return;const id=detail.workflow.id,note=modal.querySelector('#ai440DecisionNote').value;modal.querySelectorAll('[data-decision]').forEach(b=>b.disabled=true);try{const r=await post({action:decision==='retry'?'retry_workflow':'decide_workflow',workflowId:id,decision,note});closeModal();await refreshRoom();await openWorkflow(r.workflowId);}catch(e){alert(messageFor(e));modal?.querySelectorAll('[data-decision]').forEach(b=>b.disabled=false);}}
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden&&active()&&failures<99)refreshRoom();});
+  window.ENL_AI_SAFETY_VERSION=VERSION;window.enlAiSafetyApi=post;window.enlRenderAiSafetyTeam=renderAI;
 })();

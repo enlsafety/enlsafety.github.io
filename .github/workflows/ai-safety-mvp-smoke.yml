@@ -1,4 +1,4 @@
-name: AI Safety MVP Smoke
+name: AI Safety Control Room QA
 
 on:
   push:
@@ -8,19 +8,25 @@ on:
       - 'ai-safety-team-v440.js'
       - 'stable412.html'
       - 'ai/**'
+      - 'supabase/migrations/**'
       - '.github/workflows/ai-safety-mvp-smoke.yml'
   pull_request:
     paths:
       - 'ai-safety-team-v440.js'
       - 'stable412.html'
       - 'ai/**'
+      - 'supabase/migrations/**'
       - '.github/workflows/ai-safety-mvp-smoke.yml'
 
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
 
       - name: JavaScript syntax
         run: node --check ai-safety-team-v440.js
@@ -37,8 +43,8 @@ jobs:
           manifest = json.loads(Path('ai/agents.manifest.json').read_text(encoding='utf-8'))
           migration = Path('ai/migrations/20260914_ai_safety_team_mvp.sql').read_text(encoding='utf-8')
 
-          assert 'ai-safety-team-v440.js?v=4.4.0-ai1' in html
-          assert 'enl-ai-build" content="4.4.0-ai1' in html
+          assert 'ai-safety-team-v440.js?v=4.4.0-control-room1' in html
+          assert 'enl-ai-build" content="4.4.0-control-room1' in html
           assert 'data-view="ai-team"' in ui
           assert "const VIEW='ai-team'" in ui
           assert '사진과 사고자 이름은 전송하지 않고' in ui
@@ -56,3 +62,20 @@ jobs:
           assert not any('sk-' in p.read_text(encoding='utf-8', errors='ignore') for p in [Path('ai-safety-team-v440.js'), Path('ai/edge/enl-ai-safety-v440/index.ts')])
           print('OK: AI safety MVP UI, 4-agent manifest, official-source guardrails and server-only schema')
           PY
+      - name: Edge privacy and source verification
+        run: node ai/qa/edge-unit.mjs
+      - name: Install isolated browser QA
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+      - name: Desktop and iPhone control room QA (mock API)
+        run: node ai/qa/browser.mjs
+      - name: Existing app integration (all remote requests intercepted)
+        run: node ai/qa/app-smoke.mjs
+      - name: Build staging-only preview
+        run: python ai/qa/build-staging.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-control-room-staging-preview-and-qa
+          path: ai/qa/artifacts/
