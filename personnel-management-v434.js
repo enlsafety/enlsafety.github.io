@@ -116,6 +116,7 @@
     box.innerHTML=users.map(x=>`<div class="sa415-hq-row"><div><b>${ex(x.name)} ${x.active===false?'(비활성)':''}</b><span>${ex(x.department||'소속 미등록')} · ${ex(x.position||'직급 미등록')}</span></div><div><span class="sa415-role">${ex(typeof roleName==='function'?roleName(roleNorm(x.role)):roleNorm(x.role))}</span></div><div><span>로그인 이름 ${ex(x.name)}</span></div><div class="sa415-hq-actions"><button type="button" data-pm434-hq-edit="${ex(x.id)}">정보·권한 수정</button><button type="button" data-pm434-hq-pw="${ex(x.id)}">비밀번호</button></div></div>`).join('')||'<div class="sa415-empty">본사 사용자가 없습니다.</div>';
     box.querySelectorAll('[data-pm434-hq-edit]').forEach(b=>b.onclick=()=>window.openUserModal?.((data.users||[]).find(x=>String(x.id)===String(b.dataset.pm434HqEdit)),currentUser?.()));
     box.querySelectorAll('[data-pm434-hq-pw]').forEach(b=>b.onclick=()=>window.openAdminPasswordReset?.((data.users||[]).find(x=>String(x.id)===String(b.dataset.pm434HqPw)),currentUser?.()));
+    setTimeout(()=>window.enlRenderHqNotificationStatus?.(true),0);
   }
   window.enlSyncHqUsers=async function(u=currentUser?.()){
     if(hqSyncing||roleNorm(u?.role)!=='safety')return null;hqSyncing=true;
