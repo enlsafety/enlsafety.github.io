@@ -88,7 +88,7 @@ jobs:
           assert meta.get('version')=='4.2.6' and meta.get('currentStableVersion')=='4.2.6',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='426-r1'",'beforeinstallprompt','stable412.html?entry=root&build=426-r1',"/sw-v418.js?v=4.2.6-pwa4-confirm1"]: assert x in index,x
+          for x in ["const BUILD='426-r1'",'beforeinstallprompt','stable412.html?entry=root&build=426-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
