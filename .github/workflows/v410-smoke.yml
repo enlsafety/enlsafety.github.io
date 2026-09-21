@@ -83,16 +83,16 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-425-r1',meta
+          assert meta.get('build')=='stable-426-r1',meta
           assert meta.get('stableEntry')=='stable412.html',meta
-          assert meta.get('version')=='4.2.5' and meta.get('currentStableVersion')=='4.2.5',meta
+          assert meta.get('version')=='4.2.6' and meta.get('currentStableVersion')=='4.2.6',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='425-r1'",'beforeinstallprompt','stable412.html?entry=root&build=425-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
+          for x in ["const BUILD='426-r1'",'beforeinstallprompt','stable412.html?entry=root&build=426-r1',"/sw-v418.js?v=4.2.6-pwa4-confirm1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.2.5-r1',
+            'enl-build" content="4.2.6-r1',
             'incident-sync-v411.js?v=4.2.1-r1&amp;fix=official-auth-reprompt1',
             'workflow-prevention-v429.js?v=4.1.2-r30&amp;fix=prevention-flow2',
             'incident-review-v431.js?v=4.1.2-r31&amp;fix=review-preview1',
@@ -106,11 +106,12 @@ jobs:
             'official-records-v439.js?v=4.3.9&amp;fix=official-records1',
           ]
           for x in required: assert x in html,x
-          assert 'auth-v411.js?v=4.2.5-r1&amp;fix=password-focus1' in html
-          assert 'login-layout-v412.js?v=4.2.5-r1&amp;fix=guide-removed1' in html
+          assert 'auth-v411.js?v=4.2.6-r1&amp;fix=deploy-version-footer1' in html
+          assert 'login-layout-v412.js?v=4.2.6-r1&amp;fix=guide-removed1' in html
           auth=Path('auth-v411.js').read_text(encoding='utf-8')
           for x in ["const duplicateSiteName=siteIds.length>1;",'login411-aff-duplicate','동명이인이 있습니다. 본인 사업장을 꼭 확인해 선택해 주세요.',"details.dataset.selectedLabel411=label",'login411-aff-selected','details.open=false','소속사업장을 선택해 주세요.','비밀번호를 입력하세요.','autofocus','focusPassword()']: assert x in auth,x
           assert 'login411-guide' not in auth and '로그인 순서' not in auth
+          assert '이앤엘 사고보고앱 v4.1.1' not in auth and 'deployedVersion()' in auth and 'window.ENL_DEPLOY_VERSION' in auth
           layout=Path('login-layout-v412.js').read_text(encoding='utf-8')
           for x in ["const selectedLabel=details.dataset.selectedLabel411||''","if(selectedLabel)details.open=false",'login411-summary-label']: assert x in layout,x
           assert 'GUIDE_HTML' not in layout and "grid-row:4" in layout
