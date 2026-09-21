@@ -81,17 +81,17 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-420-r1',meta
+          assert meta.get('build')=='stable-421-r1',meta
           assert meta.get('stableEntry')=='stable412.html',meta
-          assert meta.get('version')=='4.2.0' and meta.get('currentStableVersion')=='4.2.0',meta
+          assert meta.get('version')=='4.2.1' and meta.get('currentStableVersion')=='4.2.1',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='420-r1'",'beforeinstallprompt','stable412.html?entry=root&build=420-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
+          for x in ["const BUILD='421-r1'",'beforeinstallprompt','stable412.html?entry=root&build=421-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.2.0-r1',
-            'incident-sync-v411.js?v=4.2.0-r1&amp;fix=official-records1',
+            'enl-build" content="4.2.1-r1',
+            'incident-sync-v411.js?v=4.2.1-r1&amp;fix=official-auth-reprompt1',
             'workflow-prevention-v429.js?v=4.1.2-r30&amp;fix=prevention-flow2',
             'incident-review-v431.js?v=4.1.2-r31&amp;fix=review-preview1',
             'production-cleanup-v431.js?v=4.1.2-r34&amp;fix=legacy-demo2',
@@ -178,7 +178,7 @@ jobs:
           official=Path('official-records-v439.js').read_text(encoding='utf-8')
           for x in ['PDF 보고서 출력','공식 전자결재 기록','감사로그','backup_restore','delete_incident','공식기록 · 백업/복원']: assert x in official,x
           sync=Path('incident-sync-v411.js').read_text(encoding='utf-8')
-          assert 'authProof()' in sync and 'actorPasswordHash' in sync and 'actorPinHash' in sync
+          assert 'authProof()' in sync and 'actorPasswordHash' in sync and 'actorPinHash' in sync and 'auth_proof_required' in sync and 'cacheProof' in sync
           reopen=Path('closed-incident-reopen-v438.js').read_text(encoding='utf-8')
           for x in ['closed_rollback_to_report_approved',"i.status='approved'",'i.corrective=null','종결 취소 · 사고승인 단계로','enlEditIncidentInReportForm']: assert x in reopen,x
           lifecycle=Path('workflow-lifecycle-v413.js').read_text(encoding='utf-8')
