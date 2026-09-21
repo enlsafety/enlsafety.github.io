@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.1.1 - authoritative authentication */
 (function(){
   'use strict';
-  const VERSION='4.1.1-r23-password-focus1';
+  const VERSION='4.1.1-r24-deploy-version-footer1';
   const LOGIN_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-login-v411';
   const CLIENT='incident-report-v2';
   const MANAGER_POSITIONS=['현장소장','파트장','서무'];
@@ -9,6 +9,7 @@
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   const ex=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const siteLabel=id=>{try{return siteById?.(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}};
+  const deployedVersion=()=>{const raw=String(window.ENL_DEPLOY_VERSION||document.querySelector('meta[name="enl-build"]')?.content||VERSION||'').trim();return raw.replace(/-r\d+.*$/,'')||raw||'-'};
 
   currentUser=function(){
     try{
@@ -65,7 +66,7 @@
   function bindLogin(){const n=document.getElementById('loginName411');if(!n||n.dataset.bound==='1')return;n.dataset.bound='1';n.addEventListener('input',()=>{clearTimeout(lookupTimer);clearChoice();status('이름 확인 중…');lookupTimer=setTimeout(()=>lookup(false),350)});n.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();clearTimeout(lookupTimer);lookup(true)}})}
   function renderLogin411(){
     css();if(document.querySelector('.login-v411')){bindLogin();return}
-    app.innerHTML=`<div class="login-page login-v411"><div class="login-card"><div class="login-brand"><div class="logo">E&L</div><div><h1>이앤엘 사고보고앱</h1><p>이름과 소속을 확인하고 로그인합니다.</p></div></div><label><span>이름</span><input id="loginName411" autocomplete="name" inputmode="text" enterkeyhint="done" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="예: 김건모"></label><div id="loginStatus411" class="login411-status">이름을 입력하면 소속이 표시됩니다.</div><div id="loginAff411" hidden></div><div id="loginPwWrap411" hidden></div><div class="login411-note">이앤엘 사고보고앱 v4.1.1</div></div></div>`;bindLogin();
+    app.innerHTML=`<div class="login-page login-v411"><div class="login-card"><div class="login-brand"><div class="logo">E&L</div><div><h1>이앤엘 사고보고앱</h1><p>이름과 소속을 확인하고 로그인합니다.</p></div></div><label><span>이름</span><input id="loginName411" autocomplete="name" inputmode="text" enterkeyhint="done" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="예: 김건모"></label><div id="loginStatus411" class="login411-status">이름을 입력하면 소속이 표시됩니다.</div><div id="loginAff411" hidden></div><div id="loginPwWrap411" hidden></div><div class="login411-note">이앤엘 사고보고앱 v${ex(deployedVersion())}</div></div></div>`;bindLogin();
   }
   renderLogin=renderLogin411;window.enlRenderLogin=renderLogin411;
 
