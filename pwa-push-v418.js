@@ -21,6 +21,14 @@
   const isAndroid=()=>/Android/i.test(navigator.userAgent);
   const isKakao=()=>/KAKAOTALK/i.test(navigator.userAgent);
   const supportsPush=()=>window.isSecureContext&&'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;
+  const deviceMeta=()=>({
+    displayMode:isStandalone()?'standalone':'browser',
+    notificationPermission:'Notification' in window?Notification.permission:'unsupported',
+    platform:isIOS()?'iOS':isAndroid()?'Android':/Windows/i.test(navigator.userAgent)?'Windows':/Macintosh|Mac OS X/i.test(navigator.userAgent)?'macOS':'기타',
+    appVersion:VERSION,
+    capturedAt:new Date().toISOString()
+  });
+  const withDeviceMeta=p=>({...p,__device:deviceMeta()});
   const keyFor=u=>PREF_PREFIX+String(u?.id||'guest');
 
   function defaultPrefs(u){
@@ -80,7 +88,7 @@
   async function openModal(){
     const u=actor();if(!u)return alert('로그인 후 알림을 설정할 수 있습니다.');ensureCss();document.getElementById('enl418Overlay')?.remove();const p=loadPrefs(u),wrap=document.createElement('div');wrap.id='enl418Overlay';wrap.className='enl418-overlay';wrap.innerHTML=`<section class="enl418-modal" role="dialog" aria-modal="true" aria-labelledby="enl418Title"><div class="enl418-head"><div><h2 id="enl418Title">알림 설정</h2><p>PWA 설치 · 푸시 권한 · 역할별 알림을 한 곳에서 관리합니다.</p></div><button type="button" class="enl418-close" data-enl-close aria-label="닫기">×</button></div><div class="enl418-body"><div class="enl418-status"><div class="enl418-step"><small>앱 설치</small><b id="enl418InstallState">확인 중</b></div><div class="enl418-step"><small>휴대폰 알림 권한</small><b id="enl418PermissionState">확인 중</b></div><div class="enl418-step"><small>푸시 연결</small><b id="enl418SubState">확인 중</b></div></div>${platformGuide()}<div><div class="ey">받을 알림</div><div class="enl418-pref-list">${prefRows(u,p)}</div></div><div id="enl418Message" class="enl418-message"></div><div class="enl418-actions"><button type="button" class="primary" id="enl418Setup">${isStandalone()?'알림 켜기':'설치 및 알림 켜기'}</button><button type="button" id="enl418Test">테스트 알림 보내기</button><button type="button" class="danger" id="enl418Off">이 기기 알림 끄기</button></div></div></section>`;document.body.appendChild(wrap);
     const close=()=>wrap.remove();wrap.querySelector('[data-enl-close]').onclick=close;wrap.addEventListener('click',e=>{if(e.target===wrap)close()});
-    wrap.querySelectorAll('[data-enl-pref]').forEach(input=>input.addEventListener('change',async()=>{const next=loadPrefs(u);wrap.querySelectorAll('[data-enl-pref]').forEach(x=>next[x.dataset.enlPref]=x.checked);if((roleNorm(u.role)==='manager'||roleNorm(u.role)==='executive'))next.urgent=true;savePrefs(u,next);try{const sub=await currentSub();if(sub)await api('preferences',{actor:u,endpoint:sub.endpoint,preferences:next});setMessage('알림 종류 설정을 저장했습니다.','ok')}catch(e){setMessage('알림 종류 저장에 실패했습니다. 다시 시도해 주세요.','err')}}));
+    wrap.querySelectorAll('[data-enl-pref]').forEach(input=>input.addEventListener('change',async()=>{const next=loadPrefs(u);wrap.querySelectorAll('[data-enl-pref]').forEach(x=>next[x.dataset.enlPref]=x.checked);if((roleNorm(u.role)==='manager'||roleNorm(u.role)==='executive'))next.urgent=true;savePrefs(u,next);try{const sub=await currentSub();if(sub)await api('preferences',{actor:u,endpoint:sub.endpoint,preferences:withDeviceMeta(next)});setMessage('알림 종류 설정을 저장했습니다.','ok')}catch(e){setMessage('알림 종류 저장에 실패했습니다. 다시 시도해 주세요.','err')}}));
     document.getElementById('enl418Setup').onclick=setupAll;
     document.getElementById('enl418Test').onclick=sendTest;
     document.getElementById('enl418Off').onclick=disablePush;
@@ -92,7 +100,7 @@
     setMessage('휴대폰 알림 권한을 확인하고 있습니다…');
     let perm=Notification.permission;if(perm==='default')perm=await Notification.requestPermission();if(perm!=='granted')throw new Error(perm==='denied'?'permission_denied':'permission_not_granted');
     const reg=await ensureSw(),h=await health();let sub=await reg.pushManager.getSubscription();if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToBytes(h.vapidPublicKey)});
-    const prefs=loadPrefs(u);await api('subscribe',{actor:u,subscription:sub.toJSON(),preferences:prefs,userAgent:navigator.userAgent});
+    const prefs=loadPrefs(u);await api('subscribe',{actor:u,subscription:sub.toJSON(),preferences:withDeviceMeta(prefs),userAgent:navigator.userAgent});
     setMessage('푸시 연결이 완료되었습니다. 테스트 알림을 보내고 있습니다…','ok');await api('test',{actor:u,endpoint:sub.endpoint});setMessage('설정 완료. 잠금화면에 테스트 알림이 도착하는지 확인해 주세요.','ok');await renderStatus();return sub;
   }
   async function setupAll(){

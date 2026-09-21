@@ -8,7 +8,7 @@
   const PREF_PREFIX='enl_push_preferences_v1_';
   const PENDING_KEY='enl_pending_push_incident_v425';
   const PENDING_TTL=30*60*1000;
-  let claimBusy=false,lastClaimKey='',openBusy=false,lastUserId='';
+  let claimBusy=false,lastClaimKey='',lastClaimAt=0,openBusy=false,lastUserId='';
   let readyTimer=null,pendingOpenTimer=null,claimTimer=null;
 
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
@@ -16,6 +16,14 @@
   const userId=u=>String(u?.id||u?.personnelId||u?.username||'');
   const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const urgent=i=>['urgent','immediate'].includes(String(i?.priority||''))||['major','potentialMajor','fatal'].includes(String(i?.severity||''));
+  const isStandalone=()=>window.matchMedia?.('(display-mode: standalone)').matches===true||window.navigator.standalone===true;
+  const deviceMeta=()=>({
+    displayMode:isStandalone()?'standalone':'browser',
+    notificationPermission:'Notification' in window?Notification.permission:'unsupported',
+    platform:/iPad|iPhone|iPod/i.test(navigator.userAgent)?'iOS':/Android/i.test(navigator.userAgent)?'Android':/Windows/i.test(navigator.userAgent)?'Windows':/Macintosh|Mac OS X/i.test(navigator.userAgent)?'macOS':'기타',
+    appVersion:VERSION,
+    capturedAt:new Date().toISOString()
+  });
 
   function defaultPrefs(u){
     const r=roleNorm(u?.role);
@@ -23,7 +31,7 @@
     if(r==='manager'||r==='executive')return {incident_progress:true,action_progress:true,inquiry:true,management_views:false,urgent:true};
     return {incident_progress:true,action_progress:true,inquiry:true,management_views:false,urgent:false};
   }
-  function prefs(u){try{const x=JSON.parse(localStorage.getItem(PREF_PREFIX+userId(u))||'{}');return {...defaultPrefs(u),...(x&&typeof x==='object'?x:{})}}catch(e){return defaultPrefs(u)}}
+  function prefs(u){try{const x=JSON.parse(localStorage.getItem(PREF_PREFIX+userId(u))||'{}');return {...defaultPrefs(u),...(x&&typeof x==='object'?x:{}),__device:deviceMeta()}}catch(e){return {...defaultPrefs(u),__device:deviceMeta()}}}
 
   async function registerSw(){
     if(!('serviceWorker' in navigator))return null;
@@ -36,12 +44,12 @@
   async function claimForCurrentUser(force=false){
     const u=actor();if(!u||claimBusy||!('Notification' in window)||Notification.permission!=='granted')return false;
     const sub=await currentSubscription();if(!sub)return false;
-    const key=userId(u)+'|'+String(sub.endpoint||'');if(!force&&key===lastClaimKey)return true;
+    const key=userId(u)+'|'+String(sub.endpoint||'');if(!force&&key===lastClaimKey&&Date.now()-lastClaimAt<15*60*1000)return true;
     claimBusy=true;
     try{
       const r=await fetch(CLAIM_API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify({action:'claim',actor:u,subscription:sub.toJSON(),preferences:prefs(u),userAgent:navigator.userAgent}),cache:'no-store'});
       const j=await r.json().catch(()=>({}));if(!r.ok||j?.ok===false)throw new Error(j?.message||`http_${r.status}`);
-      lastClaimKey=key;return true;
+      lastClaimKey=key;lastClaimAt=Date.now();return true;
     }catch(e){console.warn('push device ownership refresh skipped',e?.message||e);return false}
     finally{claimBusy=false}
   }
@@ -124,9 +132,12 @@
     const u=actor();const id=userId(u);
     if(!u){lastUserId='';return}
     if(id!==lastUserId){
-      lastUserId=id;lastClaimKey='';
+      lastUserId=id;lastClaimKey='';lastClaimAt=0;
       if(claimTimer)clearTimeout(claimTimer);
       claimTimer=setTimeout(()=>{claimTimer=null;claimForCurrentUser(true)},120);
+    }else{
+      if(claimTimer)clearTimeout(claimTimer);
+      claimTimer=setTimeout(()=>{claimTimer=null;claimForCurrentUser(false)},120);
     }
     schedulePendingOpen(220);
   }
