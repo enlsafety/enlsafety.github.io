@@ -172,6 +172,13 @@
     const b=document.createElement('button');b.id='official439BackupBtn';b.type='button';b.textContent='공식기록 · 백업/복원';b.onclick=()=>{menu.classList.add('hide');openBackup()};menu.insertBefore(b,logout);
   }
 
+  function wrapOpen(name){
+    const base=window[name];if(typeof base!=='function'||base.__official439Wrapped)return;
+    const wrapped=function(id){if(id)currentIncidentId=String(id);const out=base.apply(this,arguments);setTimeout(decorateModal,0);setTimeout(decorateModal,80);return out};
+    wrapped.__official439Wrapped=true;window[name]=wrapped;
+  }
+  wrapOpen('enlOpenIncidentReview');wrapOpen('openIncidentModal');
+
   document.addEventListener('click',e=>{
     const row=e.target?.closest?.('[data-inc-id],[data-safety-inc]');if(row)currentIncidentId=row.dataset.incId||row.dataset.safetyInc||'';
     const del=e.target?.closest?.('#deleteInc');
