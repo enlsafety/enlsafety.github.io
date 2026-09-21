@@ -23,7 +23,6 @@ on:
       - 'pwa-push-v418.js'
       - 'push-session-v425.js'
       - 'hq-notification-status-v437.js'
-      - 'hq-notification-status-v437.js'
       - 'sw-v418.js'
       - 'manifest.webmanifest'
       - '.github/workflows/v410-smoke.yml'
