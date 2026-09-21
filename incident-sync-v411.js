@@ -13,7 +13,13 @@
 
   function signature(arr){return JSON.stringify((arr||[]).map(i=>[i.id,i.updatedAt||'',i.status||'',i.priority||'',i.corrective?.status||'',i.reporterId||'',(i.readReceipts||[]).map(r=>`${r.userId}:${r.readAt}`).sort().join('|')]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))))}
   function actor(){const u=currentUser();return u?{id:u.id||u.personnelId||u.username||'',name:u.name||'',role:roleNorm(u.role),position:u.position||u.jobTitle||'',siteId:u.siteId||''}:null}
-  async function call(body,timeout=9000){const controller=typeof AbortController!=='undefined'?new AbortController():null;const timer=controller?setTimeout(()=>controller.abort(),timeout):null;try{const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify(body),signal:controller?.signal,cache:'no-store'});const j=await r.json().catch(()=>({}));if(!r.ok||j?.ok===false)throw new Error(j?.message||`sync_http_${r.status}`);return j}finally{if(timer)clearTimeout(timer)}}
+  function authProof(){
+    let u=null;try{u=currentUser?.()||null}catch(e){}
+    let passwordHash=String(u?.passwordHash||'').trim(),pinHash=String(u?.pinHash||'').trim();
+    if(!passwordHash&&u?.id){try{const local=(data?.users||[]).find(x=>String(x?.id||'')===String(u.id));passwordHash=String(local?.passwordHash||'').trim()}catch(e){}}
+    return {actorPasswordHash:passwordHash||undefined,actorPinHash:pinHash||undefined};
+  }
+  async function call(body,timeout=9000){const controller=typeof AbortController!=='undefined'?new AbortController():null;const timer=controller?setTimeout(()=>controller.abort(),timeout):null;try{const payload={...body,...authProof()};const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify(payload),signal:controller?.signal,cache:'no-store'});const j=await r.json().catch(()=>({}));if(!r.ok||j?.ok===false)throw new Error(j?.message||`sync_http_${r.status}`);return j}finally{if(timer)clearTimeout(timer)}}
 
   function persistRemote(next){
     data.incidents=[...(next||[])].sort((x,y)=>new Date(y.occurredAt||0)-new Date(x.occurredAt||0));
@@ -129,5 +135,5 @@
   window.addEventListener('online',()=>{if(currentUser())scheduleSync(500)});
   window.addEventListener('pageshow',syncOnForeground);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncOnForeground()});
-  window.ENL_INCIDENT_SYNC_VERSION='4.1.1-r14-form-write-guard';
+  window.ENL_INCIDENT_SYNC_VERSION='4.1.1-r15-official-auth';
 })();
