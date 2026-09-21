@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.1.2 - compact login name/affiliation layout */
 (function(){
   'use strict';
-  const VERSION='4.1.2-r16-login3';
+  const VERSION='4.1.2-r17-login-selected1';
   const GUIDE_HTML='<b>로그인 순서</b><br><span>현장근로자: 이름입력 → 소속선택</span><br><span>현장관리자 및 본사관리자: 이름입력 → 소속선택 → 비밀번호입력</span>';
   function css(){
     if(document.getElementById('loginLayout412Css'))return;
@@ -63,9 +63,11 @@
     const name=nameInput.value.trim(),details=aff.querySelector('details.login411-aff');
     if(details){
       aff.hidden=false;delete aff.dataset.placeholder412;
-      const summary=details.querySelector('summary');
-      if(summary&&summary.firstChild&&summary.firstChild.textContent!=='소속 선택 ')summary.firstChild.textContent='소속 선택 ';
-      if(name&&details.dataset.autoOpened412!=='1'){details.dataset.autoOpened412='1';details.open=true}
+      const selectedLabel=details.dataset.selectedLabel411||'';
+      const summaryLabel=details.querySelector('.login411-summary-label');
+      if(summaryLabel){const wanted=selectedLabel||'소속 선택';if(summaryLabel.textContent!==wanted)summaryLabel.textContent=wanted}
+      if(name&&!selectedLabel&&details.dataset.autoOpened412!=='1'){details.dataset.autoOpened412='1';details.open=true}
+      if(selectedLabel)details.open=false
       return;
     }
     const label=placeholderText(name,status?.textContent||'');
