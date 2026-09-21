@@ -8,6 +8,7 @@ on:
       - 'reader-ack-ux-v423.js'
       - 'reader-experience-v424.js'
       - 'push-session-v425.js'
+      - 'hq-notification-status-v437.js'
       - 'sw-v418.js'
       - 'stable412.html'
       - '.github/workflows/ui-stability-v422-smoke.yml'
@@ -18,6 +19,7 @@ on:
       - 'reader-ack-ux-v423.js'
       - 'reader-experience-v424.js'
       - 'push-session-v425.js'
+      - 'hq-notification-status-v437.js'
       - 'sw-v418.js'
       - 'stable412.html'
       - '.github/workflows/ui-stability-v422-smoke.yml'
@@ -37,6 +39,7 @@ jobs:
           node --check reader-ack-ux-v423.js
           node --check reader-experience-v424.js
           node --check push-session-v425.js
+          node --check hq-notification-status-v437.js
           node --check sw-v418.js
       - name: UI stability and push wiring
         shell: python
@@ -79,7 +82,9 @@ jobs:
           assert "setTimeout(onUserReady" not in ps
           for x in ["4.2.5-pwa3","incidentId","stable412.html?push=1&incident="]: assert x in sw,x
           assert 'reader-experience-v424.js?v=4.1.2-r22&amp;fix=nav-comment2' in html
-          assert 'push-session-v425.js?v=4.1.2-r22&amp;fix=runtime-dedupe1' in html
+          assert 'push-session-v425.js?v=4.1.2-r37&amp;fix=device-heartbeat1' in html
+          assert 'hq-notification-status-v437.js?v=4.3.7&amp;fix=hq-notify1' in html
+          assert 'lastClaimAt=0' in ps and '__device:deviceMeta()' in ps
           assert html.rfind('push-session-v425.js') > html.rfind('reader-experience-v424.js')
           print('OK: instant own-comment delete, stable UI, urgent read-only detail, and deduplicated push readiness')
       - name: Live endpoint guards
@@ -99,6 +104,8 @@ jobs:
           assert code==200 and j.get('ok') is True and j.get('version')=='4.2.4-comment-delete1',(code,j)
           code,j=call('https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-claim-v425',{'action':'health'})
           assert code==200 and j.get('ok') is True and j.get('version')=='4.2.5-push-claim1',(code,j)
+          code,j=call('https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-admin-v437',{'action':'health'})
+          assert code==200 and j.get('ok') is True and j.get('version')=='4.3.7-hq-notify1',(code,j)
           code,j=call('https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-claim-v425',{'action':'claim','actor':{'id':'missing','role':'manager'},'subscription':{'endpoint':'x','keys':{'p256dh':'y','auth':'z'}}})
           assert code==403 and j.get('message')=='forbidden',(code,j)
           print('OK: comment delete and push ownership endpoints are live with server-side guards')
