@@ -40,6 +40,6 @@ jobs:
           for x in ['u-field-demo','u-safety-demo','u-final-demo','enl_accident_demo_v1']:
             assert x in cleanup,x
           assert 'incident-review-v431.js?v=4.1.2-r31&amp;fix=review-preview1' in html
-          assert 'production-cleanup-v431.js?v=4.1.2-r31&amp;fix=legacy-demo1' in html
+          assert 'production-cleanup-v431.js?v=4.1.2-r34&amp;fix=legacy-demo2' in html
           assert html.index('workflow-prevention-v429.js') < html.index('incident-review-v431.js') < html.index('production-cleanup-v431.js')
           print('OK: stored incident images hydrate to thumbnails, detail rows are separated, legacy local demo records are purged')
