@@ -97,9 +97,12 @@ jobs:
             'industrial-report-v436.js?v=4.1.2-r36&amp;fix=moel-form30-1',
           ]
           for x in required: assert x in html,x
-          assert 'hq-notification-status-v437.js?v=4.3.7&amp;fix=hq-notify1' in html
+          assert 'hq-notification-status-v437.js?v=4.3.7&amp;fix=hq-notify2' in html
           assert 'pwa-push-v418.js?v=4.1.2-r37&amp;fix=device-readiness1' in html
           assert 'push-session-v425.js?v=4.1.2-r37&amp;fix=device-heartbeat1' in html
+          hq=Path('hq-notification-status-v437.js').read_text(encoding='utf-8')
+          assert 'data-pm434-hq-edit' in hq and 'data-pm434-hq-pw' in hq
+          assert html.index('personnel-management-v434.js') < html.index('hq-notification-status-v437.js')
 
           class R(HTMLParser):
             def __init__(self): super().__init__(); self.refs=[]; self.scripts=[]
