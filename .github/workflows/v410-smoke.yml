@@ -77,16 +77,16 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-414-r1',meta
+          assert meta.get('build')=='stable-415-r1',meta
           assert meta.get('stableEntry')=='stable412.html',meta
-          assert meta.get('version')=='4.1.4' and meta.get('currentStableVersion')=='4.1.4',meta
+          assert meta.get('version')=='4.1.5' and meta.get('currentStableVersion')=='4.1.5',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='r1'",'beforeinstallprompt','stable412.html?entry=root&build=r1',"/sw-v418.js?v=4.2.5-pwa3"]: assert x in index,x
+          for x in ["const BUILD='415-r1'",'beforeinstallprompt','stable412.html?entry=root&build=415-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.1.4-r1',
+            'enl-build" content="4.1.5-r1',
             'incident-sync-v411.js?v=4.1.2-r28&amp;fix=form-write-guard1',
             'workflow-prevention-v429.js?v=4.1.2-r30&amp;fix=prevention-flow2',
             'incident-review-v431.js?v=4.1.2-r31&amp;fix=review-preview1',
@@ -98,12 +98,15 @@ jobs:
             'industrial-report-v436.js?v=4.1.2-r36&amp;fix=moel-form30-1',
           ]
           for x in required: assert x in html,x
-          assert 'hq-notification-status-v437.js?v=4.3.7&amp;fix=hq-notify3' in html
-          assert 'pwa-push-v418.js?v=4.1.2-r37&amp;fix=device-readiness1' in html
-          assert 'push-session-v425.js?v=4.1.2-r37&amp;fix=device-heartbeat1' in html
+          assert 'hq-notification-status-v437.js?v=4.3.7&amp;fix=hq-notify4' in html
+          assert 'pwa-push-v418.js?v=4.1.5-r1&amp;fix=device-readiness2' in html
+          assert 'push-session-v425.js?v=4.1.5-r1&amp;fix=device-heartbeat2' in html
           assert 'site-admin-v415.js?v=4.1.4-r1&amp;fix=personnel3' in html
           hq=Path('hq-notification-status-v437.js').read_text(encoding='utf-8')
+          sw=Path('sw-v418.js').read_text(encoding='utf-8')
           assert 'data-pm434-hq-edit' in hq and 'data-pm434-hq-pw' in hq
+          assert 'PUSH_CONFIRM_API' in sw and "action:'ack_test_token'" in sw and "action:'confirm',title:'확인'" in sw
+          assert "status==='confirmed'" in hq and '수신 확인' in hq
           assert html.index('personnel-management-v434.js') < html.index('hq-notification-status-v437.js')
 
           class R(HTMLParser):
