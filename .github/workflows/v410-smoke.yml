@@ -8,6 +8,7 @@ on:
       - 'version.json'
       - 'stable412.html'
       - 'auth-v411.js'
+      - 'login-layout-v412.js'
       - 'incident-sync-v411.js'
       - 'workflow-lifecycle-v413.js'
       - 'workflow-prevention-v429.js'
@@ -35,6 +36,7 @@ on:
       - 'version.json'
       - 'stable412.html'
       - 'auth-v411.js'
+      - 'login-layout-v412.js'
       - 'incident-sync-v411.js'
       - 'workflow-lifecycle-v413.js'
       - 'workflow-prevention-v429.js'
@@ -68,7 +70,7 @@ jobs:
 
       - name: JavaScript syntax
         run: |
-          for f in core.js auth-v411.js incident-sync-v411.js workflow-lifecycle-v413.js workflow-prevention-v429.js incident-review-v431.js production-cleanup-v431.js workflow-enhancements-v432.js site-admin-hotfix-v433.js personnel-management-v434.js legal-review-v435.js industrial-report-v436.js closed-incident-reopen-v438.js official-records-v439.js incident-excel-v421.js pwa-push-v418.js push-session-v425.js hq-notification-status-v437.js sw-v418.js; do
+          for f in core.js auth-v411.js login-layout-v412.js incident-sync-v411.js workflow-lifecycle-v413.js workflow-prevention-v429.js incident-review-v431.js production-cleanup-v431.js workflow-enhancements-v432.js site-admin-hotfix-v433.js personnel-management-v434.js legal-review-v435.js industrial-report-v436.js closed-incident-reopen-v438.js official-records-v439.js incident-excel-v421.js pwa-push-v418.js push-session-v425.js hq-notification-status-v437.js sw-v418.js; do
             node --check "$f"
           done
 
@@ -81,16 +83,16 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-422-r1',meta
+          assert meta.get('build')=='stable-423-r1',meta
           assert meta.get('stableEntry')=='stable412.html',meta
-          assert meta.get('version')=='4.2.2' and meta.get('currentStableVersion')=='4.2.2',meta
+          assert meta.get('version')=='4.2.3' and meta.get('currentStableVersion')=='4.2.3',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='422-r1'",'beforeinstallprompt','stable412.html?entry=root&build=422-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
+          for x in ["const BUILD='423-r1'",'beforeinstallprompt','stable412.html?entry=root&build=423-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.2.2-r1',
+            'enl-build" content="4.2.3-r1',
             'incident-sync-v411.js?v=4.2.1-r1&amp;fix=official-auth-reprompt1',
             'workflow-prevention-v429.js?v=4.1.2-r30&amp;fix=prevention-flow2',
             'incident-review-v431.js?v=4.1.2-r31&amp;fix=review-preview1',
@@ -104,9 +106,12 @@ jobs:
             'official-records-v439.js?v=4.3.9&amp;fix=official-records1',
           ]
           for x in required: assert x in html,x
-          assert 'auth-v411.js?v=4.2.2-r1&amp;fix=official-auth1-duplicate-site1' in html
+          assert 'auth-v411.js?v=4.2.3-r1&amp;fix=official-auth1-affiliation-selected1' in html
+          assert 'login-layout-v412.js?v=4.2.3-r1&amp;fix=login-selected1' in html
           auth=Path('auth-v411.js').read_text(encoding='utf-8')
-          for x in ["const duplicateSiteName=siteIds.length>1;",'login411-aff-duplicate','동명이인이 있습니다. 본인 사업장을 꼭 확인해 선택해 주세요.']: assert x in auth,x
+          for x in ["const duplicateSiteName=siteIds.length>1;",'login411-aff-duplicate','동명이인이 있습니다. 본인 사업장을 꼭 확인해 선택해 주세요.',"details.dataset.selectedLabel411=label",'login411-aff-selected','details.open=false']: assert x in auth,x
+          layout=Path('login-layout-v412.js').read_text(encoding='utf-8')
+          for x in ["const selectedLabel=details.dataset.selectedLabel411||''","if(selectedLabel)details.open=false",'login411-summary-label']: assert x in layout,x
           assert 'hq-notification-status-v437.js?v=4.3.7&amp;fix=hq-notify4' in html
           assert 'pwa-push-v418.js?v=4.1.5-r1&amp;fix=device-readiness2' in html
           assert 'push-session-v425.js?v=4.1.5-r1&amp;fix=device-heartbeat2' in html
