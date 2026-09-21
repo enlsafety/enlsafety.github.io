@@ -77,15 +77,16 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-412-r36',meta
+          assert meta.get('build')=='stable-413-r1',meta
           assert meta.get('stableEntry')=='stable412.html',meta
+          assert meta.get('version')=='4.1.3' and meta.get('currentStableVersion')=='4.1.3',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='r36'",'beforeinstallprompt','stable412.html?entry=root&build=r36',"/sw-v418.js?v=4.2.5-pwa3"]: assert x in index,x
+          for x in ["const BUILD='r1'",'beforeinstallprompt','stable412.html?entry=root&build=r1',"/sw-v418.js?v=4.2.5-pwa3"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.1.2-r36',
+            'enl-build" content="4.1.3-r1',
             'incident-sync-v411.js?v=4.1.2-r28&amp;fix=form-write-guard1',
             'workflow-prevention-v429.js?v=4.1.2-r30&amp;fix=prevention-flow2',
             'incident-review-v431.js?v=4.1.2-r31&amp;fix=review-preview1',
