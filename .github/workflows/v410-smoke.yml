@@ -19,6 +19,7 @@ on:
       - 'legal-review-v435.js'
       - 'industrial-report-v436.js'
       - 'closed-incident-reopen-v438.js'
+      - 'official-records-v439.js'
       - 'responsive-v432.css'
       - 'incident-excel-v421.js'
       - 'pwa-push-v418.js'
@@ -65,7 +66,7 @@ jobs:
 
       - name: JavaScript syntax
         run: |
-          for f in core.js auth-v411.js incident-sync-v411.js workflow-lifecycle-v413.js workflow-prevention-v429.js incident-review-v431.js production-cleanup-v431.js workflow-enhancements-v432.js site-admin-hotfix-v433.js personnel-management-v434.js legal-review-v435.js industrial-report-v436.js closed-incident-reopen-v438.js incident-excel-v421.js pwa-push-v418.js push-session-v425.js hq-notification-status-v437.js sw-v418.js; do
+          for f in core.js auth-v411.js incident-sync-v411.js workflow-lifecycle-v413.js workflow-prevention-v429.js incident-review-v431.js production-cleanup-v431.js workflow-enhancements-v432.js site-admin-hotfix-v433.js personnel-management-v434.js legal-review-v435.js industrial-report-v436.js closed-incident-reopen-v438.js official-records-v439.js incident-excel-v421.js pwa-push-v418.js push-session-v425.js hq-notification-status-v437.js sw-v418.js; do
             node --check "$f"
           done
 
@@ -78,17 +79,17 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-416-r1',meta
+          assert meta.get('build')=='stable-420-r1',meta
           assert meta.get('stableEntry')=='stable412.html',meta
-          assert meta.get('version')=='4.1.6' and meta.get('currentStableVersion')=='4.1.6',meta
+          assert meta.get('version')=='4.2.0' and meta.get('currentStableVersion')=='4.2.0',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='416-r1'",'beforeinstallprompt','stable412.html?entry=root&build=416-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
+          for x in ["const BUILD='420-r1'",'beforeinstallprompt','stable412.html?entry=root&build=420-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.1.6-r1',
-            'incident-sync-v411.js?v=4.1.2-r28&amp;fix=form-write-guard1',
+            'enl-build" content="4.2.0-r1',
+            'incident-sync-v411.js?v=4.2.0-r1&amp;fix=official-records1',
             'workflow-prevention-v429.js?v=4.1.2-r30&amp;fix=prevention-flow2',
             'incident-review-v431.js?v=4.1.2-r31&amp;fix=review-preview1',
             'production-cleanup-v431.js?v=4.1.2-r34&amp;fix=legacy-demo2',
@@ -98,6 +99,7 @@ jobs:
             'legal-review-v435.js?v=4.1.2-r35&amp;fix=legal-simplify1',
             'industrial-report-v436.js?v=4.1.2-r36&amp;fix=moel-form30-1',
             'closed-incident-reopen-v438.js?v=4.3.8&amp;fix=closed-reopen1',
+            'official-records-v439.js?v=4.3.9&amp;fix=official-records1',
           ]
           for x in required: assert x in html,x
           assert 'hq-notification-status-v437.js?v=4.3.7&amp;fix=hq-notify4' in html
@@ -171,6 +173,10 @@ jobs:
           for x in ['사고 접수완료','재발방지계획 등록','실제 실시한 재발방지조치','재발방지조치 확인완료']: assert x in prevention,x
           enhancement=Path('workflow-enhancements-v432.js').read_text(encoding='utf-8')
           for x in ["confirm('수신완료 처리 하시겠습니까?')",'실제 조치 완료일 *','attachments().length<1',"currentView='stats'"]: assert x in enhancement,x
+          official=Path('official-records-v439.js').read_text(encoding='utf-8')
+          for x in ['PDF 보고서 출력','공식 전자결재 기록','감사로그','backup_restore','delete_incident','공식기록 · 백업/복원']: assert x in official,x
+          sync=Path('incident-sync-v411.js').read_text(encoding='utf-8')
+          assert 'authProof()' in sync and 'actorPasswordHash' in sync and 'actorPinHash' in sync
           reopen=Path('closed-incident-reopen-v438.js').read_text(encoding='utf-8')
           for x in ['closed_rollback_to_report_approved',"i.status='approved'",'i.corrective=null','종결 취소 · 사고승인 단계로','enlEditIncidentInReportForm']: assert x in reopen,x
           lifecycle=Path('workflow-lifecycle-v413.js').read_text(encoding='utf-8')
@@ -207,7 +213,7 @@ jobs:
               try:p=json.loads(e.read().decode())
               except:p={}
               return e.code,p
-          for fn in ['enl-push-v418','enl-account-v420','enl-push-claim-v425','enl-push-admin-v437','enl-personnel-v434','enl-industrial-report-v436']:
+          for fn in ['enl-incident-sync-v411','enl-incident-compliance-v439','enl-push-v418','enl-account-v420','enl-push-claim-v425','enl-push-admin-v437','enl-personnel-v434','enl-industrial-report-v436']:
             code,j=call(fn,{'action':'health'})
             assert code==200 and j.get('ok') is True,(fn,code,j)
           print('OK: production health endpoints respond without creating incidents or sending push notifications')
