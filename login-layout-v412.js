@@ -1,8 +1,7 @@
 /* E&L Accident Report App v4.1.2 - compact login name/affiliation layout */
 (function(){
   'use strict';
-  const VERSION='4.1.2-r17-login-selected1';
-  const GUIDE_HTML='<b>로그인 순서</b><br><span>현장근로자: 이름입력 → 소속선택</span><br><span>현장관리자 및 본사관리자: 이름입력 → 소속선택 → 비밀번호입력</span>';
+  const VERSION='4.1.2-r18-guide-removed1';
   function css(){
     if(document.getElementById('loginLayout412Css'))return;
     const s=document.createElement('style');s.id='loginLayout412Css';s.textContent=`
@@ -15,9 +14,8 @@
       .login-v411 #loginAff411{display:block!important;grid-column:2;grid-row:2;min-width:0;align-self:end;margin:0;position:relative}
       .login-v411 #loginAff411::before{content:'소속사업장';display:block;margin:0 0 8px;font-size:17px;color:#193f5c;font-weight:950}
       .login-v411 #loginStatus411{grid-column:1;grid-row:3;margin:5px 0 0;padding:0 2px;min-height:22px;align-self:start}
-      .login-v411 .login411-guide{grid-column:1/-1;grid-row:4;margin-top:10px}
-      .login-v411 #loginPwWrap411{grid-column:1/-1;grid-row:5}
-      .login-v411 .login411-note{grid-column:1/-1;grid-row:6}
+      .login-v411 #loginPwWrap411{grid-column:1/-1;grid-row:4}
+      .login-v411 .login411-note{grid-column:1/-1;grid-row:5}
       .login-v411 #loginName411{min-width:0}
       .login-v411 .login411-aff{margin:0;border-radius:14px;position:relative;overflow:visible!important}
       .login-v411 .login411-aff summary{min-height:64px;box-sizing:border-box;padding:0 12px;font-size:16px;border-radius:12px}
@@ -39,7 +37,6 @@
         .login-v411 .login411-aff summary{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
         .login-v411 .login411-list{max-height:210px}
         .login-v411 #loginStatus411{font-size:12px;min-height:20px;margin-top:4px;line-height:1.35}
-        .login-v411 .login411-guide{margin-top:7px;font-size:13px;line-height:1.6}
       }
     `;document.head.appendChild(s);
   }
@@ -54,8 +51,7 @@
     const page=document.querySelector('.login-v411');if(!page)return;
     const brand=page.querySelector('.login-brand');
     if(brand){const p=brand.querySelector('p');if(p)p.remove()}
-    const guide=page.querySelector('.login411-guide');
-    if(guide&&guide.innerHTML!==GUIDE_HTML)guide.innerHTML=GUIDE_HTML;
+    page.querySelector('.login411-guide')?.remove();
   }
   function syncAffiliation(){
     const page=document.querySelector('.login-v411');if(!page)return;
