@@ -73,9 +73,9 @@
     catch(e){console.error('post-login render failed',e);if(typeof window.enlRenderFatal==='function')window.enlRenderFatal(e);else alert('로그인은 완료됐지만 화면을 불러오지 못했습니다. 최신화 후 다시 시도해 주세요.')}
     setTimeout(()=>window.enlIncidentSyncNow?.(),250);
   }
-  function saveSiteSession(person){
+  function saveSiteSession(person,passwordHash=''){
     const kind=person.access_role==='field'?'field':'worker';
-    const p={id:String(person.personnel_id||person.id||''),personnelId:String(person.personnel_id||person.id||''),name:person.name,position:person.job_title||person.position||(kind==='field'?'현장관리':'일반근로자'),role:kind,siteId:person.site_id||person.siteId,active:person.active!==false};
+    const p={id:String(person.personnel_id||person.id||''),personnelId:String(person.personnel_id||person.id||''),name:person.name,position:person.job_title||person.position||(kind==='field'?'현장관리':'일반근로자'),role:kind,siteId:person.site_id||person.siteId,active:person.active!==false};if(passwordHash)p.pinHash=passwordHash;
     session=kind==='worker'?{loggedAt:nowISO(),worker:p}:{loggedAt:nowISO(),manager:p};saveSession();return p;
   }
   async function loginSite(option,passwordHash=''){
@@ -83,7 +83,7 @@
     let person;
     try{const r=await api({action:'login_site',name,siteId:option.siteId,passwordHash});person=r.person;if(!person||norm(person.name)!==norm(name)||String(person.site_id)!==String(option.siteId))throw new Error('mismatch')}
     catch(e){document.querySelectorAll('.login411-aff-btn').forEach(b=>b.disabled=false);const btn=document.getElementById('loginSubmit411');if(btn){btn.disabled=false;btn.textContent='로그인'}status(passwordHash?'이름, 소속과 비밀번호를 다시 확인해 주세요.':'이름과 사업장을 다시 확인해 주세요.','err');alert(passwordHash?'이름, 소속과 비밀번호를 다시 확인하세요.':'이름과 사업장을 다시 선택하세요.');return false}
-    saveSiteSession(person);enterApp();return true;
+    saveSiteSession(person,passwordHash);enterApp();return true;
   }
   async function choose(index){const o=lookupOptions[index],name=document.getElementById('loginName411')?.value.trim()||'';if(!o||!name)return;if(o.kind==='hq'||o.requiresPassword){selected=o;renderPassword(o);return}await loginSite(o,'')}
   function renderPassword(o){const box=document.getElementById('loginPwWrap411');if(!box)return;box.hidden=false;box.innerHTML=`<form id="loginPwForm411" class="login411-pw"><div class="login411-selected">${ex(o.affiliationLabel||'-')} · ${ex(o.position||o.roleLabel||'')}</div><label><span>비밀번호</span><input id="loginPassword411" type="password" inputmode="numeric" autocomplete="current-password" enterkeyhint="go" placeholder="${o.kind==='site'?'휴대폰 뒷 4자리':'비밀번호'}" required></label><button id="loginSubmit411" class="login411-submit" type="submit">로그인</button></form>`;document.getElementById('loginPwForm411').onsubmit=loginPassword}
