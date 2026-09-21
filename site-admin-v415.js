@@ -253,7 +253,7 @@
   }
 
   async function renderHq(root,u){
-    root.innerHTML=`<div class="sa415"><section class="panel"><div class="sa415-head"><div><div class="ey">HQ ACCOUNTS</div><h2>본사 사용자</h2><p>안전관리자·관리자·경영진 계정과 비밀번호를 관리합니다.</p></div>${tabsHtml()}</div></section><section class="panel"><div class="sa415-tools"><div></div><button class="sa415-primary" id="sa415AddHq">+ 본사 사용자 생성</button></div><div id="sa415HqList" class="sa415-hq"><div class="sa415-empty">본사 사용자를 불러오는 중입니다.</div></div></section></div>`;
+    root.innerHTML=`<div class="sa415"><section class="panel"><div class="sa415-head"><div><div class="ey">HQ ACCOUNTS</div><h2>본사 사용자</h2><p>안전관리자·관리자·경영진 계정과 비밀번호를 관리합니다.</p></div>${tabsHtml()}</div></section><section class="panel"><div id="enl437Host"><div class="sa415-empty">경영진 앱·알림 상태를 확인하는 중입니다.</div></div><div class="sa415-tools"><div></div><button class="sa415-primary" id="sa415AddHq">+ 본사 사용자 생성</button></div><div id="sa415HqList" class="sa415-hq"><div class="sa415-empty">본사 사용자를 불러오는 중입니다.</div></div></section></div>`;
     bindTabs(root,u);
     document.getElementById('sa415AddHq').onclick=()=>window.openUserModal?.(null,u);
     try{
@@ -267,7 +267,8 @@
       }).join('')||'<div class="sa415-empty">본사 사용자가 없습니다.</div>';
       box.querySelectorAll('[data-sa415-hq-edit]').forEach(button=>button.onclick=()=>window.openUserModal?.(userById(button.dataset.sa415HqEdit),u));
       box.querySelectorAll('[data-sa415-hq-pw]').forEach(button=>button.onclick=()=>window.openAdminPasswordReset?.(userById(button.dataset.sa415HqPw),u));
-    }catch(err){document.getElementById('sa415HqList').innerHTML='<div class="sa415-empty">본사 사용자를 불러오지 못했습니다.</div>';}
+      setTimeout(()=>window.enlRenderHqNotificationStatus?.(true),0);
+    }catch(err){document.getElementById('sa415HqList').innerHTML='<div class="sa415-empty">본사 사용자를 불러오지 못했습니다.</div>';setTimeout(()=>window.enlRenderHqNotificationStatus?.(true),0);}
   }
 
   async function renderAdmin(root,u){
