@@ -83,10 +83,11 @@ jobs:
           for x in ["4.2.5-pwa3","incidentId","stable412.html?push=1&incident="]: assert x in sw,x
           assert 'reader-experience-v424.js?v=4.1.2-r22&amp;fix=nav-comment2' in html
           assert 'push-session-v425.js?v=4.1.2-r37&amp;fix=device-heartbeat1' in html
-          assert 'hq-notification-status-v437.js?v=4.3.7&amp;fix=hq-notify2' in html
+          assert 'hq-notification-status-v437.js?v=4.3.7&amp;fix=hq-notify3' in html
           hq=Path('hq-notification-status-v437.js').read_text(encoding='utf-8')
-          assert "const VERSION='4.3.7-hq-notify2'" in hq
+          assert "const VERSION='4.3.7-hq-notify3'" in hq
           assert 'data-pm434-hq-edit' in hq and 'data-pm434-hq-pw' in hq
+          assert 'enlRenderHqNotificationStatus' in hq and 'enl437Host' in hq
           assert html.index('personnel-management-v434.js') < html.index('hq-notification-status-v437.js')
           assert 'lastClaimAt=0' in ps and '__device:deviceMeta()' in ps
           assert html.rfind('push-session-v425.js') > html.rfind('reader-experience-v424.js')
