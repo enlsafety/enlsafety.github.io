@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.3.7 - HQ push readiness dashboard */
 (function(){
   'use strict';
-  const VERSION='4.3.7-hq-notify2';
+  const VERSION='4.3.7-hq-notify3';
   const API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-admin-v437';
   const CLIENT='incident-report-v2';
   const PENDING_KEY='enl_pending_pushcheck_v437';
@@ -12,7 +12,13 @@
   const current=()=>{try{return window.currentUser?.()||null}catch(e){return null}};
   const actor=u=>u?{id:u.id||u.personnelId||u.username||'',name:u.name||'',role:roleNorm(u.role),position:u.position||u.jobTitle||'',siteId:u.siteId||''}:null;
   const isSafety=u=>roleNorm(u?.role)==='safety';
-  const credentials=u=>String(u?.passwordHash||'').trim();
+  const credentials=u=>{
+    const direct=String(u?.passwordHash||'').trim();if(direct)return direct;
+    try{
+      const local=(data?.users||[]).find(x=>String(x?.id||'')===String(u?.id||''));
+      return String(local?.passwordHash||'').trim();
+    }catch(e){return ''}
+  };
   const fmtDate=v=>{if(!v)return '없음';try{return new Date(v).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}catch(e){return String(v)}};
 
   async function api(action,extra={},timeout=15000){
@@ -31,7 +37,7 @@
   function css(){
     if(document.getElementById('enl437Css'))return;
     const s=document.createElement('style');s.id='enl437Css';s.textContent=`
-      .enl437-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0 0 12px}
+      #enl437Host{margin:0 0 14px}.enl437-host-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}.enl437-host-title h3{margin:0;color:#174d78;font-size:15px}.enl437-refresh{min-height:36px;border:1px solid #a9c6da;border-radius:9px;background:#fff;color:#24516f;padding:0 10px;font-weight:900}.enl437-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0}
       .enl437-card{padding:11px 12px;border:1px solid #d8e4ec;border-radius:12px;background:#f9fcfe}.enl437-card small{display:block;color:#748797;font-weight:850;font-size:11px}.enl437-card b{display:block;margin-top:4px;color:#244f6e;font-size:20px}.enl437-card.ready{background:#eef8f2;border-color:#b8ddc8}.enl437-card.warn{background:#fff8eb;border-color:#ead0a0}.enl437-card.off{background:#fff3f3;border-color:#ecc7c7}
       .enl437-summary-note{grid-column:1/-1;color:#718397;font-size:11px;line-height:1.5;padding:0 2px}
       .sa415-hq-row.enl437-row{grid-template-columns:minmax(0,1.25fr) minmax(90px,.55fr) minmax(150px,.78fr) minmax(190px,1fr) auto}
@@ -75,14 +81,23 @@
     return `테스트 처리 중 ${fmtDate(t.at)}`;
   }
 
+  function host(){
+    const list=document.getElementById('sa415HqList');if(!list)return null;
+    let h=document.getElementById('enl437Host');
+    if(!h){h=document.createElement('div');h.id='enl437Host';list.parentNode.insertBefore(h,list)}
+    return h;
+  }
   function renderSummary(data){
-    const list=document.getElementById('sa415HqList');if(!list)return;
-    const panel=list.closest('.panel');if(!panel)return;
-    let box=document.getElementById('enl437Summary');
-    if(!box){box=document.createElement('div');box.id='enl437Summary';box.className='enl437-summary';list.parentNode.insertBefore(box,list)}
+    const h=host();if(!h)return;
     const s=data?.summary||{};
-    const html=`<div class="enl437-card"><small>경영진·관리자</small><b>${Number(s.total||0)}</b></div><div class="enl437-card ready"><small>알림 정상</small><b>${Number(s.ready||0)}</b></div><div class="enl437-card warn"><small>확인 필요</small><b>${Number(s.needsCheck||0)}</b></div><div class="enl437-card off"><small>미설정</small><b>${Number(s.notConfigured||0)}</b></div><div class="enl437-summary-note">정상은 설치형 앱 실행이 확인되고 알림 권한·푸시 연결이 유효한 기기가 최근 30일 안에 확인된 상태입니다. 수신 테스트의 ‘열람 확인’은 대상자가 테스트 알림을 눌렀을 때 기록됩니다.</div>`;
-    if(box.innerHTML!==html)box.innerHTML=html;
+    const html=`<div class="enl437-host-title"><h3>경영진 앱·알림 상태</h3><button type="button" class="enl437-refresh" id="enl437Refresh">상태 새로고침</button></div><div id="enl437Summary" class="enl437-summary"><div class="enl437-card"><small>경영진·관리자</small><b>${Number(s.total||0)}</b></div><div class="enl437-card ready"><small>알림 정상</small><b>${Number(s.ready||0)}</b></div><div class="enl437-card warn"><small>확인 필요</small><b>${Number(s.needsCheck||0)}</b></div><div class="enl437-card off"><small>미설정</small><b>${Number(s.notConfigured||0)}</b></div><div class="enl437-summary-note">정상은 설치형 앱 실행이 확인되고 알림 권한·푸시 연결이 유효한 기기가 최근 30일 안에 확인된 상태입니다. 수신 테스트의 ‘열람 확인’은 대상자가 테스트 알림을 눌렀을 때 기록됩니다.</div></div>`;
+    if(h.innerHTML!==html)h.innerHTML=html;
+    const refresh=document.getElementById('enl437Refresh');if(refresh)refresh.onclick=()=>decorate(true);
+  }
+  function renderHostError(message){
+    const h=host();if(!h)return;
+    h.innerHTML=`<div class="enl437-host-title"><h3>경영진 앱·알림 상태</h3><button type="button" class="enl437-refresh" id="enl437Refresh">다시 확인</button></div><div class="sa415-empty">${esc(message)}</div>`;
+    const refresh=document.getElementById('enl437Refresh');if(refresh)refresh.onclick=()=>decorate(true);
   }
 
   function bindTest(button,userId,name){
@@ -135,11 +150,9 @@
     try{
       const data=await status(force);if(!data)return;renderSummary(data);renderRows(data);
     }catch(e){
-      const m=String(e?.message||''),list=document.getElementById('sa415HqList');
-      if(!list)return;
-      const id=(m==='login_refresh_required'||m==='forbidden')?'enl437AuthNotice':'enl437LoadNotice';
-      const text=(m==='login_refresh_required'||m==='forbidden')?'알림 상태 확인은 보안상 안전관리자 재로그인 후 사용할 수 있습니다.':'알림 상태를 불러오지 못했습니다. 앱을 최신화한 뒤 다시 열어주세요.';
-      let n=document.getElementById(id);if(!n){n=document.createElement('div');n.id=id;n.className='sa415-empty';list.parentNode.insertBefore(n,list)}n.textContent=text;
+      const m=String(e?.message||'');
+      const text=(m==='login_refresh_required'||m==='forbidden')?'알림 상태 확인을 위해 안전관리자 계정에서 다시 로그인해 주세요.':'알림 상태를 불러오지 못했습니다. 네트워크 상태를 확인한 뒤 다시 확인해 주세요.';
+      renderHostError(text);
     }
   }
   function schedule(force=false){clearTimeout(timer);timer=setTimeout(()=>decorate(force),90)}
@@ -164,5 +177,6 @@
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){ackPending();schedule(false)}});
   setTimeout(()=>{ackPending();schedule(false)},180);
   window.enlRefreshHqPushStatus=()=>decorate(true);
+  window.enlRenderHqNotificationStatus=force=>decorate(force!==false);
   window.ENL_HQ_NOTIFICATION_STATUS_VERSION=VERSION;
 })();
