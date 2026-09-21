@@ -1,5 +1,5 @@
-const ENL_SW_VERSION='4.2.5-pwa3';
-const CACHE_NAME='enl-pwa-425-r21';
+const ENL_SW_VERSION='4.2.5-pwa4-confirm1';
+const CACHE_NAME='enl-pwa-425-r22';
 const OFFLINE_URL='/stable412.html?offline=1';
 
 self.addEventListener('install',event=>{
@@ -42,26 +42,57 @@ self.addEventListener('push',event=>{
   const body=String(data.body||'새로운 알림이 있습니다.');
   const tag=String(data.tag||`enl-${Date.now()}`);
   const payload=data.data&&typeof data.data==='object'?data.data:{};
-  event.waitUntil(self.registration.showNotification(title,{
-    body,
-    tag,
-    renotify:true,
-    icon:'/pwa-icon-192.png',
-    badge:'/pwa-icon-192.png',
-    data:payload,
-    vibrate:[160,80,160]
-  }));
+  event.waitUntil((async()=>{
+    const options={
+      body,
+      tag,
+      renotify:true,
+      icon:'/pwa-icon-192.png',
+      badge:'/pwa-icon-192.png',
+      data:payload,
+      vibrate:[160,80,160]
+    };
+    if(String(payload.kind||'')==='admin_push_test'){
+      options.actions=[{action:'confirm',title:'확인'}];
+      options.requireInteraction=true;
+    }
+    try{await self.registration.showNotification(title,options)}
+    catch(e){
+      delete options.actions;delete options.requireInteraction;
+      await self.registration.showNotification(title,options);
+    }
+  })());
 });
+
+const PUSH_CONFIRM_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-admin-v437';
+async function confirmAdminPushTest(d,method){
+  const checkId=String(d?.checkId||'').trim(),confirmToken=String(d?.confirmToken||'').trim();
+  if(!checkId||!confirmToken)return false;
+  try{
+    const r=await fetch(PUSH_CONFIRM_API,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-ENL-App':'incident-report-v2'},
+      body:JSON.stringify({action:'ack_test_token',checkId,confirmToken,method}),
+      cache:'no-store'
+    });
+    return r.ok;
+  }catch(e){return false}
+}
 
 self.addEventListener('notificationclick',event=>{
   event.notification.close();
   const d=event.notification?.data&&typeof event.notification.data==='object'?event.notification.data:{};
   const incidentId=String(d.incidentId||'').trim();
   const kind=String(d.kind||'').trim();
+  const action=String(event.action||'').trim();
   const target=incidentId
     ? `https://enlsafety.github.io/stable412.html?push=1&incident=${encodeURIComponent(incidentId)}${kind?`&kind=${encodeURIComponent(kind)}`:''}`
     : String(d.url||'https://enlsafety.github.io/');
   event.waitUntil((async()=>{
+    if(kind==='admin_push_test'){
+      await confirmAdminPushTest(d,action==='confirm'?'action':'notification');
+      if(action==='confirm')return;
+    }
     const list=await self.clients.matchAll({type:'window',includeUncontrolled:true});
     for(const client of list){
       try{

@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.3.7 - HQ push readiness dashboard */
 (function(){
   'use strict';
-  const VERSION='4.3.7-hq-notify3';
+  const VERSION='4.3.7-hq-notify4';
   const API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-admin-v437';
   const CLIENT='incident-report-v2';
   const PENDING_KEY='enl_pending_pushcheck_v437';
@@ -75,8 +75,8 @@
   }
   function testText(x){
     const t=x?.lastTest;if(!t)return '수신 테스트 미실시';
-    if(t.status==='opened')return `열람 확인 ${fmtDate(t.openedAt)}`;
-    if(t.status==='sent')return `발송 성공 ${fmtDate(t.at)} · 열람 대기`;
+    if(t.status==='confirmed')return `수신 확인 ${fmtDate(t.confirmedAt)}`;
+    if(t.status==='sent')return `발송 성공 ${fmtDate(t.at)} · 확인 대기`;
     if(t.status==='failed')return `발송 실패 ${fmtDate(t.at)}`;
     return `테스트 처리 중 ${fmtDate(t.at)}`;
   }
@@ -90,7 +90,7 @@
   function renderSummary(data){
     const h=host();if(!h)return;
     const s=data?.summary||{};
-    const html=`<div class="enl437-host-title"><h3>경영진 앱·알림 상태</h3><button type="button" class="enl437-refresh" id="enl437Refresh">상태 새로고침</button></div><div id="enl437Summary" class="enl437-summary"><div class="enl437-card"><small>경영진·관리자</small><b>${Number(s.total||0)}</b></div><div class="enl437-card ready"><small>알림 정상</small><b>${Number(s.ready||0)}</b></div><div class="enl437-card warn"><small>확인 필요</small><b>${Number(s.needsCheck||0)}</b></div><div class="enl437-card off"><small>미설정</small><b>${Number(s.notConfigured||0)}</b></div><div class="enl437-summary-note">정상은 설치형 앱 실행이 확인되고 알림 권한·푸시 연결이 유효한 기기가 최근 30일 안에 확인된 상태입니다. 수신 테스트의 ‘열람 확인’은 대상자가 테스트 알림을 눌렀을 때 기록됩니다.</div></div>`;
+    const html=`<div class="enl437-host-title"><h3>경영진 앱·알림 상태</h3><button type="button" class="enl437-refresh" id="enl437Refresh">상태 새로고침</button></div><div id="enl437Summary" class="enl437-summary"><div class="enl437-card"><small>경영진·관리자</small><b>${Number(s.total||0)}</b></div><div class="enl437-card ready"><small>알림 정상</small><b>${Number(s.ready||0)}</b></div><div class="enl437-card warn"><small>확인 필요</small><b>${Number(s.needsCheck||0)}</b></div><div class="enl437-card off"><small>미설정</small><b>${Number(s.notConfigured||0)}</b></div><div class="enl437-summary-note">정상은 설치형 앱 실행·알림 권한·푸시 연결이 확인되었거나, 최근 30일 안에 테스트 알림의 ‘확인’을 눌러 실제 수신이 검증된 상태입니다.</div></div>`;
     if(h.innerHTML!==html)h.innerHTML=html;
     const refresh=document.getElementById('enl437Refresh');if(refresh)refresh.onclick=()=>decorate(true);
   }
@@ -100,6 +100,20 @@
     const refresh=document.getElementById('enl437Refresh');if(refresh)refresh.onclick=()=>decorate(true);
   }
 
+  let confirmWatchTimer=null,confirmWatchCount=0;
+  function stopConfirmWatch(){if(confirmWatchTimer){clearInterval(confirmWatchTimer);confirmWatchTimer=null}confirmWatchCount=0}
+  function startConfirmWatch(userId){
+    stopConfirmWatch();confirmWatchCount=0;
+    confirmWatchTimer=setInterval(async()=>{
+      if(!document.getElementById('enl437Host')||document.visibilityState==='hidden'){stopConfirmWatch();return}
+      confirmWatchCount++;
+      try{
+        const data=await status(true),row=(data?.users||[]).find(x=>String(x.userId)===String(userId));
+        renderSummary(data);renderRows(data);
+        if(row?.lastTest?.status==='confirmed'||row?.lastTest?.status==='failed'||confirmWatchCount>=30)stopConfirmWatch();
+      }catch(e){if(confirmWatchCount>=30)stopConfirmWatch()}
+    },4000);
+  }
   function bindTest(button,userId,name){
     button.onclick=async ev=>{
       ev.preventDefault();ev.stopPropagation();
@@ -107,8 +121,8 @@
       button.disabled=true;const old=button.textContent;button.textContent='발송 중…';
       try{
         const r=await api('test_send',{targetUserId:userId},20000);
-        alert(r.sent>0?`테스트 알림을 ${r.sent}대 기기로 보냈습니다. 대상자가 알림을 누르면 열람 확인으로 표시됩니다.`:'테스트 알림을 보내지 못했습니다.');
-        cache=null;await decorate(true);
+        alert(r.sent>0?`테스트 알림을 ${r.sent}대 기기로 보냈습니다. 대상자가 알림의 ‘확인’을 누르면 자동으로 수신 확인·정상 상태로 바뀝니다.`:'테스트 알림을 보내지 못했습니다.');
+        cache=null;await decorate(true);if(r.sent>0)startConfirmWatch(userId);
       }catch(e){
         const m=String(e?.message||'');
         if(m==='not_configured')alert('등록된 푸시 기기가 없습니다. 대상자가 앱에서 알림 설정을 먼저 완료해야 합니다.');
