@@ -22,6 +22,8 @@ on:
       - 'incident-excel-v421.js'
       - 'pwa-push-v418.js'
       - 'push-session-v425.js'
+      - 'hq-notification-status-v437.js'
+      - 'hq-notification-status-v437.js'
       - 'sw-v418.js'
       - 'manifest.webmanifest'
       - '.github/workflows/v410-smoke.yml'
@@ -46,6 +48,7 @@ on:
       - 'incident-excel-v421.js'
       - 'pwa-push-v418.js'
       - 'push-session-v425.js'
+      - 'hq-notification-status-v437.js'
       - 'sw-v418.js'
       - 'manifest.webmanifest'
       - '.github/workflows/v410-smoke.yml'
@@ -62,7 +65,7 @@ jobs:
 
       - name: JavaScript syntax
         run: |
-          for f in core.js auth-v411.js incident-sync-v411.js workflow-lifecycle-v413.js workflow-prevention-v429.js incident-review-v431.js production-cleanup-v431.js workflow-enhancements-v432.js site-admin-hotfix-v433.js personnel-management-v434.js legal-review-v435.js industrial-report-v436.js incident-excel-v421.js pwa-push-v418.js push-session-v425.js sw-v418.js; do
+          for f in core.js auth-v411.js incident-sync-v411.js workflow-lifecycle-v413.js workflow-prevention-v429.js incident-review-v431.js production-cleanup-v431.js workflow-enhancements-v432.js site-admin-hotfix-v433.js personnel-management-v434.js legal-review-v435.js industrial-report-v436.js incident-excel-v421.js pwa-push-v418.js push-session-v425.js hq-notification-status-v437.js sw-v418.js; do
             node --check "$f"
           done
 
@@ -95,6 +98,9 @@ jobs:
             'industrial-report-v436.js?v=4.1.2-r36&amp;fix=moel-form30-1',
           ]
           for x in required: assert x in html,x
+          assert 'hq-notification-status-v437.js?v=4.3.7&amp;fix=hq-notify1' in html
+          assert 'pwa-push-v418.js?v=4.1.2-r37&amp;fix=device-readiness1' in html
+          assert 'push-session-v425.js?v=4.1.2-r37&amp;fix=device-heartbeat1' in html
 
           class R(HTMLParser):
             def __init__(self): super().__init__(); self.refs=[]; self.scripts=[]
@@ -190,7 +196,7 @@ jobs:
               try:p=json.loads(e.read().decode())
               except:p={}
               return e.code,p
-          for fn in ['enl-push-v418','enl-account-v420','enl-push-claim-v425','enl-personnel-v434','enl-industrial-report-v436']:
+          for fn in ['enl-push-v418','enl-account-v420','enl-push-claim-v425','enl-push-admin-v437','enl-personnel-v434','enl-industrial-report-v436']:
             code,j=call(fn,{'action':'health'})
             assert code==200 and j.get('ok') is True,(fn,code,j)
           print('OK: production health endpoints respond without creating incidents or sending push notifications')
