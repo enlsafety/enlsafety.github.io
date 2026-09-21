@@ -45,6 +45,8 @@ on:
       - 'personnel-management-v434.js'
       - 'legal-review-v435.js'
       - 'industrial-report-v436.js'
+      - 'closed-incident-reopen-v438.js'
+      - 'official-records-v439.js'
       - 'responsive-v432.css'
       - 'incident-excel-v421.js'
       - 'pwa-push-v418.js'
@@ -216,4 +218,8 @@ jobs:
           for fn in ['enl-incident-sync-v411','enl-incident-compliance-v439','enl-push-v418','enl-account-v420','enl-push-claim-v425','enl-push-admin-v437','enl-personnel-v434','enl-industrial-report-v436']:
             code,j=call(fn,{'action':'health'})
             assert code==200 and j.get('ok') is True,(fn,code,j)
-          print('OK: production health endpoints respond without creating incidents or sending push notifications')
+          code,j=call('enl-incident-compliance-v439',{'action':'backup_list','actor':{'id':'missing','name':'x','role':'safety'},'actorPasswordHash':'invalid'})
+          assert code==403 and j.get('message')=='forbidden',(code,j)
+          code,j=call('enl-incident-sync-v411',{'action':'pull','actor':{'id':'missing','name':'x','role':'safety'}})
+          assert code==403 and j.get('message')=='forbidden',(code,j)
+          print('OK: official-record endpoints are live and reject unverified actors without changing data')
