@@ -101,8 +101,8 @@ jobs:
           ]
           for x in required: assert x in html,x
           assert 'hq-notification-status-v437.js?v=4.3.7&amp;fix=hq-notify4' in html
-          assert 'pwa-push-v418.js?v=4.1.6-r1&amp;fix=device-readiness2' in html
-          assert 'push-session-v425.js?v=4.1.6-r1&amp;fix=device-heartbeat2' in html
+          assert 'pwa-push-v418.js?v=4.1.5-r1&amp;fix=device-readiness2' in html
+          assert 'push-session-v425.js?v=4.1.5-r1&amp;fix=device-heartbeat2' in html
           assert 'site-admin-v415.js?v=4.1.4-r1&amp;fix=personnel3' in html
           hq=Path('hq-notification-status-v437.js').read_text(encoding='utf-8')
           sw=Path('sw-v418.js').read_text(encoding='utf-8')
