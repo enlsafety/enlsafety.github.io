@@ -6,6 +6,7 @@ on:
     paths:
       - 'workflow-lifecycle-v413.js'
       - 'reader-ui-v414.js'
+      - 'closed-incident-reopen-v438.js'
       - 'stable412.html'
       - '.github/workflows/lifecycle-v413-smoke.yml'
   workflow_dispatch:
@@ -22,12 +23,14 @@ jobs:
         run: |
           node --check workflow-lifecycle-v413.js
           node --check reader-ui-v414.js
+          node --check closed-incident-reopen-v438.js
       - name: Lifecycle wiring and rules
         shell: python
         run: |
           from pathlib import Path
           js=Path('workflow-lifecycle-v413.js').read_text(encoding='utf-8')
           reader=Path('reader-ui-v414.js').read_text(encoding='utf-8')
+          reopen=Path('closed-incident-reopen-v438.js').read_text(encoding='utf-8')
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
             "prev?.status==='closed'&&String(i.status)==='reported'",
@@ -51,6 +54,8 @@ jobs:
           for x in reader_required: assert x in reader,x
           assert 'workflow-lifecycle-v413.js?v=4.1.2-r16&amp;fix=lifecycle1' in html
           assert 'reader-ui-v414.js?v=4.1.2-r16&amp;fix=reader1' in html
+          assert 'closed-incident-reopen-v438.js?v=4.3.8&amp;fix=closed-reopen1' in html
+          for x in ['closed_rollback_to_report_approved',"i.status='approved'",'i.corrective=null','reopenedAt','enlEditIncidentInReportForm']: assert x in reopen,x
           assert html.index('workflow-lifecycle-v413.js') < html.index('reader-ui-v414.js') < html.index('workflow-v412.js')
           print('OK: two-stage lifecycle and simplified reader UI wired')
       - name: Live finalized incident view
