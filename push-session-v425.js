@@ -4,7 +4,7 @@
   const VERSION='4.2.5-push-session3';
   const CLAIM_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-claim-v425';
   const CLIENT='incident-report-v2';
-  const SW_URL='/sw-v418.js?v=4.2.5-pwa3';
+  const SW_URL='/sw-v418.js?v=4.2.5-pwa4-confirm1';
   const PREF_PREFIX='enl_push_preferences_v1_';
   const PENDING_KEY='enl_pending_push_incident_v425';
   const PENDING_TTL=30*60*1000;
