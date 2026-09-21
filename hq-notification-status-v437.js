@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.3.7 - HQ push readiness dashboard */
 (function(){
   'use strict';
-  const VERSION='4.3.7-hq-notify1';
+  const VERSION='4.3.7-hq-notify2';
   const API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-admin-v437';
   const CLIENT='incident-report-v2';
   const PENDING_KEY='enl_pending_pushcheck_v437';
@@ -81,7 +81,8 @@
     let box=document.getElementById('enl437Summary');
     if(!box){box=document.createElement('div');box.id='enl437Summary';box.className='enl437-summary';list.parentNode.insertBefore(box,list)}
     const s=data?.summary||{};
-    box.innerHTML=`<div class="enl437-card"><small>경영진·관리자</small><b>${Number(s.total||0)}</b></div><div class="enl437-card ready"><small>알림 정상</small><b>${Number(s.ready||0)}</b></div><div class="enl437-card warn"><small>확인 필요</small><b>${Number(s.needsCheck||0)}</b></div><div class="enl437-card off"><small>미설정</small><b>${Number(s.notConfigured||0)}</b></div><div class="enl437-summary-note">정상은 설치형 앱 실행이 확인되고 알림 권한·푸시 연결이 유효한 기기가 최근 30일 안에 확인된 상태입니다. 수신 테스트의 ‘열람 확인’은 대상자가 테스트 알림을 눌렀을 때 기록됩니다.</div>`;
+    const html=`<div class="enl437-card"><small>경영진·관리자</small><b>${Number(s.total||0)}</b></div><div class="enl437-card ready"><small>알림 정상</small><b>${Number(s.ready||0)}</b></div><div class="enl437-card warn"><small>확인 필요</small><b>${Number(s.needsCheck||0)}</b></div><div class="enl437-card off"><small>미설정</small><b>${Number(s.notConfigured||0)}</b></div><div class="enl437-summary-note">정상은 설치형 앱 실행이 확인되고 알림 권한·푸시 연결이 유효한 기기가 최근 30일 안에 확인된 상태입니다. 수신 테스트의 ‘열람 확인’은 대상자가 테스트 알림을 눌렀을 때 기록됩니다.</div>`;
+    if(box.innerHTML!==html)box.innerHTML=html;
   }
 
   function bindTest(button,userId,name){
@@ -102,17 +103,23 @@
     };
   }
 
+  function rowUserId(row){
+    const el=row.querySelector('[data-sa415-hq-edit],[data-sa415-hq-pw],[data-pm434-hq-edit],[data-pm434-hq-pw]');
+    if(!el)return '';
+    return String(el.dataset.sa415HqEdit||el.dataset.sa415HqPw||el.dataset.pm434HqEdit||el.dataset.pm434HqPw||'');
+  }
   function renderRows(data){
     const map=new Map((data?.users||[]).map(x=>[String(x.userId),x]));
     document.querySelectorAll('#sa415HqList .sa415-hq-row').forEach(row=>{
-      const key=row.querySelector('[data-sa415-hq-edit]')?.dataset.sa415HqEdit||row.querySelector('[data-sa415-hq-pw]')?.dataset.sa415HqPw||'';
+      const key=rowUserId(row);
       if(!key)return;
       const x=map.get(String(key));if(!x)return;
       row.classList.add('enl437-row');
       let cell=row.querySelector('.enl437-statuscell');
       if(!cell){cell=document.createElement('div');cell.className='enl437-statuscell';const actions=row.querySelector('.sa415-hq-actions');row.insertBefore(cell,actions||null)}
       const st=stateInfo(x);
-      cell.innerHTML=`<span class="enl437-badge ${st.cls}">${esc(st.label)}</span><div class="enl437-meta">${esc(deviceText(x))}<br>최근 확인 ${esc(fmtDate(x.lastSeenAt))}</div><div class="enl437-testresult">${esc(testText(x))}</div>`;
+      const html=`<span class="enl437-badge ${st.cls}">${esc(st.label)}</span><div class="enl437-meta">${esc(deviceText(x))}<br>최근 확인 ${esc(fmtDate(x.lastSeenAt))}</div><div class="enl437-testresult">${esc(testText(x))}</div>`;
+      if(cell.innerHTML!==html)cell.innerHTML=html;
       const actions=row.querySelector('.sa415-hq-actions');
       if(actions&&['manager','executive'].includes(roleNorm(x.role))){
         let test=actions.querySelector('.enl437-test');
@@ -128,9 +135,11 @@
     try{
       const data=await status(force);if(!data)return;renderSummary(data);renderRows(data);
     }catch(e){
-      if(String(e?.message||'')==='login_refresh_required'||String(e?.message||'')==='forbidden'){
-        const list=document.getElementById('sa415HqList');if(list&&!document.getElementById('enl437AuthNotice')){const n=document.createElement('div');n.id='enl437AuthNotice';n.className='sa415-empty';n.textContent='알림 상태 확인은 보안상 안전관리자 재로그인 후 사용할 수 있습니다.';list.parentNode.insertBefore(n,list)}
-      }
+      const m=String(e?.message||''),list=document.getElementById('sa415HqList');
+      if(!list)return;
+      const id=(m==='login_refresh_required'||m==='forbidden')?'enl437AuthNotice':'enl437LoadNotice';
+      const text=(m==='login_refresh_required'||m==='forbidden')?'알림 상태 확인은 보안상 안전관리자 재로그인 후 사용할 수 있습니다.':'알림 상태를 불러오지 못했습니다. 앱을 최신화한 뒤 다시 열어주세요.';
+      let n=document.getElementById(id);if(!n){n=document.createElement('div');n.id=id;n.className='sa415-empty';list.parentNode.insertBefore(n,list)}n.textContent=text;
     }
   }
   function schedule(force=false){clearTimeout(timer);timer=setTimeout(()=>decorate(force),90)}
