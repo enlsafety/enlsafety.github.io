@@ -13,7 +13,7 @@
   const incidentById=id=>(data?.incidents||[]).find(i=>String(i?.id||'')===String(id||''));
   const actor=u=>({id:u?.id||u?.personnelId||u?.username||'',name:u?.name||'',role:roleNorm(u?.role),position:u?.position||u?.jobTitle||''});
   const now=()=>new Date().toISOString();
-  const reportDeadline=v=>{if(!v)return '';const d=new Date(String(v)+'T00:00:00');if(Number.isNaN(d.getTime()))return '';const day=d.getDate();d.setMonth(d.getMonth()+1);if(d.getDate()!==day)d.setDate(0);return d.toISOString().slice(0,10)};
+  const reportDeadline=v=>{if(!v)return '';const d=new Date(String(v)+'T00:00:00');if(Number.isNaN(d.getTime()))return '';const day=d.getDate();d.setMonth(d.getMonth()+1);if(d.getDate()!==day)d.setDate(0);const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`};
   const deepGet=(o,p)=>String(p||'').split('.').reduce((a,k)=>a&&a[k]!==undefined?a[k]:'',o);
   const deepSet=(o,p,v)=>{const ks=String(p||'').split('.');let cur=o;ks.forEach((k,idx)=>{if(idx===ks.length-1)cur[k]=v;else{if(!cur[k]||typeof cur[k]!=='object')cur[k]={};cur=cur[k]}});return o};
   const clone=v=>JSON.parse(JSON.stringify(v||{}));
