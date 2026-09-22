@@ -10,17 +10,9 @@ on:
       - 'auth-v411.js'
       - 'login-layout-v412.js'
       - 'incidents-v410.js'
-      - 'incidents-v410.js'
       - 'incident-sync-v411.js'
       - 'report-v410.js'
       - 'field-incidents-v411.js'
-      - 'field-incidents-v411.js'
-      - 'app-shell-v411.js'
-      - 'reader-ui-v414.js'
-      - 'incident-stats-v426.js'
-      - 'reader-experience-v424.js'
-      - 'incident-flow-v440.js'
-      - 'report-v410.js'
       - 'app-shell-v411.js'
       - 'reader-ui-v414.js'
       - 'incident-stats-v426.js'
@@ -117,7 +109,7 @@ jobs:
             'site-admin-hotfix-v433.js?v=4.1.2-r33&amp;fix=site-api1',
             'personnel-management-v434.js?v=4.1.4-r1&amp;fix=personnel-integrity2',
             'legal-review-v435.js?v=4.1.2-r35&amp;fix=legal-simplify1',
-            'industrial-report-v436.js?v=4.1.2-r36&amp;fix=moel-form30-1',
+            'industrial-report-v436.js?v=4.4.0-r1&amp;fix=deadline-confirmation2',
             'closed-incident-reopen-v438.js?v=4.3.8&amp;fix=closed-reopen1',
             'official-records-v439.js?v=4.4.0-r1&amp;fix=confirmation-audit2',
             'incidents-v410.js?v=4.4.0-r1&amp;fix=reader-immediate1',
@@ -213,13 +205,17 @@ jobs:
 
           industrial_js=Path('industrial-report-v436.js').read_text(encoding='utf-8')
           for x in [
-            "const VERSION='4.3.6-industrial-report1'",
+            "const VERSION='4.4.0-industrial-compliance2'",
             '/functions/v1/enl-industrial-report-v436',
             '주민등록번호 앞 7자리',
             '공식서식 PDF 미리보기',
             '수동보완',
             '정정본 만들기',
             "action:'render_pdf'",
+            '근로자대표 확인 방식',
+            '근로자대표가 없는 경우에는 재해자 본인의 확인',
+            '재해 발생일로부터 1개월 이내',
+            'reportDeadline',
           ]: assert x in industrial_js,x
 
           prevention=Path('workflow-prevention-v429.js').read_text(encoding='utf-8')
