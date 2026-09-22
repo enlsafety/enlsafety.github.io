@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.2.4 - reader nav alerts + instant own comment deletion */
 (function(){
   'use strict';
-  const VERSION='4.2.4-reader-experience2';
+  const VERSION='4.4.0-reader-workflow1';
   const DELETE_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-comment-delete-v424';
   const WORKFLOW_API_FRAGMENT='/functions/v1/enl-workflow-v412';
   const CLIENT='incident-report-v2';
@@ -47,16 +47,17 @@
 
   function readerIncidentDots(u){
     const arr=[...(data?.incidents||[])];
+    const pending=arr.filter(i=>['reported','supplement','supplement_submitted'].includes(String(i.status||'')));
     const unreadApproved=arr.filter(i=>String(i.status||'')==='approved'&&!receiptFor(i,u));
     const unreadClosed=arr.filter(i=>finalized(i)&&!receiptFor(i,u));
-    dot(document.querySelector('[data-shell-view="home"]'),unreadApproved.length+unreadClosed.length>0,'아직 열람 확인하지 않은 사고가 있습니다');
-    dot(document.querySelector('[data-shell-view="incidents"]'),unreadApproved.length>0,'열람 확인이 필요한 승인사고가 있습니다');
+    dot(document.querySelector('[data-shell-view="home"]'),pending.length+unreadApproved.length+unreadClosed.length>0,'새 사고보고 또는 확인이 필요한 사고가 있습니다');
+    dot(document.querySelector('[data-shell-view="incidents"]'),pending.length+unreadApproved.length>0,'즉시보고·보완 또는 확인이 필요한 사고가 있습니다');
     dot(document.querySelector('[data-lifecycle-closed]'),unreadClosed.length>0,'열람 확인이 필요한 종결사고가 있습니다');
   }
   function safetyWorkDots(u){
-    const arr=[...(data?.incidents||[])],reported=arr.some(i=>String(i.status||'')==='reported'),actions=arr.some(i=>String(i.corrective?.status||'')==='submitted');
+    const arr=[...(data?.incidents||[])],reported=arr.some(i=>['reported','supplement_submitted'].includes(String(i.status||''))),actions=arr.some(i=>String(i.corrective?.status||'')==='submitted');
     dot(document.querySelector('[data-shell-view="home"]'),reported||actions,'검토가 필요한 새 업무가 있습니다');
-    dot(document.querySelector('[data-shell-view="incidents"]'),reported,'검토대기 사고가 있습니다');
+    dot(document.querySelector('[data-shell-view="incidents"]'),reported,'즉시보고 또는 보완검토 대기 사고가 있습니다');
     dot(document.querySelector('[data-shell-view="actions"]'),actions,'검토대기 사고조치가 있습니다');
   }
 
