@@ -37,14 +37,14 @@ jobs:
           ctrl=Path('app-control-v410.js').read_text(encoding='utf-8')
           sync=Path('incident-sync-v411.js').read_text(encoding='utf-8')
           assert 'incident-sync-v411.js?v=4.2.1-r1&amp;fix=official-auth-reprompt1' in html
-          assert 'app-control-v410.js?v=4.1.2-r16&amp;fix=update6' in html
-          for x in ['최신버전으로 업데이트','새로고침','a?.role!==\'safety\'','data-enl-global-update','data-enl-refresh','enl-global-refresh','CONTROL_POLL_MS=60000','inquiry_count','enlIncidentSyncNow','clearedBySessionModule','scheduleForegroundControl']:
+          assert 'app-control-v410.js?v=4.2.7-r1&amp;fix=update7-session-guard' in html
+          for x in ['최신버전으로 업데이트','새로고침','a?.role!==\'safety\'','data-enl-global-update','data-enl-refresh','enl-global-refresh','CONTROL_POLL_MS=60000','POST_LOGIN_GRACE_MS=15000','sameStableVersion','already_current','inquiry_count','enlIncidentSyncNow','clearedBySessionModule','scheduleForegroundControl']:
             assert x in ctrl,x
           assert 'loginLatestBtn' in ctrl and "document.getElementById('loginLatestBtn')?.remove()" in ctrl
           for x in ['setInterval','15000','pageshow','visibilitychange','document.visibilityState===\'visible\'','deferredDeletedIds','scheduleSync(250,deleted)','syncing||syncTimer','function uiWriteBusy()','if(dirty||uiWriteBusy())']:
             assert x in sync,x
           assert "setTimeout(()=>syncNow(deleted),250)" not in sync
-          print('OK: safety-only global update, coalesced sync timers and report-form write protection are preserved')
+          print('OK: safety-only global update, stale-epoch fresh-login guard, coalesced sync timers and report-form write protection are preserved')
       - name: Global control API security
         shell: python
         run: |
