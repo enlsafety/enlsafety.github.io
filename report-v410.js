@@ -47,7 +47,7 @@
 
   async function submitIncident410(e,u,type,existing=null){
     e.preventDefault();if(!canCreate(u))return alert('사고보고 등록 권한이 없습니다.');
-    for(const [id,label] of [['reportSite','사업장'],['occurredDate410','발생 날짜'],['occurredTime410','발생 시간'],['incidentPlace410','사고 장소'],['workAction410','사고 직전 작업'],['incidentHow410','사고 발생 과정'],['immediateAction','사고 직후 조치'],['preventionPlan410','재발 방지 대책']])if(!required(id,label))return;
+    for(const [id,label] of [['reportSite','사업장'],['occurredDate410','발생 날짜'],['occurredTime410','발생 시간'],['incidentPlace410','사고 장소'],['workAction410','사고 직전 작업'],['incidentHow410','사고 발생 과정'],['immediateAction','사고 직후 조치']])if(!required(id,label))return;
     if(type==='person'){if(!required('injuredName','피해 직원 성명')||!required('injuryDetail410','부상 내용'))return}else if(!required('damagedItem410','파손된 물품 또는 시설')||!required('damageDetail410','파손 내용'))return;
     if(!Array.isArray(incidentPhotos)||incidentPhotos.length<1){document.querySelector('.report410-photo')?.scrollIntoView({behavior:'smooth',block:'center'});return alert('현장사진 또는 PDF 파일을 1개 이상 등록해 주세요.')}
     if(existing&&typeof window.enlCanEditIncident==='function'&&!window.enlCanEditIncident(existing,u))return alert('현재 상태에서는 이 사고보고를 수정할 수 없습니다.');
