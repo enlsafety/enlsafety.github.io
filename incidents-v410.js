@@ -13,14 +13,14 @@
   const userId=u=>String(u?.personnelId||u?.id||'');
   const isAuthor=(i,u)=>{const rid=String(i?.reporterId||'');if(rid&&userId(u))return rid===userId(u);return !!i&&!rid&&norm(i.reporterName)===norm(u?.name)};
   const siteName=id=>{try{return siteById(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}};
-  const statusLabel=v=>v==='reported'?'검토대기':v==='rejected'?'반려':v==='approved'?'승인':v==='closed'?'종결':String(v||'진행중');
-  const statusBadgeHtml=v=>typeof badge==='function'?badge(v==='reported'?'p-reported':v==='rejected'?'p-rejected':v==='approved'?'p-approved':v==='closed'?'p-closed':'p-normal',statusLabel(v)):`<span>${statusLabel(v)}</span>`;
+  const statusLabel=v=>v==='reported'?'즉시보고 검토대기':v==='supplement'?'보완대기':v==='supplement_submitted'?'보완검토대기':v==='rejected'?'반려':v==='approved'?'사고보고 최종승인':v==='closed'?'종결':String(v||'진행중');
+  const statusBadgeHtml=v=>typeof badge==='function'?badge(v==='reported'?'p-reported':v==='supplement'||v==='supplement_submitted'?'p-review':v==='rejected'?'p-rejected':v==='approved'?'p-approved':v==='closed'?'p-closed':'p-normal',statusLabel(v)):`<span>${statusLabel(v)}</span>`;
   const sortIncidentList=(a,b)=>{const p={urgent:3,important:2,normal:1};return (p[b?.priority]||0)-(p[a?.priority]||0)||(new Date(b?.occurredAt||0)-new Date(a?.occurredAt||0))};
   const cut=(v,n=76)=>{const s=String(v||'').replace(/\s+/g,' ').trim();return s.length>n?s.slice(0,n-1)+'…':s};
   const won=v=>{const n=Number(v||0);return Number.isFinite(n)&&n>0?`${n.toLocaleString('ko-KR')}원`:''};
 
   function canEditIncident(i,u){if(!i||!u)return false;if(roleOf(u)==='safety')return true;if(!sameSite(i,u)||!['reported','rejected'].includes(i.status))return false;if(isSiteManager(u))return true;return u.role==='worker'&&isAuthor(i,u)}
-  function canViewOriginal(i,u){if(!i||!u)return false;const r=roleOf(u);if(r==='safety')return true;if(['manager','executive'].includes(r))return ['approved','closed'].includes(i.status);return sameSite(i,u)&&isSiteManager(u)}
+  function canViewOriginal(i,u){if(!i||!u)return false;const r=roleOf(u);if(r==='safety')return true;if(['manager','executive'].includes(r))return ['reported','supplement','supplement_submitted','approved','closed'].includes(i.status);return sameSite(i,u)&&isSiteManager(u)}
 
   function quickSummary(i){
     const d=i?.reportDetails||{},person=i?.category==='person',place=d.place||'',when=i?.occurredAt?fmt(i.occurredAt):'-';
@@ -85,7 +85,7 @@
       root.innerHTML=`<div class="panel"><div class="section-head"><div><div class="ey">SITE RECORDS</div><h2>내 사고 보고 기록</h2><p>내가 작성한 보고의 처리상태를 확인합니다.</p></div></div>${privateCards(arr,viewer)}</div>`;bindRejectedEdits(root,viewer);return;
     }
     if(isHqReader(viewer)){
-      const arr=[...(data.incidents||[])].filter(i=>['approved','closed'].includes(i.status)).sort(sortIncidentList);root.innerHTML=`<div class="panel"><div class="section-head"><div><div class="ey">APPROVED INCIDENTS</div><h2>승인 사고 조회</h2><p>안전관리자가 승인한 사고를 확인하고 열람 확인을 남길 수 있습니다.</p></div></div>${originalTable(arr,viewer)}</div>`;bindIncidentRowsFn(false,viewer);return;
+      const arr=[...(data.incidents||[])].filter(i=>['reported','supplement','supplement_submitted','approved','closed'].includes(i.status)).sort(sortIncidentList);root.innerHTML=`<div class="panel"><div class="section-head"><div><div class="ey">INCIDENT RECORDS</div><h2>사고 조회</h2><p>즉시보고부터 보완·최종승인·종결까지 진행상태를 조회합니다. 확인 서명은 최종승인 후 남길 수 있습니다.</p></div></div>${originalTable(arr,viewer)}</div>`;bindIncidentRowsFn(false,viewer);return;
     }
     const base=[...(data.incidents||[])].sort(sortIncidentList);
     root.innerHTML=`<div class="panel"><div class="section-head"><div><div class="ey">ALL INCIDENTS</div><h2>전체 사고관리</h2><p>사고를 한눈에 확인하고 검토·승인·반려할 수 있습니다.</p></div></div><div class="toolbar"><div class="left"><select id="siteFilter"><option value="">전체 사업장</option>${(data.sites||[]).map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('')}</select><select id="statusFilter"><option value="">전체 상태</option><option value="reported">검토대기</option><option value="rejected">반려</option><option value="approved">승인</option><option value="closed">종결</option></select><select id="categoryFilter"><option value="">전체 구분</option><option value="person">대인사고</option><option value="property">대물사고</option></select></div></div><div id="unifiedIncidentTable"></div></div>`;
