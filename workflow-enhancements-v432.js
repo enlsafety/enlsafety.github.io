@@ -2,7 +2,7 @@
 (function(){
   'use strict';
 
-  const VERSION='4.3.2-workflow-enhancements1';
+  const VERSION='4.4.0-immediate-required1';
   const MANAGER_POSITIONS=['현장소장','파트장','서무'];
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   const txt=v=>String(v??'').trim();
@@ -83,9 +83,9 @@
     if(form.dataset.reportType==='property'){
       const worker=form.querySelector('#propertyWorker410');
       if(worker){
-        worker.required=true;
+        worker.required=false;
         const span=worker.closest('label')?.querySelector('span');
-        if(span&& !span.textContent.includes('*'))span.textContent='작업자 성명 *';
+        if(span)span.textContent='작업자 성명 (확인된 경우)';
       }
     }
     bindRequiredForm(form);
