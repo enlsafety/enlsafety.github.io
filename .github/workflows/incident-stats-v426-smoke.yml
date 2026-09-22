@@ -32,7 +32,7 @@ jobs:
           js=Path('incident-stats-v426.js').read_text(encoding='utf-8')
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            "4.2.6-simple-stats2",
+            "4.2.8-dashboard-drilldown1",
             "['safety','manager','executive']",
             "['approved','closed']",
             "String(i.category||'')==='person'",
@@ -44,14 +44,23 @@ jobs:
             '간단 통계',
             "b.dataset.shellView='stats'",
             'Array.from({length:12}',
-            '.slice(0,10)'
+            '.slice(0,10)',
+            'data-stats-filter="all"',
+            'data-stats-month',
+            '최근 발생일 순',
+            'data-stats-inc',
+            'window.enlOpenIncidentReview',
+            'stats426-site-attention',
+            'stats426-site-manage',
+            '관심요망',
+            '관리필요'
           ]
           for marker in required:
             assert marker in js, marker
           assert 'fetch(' not in js, 'statistics module must not add network calls'
           assert 'setInterval(' not in js, 'statistics module must not add polling'
           assert 'MutationObserver' not in js, 'statistics module must not add observer loops'
-          script='incident-stats-v426.js?v=4.1.2-r23&amp;fix=simple-stats1'
+          script='incident-stats-v426.js?v=4.2.8-r1&amp;fix=dashboard-drilldown1'
           assert script in html
           assert html.index('app-shell-v411.js') < html.index('incident-stats-v426.js') < html.index('ui-stability-v422.js')
-          print('OK: lightweight role-scoped statistics are wired without network or polling')
+          print('OK: interactive role-scoped dashboard drill-downs are wired without network or polling')
