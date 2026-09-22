@@ -42,7 +42,7 @@
   }
 
   function actionLabel(v){
-    const m={create:'등록',update:'수정',approve:'사고보고 승인',reject:'반려',final_approval:'최종 종결승인',post_approval_revision:'승인 후 수정',corrective_submit:'재발방지조치 제출',corrective_reject:'재발방지조치 반려',attachment_add:'첨부 등록',attachment_delete:'첨부 삭제',delete:'삭제',restore:'복원',acknowledge:'경영진 열람확인'};
+    const m={create:'즉시보고 등록',update:'수정',supplement_request:'보완요청',supplement_submit:'보완자료 제출',supplement_resubmit:'보완자료 재제출',approve:'사고보고 최종승인',reject:'보고 반려',final_approval:'최종 종결승인',post_approval_revision:'승인 후 수정',corrective_submit:'재발방지조치 제출',corrective_reject:'재발방지조치 반려',corrective_approve:'재발방지조치 승인',attachment_add:'첨부 등록',attachment_delete:'첨부 삭제',delete:'삭제',restore:'복원',acknowledge:'내용 확인기록'};
     return m[v]||v||'기록';
   }
   function officialBox(i){
