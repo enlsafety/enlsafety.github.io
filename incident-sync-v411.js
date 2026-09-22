@@ -11,7 +11,7 @@
   const baseSaveData=saveData;
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
 
-  function signature(arr){return JSON.stringify((arr||[]).map(i=>[i.id,i.updatedAt||'',i.status||'',i.priority||'',i.corrective?.status||'',i.reporterId||'',(i.readReceipts||[]).map(r=>`${r.userId}:${r.readAt}`).sort().join('|')]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))))}
+  function signature(arr){return JSON.stringify((arr||[]).map(i=>[i.id,i.updatedAt||'',i.status||'',i.priority||'',i.corrective?.status||'',i.supplement?.status||'',i.reporterId||'',(i.readReceipts||[]).map(r=>`${r.userId}:${r.readAt}`).sort().join('|'),(i.acknowledgements||[]).map(r=>`${r.documentType}:${r.userId}:${r.ackAt||r.readAt}`).sort().join('|')]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))))}
   function actor(){const u=currentUser();return u?{id:u.id||u.personnelId||u.username||'',name:u.name||'',role:roleNorm(u.role),position:u.position||u.jobTitle||'',siteId:u.siteId||''}:null}
   function authProof(){
     let u=null;try{u=currentUser?.()||null}catch(e){}
@@ -106,10 +106,10 @@
     return changed;
   }
 
-  async function acknowledge(incidentId,u=currentUser()){
+  async function acknowledge(incidentId,u=currentUser(),documentType='incident_report'){
     const a=u?{id:u.id||u.personnelId||u.username||'',name:u.name||'',role:roleNorm(u.role),position:u.position||u.jobTitle||'',siteId:u.siteId||''}:actor();
-    if(!a||!['manager','executive'].includes(a.role))throw new Error('forbidden');
-    const res=await call({action:'acknowledge',actor:a,role:a.role,incidentId},10000);
+    if(!a||!['field','safety','manager','executive'].includes(a.role))throw new Error('forbidden');
+    const res=await call({action:'acknowledge',actor:a,role:a.role,incidentId,documentType},10000);
     if(res?.incident){const next=(data.incidents||[]).map(i=>String(i.id)===String(incidentId)?res.incident:i);persistRemote(next)}else await pull(false);
     return res;
   }
@@ -169,5 +169,5 @@
   window.addEventListener('online',()=>{if(currentUser())scheduleSync(500)});
   window.addEventListener('pageshow',syncOnForeground);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncOnForeground()});
-  window.ENL_INCIDENT_SYNC_VERSION='4.1.1-r16-official-auth-reprompt';
+  window.ENL_INCIDENT_SYNC_VERSION='4.4.0-supplement-ack1';
 })();
