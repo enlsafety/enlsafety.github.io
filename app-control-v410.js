@@ -11,6 +11,7 @@
   const UPDATE_LABEL='최신버전으로 업데이트';
   const REFRESH_LABEL='새로고침';
   const CONTROL_POLL_MS=60000;
+  const POST_LOGIN_GRACE_MS=15000;
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   window.ENL_DEPLOY_VERSION=VERSION;window.ENL_STABLE_MODE=true;
 
@@ -56,6 +57,8 @@
   function rememberCurrentBuild(){try{localStorage.setItem(BUILD_KEY,CURRENT_BUILD)}catch(e){}}
   function readEpoch(){try{return Number(localStorage.getItem(CONTROL_KEY)||0)||0}catch(e){return 0}}
   function saveEpoch(v){try{localStorage.setItem(CONTROL_KEY,String(Number(v)||0))}catch(e){}}
+  function loginAgeMs(){const t=Date.parse(session?.loggedAt||'');return Number.isFinite(t)&&t>0?Math.max(0,Date.now()-t):Infinity}
+  function sameStableVersion(target){return String(target?.ver||'').trim()===String(VERSION).trim()}
   rememberCurrentBuild();
 
   function goLatest(t){
@@ -75,13 +78,13 @@
     }finally{if(timer)clearTimeout(timer)}
   }
   let applyingGlobal=false,checkingGlobal=false;
-  async function applyGlobalUpdate(control){
-    if(applyingGlobal)return;applyingGlobal=true;
+  async function applyGlobalUpdate(control,target=null){
+    if(applyingGlobal)return false;applyingGlobal=true;
     saveEpoch(control?.epoch);
     clearLoginForUpdate('global_update');
-    let target={entry:'stable412.html',build:String(control?.version||CURRENT_BUILD),ver:VERSION};
-    try{target=newest(await latestMeta())}catch(e){}
-    goLatest(target);
+    let next=target||{entry:'stable412.html',build:String(control?.version||CURRENT_BUILD),ver:VERSION};
+    if(!target)try{next=newest(await latestMeta())}catch(e){}
+    goLatest(next);return true;
   }
   async function checkGlobalControl(){
     if(checkingGlobal||applyingGlobal||!currentUser?.()||document.visibilityState==='hidden')return false;
@@ -89,7 +92,15 @@
     try{
       const r=await globalCall('GET');const epoch=Number(r.epoch||0)||0,seen=readEpoch();
       if(!seen){saveEpoch(epoch);return false}
-      if(epoch>seen){await applyGlobalUpdate(r);return true}
+      if(epoch>seen){
+        let target=null;try{target=newest(await latestMeta())}catch(e){}
+        // A stale global-refresh epoch can survive on a device after the app is already current.
+        // Mark that epoch as seen without clearing a freshly created login session.
+        if(target&&sameStableVersion(target)){saveEpoch(epoch);try{sessionStorage.setItem('enl_global_epoch_skip_reason','already_current')}catch(e){}return false}
+        // Do not tear down a login that was just created while update metadata is temporarily unavailable.
+        if(!target&&loginAgeMs()<POST_LOGIN_GRACE_MS)return false;
+        await applyGlobalUpdate(r,target);return true
+      }
       if(epoch<seen)saveEpoch(epoch);
       return false;
     }catch(e){return false}finally{checkingGlobal=false}
@@ -169,5 +180,5 @@
   setInterval(checkGlobalControl,CONTROL_POLL_MS);
   window.addEventListener('pageshow',()=>scheduleForegroundControl(100));
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')scheduleForegroundControl(100)});
-  window.ENL_UPDATE_CONTROL_VERSION=`${CURRENT_BUILD}-update6`;
+  window.ENL_UPDATE_CONTROL_VERSION=`${CURRENT_BUILD}-update7-session-guard`;
 })();
