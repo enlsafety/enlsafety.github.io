@@ -45,9 +45,9 @@
   function prefRows(u,p){
     const r=roleNorm(u?.role),rows=[];
     if(r==='worker')rows.push(['incident_progress','내 사고 진행 알림','내 사고보고 승인·반려·종결'],['action_progress','내 사고조치 알림','내가 제출한 조치 승인·반려'],['inquiry','문의 답변 알림','안전관리자 답변 등록']);
-    else if(r==='field')rows.push(['incident_progress','사업장 사고보고 알림','신규·재제출·승인·반려·종결'],['action_progress','사업장 사고조치 알림','제출·재제출·승인·반려'],['inquiry','문의 답변 알림','내 문의 답변 등록']);
-    else if(r==='safety')rows.push(['incident_progress','신규 사고보고 알림','최초 제출·반려 후 재제출'],['action_progress','사고조치 제출 알림','최초 제출·반려 후 재제출'],['inquiry','안전문의 알림','새 문의 등록'],['management_views','관리자·경영진 조회 알림','사고경위서·사고조치 최초 조회']);
-    else rows.push(['incident_progress','승인 사고 알림','승인 및 최종 종결'],['action_progress','승인 사고조치 알림','승인된 사고조치'],['inquiry','문의 답변 알림','내 문의 답변 등록'],['urgent','긴급 사고 알림','긴급·중대 가능 사고는 검토단계부터']);
+    else if(r==='field')rows.push(['incident_progress','사업장 사고보고 알림','즉시보고·보완요청·최종승인·반려·종결'],['action_progress','사업장 사고조치 알림','제출·재제출·승인·반려'],['inquiry','문의 답변 알림','내 문의 답변 등록']);
+    else if(r==='safety')rows.push(['incident_progress','사고보고 진행 알림','즉시보고·보완완료·재제출·최종승인'],['action_progress','사고조치 제출 알림','최초 제출·반려 후 재제출'],['inquiry','안전문의 알림','새 문의 등록'],['management_views','관리자·경영진 조회 알림','사고경위서·사고조치 최초 조회']);
+    else rows.push(['incident_progress','사고보고 진행 알림','즉시보고·보완·최종승인·종결'],['action_progress','승인 사고조치 알림','승인된 사고조치'],['inquiry','문의 답변 알림','내 문의 답변 등록'],['urgent','긴급 사고 알림','긴급·중대 가능 사고는 검토단계부터']);
     return rows.map(([k,t,d])=>`<label class="enl418-pref"><span><b>${esc(t)}</b><small>${esc(d)}</small></span><input type="checkbox" data-enl-pref="${k}" ${p[k]!==false?'checked':''} ${(k==='urgent'&&(r==='manager'||r==='executive'))?'disabled':''}></label>`).join('');
   }
 
