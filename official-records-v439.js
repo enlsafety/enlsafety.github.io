@@ -51,7 +51,7 @@
     const reviewText=review.name?review.name+(review.position?' · '+review.position:''):(i.approvedBy||'-');
     const approvalText=approval.name?approval.name+(approval.position?' · '+approval.position:''):(i.approvedBy||'-');
     const finalText=final.name?final.name+(final.position?' · '+final.position:''):(i.status==='closed'?(i.corrective?.reviewedBy||'-'):'-');
-    return `<section class="official439-box"><h3>공식 전자결재 기록</h3><div class="official439-grid">
+    return `<section class="official439-box"><h3>공식 사고기록 · 확인이력</h3><div class="official439-grid">
       <div><b>신고자</b><span>${esc(reporterText)}<br>${esc(fmt(reporter.at||i.createdAt))}</span></div>
       <div><b>검토자</b><span>${esc(reviewText)}<br>${esc(fmt(review.at||i.approvedAt))}</span></div>
       <div><b>승인자</b><span>${esc(approvalText)}<br>${esc(fmt(approval.at||i.approvedAt))}</span></div>
@@ -81,12 +81,12 @@
     const title='사고보고서_'+String(i.id||'').replace(/[^a-zA-Z0-9가-힣_-]/g,'_');
     w.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${esc(title)}</title><style>
       @page{size:A4;margin:14mm}body{font-family:"Malgun Gothic",sans-serif;color:#222;font-size:11px}h1{text-align:center;font-size:22px;margin:0 0 16px}.meta{display:flex;justify-content:space-between;border-bottom:2px solid #333;padding-bottom:7px;margin-bottom:12px}.grid{display:grid;grid-template-columns:120px 1fr;border-top:1px solid #777;border-left:1px solid #777}.grid b,.grid span{padding:7px;border-right:1px solid #777;border-bottom:1px solid #777;white-space:pre-wrap}.grid b{background:#f1f3f5}.approval{width:100%;border-collapse:collapse;margin-top:14px}.approval th,.approval td{border:1px solid #777;padding:7px;text-align:left}.approval th{background:#f1f3f5}.hash{font-family:monospace;font-size:9px;word-break:break-all}.files{margin-top:12px}.files li{margin:3px 0}.foot{margin-top:18px;font-size:9px;color:#555;border-top:1px solid #aaa;padding-top:8px}@media print{button{display:none}}</style></head><body>
-      <h1>사고보고서</h1><div class="meta"><b>이앤엘 사고보고앱 전자결재 문서</b><span>출력 ${esc(fmt(new Date().toISOString()))}</span></div>
+      <h1>사고보고서</h1><div class="meta"><b>이앤엘 사고보고앱 사고기록 출력본</b><span>출력 ${esc(fmt(new Date().toISOString()))}</span></div>
       <div class="grid">${rows.map(r=>`<b>${esc(r[0])}</b><span>${esc(r[1])}</span>`).join('')}</div>
       <table class="approval"><thead><tr><th>구분</th><th>처리자</th><th>처리일시</th></tr></thead><tbody>${approval.map(r=>`<tr><td>${esc(r[0])}</td><td>${esc(r[1])}</td><td>${esc(fmt(r[2]))}</td></tr>`).join('')}</tbody></table>
       <div class="files"><b>첨부파일</b><ul>${files.map(f=>`<li>${esc(f?.name||f?.fileName||f?.kind||'첨부파일')}</li>`).join('')||'<li>없음</li>'}</ul></div>
       <p class="hash"><b>사고보고 무결성 해시</b><br>${esc(o.reportHash||'-')}<br><b>최종 기록 해시</b><br>${esc(o.finalHash||'-')}</p>
-      <div class="foot">본 문서는 이앤엘 사고보고앱에 저장된 전자결재 기록을 출력한 것입니다. 산업재해조사표 등 법정 대외보고가 필요한 경우 해당 법정 절차는 별도로 수행해야 합니다.</div>
+      <div class="foot">본 문서는 이앤엘 사고보고앱에 저장된 사고기록과 확인이력을 출력한 것입니다. 산업재해조사표 등 법정 대외보고가 필요한 경우 해당 법정 절차는 별도로 수행해야 합니다.</div>
       <script>setTimeout(()=>window.print(),250)<\/script></body></html>`);
     w.document.close();
   }
@@ -95,7 +95,7 @@
     try{
       const r=await api('audit_list',{incidentId:i.id});
       const rows=r.audits||[];
-      openModal(`<div class="modal-head"><div><div class="ey">AUDIT LOG</div><h2>사고 변경·결재 감사로그</h2><p>${esc(site(i.siteId))} · ${esc(i.id)}</p></div><button class="x" data-close>×</button></div><div class="official439-audit">${rows.map(a=>{
+      openModal(`<div class="modal-head"><div><div class="ey">AUDIT LOG</div><h2>사고 변경·확인 감사로그</h2><p>${esc(site(i.siteId))} · ${esc(i.id)}</p></div><button class="x" data-close>×</button></div><div class="official439-audit">${rows.map(a=>{
         const reason=a?.after_payload?.reason||a?.after_payload?.reopenReason||a?.after_payload?.note||'';
         return `<div class="official439-audit-row"><b>${esc(actionLabel(a.action))}</b><span>${esc(a.editor_name||'-')} · ${esc(a.editor_position||a.editor_role||'-')}</span><small>${esc(fmt(a.changed_at))}${reason?' · 사유: '+esc(reason):''}</small></div>`;
       }).join('')||'<div class="empty">감사로그가 없습니다.</div>'}</div>`);
@@ -156,7 +156,7 @@
   async function openBackup(){
     async function render(){
       let rows=[];try{rows=(await api('backup_list')).backups||[]}catch(e){return alert('백업 목록을 불러오지 못했습니다.')}
-      openModal(`<div class="modal-head"><div><div class="ey">OFFICIAL RECORDS</div><h2>사고기록 백업·복원</h2><p>공식 결재기록의 보존·복구 관리</p></div><button class="x" data-close>×</button></div>
+      openModal(`<div class="modal-head"><div><div class="ey">OFFICIAL RECORDS</div><h2>사고기록 백업·복원</h2><p>공식 사고기록의 보존·복구 관리</p></div><button class="x" data-close>×</button></div>
         <div class="official439-note">산업재해 발생 원인 등의 기록은 원칙적으로 3년 보존 대상입니다. 복원은 현재 자료를 먼저 자동백업한 뒤 실행되며, 실행자·사유가 감사로그에 남습니다.</div>
         <div class="modal-actions"><button type="button" id="official439BackupNow" class="primary">현재 전체 백업 생성</button></div>
         <div class="official439-backups">${rows.map(b=>`<div class="official439-backup"><b>${esc(fmt(b.created_at))}</b><div>${esc(b.reason||'백업')} · ${Number(b.incident_count||0)}건 · ${esc(b.created_by_name||'-')}</div><div class="official439-backup-actions"><button data-official439-export="${esc(b.backup_id)}">JSON 내보내기</button><button data-official439-restore="${esc(b.backup_id)}">이 백업으로 복원</button></div></div>`).join('')||'<div class="empty">백업이 없습니다.</div>'}</div>`);
