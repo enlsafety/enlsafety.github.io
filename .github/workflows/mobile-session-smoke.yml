@@ -53,13 +53,16 @@ jobs:
             "clearedBySessionModule",
             "clearLoginForUpdate('manual_global_update')",
             "clearLoginForUpdate('global_update')",
+            "POST_LOGIN_GRACE_MS=15000",
+            "function sameStableVersion(target)",
+            "if(target&&sameStableVersion(target)){saveEpoch(epoch)",
+            "enl_global_epoch_skip_reason",
             "function scheduleForegroundControl(delay=100)",
             "window.addEventListener('pageshow',()=>scheduleForegroundControl(100))",
             "document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')scheduleForegroundControl(100)})",
           ]: assert x in control,x
           assert control.count('clearLoginForUpdate(')==3,control.count('clearLoginForUpdate(')
-          assert 'markBuildAndClearOnlyOnRealBuildChange' not in control
           assert 'session-refresh-v412.js?v=4.1.2-r16&amp;fix=session2&amp;mobile=session3' in html
-          assert 'app-control-v410.js?v=4.1.2-r16&amp;fix=update6' in html
+          assert 'app-control-v410.js?v=4.2.7-r1&amp;fix=update7-session-guard' in html
           assert html.index('session-refresh-v412.js') < html.index('auth-v411.js')
-          print('OK: mobile session persists; foreground control checks are coalesced; explicit/global update still clears login')
+          print('OK: mobile session persists; stale same-version global epochs do not clear fresh logins; real/manual updates still clear login')
