@@ -117,7 +117,7 @@ jobs:
             'site-admin-hotfix-v433.js?v=4.1.2-r33&amp;fix=site-api1',
             'personnel-management-v434.js?v=4.1.4-r1&amp;fix=personnel-integrity2',
             'legal-review-v435.js?v=4.1.2-r35&amp;fix=legal-simplify1',
-            'industrial-report-v436.js?v=4.4.0-r1&amp;fix=deadline-confirmation2',
+            'industrial-report-v436.js?v=4.4.0-r1&amp;fix=deadline-confirmation3',
             'closed-incident-reopen-v438.js?v=4.3.8&amp;fix=closed-reopen1',
             'official-records-v439.js?v=4.4.0-r1&amp;fix=confirmation-audit2',
             'incidents-v410.js?v=4.4.0-r1&amp;fix=reader-immediate1',
@@ -181,7 +181,7 @@ jobs:
           hotfix='site-admin-hotfix-v433.js?v=4.1.2-r33&fix=site-api1'
           personnel='personnel-management-v434.js?v=4.1.4-r1&fix=personnel-integrity2'
           legal='legal-review-v435.js?v=4.1.2-r35&fix=legal-simplify1'
-          industrial='industrial-report-v436.js?v=4.4.0-r1&fix=deadline-confirmation2'
+          industrial='industrial-report-v436.js?v=4.4.0-r1&fix=deadline-confirmation3'
           assert p.scripts.index(hotfix) < p.scripts.index(personnel) < p.scripts.index(legal) < p.scripts.index(industrial)
 
           cleanup=Path('production-cleanup-v431.js').read_text(encoding='utf-8')
@@ -224,6 +224,8 @@ jobs:
             '근로자대표가 없는 경우에는 재해자 본인의 확인',
             '재해 발생일로부터 1개월 이내',
             'reportDeadline',
+            'd.getFullYear()',
+            'd.getMonth()+1',
           ]: assert x in industrial_js,x
 
           prevention=Path('workflow-prevention-v429.js').read_text(encoding='utf-8')
