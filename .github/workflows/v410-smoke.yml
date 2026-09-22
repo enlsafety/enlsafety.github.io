@@ -45,7 +45,15 @@ on:
       - 'stable412.html'
       - 'auth-v411.js'
       - 'login-layout-v412.js'
+      - 'incidents-v410.js'
       - 'incident-sync-v411.js'
+      - 'report-v410.js'
+      - 'field-incidents-v411.js'
+      - 'app-shell-v411.js'
+      - 'reader-ui-v414.js'
+      - 'incident-stats-v426.js'
+      - 'reader-experience-v424.js'
+      - 'incident-flow-v440.js'
       - 'workflow-lifecycle-v413.js'
       - 'workflow-prevention-v429.js'
       - 'incident-review-v431.js'
@@ -173,7 +181,7 @@ jobs:
           hotfix='site-admin-hotfix-v433.js?v=4.1.2-r33&fix=site-api1'
           personnel='personnel-management-v434.js?v=4.1.4-r1&fix=personnel-integrity2'
           legal='legal-review-v435.js?v=4.1.2-r35&fix=legal-simplify1'
-          industrial='industrial-report-v436.js?v=4.1.2-r36&fix=moel-form30-1'
+          industrial='industrial-report-v436.js?v=4.4.0-r1&fix=deadline-confirmation2'
           assert p.scripts.index(hotfix) < p.scripts.index(personnel) < p.scripts.index(legal) < p.scripts.index(industrial)
 
           cleanup=Path('production-cleanup-v431.js').read_text(encoding='utf-8')
