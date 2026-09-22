@@ -1,0 +1,112 @@
+name: incident flow v440 smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'incident-flow-v440.js'
+      - 'incident-sync-v411.js'
+      - 'incidents-v410.js'
+      - 'report-v410.js'
+      - 'reader-ui-v414.js'
+      - 'reader-experience-v424.js'
+      - 'workflow-enhancements-v432.js'
+      - 'app-shell-v411.js'
+      - 'pwa-push-v418.js'
+      - 'stable412.html'
+      - '.github/workflows/incident-flow-v440-smoke.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'incident-flow-v440.js'
+      - 'incident-sync-v411.js'
+      - 'incidents-v410.js'
+      - 'report-v410.js'
+      - 'reader-ui-v414.js'
+      - 'reader-experience-v424.js'
+      - 'workflow-enhancements-v432.js'
+      - 'app-shell-v411.js'
+      - 'pwa-push-v418.js'
+      - 'stable412.html'
+      - '.github/workflows/incident-flow-v440-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  incident-flow:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: |
+          for f in incident-flow-v440.js incident-sync-v411.js incidents-v410.js report-v410.js reader-ui-v414.js reader-experience-v424.js workflow-enhancements-v432.js app-shell-v411.js pwa-push-v418.js workflow-prevention-v429.js workflow-lifecycle-v413.js; do
+            node --check "$f"
+          done
+      - name: Immediate supplement prevention workflow rules
+        shell: python
+        run: |
+          from pathlib import Path
+          flow=Path('incident-flow-v440.js').read_text(encoding='utf-8')
+          sync=Path('incident-sync-v411.js').read_text(encoding='utf-8')
+          incidents=Path('incidents-v410.js').read_text(encoding='utf-8')
+          report=Path('report-v410.js').read_text(encoding='utf-8')
+          reader=Path('reader-ui-v414.js').read_text(encoding='utf-8')
+          enhance=Path('workflow-enhancements-v432.js').read_text(encoding='utf-8')
+          prevention=Path('workflow-prevention-v429.js').read_text(encoding='utf-8')
+          html=Path('stable412.html').read_text(encoding='utf-8')
+
+          for x in [
+            "4.4.0-immediate-supplement-ack1",
+            "30분 이내 또는 현장 이탈 전",
+            "보완대기",
+            "보완검토대기",
+            "사고보고 최종승인",
+            "진단서·영수증·견적서 등 보완자료",
+            "확인 기록",
+            "결재 아님",
+            "management_view",
+            "view_list",
+            "data-wf440-ack",
+            "wf440QueueSig",
+            "wf440DecorSig",
+          ]: assert x in flow,x
+          for x in [
+            "documentType='incident_report'",
+            "['field','safety','manager','executive']",
+            "i.supplement?.status",
+            "i.acknowledgements",
+          ]: assert x in sync,x
+          for x in ["'supplement'?'보완대기'","'supplement_submitted'?'보완검토대기'","reported','supplement','supplement_submitted','approved','closed"]:
+            assert x in incidents,x
+          assert "['preventionPlan410','재발 방지 대책']" not in report
+          assert "worker.required=false" in enhance
+          for x in ["실제 조치 완료일 *","attachments().length<1"]: assert x in enhance,x
+          for x in ["원인 분석 *","재발방지계획 *","실제 실시한 재발방지조치 *","submittedById","reviewedById"]: assert x in prevention,x
+          for x in ["즉시보고부터 보완·최종승인·종결","supplement_submitted"]: assert x in reader,x
+          assert "incident-flow-v440.js?v=4.4.0-r1&amp;fix=workflow1" in html
+          assert html.index('official-records-v439.js') < html.index('incident-flow-v440.js')
+          print('OK: immediate report -> supplement -> final confirmation -> prevention workflow is wired')
+      - name: Non-invasive production API health
+        shell: python
+        run: |
+          import json,urllib.request,urllib.error
+          BASE='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/'
+          H={'Content-Type':'application/json','X-ENL-App':'incident-report-v2','Origin':'https://enlsafety.github.io'}
+          def call(fn,body):
+            req=urllib.request.Request(BASE+fn,data=json.dumps(body,ensure_ascii=False).encode(),headers=H,method='POST')
+            try:
+              with urllib.request.urlopen(req,timeout=25) as r:return r.status,json.loads(r.read().decode())
+            except urllib.error.HTTPError as e:
+              try:j=json.loads(e.read().decode())
+              except:j={}
+              return e.code,j
+          for fn in ['enl-incident-sync-v411','enl-push-v418']:
+            code,j=call(fn,{'action':'health'})
+            assert code==200 and j.get('ok') is True,(fn,code,j)
+          code,j=call('enl-push-v418',{'action':'view_list','actor':{'id':'missing','name':'x','role':'manager'},'incidentId':'missing'})
+          assert code==403,(code,j)
+          code,j=call('enl-incident-sync-v411',{'action':'acknowledge','actor':{'id':'missing','name':'x','role':'manager'},'incidentId':'missing','documentType':'incident_report'})
+          assert code==403,(code,j)
+          print('OK: workflow APIs are live and reject unverified actors')
