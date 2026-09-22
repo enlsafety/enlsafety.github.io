@@ -71,10 +71,7 @@
       fieldForm.querySelector('.photo-box')?.classList.toggle('enl432-evidence-empty',n<1);
     }
     const report=document.getElementById('unifiedReportForm');
-    if(report){
-      const n=incidentAttachments().length;
-      report.querySelector('.report410-photo')?.classList.toggle('enl432-evidence-empty',n<1);
-    }
+    if(report)report.querySelector('.report410-photo')?.classList.remove('enl432-evidence-empty');
   }
 
   function patchReportRequired(){
