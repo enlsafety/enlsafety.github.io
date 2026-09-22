@@ -54,7 +54,7 @@ jobs:
           for x in ["4.2.2-ui-stability2","window.renderShell=function(u)","if(modalBusy()||transientViewBusy())return root"]: assert x in stable,x
           for x in ["4.2.3-reader-ack1","이 종결사고는 열람 확인이 필요합니다","열람확인 필요"]: assert x in ack,x
           for x in [
-            "4.2.4-reader-experience2",
+            "4.4.0-reader-workflow1",
             "enl-comment-delete-v424",
             "enl424-nav-dot",
             "내 의견 삭제",
@@ -81,7 +81,7 @@ jobs:
           ]: assert x in ps,x
           assert "setTimeout(onUserReady" not in ps
           for x in ["4.2.5-pwa4-confirm1","incidentId","stable412.html?push=1&incident=","PUSH_CONFIRM_API","ack_test_token"]: assert x in sw,x
-          assert 'reader-experience-v424.js?v=4.1.2-r22&amp;fix=nav-comment2' in html
+          assert 'reader-experience-v424.js?v=4.4.0-r1&amp;fix=workflow-alert1' in html
           assert 'push-session-v425.js?v=4.1.5-r1&amp;fix=device-heartbeat2' in html
           assert 'hq-notification-status-v437.js?v=4.3.7&amp;fix=hq-notify4' in html
           hq=Path('hq-notification-status-v437.js').read_text(encoding='utf-8')
