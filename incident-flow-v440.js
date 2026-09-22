@@ -275,12 +275,16 @@
   function decorateIncidentModal(id,override=null){
     const i=override||incident(id),u=currentUser?.(),modal=document.querySelector('#modalRoot .modal');if(!i||!u||!modal)return;
     activeId=String(i.id);modal.dataset.wf440Incident=activeId;
+    const decorSig=[i.updatedAt||'',i.status||'',i.supplement?.status||'',i.corrective?.status||'',(i.acknowledgements||[]).length].join('|');
+    if(modal.dataset.wf440DecorSig===decorSig)return;
+    modal.dataset.wf440DecorSig=decorSig;
     modal.querySelectorAll('.wf440-stage,.wf440-supplement-note[data-wf440-modal]').forEach(x=>x.remove());
     const head=modal.querySelector('.modal-head');if(head){head.insertAdjacentHTML('afterend',stageBanner(i));if(i.supplement){const holder=document.createElement('div');holder.className='wf440-supplement-note';holder.dataset.wf440Modal='1';holder.innerHTML=supplementInfo(i).replace(/^<section[^>]*>|<\/section>$/g,'');head.nextElementSibling?.insertAdjacentElement('afterend',holder)}}
     if(isReader(u)&&i.category==='person'&&!['approved','closed'].includes(String(i.status||''))){head?.insertAdjacentHTML('afterend','<div class="wf440-sensitive">관리자·경영진 화면에서는 진단명·의사소견·진단서 등 민감한 의료 상세정보를 제한하여 표시합니다.</div>')}
     recordView(i.id,'incident_report');
 
     if(isSafety(u)){
+      modal.querySelector('#closeInc')?.remove();
       modal.querySelector('.wf440-safety-actions')?.remove();
       const baseApprove=modal.querySelector('#approveInc');if(baseApprove)baseApprove.remove();
       const reject=modal.querySelector('#rejectInc');if(reject){reject.textContent='보고 반려(오류·중복)';reject.classList.add('wf440-invalid-btn')}
@@ -299,8 +303,10 @@
 
   function injectSupplementQueue(root,u){
     if(!root||!isFieldManager(u))return;
-    root.querySelector('.wf440-queue')?.remove();
     const arr=[...(data?.incidents||[])].filter(i=>String(i.siteId)===String(u.siteId)&&['supplement','supplement_submitted'].includes(String(i.status||''))).sort((a,b)=>new Date(b.occurredAt||0)-new Date(a.occurredAt||0));
+    const sig=arr.map(i=>`${i.id}:${i.status}:${i.updatedAt||''}`).join('|');
+    if(root.dataset.wf440QueueSig===sig)return;root.dataset.wf440QueueSig=sig;
+    root.querySelector('.wf440-queue')?.remove();
     if(!arr.length)return;
     const panel=document.createElement('section');panel.className='panel wf440-queue';panel.innerHTML=`<div class="section-head"><div><div class="ey">SUPPLEMENT</div><h2>사고보고 보완대기</h2><p>즉시보고 후 진단·병원비·견적 등 사후 확인자료를 보완합니다.</p></div></div><div class="wf440-queue-list">${arr.map(i=>`<button type="button" class="wf440-queue-row" data-wf440-supp-open="${ex(i.id)}" ${i.status==='supplement_submitted'?'disabled':''}><span>${ex(String(i.occurredAt||'').slice(0,10))}</span><b>${ex(i.eventType||'사고')} · ${ex(i.category==='person'?'대인사고':'대물사고')}</b><strong>${i.status==='supplement'?'보완자료 입력':'안전관리자 검토 중'}</strong></button>`).join('')}</div>`;
     const screen=root.querySelector('.field411-screen');if(screen)screen.insertBefore(panel,screen.children[1]||null);else root.prepend(panel);
@@ -309,10 +315,12 @@
 
   function patchReaderPending(){
     const u=currentUser?.();if(!isReader(u))return;
-    document.querySelector('[data-shell-view="incidents"]')?.replaceChildren(document.createTextNode('사고 조회'));
+    const nav=document.querySelector('[data-shell-view="incidents"]');if(nav&&nav.textContent!=='사고 조회')nav.textContent='사고 조회';
     const stats=document.querySelector('.stats426');if(!stats)return;
-    stats.querySelector('.wf440-reader-pending')?.remove();
     const arr=[...(data?.incidents||[])].filter(i=>['reported','supplement','supplement_submitted'].includes(String(i.status||''))).sort((a,b)=>new Date(b.occurredAt||0)-new Date(a.occurredAt||0)).slice(0,8);
+    const sig=arr.map(i=>`${i.id}:${i.status}:${i.updatedAt||''}`).join('|');
+    if(stats.dataset.wf440PendingSig===sig)return;stats.dataset.wf440PendingSig=sig;
+    stats.querySelector('.wf440-reader-pending')?.remove();
     if(!arr.length)return;
     const box=document.createElement('section');box.className='wf440-reader-pending';box.innerHTML=`<h3>즉시보고 · 보완 진행 중 ${arr.length}건</h3><div class="wf440-reader-pending-list">${arr.map(i=>`<button type="button" data-wf440-reader-open="${ex(i.id)}"><b>${ex(siteName(i.siteId))} · ${ex(stateLabel(i))}</b><small>${ex(String(i.occurredAt||'').slice(0,16).replace('T',' '))} · ${ex(i.eventType||'사고')}</small></button>`).join('')}</div>`;stats.insertBefore(box,stats.children[1]||null);
     box.querySelectorAll('[data-wf440-reader-open]').forEach(b=>b.onclick=()=>window.enlOpenIncidentReview?.(b.dataset.wf440ReaderOpen,false,u));
