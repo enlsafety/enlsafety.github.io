@@ -83,16 +83,16 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-427-r1',meta
+          assert meta.get('build')=='stable-428-r1',meta
           assert meta.get('stableEntry')=='stable412.html',meta
-          assert meta.get('version')=='4.2.7' and meta.get('currentStableVersion')=='4.2.7',meta
+          assert meta.get('version')=='4.2.8' and meta.get('currentStableVersion')=='4.2.8',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='427-r1'",'beforeinstallprompt','stable412.html?entry=root&build=427-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
+          for x in ["const BUILD='428-r1'",'beforeinstallprompt','stable412.html?entry=root&build=428-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.2.7-r1',
+            'enl-build" content="4.2.8-r1',
             'incident-sync-v411.js?v=4.2.1-r1&amp;fix=official-auth-reprompt1',
             'workflow-prevention-v429.js?v=4.1.2-r30&amp;fix=prevention-flow2',
             'incident-review-v431.js?v=4.1.2-r31&amp;fix=review-preview1',
@@ -109,6 +109,9 @@ jobs:
           assert 'auth-v411.js?v=4.2.7-r1&amp;fix=deploy-version-footer1' in html
           assert 'login-layout-v412.js?v=4.2.7-r1&amp;fix=guide-removed1' in html
           assert 'app-control-v410.js?v=4.2.7-r1&amp;fix=update7-session-guard' in html
+          assert 'incident-stats-v426.js?v=4.2.8-r1&amp;fix=dashboard-drilldown1' in html
+          stats=Path('incident-stats-v426.js').read_text(encoding='utf-8')
+          for x in ['4.2.8-dashboard-drilldown1','data-stats-filter="all"','data-stats-month','최근 발생일 순','data-stats-inc','stats426-site-attention','stats426-site-manage','관심요망','관리필요']: assert x in stats,x
           control=Path('app-control-v410.js').read_text(encoding='utf-8')
           for x in ['POST_LOGIN_GRACE_MS=15000','function sameStableVersion(target)','if(target&&sameStableVersion(target)){saveEpoch(epoch)','already_current']: assert x in control,x
           auth=Path('auth-v411.js').read_text(encoding='utf-8')
