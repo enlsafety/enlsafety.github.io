@@ -161,7 +161,7 @@
     if(!person)return '';
     const position=FIELD_TITLES.includes(text(person.job_title))?text(person.job_title):'일반근로자';
     const fieldRole=FIELD_TITLES.includes(position);
-    return `<form id="sa415PersonForm" class="sa415-person-edit"><h4>${escx(person.name)} 정보 수정</h4><div class="sa415-grid"><label><span>이름 *</span><input id="sa415PersonName" value="${escx(person.name)}" required></label><label><span>직책 *</span><select id="sa415PersonPosition"><option ${position==='일반근로자'?'selected':''}>일반근로자</option>${FIELD_TITLES.map(x=>`<option ${position===x?'selected':''}>${x}</option>`).join('')}</select></label><label><span>전화번호</span><input id="sa415PersonPhone" inputmode="tel" value="${escx(person.phone||'')}" placeholder="010-0000-0000"></label><label><span>근무상태</span><select id="sa415PersonActive"><option value="1" ${person.active!==false?'selected':''}>근무중</option><option value="0" ${person.active===false?'selected':''}>퇴사</option></select></label></div><div id="sa415PasswordBox" style="${fieldRole?'':'display:none'};margin-top:9px"><label><span>새 로그인 비밀번호</span><input id="sa415PersonPassword" type="password" autocomplete="new-password" placeholder="변경할 때만 입력"></label><p class="sa415-note">현장소장·파트장·서무만 비밀번호 로그인을 사용합니다. 기존 담당자는 비워두면 현재 비밀번호가 유지되고, 일반근로자를 처음 승격할 때 비워두면 등록 전화번호 뒷 4자리가 초기 비밀번호가 됩니다.</p></div><div class="sa415-person-actions"><button type="button" id="sa415PersonCancel">수정 취소</button><button type="submit" class="primary">정보 저장</button></div></form>`;
+    return `<form id="sa415PersonForm" class="sa415-person-edit"><h4>${escx(person.name)} 정보 수정</h4><div class="sa415-grid"><label><span>이름 *</span><input id="sa415PersonName" value="${escx(person.name)}" required></label><label><span>직책 *</span><select id="sa415PersonPosition"><option ${position==='일반근로자'?'selected':''}>일반근로자</option>${FIELD_TITLES.map(x=>`<option ${position===x?'selected':''}>${x}</option>`).join('')}</select></label><label><span>전화번호</span><input id="sa415PersonPhone" inputmode="tel" value="${escx(person.phone||'')}" placeholder="010-0000-0000"></label><label><span>이메일</span><input id="sa415PersonEmail" type="email" value="${escx(person.email||'')}" placeholder="name@company.com"></label><label><span>앱 푸시 알림</span><select id="sa415PersonPush"><option value="1" ${person.push_enabled!==false?'selected':''}>ON</option><option value="0" ${person.push_enabled===false?'selected':''}>OFF</option></select></label><label><span>이메일 알림</span><select id="sa415PersonMail"><option value="1" ${person.email_enabled!==false?'selected':''}>ON</option><option value="0" ${person.email_enabled===false?'selected':''}>OFF</option></select></label><label><span>근무상태</span><select id="sa415PersonActive"><option value="1" ${person.active!==false?'selected':''}>근무중</option><option value="0" ${person.active===false?'selected':''}>퇴사</option></select></label></div><div id="sa415PasswordBox" style="${fieldRole?'':'display:none'};margin-top:9px"><label><span>새 로그인 비밀번호</span><input id="sa415PersonPassword" type="password" autocomplete="new-password" placeholder="변경할 때만 입력"></label><p class="sa415-note">현장소장·파트장·서무만 비밀번호 로그인을 사용합니다. 기존 담당자는 비워두면 현재 비밀번호가 유지되고, 일반근로자를 처음 승격할 때 비워두면 등록 전화번호 뒷 4자리가 초기 비밀번호가 됩니다.</p></div><div class="sa415-person-actions"><button type="button" id="sa415PersonCancel">수정 취소</button><button type="submit" class="primary">정보 저장</button></div></form>`;
   }
 
   function renderPeople(site,u){
@@ -170,7 +170,7 @@
     const state=stateFor(site.site_id);
     const all=sortedPeople(state.list);
     const q=state.query.trim().toLocaleLowerCase('ko-KR');
-    const filtered=q?all.filter(p=>[p.name,p.job_title,p.phone,p.active===false?'퇴사':'근무중'].some(v=>String(v||'').toLocaleLowerCase('ko-KR').includes(q))):all;
+    const filtered=q?all.filter(p=>[p.name,p.job_title,p.phone,p.email,p.active===false?'퇴사':'근무중'].some(v=>String(v||'').toLocaleLowerCase('ko-KR').includes(q))):all;
     const pages=Math.max(1,Math.ceil(filtered.length/PERSON_PAGE_SIZE));
     state.page=Math.max(1,Math.min(state.page,pages));
     const rows=filtered.slice((state.page-1)*PERSON_PAGE_SIZE,state.page*PERSON_PAGE_SIZE);
@@ -219,13 +219,16 @@
       const name=value('sa415PersonName');
       const position=value('sa415PersonPosition');
       const phone=value('sa415PersonPhone');
+      const email=value('sa415PersonEmail');
+      const pushEnabled=value('sa415PersonPush')!=='0';
+      const emailEnabled=value('sa415PersonMail')!=='0';
       const active=value('sa415PersonActive')!=='0';
       const accessRole=FIELD_TITLES.includes(position)?'field':'worker';
       const rawPassword=document.getElementById('sa415PersonPassword')?.value||'';
       const passwordHash=rawPassword?await sha256(rawPassword):'';
       const submit=form.querySelector('button[type="submit"]');submit.disabled=true;
       try{
-        await authApi({action:'personnel_upsert',actor:actor(u),siteId:site.site_id,person:{personnelId:selected.personnel_id,siteId:site.site_id,name,jobTitle:position,accessRole,phone,active,passwordHash}});
+        await authApi({action:'personnel_upsert',actor:actor(u),siteId:site.site_id,person:{personnelId:selected.personnel_id,siteId:site.site_id,name,jobTitle:position,accessRole,phone,email,pushEnabled,emailEnabled,active,passwordHash}});
         state.selectedId='';
         await loadSites(u);
         refreshContactFields(site.site_id);
