@@ -105,7 +105,7 @@
     if(!Array.isArray(data?.users))data.users=[];
     const old=new Map(data.users.filter(x=>HQ_ROLES.includes(String(x?.role||''))).map(x=>[String(x.id),x]));
     const keep=data.users.filter(x=>!HQ_ROLES.includes(String(x?.role||'')));
-    const fresh=(serverUsers||[]).map(x=>{const prior=old.get(String(x.id))||{};return {...prior,id:x.id,username:x.name,name:x.name,role:roleNorm(x.role),department:x.department||'',position:x.position||'',siteId:null,active:x.active!==false,createdAt:x.createdAt||prior.createdAt||'',updatedAt:x.updatedAt||prior.updatedAt||''}});
+    const fresh=(serverUsers||[]).map(x=>{const prior=old.get(String(x.id))||{};return {...prior,id:x.id,username:x.name,name:x.name,role:roleNorm(x.role),department:x.department||'',position:x.position||'',email:x.email||'',pushEnabled:x.pushEnabled!==false,emailEnabled:x.emailEnabled!==false,siteId:null,active:x.active!==false,createdAt:x.createdAt||prior.createdAt||'',updatedAt:x.updatedAt||prior.updatedAt||''}});
     const before=JSON.stringify(data.users.map(x=>[x.id,x.name,x.role,x.department,x.position,x.active]));
     const next=[...keep,...fresh];const after=JSON.stringify(next.map(x=>[x.id,x.name,x.role,x.department,x.position,x.active]));
     if(before!==after){data.users=next;try{saveData()}catch(e){}}
@@ -113,7 +113,7 @@
   function renderHqListDom(serverUsers){
     const box=document.getElementById('sa415HqList');if(!box)return;
     const users=(serverUsers||[]).filter(x=>HQ_ROLES.includes(String(x.role||'')));
-    box.innerHTML=users.map(x=>`<div class="sa415-hq-row"><div><b>${ex(x.name)} ${x.active===false?'(비활성)':''}</b><span>${ex(x.department||'소속 미등록')} · ${ex(x.position||'직급 미등록')}</span></div><div><span class="sa415-role">${ex(typeof roleName==='function'?roleName(roleNorm(x.role)):roleNorm(x.role))}</span></div><div><span>로그인 이름 ${ex(x.name)}</span></div><div class="sa415-hq-actions"><button type="button" data-pm434-hq-edit="${ex(x.id)}">정보·권한 수정</button><button type="button" data-pm434-hq-pw="${ex(x.id)}">비밀번호</button></div></div>`).join('')||'<div class="sa415-empty">본사 사용자가 없습니다.</div>';
+    box.innerHTML=users.map(x=>`<div class="sa415-hq-row"><div><b>${ex(x.name)} ${x.active===false?'(비활성)':''}</b><span>${ex(x.department||'소속 미등록')} · ${ex(x.position||'직급 미등록')}</span></div><div><span class="sa415-role">${ex(typeof roleName==='function'?roleName(roleNorm(x.role)):roleNorm(x.role))}</span></div><div><span>${ex(x.email||'이메일 미등록')}</span></div><div class="sa415-hq-actions"><button type="button" data-pm434-hq-edit="${ex(x.id)}">정보·권한 수정</button><button type="button" data-pm434-hq-pw="${ex(x.id)}">비밀번호</button></div></div>`).join('')||'<div class="sa415-empty">본사 사용자가 없습니다.</div>';
     box.querySelectorAll('[data-pm434-hq-edit]').forEach(b=>b.onclick=()=>window.openUserModal?.((data.users||[]).find(x=>String(x.id)===String(b.dataset.pm434HqEdit)),currentUser?.()));
     box.querySelectorAll('[data-pm434-hq-pw]').forEach(b=>b.onclick=()=>window.openAdminPasswordReset?.((data.users||[]).find(x=>String(x.id)===String(b.dataset.pm434HqPw)),currentUser?.()));
     setTimeout(()=>window.enlRenderHqNotificationStatus?.(true),0);
