@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.2.8 - interactive incident dashboard */
 (function(){
   'use strict';
-  const VERSION='4.2.8-dashboard-drilldown1';
+  const VERSION='4.4.0-dashboard-workflow1';
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   const escx=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const siteName=id=>{try{return siteById?.(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}};
