@@ -12,7 +12,7 @@
   const isAuthor=(i,u)=>{const rid=String(i?.reporterId||'');if(rid&&userId(u))return rid===userId(u);return !rid&&norm(i?.reporterName)===norm(u?.name)};
   const dateText=v=>{try{return typeof fmt==='function'?fmt(v):String(v||'').replace('T',' ').slice(0,16)}catch(e){return String(v||'').slice(0,16)}};
   const dateOnly=v=>String(v||'').slice(0,10)||'-';
-  const statusText=v=>v==='reported'?'검토대기':v==='rejected'?'반려':v==='approved'?'승인':v==='closed'?'종결':String(v||'진행중');
+  const statusText=v=>v==='reported'?'즉시보고 검토대기':v==='supplement'?'보완대기':v==='supplement_submitted'?'보완검토대기':v==='rejected'?'반려':v==='approved'?'사고보고 최종승인':v==='closed'?'종결':String(v||'진행중');
   const actionText=v=>v==='planned'?'조치예정':v==='in_progress'?'조치중':v==='submitted'?'검토대기':v==='rejected'?'반려':v==='approved'?'승인완료':'미작성';
   const actionTextFor=i=>!['approved','closed'].includes(String(i?.status||''))?'보고승인 대기':actionText(i?.corrective?.status);
   const categoryText=v=>v==='person'?'대인사고':v==='property'?'대물사고':v==='near_miss'?'아차사고':v==='hazard'?'위험요인':'사고';
