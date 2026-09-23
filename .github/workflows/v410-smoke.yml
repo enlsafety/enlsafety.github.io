@@ -119,7 +119,7 @@ jobs:
             'production-cleanup-v431.js?v=4.1.2-r34&amp;fix=legacy-demo2',
             'workflow-enhancements-v432.js?v=4.4.0-r1&amp;fix=immediate-required2',
             'site-admin-hotfix-v433.js?v=4.1.2-r33&amp;fix=site-api1',
-            'personnel-management-v434.js?v=4.1.4-r1&amp;fix=personnel-integrity2',
+            'personnel-management-v434.js?v=4.4.1-r1&amp;fix=email-notify1',
             'legal-review-v435.js?v=4.1.2-r35&amp;fix=legal-simplify1',
             'industrial-report-v436.js?v=4.4.0-r1&amp;fix=deadline-confirmation3',
             'closed-incident-reopen-v438.js?v=4.3.8&amp;fix=closed-reopen1',
