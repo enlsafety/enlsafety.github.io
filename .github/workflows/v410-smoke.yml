@@ -159,13 +159,14 @@ jobs:
           layout=Path('login-layout-v412.js').read_text(encoding='utf-8')
           for x in ["const selectedLabel=details.dataset.selectedLabel411||''","if(selectedLabel)details.open=false",'login411-summary-label']: assert x in layout,x
           assert 'GUIDE_HTML' not in layout and "grid-row:4" in layout
-          assert 'hq-notification-status-v437.js?v=4.3.7&amp;fix=hq-notify4' in html
+          assert 'hq-notification-status-v437.js?v=4.4.7-r1&amp;fix=email-status1' in html
           assert 'pwa-push-v418.js?v=4.4.0-r1&amp;fix=workflow-push1' in html
           assert 'push-session-v425.js?v=4.1.5-r1&amp;fix=device-heartbeat2' in html
-          assert 'notification-profile-v441.js?v=4.4.1-r1&amp;fix=email-notify1' in html
-          assert 'site-admin-v415.js?v=4.4.1-r1&amp;fix=email-notify1' in html
+          assert 'notification-profile-v441.js?v=4.4.7-r1&amp;fix=server-dispatch1' in html
+          assert 'site-admin-v415.js?v=4.4.7-r1&amp;fix=email-status1' in html
           profile=Path('notification-profile-v441.js').read_text(encoding='utf-8')
-          for x in ['profile_get','profile_update','enl-email-v441','긴급사고는 앱 푸시·이메일 OFF 설정과 관계없이 강제 수신됩니다.']: assert x in profile,x
+          for x in ['profile_get','profile_update','긴급사고는 앱 푸시·이메일 OFF 설정과 관계없이 강제 수신됩니다.','4.4.7-notification-profile2']: assert x in profile,x
+          assert 'enl-email-v441' not in profile and 'emailFlush' not in profile
           hq=Path('hq-notification-status-v437.js').read_text(encoding='utf-8')
           sw=Path('sw-v418.js').read_text(encoding='utf-8')
           assert 'data-pm434-hq-edit' in hq and 'data-pm434-hq-pw' in hq
