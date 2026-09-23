@@ -1,7 +1,7 @@
-/* E&L Accident Report App v4.3.7 - HQ push readiness dashboard */
+/* E&L Accident Report App v4.4.7 - HQ push + email readiness dashboard */
 (function(){
   'use strict';
-  const VERSION='4.3.7-hq-notify4';
+  const VERSION='4.4.7-hq-notify-email1';
   const API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-admin-v437';
   const CLIENT='incident-report-v2';
   const PENDING_KEY='enl_pending_pushcheck_v437';
@@ -37,13 +37,13 @@
   function css(){
     if(document.getElementById('enl437Css'))return;
     const s=document.createElement('style');s.id='enl437Css';s.textContent=`
-      #enl437Host{margin:0 0 14px}.enl437-host-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}.enl437-host-title h3{margin:0;color:#174d78;font-size:15px}.enl437-refresh{min-height:36px;border:1px solid #a9c6da;border-radius:9px;background:#fff;color:#24516f;padding:0 10px;font-weight:900}.enl437-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:0}
+      #enl437Host{margin:0 0 14px}.enl437-host-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}.enl437-host-title h3{margin:0;color:#174d78;font-size:15px}.enl437-refresh{min-height:36px;border:1px solid #a9c6da;border-radius:9px;background:#fff;color:#24516f;padding:0 10px;font-weight:900}.enl437-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:0}
       .enl437-card{padding:11px 12px;border:1px solid #d8e4ec;border-radius:12px;background:#f9fcfe}.enl437-card small{display:block;color:#748797;font-weight:850;font-size:11px}.enl437-card b{display:block;margin-top:4px;color:#244f6e;font-size:20px}.enl437-card.ready{background:#eef8f2;border-color:#b8ddc8}.enl437-card.warn{background:#fff8eb;border-color:#ead0a0}.enl437-card.off{background:#fff3f3;border-color:#ecc7c7}
       .enl437-summary-note{grid-column:1/-1;color:#718397;font-size:11px;line-height:1.5;padding:0 2px}
       .sa415-hq-row.enl437-row{grid-template-columns:minmax(0,1.25fr) minmax(90px,.55fr) minmax(150px,.78fr) minmax(190px,1fr) auto}
       .enl437-statuscell{display:grid;gap:5px;min-width:0}.enl437-badge{display:inline-flex;width:max-content;max-width:100%;align-items:center;gap:5px;min-height:28px;padding:0 9px;border-radius:999px;font-size:11px;font-weight:950}
       .enl437-badge.ready{background:#e8f6ee;color:#216747}.enl437-badge.warn{background:#fff3db;color:#815b20}.enl437-badge.off{background:#f2f4f6;color:#697783}.enl437-badge.fail{background:#fff0f0;color:#9b3e3e}
-      .enl437-meta{font-size:11px;color:#657b8d;line-height:1.5;white-space:normal}.enl437-test{min-height:34px!important;border-color:#91b8d2!important;color:#1d5d89!important;background:#f3f9fd!important}
+      .enl437-meta{font-size:11px;color:#657b8d;line-height:1.5;white-space:normal}.enl437-email{font-size:11px;line-height:1.45;font-weight:850}.enl437-email.on{color:#216747}.enl437-email.off{color:#9a5b25}.enl437-email.missing{color:#9b3e3e}.enl437-test{min-height:34px!important;border-color:#91b8d2!important;color:#1d5d89!important;background:#f3f9fd!important}
       .enl437-test[disabled]{opacity:.55;cursor:wait}.enl437-testresult{font-size:10px;color:#708394;line-height:1.35}
       @media(max-width:920px){.sa415-hq-row.enl437-row{grid-template-columns:1fr 1fr}.enl437-statuscell{grid-column:1/-1}.enl437-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
       @media(max-width:480px){.sa415-hq-row.enl437-row{grid-template-columns:1fr}.enl437-summary{grid-template-columns:1fr 1fr}.enl437-summary-note{grid-column:1/-1}.sa415-hq-row .sa415-hq-actions{justify-content:flex-start}}
@@ -90,7 +90,7 @@
   function renderSummary(data){
     const h=host();if(!h)return;
     const s=data?.summary||{};
-    const html=`<div class="enl437-host-title"><h3>경영진 앱·알림 상태</h3><button type="button" class="enl437-refresh" id="enl437Refresh">상태 새로고침</button></div><div id="enl437Summary" class="enl437-summary"><div class="enl437-card"><small>경영진·관리자</small><b>${Number(s.total||0)}</b></div><div class="enl437-card ready"><small>알림 정상</small><b>${Number(s.ready||0)}</b></div><div class="enl437-card warn"><small>확인 필요</small><b>${Number(s.needsCheck||0)}</b></div><div class="enl437-card off"><small>미설정</small><b>${Number(s.notConfigured||0)}</b></div><div class="enl437-summary-note">정상은 설치형 앱 실행·알림 권한·푸시 연결이 확인되었거나, 최근 30일 안에 테스트 알림의 ‘확인’을 눌러 실제 수신이 검증된 상태입니다.</div></div>`;
+    const html=`<div class="enl437-host-title"><h3>경영진 앱·알림 상태</h3><button type="button" class="enl437-refresh" id="enl437Refresh">상태 새로고침</button></div><div id="enl437Summary" class="enl437-summary"><div class="enl437-card"><small>경영진·관리자</small><b>${Number(s.total||0)}</b></div><div class="enl437-card ready"><small>푸시 정상</small><b>${Number(s.ready||0)}</b></div><div class="enl437-card warn"><small>푸시 확인 필요</small><b>${Number(s.needsCheck||0)}</b></div><div class="enl437-card off"><small>푸시 미설정</small><b>${Number(s.notConfigured||0)}</b></div><div class="enl437-card ready"><small>이메일 ON</small><b>${Number(s.emailEnabled||0)} / ${Number(s.total||0)}</b></div><div class="enl437-summary-note">푸시 상태와 이메일 등록 상태를 함께 확인합니다. 관리자·경영진의 긴급사고는 앱 내 OFF 설정과 관계없이 강제 알림 대상입니다.</div></div>`;
     if(h.innerHTML!==html)h.innerHTML=html;
     const refresh=document.getElementById('enl437Refresh');if(refresh)refresh.onclick=()=>decorate(true);
   }
@@ -147,7 +147,8 @@
       let cell=row.querySelector('.enl437-statuscell');
       if(!cell){cell=document.createElement('div');cell.className='enl437-statuscell';const actions=row.querySelector('.sa415-hq-actions');row.insertBefore(cell,actions||null)}
       const st=stateInfo(x);
-      const html=`<span class="enl437-badge ${st.cls}">${esc(st.label)}</span><div class="enl437-meta">${esc(deviceText(x))}<br>최근 확인 ${esc(fmtDate(x.lastSeenAt))}</div><div class="enl437-testresult">${esc(testText(x))}</div>`;
+      const emailCls=!x.email?'missing':x.emailEnabled===false?'off':'on',emailText=!x.email?'이메일 미등록':x.emailEnabled===false?`이메일 OFF · ${x.email}`:`이메일 ON · ${x.email}`;
+      const html=`<span class="enl437-badge ${st.cls}">${esc(st.label)}</span><div class="enl437-meta">${esc(deviceText(x))}<br>최근 확인 ${esc(fmtDate(x.lastSeenAt))}</div><div class="enl437-email ${emailCls}">${esc(emailText)}</div><div class="enl437-testresult">${esc(testText(x))}</div>`;
       if(cell.innerHTML!==html)cell.innerHTML=html;
       const actions=row.querySelector('.sa415-hq-actions');
       if(actions&&['manager','executive'].includes(roleNorm(x.role))){
