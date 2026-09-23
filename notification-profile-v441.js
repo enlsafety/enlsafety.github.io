@@ -1,9 +1,8 @@
-/* E&L Accident Report App v4.4.1 - user notification profile + email flush */
+/* E&L Accident Report App v4.4.7 - user notification profile */
 (function(){
   'use strict';
-  const VERSION='4.4.1-notification-profile1';
+  const VERSION='4.4.7-notification-profile2';
   const PUSH_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-v418';
-  const EMAIL_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-email-v441';
   const CLIENT='incident-report-v2';
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   const actor=()=>{
@@ -17,8 +16,6 @@
     const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify({action,actor:a,...extra}),cache:'no-store'});
     const j=await r.json().catch(()=>({}));if(!r.ok||j?.ok===false)throw new Error(j?.message||'request_failed');return j;
   }
-  async function emailFlush(){try{return await call(EMAIL_API,'flush')}catch(e){return null}}
-
   function ensureCss(){
     if(document.getElementById('enl441ProfileCss'))return;
     const s=document.createElement('style');s.id='enl441ProfileCss';s.textContent=`
@@ -55,16 +52,5 @@
   }
   const mo=new MutationObserver(()=>inject());mo.observe(document.documentElement,{childList:true,subtree:true});setTimeout(inject,400);
 
-  const previousFetch=window.fetch.bind(window);
-  window.fetch=async function(input,init){
-    const res=await previousFetch(input,init);
-    try{
-      const url=typeof input==='string'?input:(input&&input.url)||'';
-      let action='';try{action=JSON.parse(init?.body||'{}')?.action||''}catch(e){}
-      if(res.ok&&url.includes('/functions/v1/enl-incident-sync-v411')&&action==='push')setTimeout(emailFlush,220);
-    }catch(e){}
-    return res;
-  };
-  setTimeout(emailFlush,900);
   window.ENL_NOTIFICATION_PROFILE_VERSION=VERSION;
 })();
