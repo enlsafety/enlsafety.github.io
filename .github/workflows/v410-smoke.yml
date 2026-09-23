@@ -133,7 +133,7 @@ jobs:
             'incident-flow-v440.js?v=4.4.0-r1&amp;fix=workflow1',
           ]
           for x in required: assert x in html,x
-          assert 'auth-v411.js?v=4.4.1-r1&amp;fix=notification-profile1' in html
+          assert 'auth-v411.js?v=4.4.1-r2&amp;fix=email-admin-edit1' in html
           assert 'login-layout-v412.js?v=4.2.7-r1&amp;fix=guide-removed1' in html
           assert 'app-control-v410.js?v=4.2.7-r1&amp;fix=update7-session-guard' in html
           assert 'incident-stats-v426.js?v=4.4.0-r1&amp;fix=dashboard-workflow1' in html
