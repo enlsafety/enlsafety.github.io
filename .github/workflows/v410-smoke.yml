@@ -8,6 +8,8 @@ on:
       - 'version.json'
       - 'stable412.html'
       - 'auth-v411.js'
+      - 'site-admin-v415.js'
+      - 'notification-profile-v441.js'
       - 'login-layout-v412.js'
       - 'incidents-v410.js'
       - 'incident-sync-v411.js'
@@ -44,6 +46,8 @@ on:
       - 'version.json'
       - 'stable412.html'
       - 'auth-v411.js'
+      - 'site-admin-v415.js'
+      - 'notification-profile-v441.js'
       - 'login-layout-v412.js'
       - 'incidents-v410.js'
       - 'incident-sync-v411.js'
@@ -86,7 +90,7 @@ jobs:
 
       - name: JavaScript syntax
         run: |
-          for f in core.js auth-v411.js login-layout-v412.js incidents-v410.js incident-sync-v411.js report-v410.js field-incidents-v411.js app-shell-v411.js reader-ui-v414.js incident-stats-v426.js reader-experience-v424.js incident-flow-v440.js workflow-lifecycle-v413.js workflow-prevention-v429.js incident-review-v431.js production-cleanup-v431.js workflow-enhancements-v432.js site-admin-hotfix-v433.js personnel-management-v434.js legal-review-v435.js industrial-report-v436.js closed-incident-reopen-v438.js official-records-v439.js incident-excel-v421.js pwa-push-v418.js push-session-v425.js hq-notification-status-v437.js sw-v418.js; do
+          for f in core.js auth-v411.js notification-profile-v441.js login-layout-v412.js incidents-v410.js incident-sync-v411.js report-v410.js field-incidents-v411.js app-shell-v411.js reader-ui-v414.js incident-stats-v426.js reader-experience-v424.js incident-flow-v440.js workflow-lifecycle-v413.js workflow-prevention-v429.js incident-review-v431.js production-cleanup-v431.js workflow-enhancements-v432.js site-admin-v415.js site-admin-hotfix-v433.js personnel-management-v434.js legal-review-v435.js industrial-report-v436.js closed-incident-reopen-v438.js official-records-v439.js incident-excel-v421.js pwa-push-v418.js push-session-v425.js hq-notification-status-v437.js sw-v418.js; do
             node --check "$f"
           done
 
@@ -99,16 +103,16 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-440-r1',meta
+          assert meta.get('build')=='stable-441-r1',meta
           assert meta.get('stableEntry')=='stable412.html',meta
-          assert meta.get('version')=='4.4.0' and meta.get('currentStableVersion')=='4.4.0',meta
+          assert meta.get('version')=='4.4.1' and meta.get('currentStableVersion')=='4.4.1',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='440-r1'",'beforeinstallprompt','stable412.html?entry=root&build=440-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
+          for x in ["const BUILD='441-r1'",'beforeinstallprompt','stable412.html?entry=root&build=441-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.4.0-r1',
+            'enl-build" content="4.4.1-r1',
             'incident-sync-v411.js?v=4.4.0-r1&amp;fix=supplement-ack1',
             'workflow-prevention-v429.js?v=4.1.2-r30&amp;fix=prevention-flow2',
             'incident-review-v431.js?v=4.1.2-r31&amp;fix=review-preview1',
@@ -129,7 +133,7 @@ jobs:
             'incident-flow-v440.js?v=4.4.0-r1&amp;fix=workflow1',
           ]
           for x in required: assert x in html,x
-          assert 'auth-v411.js?v=4.2.7-r1&amp;fix=deploy-version-footer1' in html
+          assert 'auth-v411.js?v=4.4.1-r1&amp;fix=notification-profile1' in html
           assert 'login-layout-v412.js?v=4.2.7-r1&amp;fix=guide-removed1' in html
           assert 'app-control-v410.js?v=4.2.7-r1&amp;fix=update7-session-guard' in html
           assert 'incident-stats-v426.js?v=4.4.0-r1&amp;fix=dashboard-workflow1' in html
@@ -158,7 +162,10 @@ jobs:
           assert 'hq-notification-status-v437.js?v=4.3.7&amp;fix=hq-notify4' in html
           assert 'pwa-push-v418.js?v=4.4.0-r1&amp;fix=workflow-push1' in html
           assert 'push-session-v425.js?v=4.1.5-r1&amp;fix=device-heartbeat2' in html
-          assert 'site-admin-v415.js?v=4.1.4-r1&amp;fix=personnel3' in html
+          assert 'notification-profile-v441.js?v=4.4.1-r1&amp;fix=email-notify1' in html
+          assert 'site-admin-v415.js?v=4.4.1-r1&amp;fix=email-notify1' in html
+          profile=Path('notification-profile-v441.js').read_text(encoding='utf-8')
+          for x in ['profile_get','profile_update','enl-email-v441','긴급사고는 앱 푸시·이메일 OFF 설정과 관계없이 강제 수신됩니다.']: assert x in profile,x
           hq=Path('hq-notification-status-v437.js').read_text(encoding='utf-8')
           sw=Path('sw-v418.js').read_text(encoding='utf-8')
           assert 'data-pm434-hq-edit' in hq and 'data-pm434-hq-pw' in hq
@@ -179,7 +186,7 @@ jobs:
             if path and not Path(path).exists(): missing.append(path)
           assert not missing,missing
           hotfix='site-admin-hotfix-v433.js?v=4.1.2-r33&fix=site-api1'
-          personnel='personnel-management-v434.js?v=4.1.4-r1&fix=personnel-integrity2'
+          personnel='personnel-management-v434.js?v=4.4.1-r1&fix=email-notify1'
           legal='legal-review-v435.js?v=4.1.2-r35&fix=legal-simplify1'
           industrial='industrial-report-v436.js?v=4.4.0-r1&fix=deadline-confirmation3'
           assert p.scripts.index(hotfix) < p.scripts.index(personnel) < p.scripts.index(legal) < p.scripts.index(industrial)
@@ -276,7 +283,7 @@ jobs:
               try:p=json.loads(e.read().decode())
               except:p={}
               return e.code,p
-          for fn in ['enl-incident-sync-v411','enl-incident-compliance-v439','enl-push-v418','enl-account-v420','enl-push-claim-v425','enl-push-admin-v437','enl-personnel-v434','enl-industrial-report-v436']:
+          for fn in ['enl-incident-sync-v411','enl-incident-compliance-v439','enl-push-v418','enl-account-v420','enl-push-claim-v425','enl-push-admin-v437','enl-personnel-v434','enl-industrial-report-v436','enl-email-v441']:
             code,j=call(fn,{'action':'health'})
             assert code==200 and j.get('ok') is True,(fn,code,j)
           code,j=call('enl-incident-compliance-v439',{'action':'backup_list','actor':{'id':'missing','name':'x','role':'safety'},'actorPasswordHash':'invalid'})
