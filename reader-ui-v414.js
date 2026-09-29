@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.1.4 - manager/executive read-only navigation */
 (function(){
   'use strict';
-  const VERSION='4.4.0-reader-immediate1';
+  const VERSION='4.4.8-reader-parallel-approval1';
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   const isReader=u=>['manager','executive'].includes(roleNorm(u?.role));
   const escx=v=>typeof esc==='function'?esc(v):String(v??'');
@@ -34,7 +34,7 @@
   function renderReaderHome(u){
     const root=document.getElementById('view');if(!root||!isReader(u))return;
     const d=readerData(),recent=[...d.all].sort((a,b)=>new Date(b.updatedAt||b.occurredAt||0)-new Date(a.updatedAt||a.occurredAt||0)).slice(0,7);
-    root.innerHTML=`<section class="reader414-home"><section class="panel"><div class="section-head"><div><div class="ey">ACCIDENT STATUS</div><h2>사고현황</h2><p>즉시보고부터 보완·최종승인·종결까지 사고 진행상태를 조회합니다. 진단명·의사소견 등 민감한 의료 상세정보는 관리자·경영진 화면에서 제한됩니다.</p></div></div></section><div class="reader414-stats"><button type="button" class="reader414-stat button" data-reader-all><span>전체 사고</span><b>${d.all.length}</b></button><button type="button" class="reader414-stat button" data-reader-pending><span>즉시보고·보완중</span><b>${d.immediate.length+d.supplement.length}</b></button><div class="reader414-stat"><span>최종승인</span><b>${d.approved.length}</b></div><button type="button" class="reader414-stat button" data-reader-closed><span>종결</span><b>${d.closed.length}</b></button></div><section class="panel"><div class="section-head"><div><h2>최근 사고보고</h2><p>최근 발생·갱신된 사고를 확인합니다.</p></div></div><div class="reader414-list">${recent.map(i=>{const q=typeof window.enlIncidentQuickSummary==='function'?window.enlIncidentQuickSummary(i):{when:fmt(i.occurredAt),headline:i.eventType||'사고',circumstance:i.summary||''};return `<button type="button" class="reader414-row" data-reader-open="${escx(i.id)}"><div><strong>${escx(q.when||fmt(i.occurredAt))}</strong><small>${escx(siteName(i.siteId))}</small></div><div><strong>${escx(q.headline||i.eventType||'사고')}</strong><p>${escx(q.circumstance||'사고 상세내용 확인')}</p></div><div class="reader414-state"><span class="reader414-pill">${escx(stateLabel(i))}</span></div></button>`}).join('')||'<div class="empty">조회 가능한 사고가 없습니다.</div>'}</div></section><div class="reader414-note">이 화면의 확인기록은 전자결재나 법적 전자서명이 아니라 사내 사고정보 확인 이력입니다.</div></section>`;
+    root.innerHTML=`<section class="reader414-home"><section class="panel"><div class="section-head"><div><div class="ey">ACCIDENT STATUS</div><h2>사고현황</h2><p>즉시보고부터 보완·최종승인·종결까지 사고 진행상태를 조회합니다. 진단명·의사소견 등 민감한 의료 상세정보는 관리자·경영진 화면에서 제한됩니다.</p></div></div></section><div class="reader414-stats"><button type="button" class="reader414-stat button" data-reader-all><span>전체 사고</span><b>${d.all.length}</b></button><button type="button" class="reader414-stat button" data-reader-pending><span>즉시보고·보완중</span><b>${d.immediate.length+d.supplement.length}</b></button><div class="reader414-stat"><span>최종승인</span><b>${d.approved.length}</b></div><button type="button" class="reader414-stat button" data-reader-closed><span>종결</span><b>${d.closed.length}</b></button></div><section class="panel"><div class="section-head"><div><h2>최근 사고보고</h2><p>최근 발생·갱신된 사고를 확인합니다.</p></div></div><div class="reader414-list">${recent.map(i=>{const q=typeof window.enlIncidentQuickSummary==='function'?window.enlIncidentQuickSummary(i):{when:fmt(i.occurredAt),headline:i.eventType||'사고',circumstance:i.summary||''};return `<button type="button" class="reader414-row" data-reader-open="${escx(i.id)}"><div><strong>${escx(q.when||fmt(i.occurredAt))}</strong><small>${escx(siteName(i.siteId))}</small></div><div><strong>${escx(q.headline||i.eventType||'사고')}</strong><p>${escx(q.circumstance||'사고 상세내용 확인')}</p></div><div class="reader414-state"><span class="reader414-pill">${escx(stateLabel(i))}</span></div></button>`}).join('')||'<div class="empty">조회 가능한 사고가 없습니다.</div>'}</div></section><div class="reader414-note">본사 확인결재는 ERP식 순차결재가 아니라 각 담당자가 사고를 본 시점에 독립적으로 남기는 사내 확인기록이며, 안전관리자의 사고 최종승인·종결 절차와 별도로 관리됩니다.</div></section>`;
     root.querySelector('[data-reader-all]')?.addEventListener('click',()=>{currentView='incidents';window.renderShell?.(u)});
     root.querySelector('[data-reader-pending]')?.addEventListener('click',()=>{currentView='incidents';window.renderShell?.(u)});
     root.querySelector('[data-reader-closed]')?.addEventListener('click',()=>document.querySelector('[data-lifecycle-closed]')?.click());
@@ -45,7 +45,7 @@
     if(!isReader(u)||String(currentView)!=='incidents')return;
     const root=document.getElementById('view');if(!root)return;
     const h2=root.querySelector('.section-head h2');if(h2)h2.textContent='사고 조회';
-    const p=root.querySelector('.section-head p');if(p)p.textContent='즉시보고부터 보완·최종승인·종결까지 조회합니다. 확인 서명은 최종승인 이후 남길 수 있습니다.';
+    const p=root.querySelector('.section-head p');if(p)p.textContent='즉시보고 단계부터 본사 관리자·경영진은 앞선 결재 여부와 관계없이 독립적으로 확인결재를 남길 수 있습니다.';
   }
 
   function normalizeReaderUi(u){
