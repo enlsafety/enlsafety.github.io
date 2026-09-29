@@ -31,10 +31,17 @@
       return await r.json();
     }finally{if(timer)clearTimeout(timer)}
   }
+  function versionParts(v){return String(v||'0').split('.').map(x=>parseInt(x,10)||0)}
+  function versionOlder(a,b){
+    const aa=versionParts(a),bb=versionParts(b),n=Math.max(aa.length,bb.length);
+    for(let i=0;i<n;i++){const av=aa[i]||0,bv=bb[i]||0;if(av<bv)return true;if(av>bv)return false}
+    return false;
+  }
   function newest(meta){
     const entry=String(meta?.stableEntry||'stable412.html').trim()||'stable412.html';
-    const build=String(meta?.build||CURRENT_BUILD).trim()||CURRENT_BUILD;
-    const ver=String(meta?.currentStableVersion||VERSION).trim()||VERSION;
+    let build=String(meta?.build||CURRENT_BUILD).trim()||CURRENT_BUILD;
+    let ver=String(meta?.currentStableVersion||VERSION).trim()||VERSION;
+    if(versionOlder(ver,VERSION)){ver=VERSION;build=CURRENT_BUILD}
     return {entry,build,ver};
   }
   function clearLoginForUpdate(reason='manual_update'){
@@ -142,7 +149,13 @@
       const r=await globalCall('POST',{action:'global-refresh',actor:a,passwordHash:await sha256(pw),version:target.build});
       saveEpoch(r.epoch);clearLoginForUpdate('manual_global_update');goLatest(target);return true;
     }catch(e){
-      alert(e?.message==='invalid_password'?'안전관리자 비밀번호가 맞지 않습니다.':'전체 업데이트를 시작하지 못했습니다. 네트워크 상태를 확인해 주세요.');return false;
+      const m=String(e?.message||'');
+      alert(m==='invalid_password'
+        ?'안전관리자 비밀번호가 맞지 않습니다.'
+        :(m==='server_error'||m.startsWith('global_http_5'))
+          ?'전체 업데이트 서버에서 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
+          :'전체 업데이트 서버에 연결하지 못했습니다. 인터넷 연결을 확인해 주세요.');
+      return false;
     }finally{if(btn&&btn.isConnected){btn.disabled=false;btn.textContent=UPDATE_LABEL}}
   }
   window.enlForceLatestRefresh=safetyGlobalUpdate;
@@ -180,5 +193,5 @@
   setInterval(checkGlobalControl,CONTROL_POLL_MS);
   window.addEventListener('pageshow',()=>scheduleForegroundControl(100));
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')scheduleForegroundControl(100)});
-  window.ENL_UPDATE_CONTROL_VERSION=`${CURRENT_BUILD}-update7-session-guard`;
+  window.ENL_UPDATE_CONTROL_VERSION=`${CURRENT_BUILD}-update8-server-fix`;
 })();
