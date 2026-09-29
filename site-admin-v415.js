@@ -2,7 +2,7 @@
 (function(){
   'use strict';
 
-  const VERSION='4.1.5-personnel2';
+  const VERSION='4.4.12-hq-rank1';
   const SITE_PAGE_SIZE=8;
   const PERSON_PAGE_SIZE=10;
   const FIELD_TITLES=['현장소장','파트장','서무'];
@@ -255,13 +255,40 @@
     }catch(err){box.innerHTML='<div class="sa415-empty">근무자 명단을 불러오지 못했습니다.</div>';}
   }
 
+  function hqPositionRank(v){
+    const p=text(v).replace(/\s+/g,'');
+    if(!p)return 999;
+    if(p.includes('대표이사'))return 120;
+    if(p.includes('부사장'))return 100;
+    if(p.includes('사장'))return 110;
+    if(p.includes('전무'))return 90;
+    if(p.includes('상무'))return 80;
+    if(p.includes('이사'))return 70;
+    if(p.includes('부장'))return 60;
+    if(p.includes('차장'))return 50;
+    if(p.includes('과장'))return 40;
+    if(p.includes('대리'))return 30;
+    if(p.includes('계장'))return 25;
+    if(p.includes('주임'))return 20;
+    if(p.includes('사원'))return 10;
+    return 65;
+  }
+  function sortHqUsers(list){
+    return [...(list||[])].sort((a,b)=>
+      Number(a?.active===false)-Number(b?.active===false) ||
+      hqPositionRank(a?.position)-hqPositionRank(b?.position) ||
+      text(a?.position).localeCompare(text(b?.position),'ko') ||
+      text(a?.name).localeCompare(text(b?.name),'ko')
+    );
+  }
+
   async function renderHq(root,u){
     root.innerHTML=`<div class="sa415"><section class="panel"><div class="sa415-head"><div><div class="ey">HQ ACCOUNTS</div><h2>본사 사용자</h2><p>안전관리자·관리자·경영진 계정과 비밀번호를 관리합니다.</p></div>${tabsHtml()}</div></section><section class="panel"><div id="enl437Host"><div class="sa415-empty">경영진 앱·알림 상태를 확인하는 중입니다.</div></div><div class="sa415-tools"><div></div><button class="sa415-primary" id="sa415AddHq">+ 본사 사용자 생성</button></div><div id="sa415HqList" class="sa415-hq"><div class="sa415-empty">본사 사용자를 불러오는 중입니다.</div></div></section></div>`;
     bindTabs(root,u);
     document.getElementById('sa415AddHq').onclick=()=>window.openUserModal?.(null,u);
     try{
       await window.enlSyncHqUsers?.(u);
-      const users=(data.users||[]).filter(x=>['safety','manager','executive','final'].includes(String(x.role||'')));
+      const users=sortHqUsers((data.users||[]).filter(x=>['safety','manager','executive','final'].includes(String(x.role||''))));
       const box=document.getElementById('sa415HqList');
       if(!box)return;
       box.innerHTML=users.map(x=>{
