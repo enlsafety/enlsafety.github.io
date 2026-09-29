@@ -2,7 +2,7 @@
 (function(){
   'use strict';
 
-  const VERSION='4.4.11-hq-email-ui1';
+  const VERSION='4.4.12-hq-rank-align1';
   const PERSONNEL_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-personnel-v434';
   const CLIENT='incident-report-v2';
   const FIELD_TITLES=['현장소장','파트장','서무'];
@@ -110,9 +110,35 @@
     const next=[...keep,...fresh];const after=JSON.stringify(next.map(x=>[x.id,x.name,x.role,x.department,x.position,x.active]));
     if(before!==after){data.users=next;try{saveData()}catch(e){}}
   }
+  function hqPositionRank(v){
+    const p=text(v).replace(/\s+/g,'');
+    if(!p)return 999;
+    if(p.includes('대표이사'))return 120;
+    if(p.includes('부사장'))return 100;
+    if(p.includes('사장'))return 110;
+    if(p.includes('전무'))return 90;
+    if(p.includes('상무'))return 80;
+    if(p.includes('이사'))return 70;
+    if(p.includes('부장'))return 60;
+    if(p.includes('차장'))return 50;
+    if(p.includes('과장'))return 40;
+    if(p.includes('대리'))return 30;
+    if(p.includes('계장'))return 25;
+    if(p.includes('주임'))return 20;
+    if(p.includes('사원'))return 10;
+    return 65;
+  }
+  function sortHqUsers(list){
+    return [...(list||[])].sort((a,b)=>
+      Number(a?.active===false)-Number(b?.active===false) ||
+      hqPositionRank(a?.position)-hqPositionRank(b?.position) ||
+      text(a?.position).localeCompare(text(b?.position),'ko') ||
+      text(a?.name).localeCompare(text(b?.name),'ko')
+    );
+  }
   function renderHqListDom(serverUsers){
     const box=document.getElementById('sa415HqList');if(!box)return;
-    const users=(serverUsers||[]).filter(x=>HQ_ROLES.includes(String(x.role||'')));
+    const users=sortHqUsers((serverUsers||[]).filter(x=>HQ_ROLES.includes(String(x.role||''))));
     box.innerHTML=users.map(x=>`<div class="sa415-hq-row"><div><b>${ex(x.name)} ${x.active===false?'(비활성)':''}</b><span>${ex(x.department||'소속 미등록')} · ${ex(x.position||'직급 미등록')}</span></div><div><span class="sa415-role">${ex(typeof roleName==='function'?roleName(roleNorm(x.role)):roleNorm(x.role))}</span></div><div><span>${ex(x.email?(x.emailEnabled===false?'이메일 OFF · '+x.email:'이메일 ON · '+x.email):'이메일 미등록')}</span></div><div class="sa415-hq-actions"><button type="button" data-pm434-hq-edit="${ex(x.id)}">정보·권한 수정</button><button type="button" data-pm434-hq-pw="${ex(x.id)}">비밀번호</button></div></div>`).join('')||'<div class="sa415-empty">본사 사용자가 없습니다.</div>';
     box.querySelectorAll('[data-pm434-hq-edit]').forEach(b=>b.onclick=()=>window.openUserModal?.((data.users||[]).find(x=>String(x.id)===String(b.dataset.pm434HqEdit)),currentUser?.()));
     box.querySelectorAll('[data-pm434-hq-pw]').forEach(b=>b.onclick=()=>window.openAdminPasswordReset?.((data.users||[]).find(x=>String(x.id)===String(b.dataset.pm434HqPw)),currentUser?.()));
