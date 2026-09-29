@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.2.2 - stable shell + HQ editor */
 (function(){
   'use strict';
-  const VERSION='4.2.2-ui-stability2';
+  const VERSION='4.4.13-hq-email-edit1';
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   const escx=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const actorOf=u=>{try{return window.enlCurrentActor?.()||{id:u?.id||u?.personnelId||u?.username||'',name:u?.name||'',role:roleNorm(u?.role),position:u?.position||u?.jobTitle||'',siteId:u?.siteId||''}}catch(e){return null}};
@@ -70,6 +70,9 @@
       role:roleNorm(serverUser.role),
       department:serverUser.department||'',
       position:serverUser.position||'',
+      email:serverUser.email||'',
+      pushEnabled:serverUser.pushEnabled!==false,
+      emailEnabled:serverUser.emailEnabled!==false,
       siteId:null,
       active:serverUser.active!==false,
       updatedAt:serverUser.updatedAt||nowISO()
@@ -84,19 +87,20 @@
     const operator=u||currentUser?.();
     if(roleNorm(operator?.role)!=='safety')return typeof previousOpenUserModal==='function'?previousOpenUserModal(user,u):undefined;
     const isNew=!user,role=roleNorm(user?.role)||'manager',self=user&&String(user.id||'')===String(operator?.id||'');
-    openModal(`<div class="modal-head"><div><div class="ey">HQ ACCOUNT</div><h2>${isNew?'본사 사용자 생성':'본사 사용자 정보·권한 수정'}</h2><p>${isNew?'본사 로그인 계정을 생성합니다.':'비밀번호를 바꾸지 않고 이름·소속·직급·권한만 수정할 수 있습니다.'}</p></div><button class="x" data-close>×</button></div><form id="hqUserForm422"><div class="formgrid"><label class="lbl"><span>이름 *</span><input id="hqName422" value="${escx(user?.name||'')}" required></label><label class="lbl"><span>소속사업부</span><input id="hqDept422" value="${escx(user?.department||'')}"></label><label class="lbl"><span>직급</span><input id="hqPos422" value="${escx(user?.position||'')}"></label><label class="lbl"><span>역할군 *</span><select id="hqRole422" ${self?'disabled':''}><option value="safety" ${role==='safety'?'selected':''}>안전관리자</option><option value="manager" ${role==='manager'?'selected':''}>관리자</option><option value="executive" ${role==='executive'?'selected':''}>경영진</option></select></label><label class="lbl"><span>계정 상태</span><select id="hqActive422" ${self?'disabled':''}><option value="1" ${user?.active!==false?'selected':''}>활성</option><option value="0" ${user?.active===false?'selected':''}>비활성</option></select></label>${isNew?'<label class="lbl"><span>초기 비밀번호 *</span><input id="hqPw422" type="password" minlength="4" autocomplete="new-password" required placeholder="4자 이상"></label>':''}</div><div class="help" style="margin:10px 0">${isNew?'생성 후 이용자가 우측 상단 프로필에서 직접 비밀번호를 변경할 수 있습니다.':'비밀번호 변경은 목록의 별도 ‘비밀번호’ 버튼을 사용합니다. 정보·권한 저장 시 기존 비밀번호는 그대로 유지됩니다.'}</div><button id="hqSave422" class="primary full" type="submit">${isNew?'계정 생성':'변경사항 저장'}</button></form>`);
+    openModal(`<div class="modal-head"><div><div class="ey">HQ ACCOUNT</div><h2>${isNew?'본사 사용자 생성':'본사 사용자 정보·권한 수정'}</h2><p>${isNew?'본사 로그인 계정을 생성합니다.':'비밀번호를 바꾸지 않고 이름·소속·직급·권한만 수정할 수 있습니다.'}</p></div><button class="x" data-close>×</button></div><form id="hqUserForm422"><div class="formgrid"><label class="lbl"><span>이름 *</span><input id="hqName422" value="${escx(user?.name||'')}" required></label><label class="lbl"><span>소속사업부</span><input id="hqDept422" value="${escx(user?.department||'')}"></label><label class="lbl"><span>직급</span><input id="hqPos422" value="${escx(user?.position||'')}"></label><label class="lbl"><span>역할군 *</span><select id="hqRole422" ${self?'disabled':''}><option value="safety" ${role==='safety'?'selected':''}>안전관리자</option><option value="manager" ${role==='manager'?'selected':''}>관리자</option><option value="executive" ${role==='executive'?'selected':''}>경영진</option></select></label><label class="lbl"><span>자동메일 수신 이메일</span><input id="hqEmail422" type="email" autocomplete="email" value="${escx(user?.email||'')}" placeholder="name@company.com"></label><label class="lbl"><span>앱 푸시 알림</span><select id="hqPush422"><option value="1" ${user?.pushEnabled!==false?'selected':''}>ON</option><option value="0" ${user?.pushEnabled===false?'selected':''}>OFF</option></select></label><label class="lbl"><span>이메일 알림</span><select id="hqMail422"><option value="1" ${user?.emailEnabled!==false?'selected':''}>ON</option><option value="0" ${user?.emailEnabled===false?'selected':''}>OFF</option></select></label><label class="lbl"><span>계정 상태</span><select id="hqActive422" ${self?'disabled':''}><option value="1" ${user?.active!==false?'selected':''}>활성</option><option value="0" ${user?.active===false?'selected':''}>비활성</option></select></label>${isNew?'<label class="lbl"><span>초기 비밀번호 *</span><input id="hqPw422" type="password" minlength="4" autocomplete="new-password" required placeholder="4자 이상"></label>':''}</div><div class="help" style="margin:10px 0"><b>자동메일 수신 이메일</b>은 사고 단계별 자동메일 발송 대상이 될 때 실제 수신 주소로 사용됩니다. 이메일 알림을 OFF하면 일반 자동메일은 발송되지 않으며, 긴급사고 강제알림 정책은 별도로 적용됩니다.<br>${isNew?'생성 후 이용자가 우측 상단 프로필에서 직접 비밀번호를 변경할 수 있습니다.':'비밀번호 변경은 목록의 별도 ‘비밀번호’ 버튼을 사용합니다. 정보·권한 저장 시 기존 비밀번호는 그대로 유지됩니다.'}</div><button id="hqSave422" class="primary full" type="submit">${isNew?'계정 생성':'변경사항 저장'}</button></form>`);
     const form=document.getElementById('hqUserForm422');if(!form)return;
     form.onsubmit=async ev=>{
       ev.preventDefault();
       const name=document.getElementById('hqName422').value.trim(),department=document.getElementById('hqDept422').value.trim(),position=document.getElementById('hqPos422').value.trim();
       const selectedRole=self?role:document.getElementById('hqRole422').value,active=self?true:document.getElementById('hqActive422').value==='1';
+      const email=document.getElementById('hqEmail422')?.value.trim()||'',pushEnabled=document.getElementById('hqPush422')?.value!=='0',emailEnabled=document.getElementById('hqMail422')?.value!=='0';
       const pw=isNew?(document.getElementById('hqPw422')?.value||''):'';
       if(!name)return alert('이름을 입력해 주세요.');
       if(isNew&&pw.length<4)return alert('초기 비밀번호는 4자 이상 입력해 주세요.');
       const button=document.getElementById('hqSave422');button.disabled=true;button.textContent='저장 중…';
       try{
         const passwordHash=isNew?await sha256(pw):'';
-        const payload={id:user?.id||uid('hq'),name,department,position,role:selectedRole,active};
+        const payload={id:user?.id||uid('hq'),name,department,position,role:selectedRole,email,pushEnabled,emailEnabled,active};
         if(passwordHash)payload.passwordHash=passwordHash;
         const r=await window.enlAuthApi({action:'hq_upsert',actor:actorOf(operator),user:payload},18000);
         localMerge({...r.user,id:r.user?.id||payload.id},passwordHash);
@@ -108,6 +112,7 @@
         if(button?.isConnected){button.disabled=false;button.textContent=isNew?'계정 생성':'변경사항 저장'}
         const m=String(e?.message||'');
         if(m==='password_required')alert('초기 비밀번호를 입력해 주세요.');
+        else if(m==='invalid_email')alert('이메일 주소 형식을 확인해 주세요.');
         else if(m==='forbidden')alert('안전관리자 권한을 확인하지 못했습니다. 다시 로그인해 주세요.');
         else alert('본사 사용자 정보를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.');
       }
