@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.4.7 - HQ push + email readiness dashboard */
 (function(){
   'use strict';
-  const VERSION='4.4.11-hq-notify-db1';
+  const VERSION='4.4.12-hq-align1';
   const API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-admin-v437';
   const CLIENT='incident-report-v2';
   const PENDING_KEY='enl_pending_pushcheck_v437';
@@ -40,12 +40,12 @@
       #enl437Host{margin:0 0 14px}.enl437-host-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}.enl437-host-title h3{margin:0;color:#174d78;font-size:15px}.enl437-refresh{min-height:36px;border:1px solid #a9c6da;border-radius:9px;background:#fff;color:#24516f;padding:0 10px;font-weight:900}.enl437-summary{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin:0}
       .enl437-card{padding:11px 12px;border:1px solid #d8e4ec;border-radius:12px;background:#f9fcfe}.enl437-card small{display:block;color:#748797;font-weight:850;font-size:11px}.enl437-card b{display:block;margin-top:4px;color:#244f6e;font-size:20px}.enl437-card.ready{background:#eef8f2;border-color:#b8ddc8}.enl437-card.warn{background:#fff8eb;border-color:#ead0a0}.enl437-card.off{background:#fff3f3;border-color:#ecc7c7}
       .enl437-summary-note{grid-column:1/-1;color:#718397;font-size:11px;line-height:1.5;padding:0 2px}
-      .sa415-hq-row.enl437-row{grid-template-columns:minmax(0,1.25fr) minmax(90px,.55fr) minmax(150px,.78fr) minmax(190px,1fr) auto}
+      .sa415-hq-row.enl437-row{grid-template-columns:minmax(0,1.25fr) minmax(90px,.55fr) minmax(150px,.78fr) minmax(190px,1fr) 370px}.sa415-hq-row.enl437-row .sa415-hq-actions{width:370px;justify-content:flex-end;align-items:center}
       .enl437-statuscell{display:grid;gap:5px;min-width:0}.enl437-badge{display:inline-flex;width:max-content;max-width:100%;align-items:center;gap:5px;min-height:28px;padding:0 9px;border-radius:999px;font-size:11px;font-weight:950}
       .enl437-badge.ready{background:#e8f6ee;color:#216747}.enl437-badge.warn{background:#fff3db;color:#815b20}.enl437-badge.off{background:#f2f4f6;color:#697783}.enl437-badge.fail{background:#fff0f0;color:#9b3e3e}
       .enl437-meta{font-size:11px;color:#657b8d;line-height:1.5;white-space:normal}.enl437-email{font-size:11px;line-height:1.45;font-weight:850}.enl437-email.on{color:#216747}.enl437-email.off{color:#9a5b25}.enl437-email.missing{color:#9b3e3e}.enl437-test{min-height:34px!important;border-color:#91b8d2!important;color:#1d5d89!important;background:#f3f9fd!important}
       .enl437-test[disabled]{opacity:.55;cursor:wait}.enl437-testresult{font-size:10px;color:#708394;line-height:1.35}
-      @media(max-width:920px){.sa415-hq-row.enl437-row{grid-template-columns:1fr 1fr}.enl437-statuscell{grid-column:1/-1}.enl437-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+      @media(max-width:920px){.sa415-hq-row.enl437-row{grid-template-columns:1fr 1fr}.sa415-hq-row.enl437-row .sa415-hq-actions{width:auto}.enl437-statuscell{grid-column:1/-1}.enl437-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
       @media(max-width:480px){.sa415-hq-row.enl437-row{grid-template-columns:1fr}.enl437-summary{grid-template-columns:1fr 1fr}.enl437-summary-note{grid-column:1/-1}.sa415-hq-row .sa415-hq-actions{justify-content:flex-start}}
     `;document.head.appendChild(s);
   }
