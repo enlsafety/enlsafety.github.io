@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.4.7 - HQ push + email readiness dashboard */
 (function(){
   'use strict';
-  const VERSION='4.4.7-hq-notify-email1';
+  const VERSION='4.4.11-hq-notify-db1';
   const API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-admin-v437';
   const CLIENT='incident-report-v2';
   const PENDING_KEY='enl_pending_pushcheck_v437';
@@ -166,7 +166,11 @@
       const data=await status(force);if(!data)return;renderSummary(data);renderRows(data);
     }catch(e){
       const m=String(e?.message||'');
-      const text=(m==='login_refresh_required'||m==='forbidden')?'알림 상태 확인을 위해 안전관리자 계정에서 다시 로그인해 주세요.':'알림 상태를 불러오지 못했습니다. 네트워크 상태를 확인한 뒤 다시 확인해 주세요.';
+      const text=(m==='login_refresh_required'||m==='forbidden')
+        ?'알림 상태 확인을 위해 안전관리자 계정에서 다시 로그인해 주세요.'
+        :(m==='request_failed'||m.startsWith('http_5'))
+          ?'알림 상태 서버에서 오류가 발생했습니다. 잠시 후 다시 확인해 주세요.'
+          :'알림 상태 서버에 연결하지 못했습니다. 인터넷 연결을 확인해 주세요.';
       renderHostError(text);
     }
   }
