@@ -2,7 +2,7 @@
 (function(){
   'use strict';
 
-  const VERSION='4.2.9-prevention-flow2';
+  const VERSION='4.4.9-prevention-close1';
   const LEGACY_SENTINEL='후속 단계에서 안전관리자가 별도 수립';
   const MANAGER_POSITIONS=['현장소장','파트장','서무'];
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
@@ -141,7 +141,7 @@
       if(c.status==='submitted'){
         openModal(`<div class="modal-head"><div><div class="ey">SAFETY CONFIRMATION</div><h2>${ex(siteName(i.siteId))} · 재발방지조치 확인</h2><div style="margin-top:7px">${preventionBadge(i)}</div></div><button class="x" data-close>×</button></div>${overview(i)}${flowHtml(i)}<section class="prev429-modal-section"><h3>안전관리자 재발방지계획</h3><div class="prev429-modal-body"><div class="prev429-kv"><b>원인 분석</b><span>${ex(c.rootCause||'-')}</span></div><div class="prev429-kv"><b>재발방지계획</b><span>${ex(c.planDetail||'-')}</span></div><div class="prev429-kv"><b>담당 / 목표일</b><span>${ex(c.ownerName||'-')} · ${ex(c.dueDate||'-')}</span></div></div></section><section class="prev429-modal-section prev429-confirm"><h3>현장 재발방지조치</h3><div class="prev429-modal-body"><div class="prev429-kv"><b>조치내용</b><span>${ex(c.actionDetail||'-')}</span></div><div class="prev429-kv"><b>제출자</b><span>${ex(c.submittedBy||'-')} · ${ex(c.submittedAt&&typeof fmt==='function'?fmt(c.submittedAt):(c.submittedAt||'-'))}</span></div>${files?`<div>${files}</div>`:''}</div></section><label class="lbl"><span>확인의견 / 보완요청 사유</span><textarea id="prev429Review" rows="3" placeholder="확인 의견은 선택사항이며, 보완요청 시 사유는 필수입니다.">${ex(c.reviewNote||'')}</textarea></label><div class="modal-actions"><button type="button" class="btn-reject" id="prev429Reject">보완요청</button><button type="button" class="btn-green" id="prev429Approve">재발방지조치 확인완료</button></div>`);
         bindAttachments(document.getElementById('modalRoot'),c.afterPhotos||[]);
-        document.getElementById('prev429Approve')?.addEventListener('click',()=>{const ts=now(),note=text(document.getElementById('prev429Review')?.value);c.status='approved';c.reviewNote=note;c.reviewedBy=u.name;c.reviewedById=userId(u);c.reviewedAt=ts;historyPush(c,{action:'prevention_action_confirmed',by:u.name,at:ts,note});i.corrective=c;i.updatedAt=ts;saveData();closeModal();renderShell(u);alert('재발방지조치 확인이 완료되어 사고가 종결되었습니다.')});
+        document.getElementById('prev429Approve')?.addEventListener('click',()=>{const ts=now(),note=text(document.getElementById('prev429Review')?.value);c.status='approved';c.reviewNote=note;c.reviewedBy=u.name;c.reviewedById=userId(u);c.reviewedAt=ts;historyPush(c,{action:'prevention_action_confirmed',by:u.name,at:ts,note});i.corrective=c;i.status='closed';i.closedAt=ts;i.updatedAt=ts;saveData();closeModal();renderShell(u);alert('재발방지조치 확인이 완료되어 사고가 종결되었습니다.')});
         document.getElementById('prev429Reject')?.addEventListener('click',()=>{const note=text(document.getElementById('prev429Review')?.value);if(!note)return alert('보완요청 사유를 입력해 주세요.');const ts=now();c.status='rejected';c.reviewNote=note;c.reviewedBy=u.name;c.reviewedById=userId(u);c.reviewedAt=ts;historyPush(c,{action:'prevention_action_rejected',by:u.name,at:ts,note});i.corrective=c;i.updatedAt=ts;saveData();closeModal();renderShell(u);alert('현장에 재발방지조치 보완을 요청했습니다.')});return;
       }
       return openReadOnly(i,u);
