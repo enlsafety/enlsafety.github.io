@@ -81,7 +81,7 @@ jobs:
           ]: assert x in ps,x
           assert "setTimeout(onUserReady" not in ps
           for x in ["4.2.5-pwa4-confirm1","incidentId","stable412.html?push=1&incident=","PUSH_CONFIRM_API","ack_test_token"]: assert x in sw,x
-          assert 'reader-experience-v424.js?v=4.4.0-r1&amp;fix=workflow-alert1' in html
+          assert 'reader-experience-v424.js?v=4.4.14-r1&amp;fix=historical-transfer1' in html
           assert 'push-session-v425.js?v=4.1.5-r1&amp;fix=device-heartbeat2' in html
           assert 'hq-notification-status-v437.js?v=4.4.12-r1&amp;fix=hq-align1' in html
           hq=Path('hq-notification-status-v437.js').read_text(encoding='utf-8')
