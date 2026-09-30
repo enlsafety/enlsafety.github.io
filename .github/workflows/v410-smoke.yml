@@ -103,16 +103,16 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-4424-r1',meta
+          assert meta.get('build')=='stable-4425-r1',meta
           assert meta.get('stableEntry')=='stable412.html',meta
-          assert meta.get('version')=='4.4.24' and meta.get('currentStableVersion')=='4.4.24',meta
+          assert meta.get('version')=='4.4.25' and meta.get('currentStableVersion')=='4.4.25',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='4424-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4424-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
+          for x in ["const BUILD='4425-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4425-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.4.24-r1',
+            'enl-build" content="4.4.25-r1',
             'incident-sync-v411.js?v=4.4.0-r1&amp;fix=supplement-ack1',
             'workflow-prevention-v429.js?v=4.4.14-r1&amp;fix=historical-transfer1',
             'workflow-lifecycle-v413.js?v=4.4.14-r1&amp;fix=historical-transfer1',
@@ -138,7 +138,7 @@ jobs:
           assert 'login-layout-v412.js?v=4.2.7-r1&amp;fix=guide-removed1' in html
           assert 'app-control-v410.js?v=4.4.10-r2&amp;fix=update8-server-fix' in html
           assert 'incident-stats-v426.js?v=4.4.24-r1' in html
-          assert 'site-dashboard-v450.js?v=4.4.24-r1' in html
+          assert 'site-dashboard-v450.js?v=4.4.25-r1' in html
           assert 'site-master-seed-v400.js?v=4.4.24-r1' in html
           assert Path('korea-map-natural-earth-10m.svg').exists()
           mapjs=Path('site-dashboard-v450.js').read_text(encoding='utf-8')
@@ -170,7 +170,7 @@ jobs:
           assert 'pwa-push-v418.js?v=4.4.0-r1&amp;fix=workflow-push1' in html
           assert 'push-session-v425.js?v=4.1.5-r1&amp;fix=device-heartbeat2' in html
           assert 'notification-profile-v441.js?v=4.4.7-r1&amp;fix=server-dispatch1' in html
-          assert 'site-admin-v415.js?v=4.4.24-r1' in html
+          assert 'site-admin-v415.js?v=4.4.25-r1' in html
           profile=Path('notification-profile-v441.js').read_text(encoding='utf-8')
           for x in ['profile_get','profile_update','긴급사고는 앱 푸시·이메일 OFF 설정과 관계없이 강제 수신됩니다.','4.4.7-notification-profile2']: assert x in profile,x
           assert 'enl-email-v441' not in profile and 'emailFlush' not in profile
