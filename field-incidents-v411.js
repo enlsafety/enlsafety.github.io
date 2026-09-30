@@ -27,7 +27,7 @@
   function siteIncidents(u){return [...(data?.incidents||[])].filter(i=>sameSite(i,u)).sort((a,b)=>new Date(b.occurredAt||0)-new Date(a.occurredAt||0))}
   function myIncidents(u){return siteIncidents(u).filter(i=>isAuthor(i,u))}
   function actionVisible(u){const eligible=(isManager(u)?siteIncidents(u):myIncidents(u));return eligible.filter(i=>!historicalClosed(i)&&['approved','closed'].includes(String(i.status||'')))}
-  function statusBadgeHtml(i){return `<span class="field411-badge ${i.status==='rejected'?'rejected':''}">${escx(historicalClosed(i)?'이관종결':statusText(i.status))}</span>${historicalClosed(i)?'<span class="field411-badge">ERP 기결재</span>':''}`}
+  function statusBadgeHtml(i){const h=historicalClosed(i);return `<span class="field411-badge ${i.status==='rejected'?'rejected':''}">${escx(h?'이관종결':statusText(i.status))}</span>${h?'<span class="field411-badge">ERP 기결재</span>':''}${h&&i?.historicalImport?.additionalAction&&i.historicalImport.additionalAction!=='none'?'<span class="field411-badge">추가조치 필요</span>':''}`}
   function back(root,u){window.enlAddFieldBack?.(root,u)}
   function personInjuryClass(i){const d=i?.reportDetails||{},text=`${i?.eventType||''} ${d.injuryDetail||''}`,rules=[['골절',/골절/],['베임·절상',/베임|절상|열상/],['찔림',/찔림|자상/],['타박상',/타박/],['찰과상',/찰과/],['염좌',/염좌|삠/],['화상',/화상/],['탈구',/탈구/],['압궤',/압궤|끼임/],['절단',/절단/],['낙상',/낙상|넘어짐/]];const found=rules.filter(([,r])=>r.test(text)).map(([n])=>n);return [...new Set(found)].slice(0,2).join('·')||'부상 발생'}
   function publicSummary(i){return `${categoryText(i.category)} · ${i.eventType||'사고 발생'}`}
