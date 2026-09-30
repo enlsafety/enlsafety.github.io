@@ -8,13 +8,13 @@
 <!-- Light regional labels; same projection as the business markers. -->
 <g id="region-labels" fill="#738a9c" fill-opacity="0.76" font-family="Malgun Gothic, Apple SD Gothic Neo, Noto Sans CJK KR, sans-serif" font-size="22" font-weight="500" text-anchor="middle" dominant-baseline="central" pointer-events="none" style="paint-order:stroke;stroke:#f4f9fc;stroke-width:3;stroke-opacity:.8;stroke-linejoin:round">
 <text x="275.14" y="171.03">경기도</text>
-<text x="409.57" y="164.39">강원</text>
+<text x="380.00" y="136.75">강원</text>
 <text x="353.11" y="283.81">충청북도</text>
-<text x="235.71" y="294.86">충청남도</text>
+<text x="254.53" y="328.03">충청남도</text>
 <text x="287.69" y="388.85">전북</text>
-<text x="259.01" y="508.26">전라남도</text>
+<text x="263.49" y="493.88">전라남도</text>
 <text x="445.42" y="324.72">경상북도</text>
 <text x="360.28" y="437.49">경상남도</text>
-<text x="238.40" y="645.36">제주</text>
+<text x="242.88" y="626.56">제주</text>
 </g>
 </svg>
