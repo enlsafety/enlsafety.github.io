@@ -116,6 +116,6 @@ jobs:
           assert code==200 and j.get('ok') is True and j.get('version')=='4.4.11-hq-notify-db1',(code,j)
           code,j=call('https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-admin-v437',{'action':'ack_test_token','checkId':'missing','confirmToken':'invalid','method':'action'})
           assert code==400 and j.get('message')=='invalid_confirmation',(code,j)
-          code,j=call('https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-claim-v425',{'action':'claim','actor':{'id':'missing','role':'manager'},'subscription':{'endpoint':'x','keys':{'p256dh':'y','auth':'z'}}})
+          code,j=call('https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-claim-v425',{'action':'claim','actor':{},'subscription':{'endpoint':'x','keys':{'p256dh':'y','auth':'z'}}})
           assert code==403 and j.get('message')=='forbidden',(code,j)
           print('OK: comment delete and push ownership endpoints are live with server-side guards')
