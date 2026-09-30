@@ -20,8 +20,8 @@
   function logout(){session=null;saveSession();currentView='';try{enlPlatformSection='hub';localStorage.setItem(ENL_PLATFORM_SECTION_KEY,'hub')}catch(e){}renderLogin()}
   function navItems(u){if(isField(u))return [];if(roleNorm(u.role)==='safety')return [['home','사고현황'],['report','사고 등록'],['incidents','전체 사고'],['actions','사고 조치'],['more','사용자·현장 설정']];return [['home','사고현황'],['incidents','사고 조회'],['actions','승인 재발방지조치']]}
   function navHtml(u){const items=navItems(u);return items.length?`<nav class="shell411-nav">${items.map(([v,t])=>`<button type="button" data-shell-view="${v}" class="${currentView===v?'on':''}">${t}</button>`).join('')}</nav>`:''}
-  function openSafetyReport(u){window.enlSetHistoricalReportMode?.(false);window.enlResetIncidentReport?.();currentView='report';try{enlPlatformSection='incident';localStorage.setItem(ENL_PLATFORM_SECTION_KEY,enlPlatformSection)}catch(e){}renderShell(u)}
-  function openHistoricalReport(u){if(typeof window.enlOpenHistoricalReport==='function')return window.enlOpenHistoricalReport(u);window.enlSetHistoricalReportMode?.(true);currentView='report';renderShell(u)}
+  function openSafetyReport(u){window.enlResetIncidentReport?.();currentView='report';try{enlPlatformSection='incident';localStorage.setItem(ENL_PLATFORM_SECTION_KEY,enlPlatformSection)}catch(e){}renderShell(u)}
+  function openHistoricalReport(u){if(typeof window.enlStartHistoricalTransfer449==='function')return window.enlStartHistoricalTransfer449(u);currentView='report';renderShell(u);setTimeout(()=>document.querySelector('[data-hist449="start"]')?.click(),0)}
 
   function buildShell(u){
     const role=roleNorm(u.role),site=isField(u)?siteName(u.siteId):'전체 사업장';
