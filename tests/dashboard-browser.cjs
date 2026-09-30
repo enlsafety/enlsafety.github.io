@@ -22,6 +22,7 @@ try{for(const width of [1280,820,390]){
  await page.addScriptTag({content:fs.readFileSync('site-locations-v450.js','utf8')});
  await page.evaluate(()=>{
   window.ENL_SITE_MASTER_SEED=Object.entries(ENL_SITE_LOCATIONS).map(([id,p])=>({site_id:id,site_name:id==='s29'?'캐슬렉스 제주':'사업장 '+id,address:p.address,regular_count:3,daily_count:2,total_count:5,manager_name:'소장',part_name:'파트장',clerk_name:'서무'}));
+  ENL_SITE_MASTER_SEED.push({site_id:'s34',site_name:'파주CC',address:'',active:true});
   ENL_SITE_MASTER_SEED.push({site_id:'s99',site_name:'좌표 미확인 사업장',address:'확인 대기'});
   data.sites=ENL_SITE_MASTER_SEED.map(s=>({id:s.site_id,name:s.site_name}));
   const year=new Date().getFullYear();data.incidents=[{id:'urgent-prior-year',siteId:'s29',occurredAt:`${year-1}-01-01`,status:'approved',priority:'urgent'}, {id:'ordinary-current',siteId:'s01',occurredAt:`${year}-05-01`,status:'closed'}];
@@ -31,7 +32,10 @@ try{for(const width of [1280,820,390]){
  await page.locator('[data-shell-view="stats"]').click();await page.locator('[data-sd450-kpis]').waitFor();
  assert.equal(await page.locator('.sd450-kpis>div').count(),7);assert.equal(await page.locator('[data-sd450-map]').count(),1);
  assert.ok(await page.locator('.sd450-map-img').evaluate(img=>img.complete&&img.naturalWidth>0));
- assert.equal(await page.locator('[data-sd450-map-site]').count(),21);
+ assert.equal(await page.locator('[data-sd450-map-site]').count(),33);
+ assert.equal(await page.locator('#sd450Site option[value="s34"]').count(),0);
+ assert.ok((await page.locator('.sd450-map-note').innerText()).includes('파주CC'));
+ for(const id of await page.evaluate(()=>Object.keys(ENL_SITE_LOCATIONS))){await page.locator('#sd450Site').selectOption(id);assert.ok((await page.locator('[data-sd450-summary]').innerText()).includes(await page.evaluate(id=>ENL_SITE_LOCATIONS[id].address,id)));}
  await page.locator('[data-sd450-map-site="s29"]').click();assert.ok((await page.locator('[data-sd450-summary]').innerText()).includes('고위험'));
  assert.equal(await page.locator('[data-sd450-map-site="s29"].high').count(),1);
  await page.screenshot({path:`qa-output/dashboard-${width}.png`,fullPage:true});
@@ -41,6 +45,7 @@ try{for(const width of [1280,820,390]){
  assert.equal(await page.locator('[data-qa-table]').innerText(),'urgent-prior-year');
  await page.locator('[data-shell-view="incidents"]').click();assert.equal(await page.locator('[data-sd450-info]').count(),0,'no stale site profile on all incidents');
  await page.locator('[data-shell-view="home"]').click();assert.equal(await page.locator('[data-sd450-map]').count(),0);
+ assert.equal(await page.locator('[data-safety-site="s34"]').count(),1,'ended site remains in historical incident view');
  await page.locator('[data-safety-site="s01"]').click();await page.locator('[data-sd450-info]').waitFor();assert.equal(await page.locator('[data-qa-table]').innerText(),'ordinary-current');
  await page.locator('[data-shell-view="stats"]').click();await page.locator('#sd450Site').selectOption('s99');assert.ok((await page.locator('[data-sd450-summary]').innerText()).includes('좌표 확인 필요'));
  await page.locator('#stats426Year').selectOption(String(new Date().getFullYear()-1));await page.locator('[data-sd450-map]').waitFor();assert.equal(await page.locator('[data-sd450-kpis]').count(),1);
