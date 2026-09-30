@@ -5,7 +5,13 @@ on:
     branches: [main]
     paths:
       - 'site-dashboard-v450.js'
+      - 'site-locations-v450.js'
+      - 'tests/dashboard*'
       - 'stable412.html'
+      - 'site-master-seed-v400.js'
+      - 'korea-map-natural-earth-10m.svg'
+      - 'site-master-seed-v400.js'
+      - 'korea-map-natural-earth-10m.svg'
       - 'version.json'
       - 'index.html'
       - '.github/workflows/site-dashboard-v450-smoke.yml'
@@ -13,6 +19,8 @@ on:
     branches: [main]
     paths:
       - 'site-dashboard-v450.js'
+      - 'site-locations-v450.js'
+      - 'tests/dashboard*'
       - 'stable412.html'
       - 'version.json'
       - 'index.html'
@@ -35,13 +43,15 @@ jobs:
           import json
           from pathlib import Path
           js=Path('site-dashboard-v450.js').read_text(encoding='utf-8')
+          seed=Path('site-master-seed-v400.js').read_text(encoding='utf-8')
+          svg=Path('korea-map-natural-earth-10m.svg').read_text(encoding='utf-8')
           html=Path('stable412.html').read_text(encoding='utf-8')
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
           index=Path('index.html').read_text(encoding='utf-8')
           for token in [
             '전국 사업장 분포','사업장 주소','현장소장','반장 / 파트장','서무',
             '올해 사고 5건 이상','현재 미종결 긴급·중대 사고 보유',
-            'data-sd450-map-site','data-sd450-info','site_list'
+            'data-sd450-map-site','data-sd450-info','site_list','Natural Earth 1:10m','korea-map-natural-earth-10m.svg'
           ]:
             assert token in js, token
           for token in ['regular_count','daily_count','total_count','manager_name','part_name','clerk_name','address']:
@@ -49,8 +59,29 @@ jobs:
           assert "String(i.status||'')!=='closed'" in js
           assert "String(i.priority||'')==='urgent'" in js
           assert "String(i.severity||'')==='major'" in js
-          assert 'site-dashboard-v450.js?v=4.4.16-r1&amp;fix=site-map2' in html
-          assert 'content="4.4.16-r1"' in html
-          assert meta['version']=='4.4.16' and meta['build']=='stable-4416-r1'
-          assert "const BUILD='4416-r1'" in index
+          assert "view()!=='stats'" in js
+          assert "view()==='stats'" in js
+          assert 'data-sd450-map' in js
+          assert '전국 사업장 분포' in js
+          assert 'Natural Earth' in svg and '<svg' in svg and '<path' in svg
+          for token in ['전남광주 장성군 북이면 사거리 752-1','경기 용인시 기흥구 청덕동 80-2','경기 화성시 동탄구 동탄순환대로 823, 702~703호']:
+            assert token in seed, token
+          assert 'site-dashboard-v450.js?v=4.4.17-r1&amp;fix=dashboard-complete2' in html
+          assert 'site-master-seed-v400.js?v=4.4.17-r1&amp;fix=excel-address1' in html
+          assert 'content="4.4.17-r1"' in html
+          assert meta['version']=='4.4.17' and meta['build']=='stable-4417-r1'
+          assert "const BUILD='4417-r1'" in index
           print('OK: site profile and Korea distribution dashboard invariants preserved')
+      - name: Dashboard behavior tests
+        run: node tests/dashboard-unit.cjs
+      - name: Install isolated browser QA
+        run: |
+          npm install --no-save --package-lock=false playwright@1.51.1
+          npx playwright install --with-deps chromium
+      - name: Desktop tablet mobile dashboard QA
+        run: node tests/dashboard-browser.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dashboard-qa
+          path: qa-output/
