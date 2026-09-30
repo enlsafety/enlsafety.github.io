@@ -39,7 +39,7 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  assert.ok((await page.locator('.sd450-map-note').innerText()).includes('파주CC'));
  const openSite=async id=>{
   const marker=page.locator(`[data-sd450-map-site="${id}"]`);
-  if(touch){await marker.tap();await marker.locator('.sd450-marker-label').tap()}else await marker.click();
+  if(touch){await marker.tap();assert.equal(await marker.getAttribute('aria-expanded'),'true','touch input must open a name for every HQ role');await marker.locator('.sd450-marker-label').tap()}else await marker.click();
  };
  if(touch)assert.equal(await page.locator('.sd450-marker-label').evaluateAll(bs=>bs.filter(b=>getComputedStyle(b).visibility==='visible').length),0,'mobile starts with points only, including high-risk points');
  for(const id of await page.evaluate(()=>Object.keys(ENL_SITE_LOCATIONS))){await page.locator('#sd450Site').selectOption(id);assert.ok((await page.locator('[data-sd450-summary]').innerText()).includes(await page.evaluate(id=>ENL_SITE_LOCATIONS[id].address,id)));}

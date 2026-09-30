@@ -14,7 +14,7 @@ const view=()=>String(typeof currentView!=='undefined'?currentView:(window.curre
 const MAP={w:760,h:760,pad:26,minLon:124.3,maxLon:132.2,minLat:32.8,maxLat:38.9,meanLat:35.85*Math.PI/180};
 MAP.cos=Math.cos(MAP.meanLat);MAP.xmin=MAP.minLon*MAP.cos;MAP.xmax=MAP.maxLon*MAP.cos;MAP.scale=Math.min((MAP.w-2*MAP.pad)/(MAP.xmax-MAP.xmin),(MAP.h-2*MAP.pad)/(MAP.maxLat-MAP.minLat));MAP.usedW=(MAP.xmax-MAP.xmin)*MAP.scale;MAP.usedH=(MAP.maxLat-MAP.minLat)*MAP.scale;MAP.ox=(MAP.w-MAP.usedW)/2;MAP.oy=(MAP.h-MAP.usedH)/2;
 let masters=[],metrics=null,loaded=false,loading=false,loadError=false,preview='',loadedFor='',requestVersion=0,loadedAt=0,metricKey='';
-let mapState={zoom:1,x:0,y:0},mapResize=null;
+let mapState={zoom:1,x:0,y:0},mapResize=null,touchUsed=false;
 
 function css(){
  if(document.getElementById('sd450Css'))return;
@@ -80,7 +80,7 @@ function spreadPoints(points,gap=9){
  }
  return points.map(p=>byId.get(p.id));
 }
-function touchMap(){return matchMedia('(hover: none), (pointer: coarse), (max-width: 560px)').matches}
+function touchMap(){return touchUsed||(typeof navigator!=='undefined'&&navigator.maxTouchPoints>0)||matchMedia('(hover: none), (pointer: coarse), (max-width: 560px)').matches}
 // Choose the label anchor only when it is opened, never while panning/pinching.
 function anchorLabel(button,viewport){
  const label=button.querySelector('.sd450-marker-label'),b=button.getBoundingClientRect(),v=viewport.getBoundingClientRect();
@@ -121,6 +121,7 @@ function bindMap(root,a){
  const rebase=()=>{gesture=pointers.size?{...geometry(),ox:mapState.x,oy:mapState.y,z:mapState.zoom}:null};
  const capture=()=>pointers.forEach((_,id)=>{try{viewport.setPointerCapture(id)}catch(e){}});
  viewport.addEventListener('pointerdown',e=>{
+  if(e.pointerType==='touch'){touchUsed=true;viewport.classList.add('sd450-touch-map')}
   if(e.button!==0)return;if(!pointers.size)moved=false;
   pointers.set(e.pointerId,local(e));if(pointers.size>1){moved=true;capture()}rebase();
  });
