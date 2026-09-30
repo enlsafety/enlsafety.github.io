@@ -6,6 +6,7 @@
   const escx=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const siteName=id=>{try{return siteById?.(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}};
   const canUseStats=u=>!!u&&['safety','manager','executive'].includes(roleNorm(u.role));
+  const isHistorical=i=>!!i&&(String(i.recordMode||'')==='historical_transfer'||String(i?.historicalTransfer?.mode||'')==='historical_transfer'||(i?.historicalImport?.enabled===true&&i?.historicalImport?.erpApproved===true&&i?.historicalImport?.workflowExempt===true&&String(i?.historicalImport?.transferState||'')==='closed'));
 
   function css(){
     if(document.getElementById('incidentStats426Css'))return;
@@ -58,7 +59,7 @@
   }
   function siteRanking(rows){return rows.length?`<div class="stats426-sites">${rows.map((x,idx)=>{const level=x.count>=5?'manage':x.count>=3?'attention':'';const cls=level?` stats426-site-${level}`:'';const flag=level==='manage'?'<span class="stats426-site-flag manage">관리필요</span>':level==='attention'?'<span class="stats426-site-flag attention">관심요망</span>':'';return `<div class="stats426-site${cls}"><span class="stats426-rank">${idx+1}</span><b>${escx(x.name)}${flag}</b><strong>${x.count}건</strong></div>`}).join('')}</div>`:'<div class="stats426-empty">해당 기간의 사고기록이 없습니다.</div>'}
 
-  function whenText(i){const d=validDate(i);if(!d)return '-';try{return new Intl.DateTimeFormat('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(d)}catch(e){return String(i?.occurredAt||'-')}}
+  function whenText(i){const h=i?.historicalTransfer||{},legacy=i?.historicalImport||{};if(isHistorical(i)){const d=h.occurredDate||String(i?.occurredAt||'').slice(0,10);const t=h.occurredTimeKnown===false?'':(h.occurredTime||'');return [d,t].filter(Boolean).join(' ')||'-'}const d=validDate(i);if(!d)return '-';try{return new Intl.DateTimeFormat('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(d)}catch(e){return String(i?.occurredAt||'-')}}
   function statusText(i){if(i?.historicalImport?.enabled===true&&i?.historicalImport?.transferState==='closed'&&String(i?.status||'')==='closed')return '이관종결';const s=String(i?.status||'');return s==='closed'?'종결':s==='approved'?'최종승인':s==='supplement_submitted'?'보완검토대기':s==='supplement'?'보완대기':s==='rejected'?'반려':s==='reported'?'즉시보고 검토대기':'진행중'}
   function recentFirst(arr){return [...arr].sort((a,b)=>(validDate(b)?.getTime()||0)-(validDate(a)?.getTime()||0))}
   function incidentLabel(i){if(String(i?.category||'')==='person')return '인명사고';if(String(i?.category||'')==='property')return '대물사고';return i?.eventType||'기타사고'}
