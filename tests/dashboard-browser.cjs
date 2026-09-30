@@ -37,15 +37,20 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  assert.equal(await page.locator('[data-sd450-map-site]').count(),33);
  assert.equal(await page.locator('#sd450Site option[value="s34"]').count(),0);
  assert.ok((await page.locator('.sd450-map-note').innerText()).includes('파주CC'));
+ const openSite=async id=>{
+  const marker=page.locator(`[data-sd450-map-site="${id}"]`);
+  if(touch){await marker.tap();await marker.locator('.sd450-marker-label').tap()}else await marker.click();
+ };
+ if(touch)assert.equal(await page.locator('.sd450-marker-label').evaluateAll(bs=>bs.filter(b=>getComputedStyle(b).visibility==='visible').length),0,'mobile starts with points only, including high-risk points');
  for(const id of await page.evaluate(()=>Object.keys(ENL_SITE_LOCATIONS))){await page.locator('#sd450Site').selectOption(id);assert.ok((await page.locator('[data-sd450-summary]').innerText()).includes(await page.evaluate(id=>ENL_SITE_LOCATIONS[id].address,id)));}
- await page.locator('[data-sd450-map-site="s29"]').click();assert.ok((await page.locator('[data-sd450-summary]').innerText()).includes('미종결 긴급·중대 사고 있음'));
+ await openSite('s29');assert.ok((await page.locator('[data-sd450-summary]').innerText()).includes('미종결 긴급·중대 사고 있음'));
  assert.equal(await page.locator('[data-sd450-map-site="s29"].high').count(),0);
  for(const [id,expected] of [['s29','rgb(32, 37, 43)'],['s02','rgb(232, 137, 24)'],['s03','rgb(216, 63, 69)']])assert.equal(await page.locator(`[data-sd450-map-site="${id}"]`).evaluate(b=>getComputedStyle(b).backgroundColor),expected);
  const verifyLabels=async()=>{
   const labels=await page.locator('.sd450-marker:not([hidden]) .sd450-marker-label').evaluateAll(bs=>bs.map(b=>{const r=b.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,visible:getComputedStyle(b).visibility==='visible',text:b.textContent}}));
   assert.ok(labels.length>0,'zoomed map retains visible markers');
   assert.ok(await page.locator('.sd450-marker:not([hidden]) .sd450-marker-label').evaluateAll(bs=>bs.every(b=>getComputedStyle(b).transform==='none'&&getComputedStyle(b).fontSize==='11px')),'text remains native 11px without transform');
-  if(touch){assert.ok(labels.every(x=>x.visible),'mobile names always visible');labels.forEach((a,i)=>labels.slice(0,i).forEach(b=>assert.ok(!(a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y),`labels overlap: ${a.text}/${b.text}`)))}
+  if(touch)assert.ok(labels.filter(x=>x.visible).length<=1,'only the tapped name is visible on mobile');
   assert.ok(await page.locator('.sd450-marker:not([hidden])').evaluateAll(bs=>bs.every(b=>{for(let e=b;e&&!e.classList.contains('sd450-map-viewport');e=e.parentElement){if(getComputedStyle(e).transform!=='none')return false}return true})),'markers and labels must not inherit a scaled/composited map layer');
  };
  await verifyLabels();
@@ -56,7 +61,23 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  // Screen-space separation, every requested close pair must be individually clickable.
  const centers=await page.locator('[data-sd450-map-site]').evaluateAll(bs=>bs.map(b=>{const r=b.getBoundingClientRect();return {id:b.dataset.sd450MapSite,x:r.x+r.width/2,y:r.y+r.height/2}}));
  centers.forEach((p,i)=>centers.slice(0,i).forEach(q=>assert.ok(Math.hypot(p.x-q.x,p.y-q.y)>=8.8,`${p.id}/${q.id} overlap at ${width}`)));
- for(const id of ['s05','s30','s15','s16','s24','s25']){const marker=page.locator(`[data-sd450-map-site="${id}"]`);if(touch)await marker.tap();else await marker.click();assert.equal(await page.locator('#sd450Site').inputValue(),id)}
+ for(const id of ['s05','s30','s15','s16','s24','s25']){
+  const marker=page.locator(`[data-sd450-map-site="${id}"]`);
+  if(touch){
+   await marker.scrollIntoViewIfNeeded();const beforeCard=await page.locator('[data-sd450-summary]').innerHTML(),beforeScroll=await page.evaluate(()=>scrollY);
+   await marker.tap();assert.equal(await page.locator('[data-sd450-summary]').innerHTML(),beforeCard,'point tap must not open/change business info');assert.equal(await page.evaluate(()=>scrollY),beforeScroll,'point tap must not jump to the info panel');
+   assert.equal(await marker.getAttribute('aria-expanded'),'true');assert.equal(await page.locator('.sd450-marker-label').evaluateAll(bs=>bs.filter(b=>getComputedStyle(b).visibility==='visible').length),1);
+   await marker.tap();assert.equal(await page.locator('[data-sd450-summary]').innerHTML(),beforeCard,'repeated point tap still only shows the name');
+   await marker.locator('.sd450-marker-label').tap();
+  }else await marker.click();
+  assert.equal(await page.locator('#sd450Site').inputValue(),id);
+ }
+ // Track the same label throughout drag, continuous pinch and zoom changes.
+ const anchorBefore=await page.locator('[data-sd450-map-site="s25"] .sd450-marker-label').evaluate(b=>({left:b.style.left,top:b.style.top}));
+ await page.evaluate(()=>{
+  window.qaLabelOffsets=[];const b=document.querySelector('[data-sd450-map-site="s25"] .sd450-marker-label');
+  window.qaLabelObserver=new MutationObserver(()=>qaLabelOffsets.push({left:b.style.left,top:b.style.top}));qaLabelObserver.observe(b,{attributes:true,attributeFilter:['style']});
+ });
  const viewport=page.locator('.sd450-map-viewport');await viewport.scrollIntoViewIfNeeded();const box=await viewport.boundingBox();
  const transform=()=>page.locator('.sd450-map-canvas').evaluate(x=>x.style.transform);
  const scale=async()=>parseInt(await page.locator('[data-map-scale]').innerText());
@@ -101,9 +122,12 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  await page.locator('[data-map-zoom="in"]').click();assert.equal(await scale(),150);await page.locator('[data-map-zoom="reset"]').click();
  for(let i=0;i<6;i++)await page.locator('[data-map-zoom="in"]').click();assert.equal(await scale(),400);
  await verifyLabels();
+ const anchorAfter=await page.locator('[data-sd450-map-site="s25"] .sd450-marker-label').evaluate(b=>({left:b.style.left,top:b.style.top}));assert.deepEqual(anchorAfter,anchorBefore,'label stays anchored to its own point at 400%');
+ for(const offset of await page.evaluate(()=>{qaLabelObserver.disconnect();return qaLabelOffsets}))assert.deepEqual(offset,anchorBefore,'label must not jump at any intermediate gesture frame');
+ if(touch){const visibleMarker=page.locator('.sd450-marker:not([hidden])').first();await visibleMarker.tap();assert.equal(await visibleMarker.getAttribute('aria-expanded'),'true')}
  await page.locator('.sd450-map-viewport').screenshot({path:`qa-output/zoom400-${engine}-${width}.png`});
  await page.locator('[data-map-zoom="reset"]').click();await verifyLabels();
- await page.locator('[data-sd450-map-site="s29"]').click();
+ await openSite('s29');
  await page.screenshot({path:`qa-output/dashboard-${engine}-${width}.png`,fullPage:true});
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no horizontal page overflow');
  await page.locator('[data-sd450-open]').click();await page.locator('[data-sd450-info]').waitFor();
@@ -122,12 +146,12 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
   await page.evaluate(role=>{qaUser={id:role,role,name:'본사 조회자'};currentView='stats';renderShell(qaUser)},role);
   await page.locator('[data-sd450-map]').waitFor();await page.waitForFunction(()=>window.enlDashboardMetrics?.()!==null);
   assert.equal(await page.locator('[data-sd450-map-site]').count(),33);assert.equal(await page.locator('.sd450-kpis').innerText(),safetyKpis,'same company metrics for HQ');assert.equal(await page.locator('[data-stats-filter=all] b').innerText(),'10건');await page.locator('[data-stats-filter=all]').click();assert.equal(await page.locator('[data-stats-inc]').count(),1,'aggregate-only rejected record must not disclose details');
-  await page.locator('[data-sd450-map-site="s29"]').click();await page.locator('[data-sd450-open]').click();await page.locator('[data-sd450-info]').waitFor();
+  await openSite('s29');await page.locator('[data-sd450-open]').click();await page.locator('[data-sd450-info]').waitFor();
   assert.equal(await page.locator('[data-qa-table]').getAttribute('data-edit'),'false');
   await page.locator('[data-inc-id="urgent-prior-year"]').click();assert.equal(await page.evaluate(()=>qaReview.edit),false,'existing review remains read-only');
  }
  for(const role of ['field','worker']){await page.evaluate(role=>{qaUser={id:role,role,name:'현장'};currentView='stats';renderShell(qaUser)},role);assert.equal(await page.locator('[data-sd450-map]').count(),0);assert.equal(await page.locator('[data-stats426-nav]').count(),0)}
 
- assert.deepEqual(errors,[]);console.log(`PASS: ${engine} ${width}px touch=${touch}, circular markers, minimal separation, drag/wheel/pinch, map, summary, risk, existing incident routing, filters, role guard`);await page.close();
+ assert.deepEqual(errors,[]);console.log(`PASS: ${engine} ${width}px touch=${touch}, two-step mobile selection, stable label anchor, circular markers, minimal separation, drag/wheel/pinch, map, summary, risk, existing incident routing, filters, role guard`);await page.close();
 }}catch(e){if(activePage){await activePage.screenshot({path:'qa-output/failure.png',fullPage:true}).catch(()=>{});fs.writeFileSync('qa-output/failure.json',JSON.stringify(await activePage.locator('[data-sd450-map-site]').evaluateAll(bs=>bs.map(b=>({id:b.dataset.sd450MapSite,rect:b.getBoundingClientRect().toJSON(),css:getComputedStyle(b).cssText}))).catch(()=>[]),null,2))}throw e}finally{await Promise.all(Object.values(browsers).map(b=>b.close()))}
 })().catch(e=>{console.error(e);process.exit(1)});
