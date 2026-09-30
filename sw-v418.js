@@ -85,7 +85,9 @@ self.addEventListener('notificationclick',event=>{
   const incidentId=String(d.incidentId||'').trim();
   const kind=String(d.kind||'').trim();
   const action=String(event.action||'').trim();
-  const target=incidentId
+  const target=d.followupId
+    ? `https://enlsafety.github.io/stable412.html?followup=${encodeURIComponent(String(d.followupId))}`
+    : incidentId
     ? `https://enlsafety.github.io/stable412.html?push=1&incident=${encodeURIComponent(incidentId)}${kind?`&kind=${encodeURIComponent(kind)}`:''}`
     : String(d.url||'https://enlsafety.github.io/');
   event.waitUntil((async()=>{
