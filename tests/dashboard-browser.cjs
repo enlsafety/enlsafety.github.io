@@ -51,10 +51,13 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  const before=await transform();
  await page.mouse.move(box.x+box.width*.8,box.y+box.height*.8);await page.mouse.down();await page.mouse.move(box.x+box.width*.8-30,box.y+box.height*.8-25,{steps:5});await page.mouse.up();
  assert.notEqual(await transform(),before,'drag must pan even at 100%');
+ // Mobile WebKit does not expose wheel injection; desktop wheel is tested in Chromium.
+ if(engine!=='webkit'||!touch){
  const yBefore=await page.evaluate(()=>scrollY);
  await page.mouse.wheel(0,-100);await page.waitForFunction(()=>parseInt(document.querySelector('[data-map-scale]').textContent)>100);
  const zoomed=await scale();await page.mouse.wheel(0,100);await page.waitForFunction(z=>parseInt(document.querySelector('[data-map-scale]').textContent)<z,zoomed);
  assert.equal(await page.evaluate(()=>scrollY),yBefore,'wheel over map must not scroll page');
+ }
  await page.locator('[data-map-zoom="reset"]').click();
  if(touch){
   await viewport.scrollIntoViewIfNeeded();const b=await viewport.boundingBox(),cx=b.x+b.width/2,cy=b.y+b.height/2;
