@@ -7,6 +7,7 @@
   const position=u=>String(u?.position||u?.jobTitle||'').trim();
   const roleOf=u=>String(u?.role||'')==='final'?'manager':String(u?.role||'');
   const isHqReader=u=>['manager','executive'].includes(roleOf(u));
+  const isHistorical=i=>!!i&&(String(i.recordMode||'')==='historical_transfer'||String(i?.historicalTransfer?.mode||'')==='historical_transfer');
   const isSiteUser=u=>!!u&&['field','worker'].includes(u.role);
   const isSiteManager=u=>isSiteUser(u)&&MANAGER_POSITIONS.includes(position(u));
   const sameSite=(i,u)=>!!i&&!!u&&String(i.siteId||'')===String(u.siteId||'');
@@ -23,11 +24,11 @@
   const cut=(v,n=76)=>{const s=String(v||'').replace(/\s+/g,' ').trim();return s.length>n?s.slice(0,n-1)+'…':s};
   const won=v=>{const n=Number(v||0);return Number.isFinite(n)&&n>0?`${n.toLocaleString('ko-KR')}원`:''};
 
-  function canEditIncident(i,u){if(!i||!u)return false;if(roleOf(u)==='safety')return true;if(!sameSite(i,u)||!['reported','rejected'].includes(i.status))return false;if(isSiteManager(u))return true;return u.role==='worker'&&isAuthor(i,u)}
+  function canEditIncident(i,u){if(!i||!u||isHistorical(i))return false;if(roleOf(u)==='safety')return true;if(!sameSite(i,u)||!['reported','rejected'].includes(i.status))return false;if(isSiteManager(u))return true;return u.role==='worker'&&isAuthor(i,u)}
   function canViewOriginal(i,u){if(!i||!u)return false;const r=roleOf(u);if(r==='safety')return true;if(['manager','executive'].includes(r))return ['reported','supplement','supplement_submitted','approved','closed'].includes(i.status);return sameSite(i,u)&&isSiteManager(u)}
 
   function quickSummary(i){
-    const d=i?.reportDetails||{},person=i?.category==='person',place=d.place||'',when=i?.occurredAt?fmt(i.occurredAt):'-';
+    const d=i?.reportDetails||{},person=i?.category==='person',place=d.place||'',h=i?.historicalTransfer||{},when=isHistorical(i)&&h.occurredDate?(h.occurredDate+(h.occurredTimeKnown&&h.occurredTime?' '+h.occurredTime:' · 시간 미확인')):(i?.occurredAt?fmt(i.occurredAt):'-');
     let impact='',headline='';
     if(person){impact=cut(d.injuryDetail||i?.injuredName||'부상내용 미입력',54);headline=`${i?.eventType||'대인사고'} · ${impact}`}
     else{const item=d.damagedItem||'파손 물품',cost=won(d.repairCost);impact=cut(d.damageDetail||item,54);headline=`${i?.eventType||'대물사고'} · ${item}${cost?' · '+cost:''}`}
@@ -97,6 +98,21 @@
     ['siteFilter','statusFilter','categoryFilter'].forEach(id=>document.getElementById(id)?.addEventListener('change',refresh));refresh();
   }
 
+  function historicalInfoHtml(i){
+    if(!isHistorical(i))return '';
+    const h=i.historicalTransfer||{},f=h.followUp||{},e=h.existingActionEvidence==='confirmed'?'확인됨':h.existingActionEvidence==='partial'?'일부 확인':'확인자료 없음';
+    const follow=f.type==='site_check'?'현장 확인 필요':f.type==='improvement'?'신규 개선조치 필요':'추가조치 없음';
+    return '<section class="inc411-section"><h3>과거사고 이관정보</h3><div class="inc411-section-body">'
+      +'<div class="inc411-kv"><b>등록구분</b><span>과거사고 · ERP 기결재 · 이관종결</span></div>'
+      +'<div class="inc411-kv"><b>기존 결재</b><span>ERP 기결재 완료'+(h.erpApprovalDate?' · '+esc(h.erpApprovalDate):'')+(h.erpReference?' · '+esc(h.erpReference):'')+'</span></div>'
+      +'<div class="inc411-kv"><b>기존 보고자</b><span>'+esc(h.originalReporterName||'미확인')+'</span></div>'
+      +'<div class="inc411-kv"><b>이관 등록자</b><span>'+esc(h.transferredBy||i.lastModifiedBy||'-')+(h.transferredAt?' · '+esc(fmt(h.transferredAt)):'')+'</span></div>'
+      +'<div class="inc411-kv"><b>기존 조치자료</b><span>'+esc(e)+(h.existingActionSummary?'\n'+esc(h.existingActionSummary):'')+'</span></div>'
+      +'<div class="inc411-kv"><b>현재 추가조치</b><span>'+esc(follow)+(f.note?'\n'+esc(f.note):'')+'</span></div>'
+      +'<div class="inc411-kv"><b>앱 처리상태</b><span>신규 재발방지계획·현장조치 절차 적용 제외</span></div>'
+      +'</div></section>';
+  }
+
   function bindModalAttachments(i){const root=document.getElementById('modalRoot');if(root&&typeof window.enlBindAttachmentOpen==='function')window.enlBindAttachmentOpen(root,i.photos||[])}
   function openIncidentModalFn(id,admin,u){
     const viewer=u||currentUser(),i=(data.incidents||[]).find(x=>String(x.id)===String(id));
@@ -119,6 +135,7 @@
       ${safety?(historical?`<div class="modal-actions"><button class="btn-blue" id="editInc">이관정보 수정</button><button class="btn-red" id="deleteInc">삭제</button></div>`:`<div class="inc411-priority-box"><label><span>관리등급 최종 설정</span><select id="priorityEdit411"><option value="normal" ${i.priority==='normal'?'selected':''}>일반</option><option value="important" ${i.priority==='important'?'selected':''}>중요</option><option value="urgent" ${i.priority==='urgent'?'selected':''}>긴급</option></select></label><small>최초 등록 시 자동 추천되며, 안전관리자가 사고의 실제 중요도를 검토해 최종 등급을 직접 변경할 수 있습니다.</small></div><label class="lbl"><span>안전관리자 검토의견 / 반려사유</span><textarea id="safetyNoteEdit" rows="3">${esc(i.safetyNote||i.rejectionNote||'')}</textarea></label>${readerStatusHtml(i)}<div class="modal-actions"><button class="btn-gray" id="saveNote">검토·등급 저장</button>${i.status==='reported'?'<button class="btn-reject" id="rejectInc">반려</button><button class="btn-blue" id="approveInc">사고 승인</button>':''}${i.status!=='closed'?'<button class="btn-green" id="closeInc">종결</button>':''}<button class="btn-red" id="editInc">사고정보 수정</button><button class="btn-red" id="deleteInc">삭제</button></div>`):''}
       ${hqReader&&!historical&&['approved','closed'].includes(i.status)?`<button type="button" id="ackIncident411" class="inc411-ack ${ack?'done':''}" ${ack?'disabled':''}>${ack?'✓ '+esc(fmt(ack.readAt))+' 열람 확인 완료':'열람 확인'}</button>`:''}`);
     bindModalAttachments(i);
+    if(historical)return;
     if(hqReader){const btn=document.getElementById('ackIncident411');if(btn&&!ack)btn.onclick=async()=>{btn.disabled=true;btn.textContent='열람 확인 저장 중…';try{if(typeof window.enlIncidentAcknowledge!=='function')throw new Error('ack_not_ready');await window.enlIncidentAcknowledge(i.id,viewer);closeModal();renderShell(currentUser()||viewer);alert('열람 확인이 기록되었습니다.')}catch(e){btn.disabled=false;btn.textContent='열람 확인';alert('열람 확인을 저장하지 못했습니다. 다시 시도해 주세요.')}};return}
     if(!safety)return;
     const note=()=>document.getElementById('safetyNoteEdit')?.value.trim()||'';
