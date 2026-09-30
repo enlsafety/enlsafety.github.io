@@ -73,7 +73,7 @@ function spreadPoints(points,gap=9){
  for(const p of points){if(byId.has(p.id))continue;let best={...p},found=false;
   for(let radius=0;radius<=24&&!found;radius+=.5){const steps=radius?48:1;
    for(let i=0;i<steps;i++){const angle=i*Math.PI*2/steps,c={...p,x:p.x+Math.cos(angle)*radius,y:p.y+Math.sin(angle)*radius};
-    if(placed.every(q=>Math.hypot(c.x-q.x,c.y-q.y)>=gap)){best=c;found=true;break}
+    if(placed.every(q=>Math.hypot(c.x-q.x,c.y-q.y)>=gap+1)){best=c;found=true;break}
    }
   }
   placed.push(best);byId.set(p.id,best);

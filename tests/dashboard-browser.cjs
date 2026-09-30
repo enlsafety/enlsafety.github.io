@@ -2,8 +2,8 @@
 const {chromium,webkit}=require('playwright'),fs=require('node:fs'),assert=require('node:assert/strict');
 (async()=>{
 fs.mkdirSync('qa-output',{recursive:true});const browsers={chromium:await chromium.launch({headless:true}),webkit:await webkit.launch({headless:true})};
-try{for(const profile of [{engine:'chromium',width:1280,touch:false},{engine:'chromium',width:390,touch:true},{engine:'chromium',width:820,touch:true},{engine:'webkit',width:390,touch:true},{engine:'webkit',width:820,touch:true}]){
- const {width,engine,touch}=profile,browser=browsers[engine],page=await browser.newPage({viewport:{width,height:900},hasTouch:touch,isMobile:touch}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:false},{engine:'chromium',width:390,touch:true},{engine:'chromium',width:820,touch:true},{engine:'webkit',width:390,touch:true},{engine:'webkit',width:820,touch:true}]){
+ const {width,engine,touch}=profile,browser=browsers[engine],page=await browser.newPage({viewport:{width,height:900},hasTouch:touch,isMobile:touch}),errors=[];activePage=page;page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/*',async route=>{
   const req=route.request();assert.equal(req.method(),'GET','No network mutation in QA');
   const path=new URL(req.url()).pathname.slice(1);
@@ -110,5 +110,5 @@ try{for(const profile of [{engine:'chromium',width:1280,touch:false},{engine:'ch
  for(const role of ['field','worker']){await page.evaluate(role=>{qaUser={id:role,role,name:'현장'};currentView='stats';renderShell(qaUser)},role);assert.equal(await page.locator('[data-sd450-map]').count(),0);assert.equal(await page.locator('[data-stats426-nav]').count(),0)}
 
  assert.deepEqual(errors,[]);console.log(`PASS: ${engine} ${width}px touch=${touch}, circular markers, minimal separation, drag/wheel/pinch, map, summary, risk, existing incident routing, filters, role guard`);await page.close();
-}}finally{await Promise.all(Object.values(browsers).map(b=>b.close()))}
+}}catch(e){if(activePage){await activePage.screenshot({path:'qa-output/failure.png',fullPage:true}).catch(()=>{});fs.writeFileSync('qa-output/failure.json',JSON.stringify(await activePage.locator('[data-sd450-map-site]').evaluateAll(bs=>bs.map(b=>({id:b.dataset.sd450MapSite,rect:b.getBoundingClientRect().toJSON(),css:getComputedStyle(b).cssText}))).catch(()=>[]),null,2))}throw e}finally{await Promise.all(Object.values(browsers).map(b=>b.close()))}
 })().catch(e=>{console.error(e);process.exit(1)});

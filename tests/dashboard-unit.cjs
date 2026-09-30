@@ -30,5 +30,5 @@ for(const width of [280,600]){
 console.log('PASS: all 33 markers separated on desktop/mobile without coordinate mutation; HQ roles');
 
 const close=[{id:'a',x:10,y:10},{id:'b',x:11,y:10},{id:'c',x:40,y:40}],sp=t.spreadPoints(close);
-assert.equal(sp[0].x,10);assert.ok(Math.hypot(sp[1].x-11,sp[1].y-10)<=8.5,'minimal displacement for a close pair');assert.equal(JSON.stringify(sp[2]),JSON.stringify(close[2]));
+assert.equal(sp[0].x,10);assert.ok(Math.hypot(sp[1].x-11,sp[1].y-10)<=9.5,'minimal displacement for a close pair');assert.equal(JSON.stringify(sp[2]),JSON.stringify(close[2]));
 console.log('PASS: only heavily overlapping points move; already distinct points stay exactly fixed');
