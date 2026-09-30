@@ -5,6 +5,8 @@
   const VERSION='4.1.1-r11';
   let activeType=null;
   let activeEditId=null;
+  let historicalMode=false;
+  const isHistoricalMode=()=>historicalMode===true;
 
   const isSiteUser=u=>!!u&&['field','worker'].includes(u.role);
   const canCreate=u=>!!u&&['field','worker','safety'].includes(u.role);
@@ -17,11 +19,42 @@
   const pad=n=>String(n).padStart(2,'0');
   const occurredParts=i=>{if(i?.occurredAt){const d=new Date(i.occurredAt);if(!Number.isNaN(d.getTime()))return {date:`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`,time:`${pad(d.getHours())}:${pad(d.getMinutes())}`}}const dt=localDT();return {date:dt.slice(0,10),time:dt.slice(11,16)}};
 
-  function backHome(u){activeType=null;activeEditId=null;if(isSiteUser(u)&&typeof window.enlFieldHome==='function')return window.enlFieldHome(u);currentView='home';renderShell(u)}
-  function backRecords(u){activeType=null;activeEditId=null;currentView='incidents';renderShell(u)}
+  function backHome(u){activeType=null;activeEditId=null;historicalMode=false;if(isSiteUser(u)&&typeof window.enlFieldHome==='function')return window.enlFieldHome(u);currentView='home';renderShell(u)}
+  function backRecords(u){activeType=null;activeEditId=null;historicalMode=false;currentView='incidents';renderShell(u)}
   function topBack(u,label='사고 종류 선택'){if(isSiteUser(u))return `<div class="field-task-back"><button type="button" data-report-home>← 현장 홈으로</button><span>${esc(currentSiteName(u.siteId))}</span></div>`;return `<div class="report410-top-back"><button type="button" data-report-home>← ${esc(label)}</button></div>`}
   function bindPicker(root,u){root.querySelector('[data-report-home]')?.addEventListener('click',()=>backHome(u));root.querySelectorAll('[data-report-type]').forEach(btn=>btn.addEventListener('click',()=>{activeEditId=null;activeType=btn.dataset.reportType;renderTypeForm(root,u,activeType,null)}))}
-  function renderTypePicker(root,u){if(!root)return;activeType=null;activeEditId=null;root.innerHTML=`${topBack(u,'홈으로')}<section class="panel report-type-picker" data-report-picker="v410"><div class="section-head"><div><div class="ey">ACCIDENT REPORT</div><h2>사고 종류를 선택해 주세요</h2><p>발생한 사고에 맞는 경위서를 선택합니다.</p></div></div><div class="report-type-grid"><button type="button" class="report-type-card person" data-report-type="person"><span class="report-type-no">01</span><strong>대인사고</strong><small>사람이 다치거나 치료가 필요한 사고<br>부상·진단·진료비 중심 작성</small></button><button type="button" class="report-type-card property" data-report-type="property"><span class="report-type-no">02</span><strong>대물사고</strong><small>차량·장비·시설물이 파손된 사고<br>파손·복구견적 중심 작성</small></button></div><div class="report-type-note">사고 종류를 선택하면 해당 경위서에 필요한 항목만 표시됩니다.</div></section>`;bindPicker(root,u)}
+  function renderTypePicker(root,u){if(!root)return;activeType=null;activeEditId=null;root.innerHTML=`${topBack(u,'홈으로')}<section class="panel report-type-picker" data-report-picker="v410"><div class="section-head"><div><div class="ey">ACCIDENT REPORT</div><h2>사고 종류를 선택해 주세요</h2><p>발생한 사고에 맞는 경위서를 선택합니다.</p></div></div><div class="report-type-grid"><button type="button" class="report-type-card person" data-report-type="person"><span class="report-type-no">01</span><strong>대인사고</strong><small>사람이 다치거나 치료가 필요한 사고<br>부상·진단·진료비 중심 작성</small></button><button type="button" class="report-type-card property" data-report-type="property"><span class="report-type-no">02</span><strong>대물사고</strong><small>차량·장비·시설물이 파손된 사고<br>파손·복구견적 중심 작성</small></button></div><div class="report-type-note">사고 종류를 선택하면 해당 경위서에 필요한 항목만 표시됩니다.</div></section>`;patchHistoricalPicker(root);bindPicker(root,u)}
+
+  function patchHistoricalPicker(root){
+    if(!historicalMode||!root)return;
+    const h=root.querySelector('.section-head h2'),p=root.querySelector('.section-head p'),note=root.querySelector('.report-type-note');
+    if(h)h.textContent='과거사고 이관등록';
+    if(p)p.textContent='ERP에서 이미 결재된 과거 사고를 신규 사고보고와 분리해 이관종결합니다.';
+    if(note)note.textContent='이관종결 건은 신규 재발방지계획·현장조치 제출 절차에 넣지 않습니다.';
+    const box=document.createElement('div');box.className='report-type-note';box.style.marginTop='10px';box.style.borderColor='#e3c681';box.style.background='#fff8e9';box.style.color='#75571e';box.textContent='ERP 기결재 사실과 실제 재발방지조치 확인 여부는 별도로 기록합니다. ERP 기결재만으로 조치완료로 표시하지 않습니다.';root.querySelector('.report-type-picker')?.appendChild(box);
+  }
+  function patchHistoricalForm(root,type){
+    if(!historicalMode||!root)return;
+    const form=root.querySelector('#unifiedReportForm');if(!form)return;form.dataset.historicalTransfer='true';
+    const h=form.querySelector('.section-head h2'),p=form.querySelector('.section-head p');
+    if(h)h.textContent=(type==='person'?'대인사고':'대물사고')+' · 과거사고 이관';
+    if(p)p.textContent='기존 ERP 사고자료에 확인되는 사실을 입력한 뒤 과거사고 이관종결로 등록합니다.';
+    const sections=form.querySelectorAll('.report410-section'),closing=sections[4];
+    if(closing)closing.innerHTML='<div class="report410-section-head"><b>5. ERP · 이관종결 정보</b><small>ERP 결재와 기존 조치 확인상태를 구분해 기록합니다.</small></div>'
+      +'<label class="report410-check"><input id="historicalErpConfirmed" type="checkbox"><span><b>ERP 기결재 완료 확인 *</b><br>기존 ERP에서 결재 완료된 사고자료임을 확인했습니다.</span></label>'
+      +'<div class="report410-grid" style="margin-top:10px">'
+      +'<label class="lbl"><span>ERP 결재일</span><input id="historicalErpDate" type="date"></label>'
+      +'<label class="lbl"><span>ERP 문서번호 / 결재번호</span><input id="historicalErpRef" placeholder="확인되는 경우만 입력"></label>'
+      +'<label class="lbl report410-wide"><span>기존 재발방지조치 자료 확인상태 *</span><select id="historicalEvidence"><option value="confirmed">확인됨</option><option value="partial">일부 확인</option><option value="none" selected>확인자료 없음</option></select></label>'
+      +'<label class="lbl report410-wide"><span>기존 자료에서 확인되는 조치내용</span><textarea id="historicalExistingAction" rows="3" placeholder="기존 ERP·사고보고서 등에 실제로 적힌 조치만 입력"></textarea></label>'
+      +'<label class="lbl report410-wide"><span>현재 추가조치 필요 여부 *</span><select id="historicalFollowUp"><option value="none">추가조치 없음</option><option value="site_check">현장 확인 필요</option><option value="improvement">신규 개선조치 필요</option></select></label>'
+      +'<label class="lbl report410-wide"><span>추가조치 메모</span><textarea id="historicalFollowUpNote" rows="2" placeholder="추가 확인·개선이 필요한 경우 이유와 확인할 내용을 입력"></textarea></label>'
+      +'<label class="lbl report410-wide"><span>기존 사고보고자</span><input id="historicalOriginalReporter" placeholder="기존 자료에서 확인되는 경우만 입력"></label>'
+      +'<label class="lbl"><span>'+(type==='person'?'부상 정도':'피해 정도')+'</span><select id="severity"><option value="minor">경미</option><option value="moderate">보통</option><option value="major">중대</option></select></label>'
+      +'<label class="report410-check"><input id="potentialMajor" type="checkbox"><span>당시 중대사고로 이어질 잠재위험이 있었음</span></label></div>'
+      +'<div class="report-type-note" style="margin-top:10px;background:#fff8e9;border-color:#e3c681;color:#75571e"><b>주의:</b> ERP 기결재는 실제 재발방지조치 완료와 같은 의미가 아닙니다. 자료가 없으면 “확인자료 없음”으로 남깁니다.</div>';
+    const submit=form.querySelector('.report410-submit');if(submit)submit.textContent='과거사고 이관종결';
+  }
 
   function siteControl(u,siteId){const selected=siteId||u?.siteId||'';if(isSiteUser(u))return `<input id="reportSite" type="hidden" value="${esc(selected)}"><input class="report410-overview-control" value="${esc(currentSiteName(selected))}" disabled>`;return `<select id="reportSite" class="report410-overview-control" required><option value="">사업장 선택</option>${(data.sites||[]).filter(s=>s.id!=='site-hq').map(s=>`<option value="${esc(s.id)}" ${String(s.id)===String(selected)?'selected':''}>${esc(s.name)}</option>`).join('')}</select>`}
   function commonTop(u,i){const dt=occurredParts(i),d=i?.reportDetails||{};return `<div class="report410-grid report410-overview-grid"><label class="lbl report410-overview-cell"><span>사업장 *</span>${siteControl(u,i?.siteId)}</label><label class="lbl report410-overview-cell"><span>발생 날짜 *</span><input class="report410-overview-control" id="occurredDate410" type="date" value="${esc(dt.date)}" required></label><label class="lbl report410-overview-cell"><span>발생 시간 *</span><input class="report410-overview-control" id="occurredTime410" type="time" value="${esc(dt.time)}" required></label><label class="lbl report410-wide"><span>정확한 사고 장소 *</span><input id="incidentPlace410" value="${esc(d.place||'')}" required placeholder="예: A코스 3홀 티 우측 법면부"></label><label class="lbl report410-wide"><span>사고 유형 *</span><select id="eventType">${eventTypeOptions(i?.eventType||'')}</select></label></div>`}
@@ -35,7 +68,7 @@
     if(!root)return;if(!['person','property'].includes(type))return renderTypePicker(root,u);activeType=type;
     const person=type==='person',editing=!!i,title=person?'대인사고 경위서':'대물사고 경위서',desc=person?'부상·진단·진료비 등 인적 피해 중심으로 작성합니다.':'파손내용·복구비용·견적 등 물적 피해 중심으로 작성합니다.';
     root.innerHTML=`${topBack(u)}<form id="unifiedReportForm" class="panel report-simple incident410-form" data-report-type="${type}" data-editing="${editing?'true':'false'}"><div class="section-head"><div><div class="ey">${person?'PERSON INCIDENT':'PROPERTY INCIDENT'}</div><h2>${title}${editing?' 수정':''}</h2><p>${editing?'기존에 입력한 내용을 불러왔습니다. 필요한 부분을 수정한 뒤 다시 제출해 주세요.':desc}</p></div>${editing?'<button type="button" class="secondary report410-change" data-cancel-edit>← 사고 기록으로</button>':'<button type="button" class="secondary report410-change" data-change-type>← 사고 종류 변경</button>'}</div><section class="report410-section"><div class="report410-section-head"><b>1. 사고 개요</b><small>언제, 어디서 발생했는지 입력합니다.</small></div>${commonTop(u,i)}</section>${circumstanceSection(type,i)}${causeSection(i)}${person?personDamageSection(i):propertyDamageSection(i)}${closingSection(type,i,u)}<section class="report410-section report410-photo"><div class="report410-section-head"><b>6. 현장사진 · PDF</b><small>가능하면 사고현장 사진을 첨부해 주세요. 응급조치·이송 등으로 즉시 첨부가 어려운 경우 사진 없이 우선 보고할 수 있습니다.</small></div>${photoPickerHtml('incident')}</section><button class="primary full report410-submit" type="submit">${editing?'수정 후 다시 제출':title+' 제출하기'}</button></form>`;
-    incidentPhotos=editing&&Array.isArray(i.photos)?[...i.photos]:[];renderPhotoThumbs('incident');bindPhotoButtons();
+    patchHistoricalForm(root,type);incidentPhotos=editing&&Array.isArray(i.photos)?[...i.photos]:[];renderPhotoThumbs('incident');bindPhotoButtons();
     if(person){const leave=document.getElementById('leaveEstimate');if(leave)leave.value=i?.leaveEstimate||'unknown'}
     const severity=document.getElementById('severity');if(severity)severity.value=i?.severity||'minor';const potential=document.getElementById('potentialMajor');if(potential)potential.checked=!!i?.potentialMajor;
     root.querySelector('[data-report-home]')?.addEventListener('click',()=>backHome(u));root.querySelector('[data-change-type]')?.addEventListener('click',()=>renderTypePicker(root,u));root.querySelector('[data-cancel-edit]')?.addEventListener('click',()=>backRecords(u));root.querySelector('#unifiedReportForm')?.addEventListener('submit',e=>submitIncident410(e,u,type,i));
@@ -46,20 +79,36 @@
   function buildSummary(type,siteId){const when=formatOccurred(value('occurredDate410'),value('occurredTime410')),site=currentSiteName(siteId),place=value('incidentPlace410'),work=value('workAction410'),how=value('incidentHow410'),env=value('environmentCause410'),behavior=value('behaviorCause410'),prevention=value('preventionPlan410'),special=value('specialNote410'),cause=[env&&`환경적 요인: ${env}`,behavior&&`행동적 요인: ${behavior}`].filter(Boolean).join(' / ');let damage='';if(type==='person'){const cost=money(value('medicalCost410'));damage=[`${value('injuredName')||'피해 직원'}: ${value('injuryDetail410')}`,value('diagnosis410')&&`진단명: ${value('diagnosis410')}`,value('doctorOpinion410')&&`의사 소견: ${value('doctorOpinion410')}`,cost&&`진료비: ${moneyText(cost)}`].filter(Boolean).join(' / ')}else{const cost=money(value('repairCost410'));damage=[value('propertyWorker410')&&`작업자: ${value('propertyWorker410')}`,`${value('damagedItem410')}: ${value('damageDetail410')}`,cost&&`복구 예상비용: ${moneyText(cost)}`].filter(Boolean).join(' / ')}return [`[사고 개요] ${when} ${site} ${place}`,`[사고 경위] ${work} 중 ${how}`,cause&&`[사고 원인] ${cause}`,`[피해 상황] ${damage}`,`[재발 방지 대책] ${prevention}`,special&&`[특이사항] ${special}`].filter(Boolean).join('  ')}
 
   async function submitIncident410(e,u,type,existing=null){
-    e.preventDefault();if(!canCreate(u))return alert('사고보고 등록 권한이 없습니다.');
+    e.preventDefault();if(!canCreate(u))return alert('사고보고 등록 권한이 없습니다.');const historical=isHistoricalMode();
     for(const [id,label] of [['reportSite','사업장'],['occurredDate410','발생 날짜'],['occurredTime410','발생 시간'],['incidentPlace410','사고 장소'],['workAction410','사고 직전 작업'],['incidentHow410','사고 발생 과정'],['immediateAction','사고 직후 조치']])if(!required(id,label))return;
     if(type==='person'){if(!required('injuredName','피해 직원 성명')||!required('injuryDetail410','부상 내용'))return}else if(!required('damagedItem410','파손된 물품 또는 시설')||!required('damageDetail410','파손 내용'))return;
     if(existing&&typeof window.enlCanEditIncident==='function'&&!window.enlCanEditIncident(existing,u))return alert('현재 상태에서는 이 사고보고를 수정할 수 없습니다.');
+    if(historical){
+      if(!document.getElementById('historicalErpConfirmed')?.checked)return alert('ERP 기결재 완료 여부를 확인해 주세요.');
+      const follow=value('historicalFollowUp');
+      if(follow!=='none'&&!value('historicalFollowUpNote'))return alert('추가조치가 필요한 경우 확인·개선할 내용을 입력해 주세요.');
+    }
     const siteId=value('reportSite'),date=value('occurredDate410'),time=value('occurredTime410'),severity=value('severity')||'minor',leaveEstimate=type==='person'?(value('leaveEstimate')||'unknown'):'none',potentialMajor=!!document.getElementById('potentialMajor')?.checked,summary=buildSummary(type,siteId),eventType=value('eventType'),autoPriority=computePriority(type,severity,eventType,potentialMajor,leaveEstimate),priorityChoice=u?.role==='safety'?(value('priorityManual411')||'auto'):'auto',priority=priorityChoice==='auto'?autoPriority:priorityChoice,prioritySource=priorityChoice==='auto'?'auto':'manual',details={templateVersion:'v411',reportType:type,place:value('incidentPlace410'),workAction:value('workAction410'),incidentHow:value('incidentHow410'),environmentCause:value('environmentCause410'),behaviorCause:value('behaviorCause410'),preventionPlan:value('preventionPlan410'),specialNote:value('specialNote410'),generatedSummary:summary,recordedAt:nowISO()};
     if(type==='person')Object.assign(details,{injuredName:value('injuredName'),job:value('job'),injuryDetail:value('injuryDetail410'),diagnosis:value('diagnosis410'),doctorOpinion:value('doctorOpinion410'),medicalCost:money(value('medicalCost410')),medicalCostDetail:value('medicalCostDetail410')});else Object.assign(details,{workerName:value('propertyWorker410'),job:value('job'),damagedItem:value('damagedItem410'),damageDetail:value('damageDetail410'),repairCost:money(value('repairCost410')),repairCostDetail:value('repairCostDetail410')});
+    if(historical){details.specialNote='사고보고앱 도입 이전 과거사고 · ERP 기결재 이관종결';details.preventionPlan='';}
     const common={siteId,category:type,eventType,severity,leaveEstimate,potentialMajor,injuredName:type==='person'?value('injuredName'):'',job:value('job'),summary,immediateAction:value('immediateAction'),photos:[...incidentPhotos].map(persistAttachment),occurredAt:new Date(`${date}T${time}`).toISOString(),updatedAt:nowISO(),priority,prioritySource,prioritySetBy:prioritySource==='manual'?u.name:'',prioritySetAt:prioritySource==='manual'?nowISO():null,legalReview:computeLegalReview(type,severity,leaveEstimate),reportDetails:details};
+    if(historical){
+      const ts=nowISO(),originalReporter=value('historicalOriginalReporter'),followType=value('historicalFollowUp')||'none';
+      const transfer={mode:'historical_transfer',source:'erp',status:'closed',erpApproved:true,erpApprovalDate:value('historicalErpDate'),erpReference:value('historicalErpRef'),originalReporterName:originalReporter,startedAt:ts,transferredAt:ts,transferredBy:u.name,transferredById:u.personnelId||u.id||'',closedAt:ts,existingActionEvidence:value('historicalEvidence')||'none',existingActionSummary:value('historicalExistingAction'),noNewPreventionWorkflow:true,occurredDate:date,occurredTime:time,occurredTimeKnown:true,followUp:{type:followType,status:followType==='none'?'not_required':'open',note:value('historicalFollowUpNote')},closeReason:'사고보고앱 도입 이전 발생 및 ERP 기결재 완료 사고의 이력 이관'};
+      const incident={id:uid('hist'),...common,recordMode:'historical_transfer',historicalTransfer:transfer,reporterName:originalReporter||'기존 ERP 자료',reporterId:'',createdAt:ts,registeredAt:ts,updatedAt:ts,status:'closed',safetyNote:'',approvedBy:'',approvedAt:null,closedAt:ts,corrective:null,readReceipts:[],acknowledgements:[],reviewHistory:[{action:'historical_transfer_closed',by:u.name,at:ts,note:transfer.closeReason}]};
+      if(!confirm('이 사고를 “과거사고 · ERP 기결재 · 이관종결”로 등록할까요?\n신규 재발방지계획과 현장 조치 제출 절차에는 넣지 않습니다.'))return;
+      data.incidents.unshift(incident);saveData();try{await window.enlIncidentSyncNow?.()}catch(e){}
+      incidentPhotos=[];activeType=null;activeEditId=null;historicalMode=false;alert('과거사고가 이관종결로 등록되었습니다.');currentView='incidents';return renderShell(u);
+    }
     if(existing){const previousStatus=existing.status;Object.assign(existing,common);existing.status='reported';existing.resubmittedBy=u.name;existing.resubmittedById=u.personnelId||u.id||'';existing.resubmittedAt=nowISO();existing.reviewHistory=Array.isArray(existing.reviewHistory)?existing.reviewHistory:[];existing.reviewHistory.push({action:previousStatus==='reported'?'withdrawn_and_resubmitted':'resubmitted',by:u.name,at:existing.resubmittedAt});saveData();incidentPhotos=[];activeType=null;activeEditId=null;alert('수정된 사고보고서가 다시 제출되었습니다.');currentView='incidents';return renderShell(u)}
     const incident={id:uid('inc'),...common,reporterName:u.name,reporterId:u.personnelId||u.id||'',createdAt:nowISO(),status:'reported',safetyNote:'',approvedBy:'',approvedAt:null,closedAt:null,corrective:null,readReceipts:[]};data.incidents.unshift(incident);saveData();incidentPhotos=[];activeType=null;activeEditId=null;alert(`${type==='person'?'대인사고':'대물사고'} 경위서가 접수되었습니다.`);currentView='incidents';renderShell(u)
   }
 
   function renderReport(root,u){if(!root)return;if(!canCreate(u)){root.innerHTML='<div class="panel permission-empty"><div class="lock-icon">🔒</div><h2>사고보고 등록 권한이 없습니다.</h2></div>';return}const edit=activeEdit();if(edit){activeType=edit.category;return renderTypeForm(root,u,activeType,edit)}if(activeType)return renderTypeForm(root,u,activeType,null);return renderTypePicker(root,u)}
   window.renderUnifiedReport=renderReport;window.submitUnifiedIncident=submitIncident410;
-  window.enlResetIncidentReport=()=>{activeType=null;activeEditId=null};
+  window.enlSetHistoricalReportMode=on=>{historicalMode=!!on;activeType=null;activeEditId=null};
+  window.enlOpenHistoricalReport=(u=currentUser?.())=>{if(!u||u.role!=='safety')return alert('과거사고 이관등록은 안전관리자만 할 수 있습니다.');historicalMode=true;activeType=null;activeEditId=null;currentView='report';renderShell(u)};
+  window.enlResetIncidentReport=()=>{activeType=null;activeEditId=null;historicalMode=false};
   window.enlShowIncidentTypePicker=(u=currentUser?.())=>{activeType=null;activeEditId=null;currentView='report';const root=document.getElementById('view');if(root)return renderTypePicker(root,u)};
   window.enlOpenIncidentReport=(type,u=currentUser?.())=>{const root=document.getElementById('view');if(!root)return;activeEditId=null;activeType=type;return renderTypeForm(root,u,type,null)};
   window.enlEditIncidentInReportForm=(incidentOrId,u=currentUser?.())=>{const i=typeof incidentOrId==='object'?incidentOrId:(data.incidents||[]).find(x=>String(x.id)===String(incidentOrId));if(!i)return alert('사고기록을 찾지 못했습니다.');if(!['person','property'].includes(i.category))return alert('대인·대물 사고보고만 원래 입력화면에서 수정할 수 있습니다.');if(typeof window.enlCanEditIncident==='function'&&!window.enlCanEditIncident(i,u))return alert('현재 상태에서는 이 사고보고를 수정할 수 없습니다.');activeEditId=i.id;activeType=i.category;currentView='report';return renderShell(u)};
