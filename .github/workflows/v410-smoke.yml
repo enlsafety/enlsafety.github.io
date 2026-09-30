@@ -118,7 +118,7 @@ jobs:
             'workflow-lifecycle-v413.js?v=4.4.14-r1&amp;fix=historical-transfer1',
             'incident-review-v431.js?v=4.1.2-r31&amp;fix=review-preview1',
             'production-cleanup-v431.js?v=4.1.2-r34&amp;fix=legacy-demo2',
-            'workflow-enhancements-v432.js?v=4.4.0-r1&amp;fix=immediate-required2',
+            'workflow-enhancements-v432.js?v=4.4.20-r1&amp;fix=shared-dashboard1',
             'site-admin-hotfix-v433.js?v=4.1.2-r33&amp;fix=site-api1',
             'personnel-management-v434.js?v=4.4.12-r1&amp;fix=hq-rank-align1',
             'legal-review-v435.js?v=4.1.2-r35&amp;fix=legal-simplify1',
@@ -145,7 +145,7 @@ jobs:
           assert "view()!=='stats'" in mapjs and "view()==='stats'" in mapjs
           assert 'korea-map-natural-earth-10m.svg?v=4.4.19-r1' in mapjs
           stats=Path('incident-stats-v426.js').read_text(encoding='utf-8')
-          for x in ['4.4.17-dashboard-map1','data-stats-filter="all"','data-stats-month','최근 발생일 순','data-stats-inc','stats426-site-attention','stats426-site-manage','관심요망','관리필요']: assert x in stats,x
+          for x in ['4.4.20-shared-dashboard1','data-stats-filter="all"','data-stats-month','최근 발생일 순','data-stats-inc','stats426-site-attention','stats426-site-manage','관심요망','관리필요']: assert x in stats,x
           flow=Path('incident-flow-v440.js').read_text(encoding='utf-8')
           for x in ['4.4.0-immediate-supplement-ack1','30분 이내 또는 현장 이탈 전','보완대기','보완검토대기','사고보고 최종승인','확인 기록','결재 아님','wf440QueueSig','wf440DecorSig']: assert x in flow,x
           incidents=Path('incidents-v410.js').read_text(encoding='utf-8')

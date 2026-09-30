@@ -95,7 +95,7 @@ function bindMap(root,a){
  const zoom=next=>{next=Math.max(1,Math.min(4,next));const old=mapState.zoom,cx=viewport.clientWidth/2,cy=viewport.clientHeight/2;mapState.x=cx-(cx-mapState.x)*next/old;mapState.y=cy-(cy-mapState.y)*next/old;mapState.zoom=next;draw()};
  root.querySelectorAll('[data-map-zoom]').forEach(b=>b.onclick=()=>{const action=b.dataset.mapZoom;if(action==='reset'){mapState={zoom:1,x:0,y:0};draw()}else zoom(mapState.zoom+(action==='in'?.5:-.5))});
  let drag=null,moved=false;
- viewport.addEventListener('pointerdown',e=>{if(mapState.zoom<=1||e.button!==0)return;drag={id:e.pointerId,x:e.clientX,y:e.clientY,ox:mapState.x,oy:mapState.y};moved=false});
+ viewport.addEventListener('pointerdown',e=>{moved=false;if(mapState.zoom<=1||e.button!==0)return;drag={id:e.pointerId,x:e.clientX,y:e.clientY,ox:mapState.x,oy:mapState.y};moved=false});
  viewport.addEventListener('pointermove',e=>{if(!drag||e.pointerId!==drag.id)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(!moved&&Math.hypot(dx,dy)<5)return;if(!moved){moved=true;viewport.setPointerCapture(e.pointerId);viewport.classList.add('dragging')}mapState.x=drag.ox+dx;mapState.y=drag.oy+dy;draw()});
  const stop=e=>{if(drag&&e.pointerId===drag.id){drag=null;viewport.classList.remove('dragging');if(viewport.hasPointerCapture(e.pointerId))viewport.releasePointerCapture(e.pointerId)}};
  viewport.addEventListener('pointerup',stop);viewport.addEventListener('pointercancel',stop);
