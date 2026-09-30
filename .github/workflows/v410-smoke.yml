@@ -199,7 +199,7 @@ jobs:
 
           pm=Path('personnel-management-v434.js').read_text(encoding='utf-8')
           for x in [
-            "const VERSION='4.3.4-personnel-integrity1'",
+            "const VERSION='4.4.12-hq-rank-align1'",
             '/functions/v1/enl-personnel-v434',
             "['personnel_pull','personnel_upsert','personnel_delete']",
             'manager_name_conflict',
