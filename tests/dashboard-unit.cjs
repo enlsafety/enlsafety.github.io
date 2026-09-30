@@ -1,6 +1,6 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 let code=fs.readFileSync('site-dashboard-v450.js','utf8');
-code=code.slice(0,code.indexOf('const base=window.renderShell'))+'window.test={color,placeLabels,spreadPoints,canDashboard,risk,pos,rows,dashboardRows,master,cnt,mapXY,info,kpis,setMasters:v=>{masters=v;loaded=true}};})();';
+code=code.slice(0,code.indexOf('const base=window.renderShell'))+'window.test={color,spreadPoints,canDashboard,risk,pos,rows,dashboardRows,master,cnt,mapXY,info,kpis,setMasters:v=>{masters=v;loaded=true}};})();';
 const ctx={window:{},data:{sites:[],incidents:[]},Date,console};vm.createContext(ctx);vm.runInContext(code,ctx);
 const t=ctx.window.test,y=new Date().getFullYear();
 const incident=(extra={})=>({siteId:'s01',occurredAt:`${y}-05-01`,status:'reported',...extra});
