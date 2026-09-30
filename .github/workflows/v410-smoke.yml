@@ -103,16 +103,16 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-4416-r1',meta
+          assert meta.get('build')=='stable-4417-r1',meta
           assert meta.get('stableEntry')=='stable412.html',meta
-          assert meta.get('version')=='4.4.16' and meta.get('currentStableVersion')=='4.4.16',meta
+          assert meta.get('version')=='4.4.17' and meta.get('currentStableVersion')=='4.4.17',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='4416-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4416-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
+          for x in ["const BUILD='4417-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4417-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.4.16-r1',
+            'enl-build" content="4.4.17-r1',
             'incident-sync-v411.js?v=4.4.0-r1&amp;fix=supplement-ack1',
             'workflow-prevention-v429.js?v=4.4.14-r1&amp;fix=historical-transfer1',
             'workflow-lifecycle-v413.js?v=4.4.14-r1&amp;fix=historical-transfer1',
@@ -128,7 +128,7 @@ jobs:
             'incidents-v410.js?v=4.4.14-r1&amp;fix=historical-transfer1',
             'report-v410.js?v=4.4.14-r1&amp;fix=historical-transfer1',
             'field-incidents-v411.js?v=4.4.14-r1&amp;fix=historical-transfer1',
-            'app-shell-v411.js?v=4.4.14-r1&amp;fix=historical-transfer1',
+            'app-shell-v411.js?v=4.4.17-r1&amp;fix=dashboard-map1',
             'reader-ui-v414.js?v=4.4.14-r1&amp;fix=historical-transfer1',
             'reader-experience-v424.js?v=4.4.14-r1&amp;fix=historical-transfer1',
             'incident-flow-v440.js?v=4.4.0-r1&amp;fix=workflow1',
@@ -137,10 +137,15 @@ jobs:
           assert 'auth-v411.js?v=4.4.11-r1&amp;fix=hq-email1' in html
           assert 'login-layout-v412.js?v=4.2.7-r1&amp;fix=guide-removed1' in html
           assert 'app-control-v410.js?v=4.4.10-r2&amp;fix=update8-server-fix' in html
-          assert 'incident-stats-v426.js?v=4.4.14-r1&amp;fix=historical-transfer1' in html
-          assert 'site-dashboard-v450.js?v=4.4.16-r1&amp;fix=site-map2' in html
+          assert 'incident-stats-v426.js?v=4.4.17-r1&amp;fix=dashboard-map1' in html
+          assert 'site-dashboard-v450.js?v=4.4.17-r1&amp;fix=natural-earth1' in html
+          assert 'site-master-seed-v400.js?v=4.4.17-r1&amp;fix=excel-address1' in html
+          assert Path('korea-map-natural-earth-10m.svg').exists()
+          mapjs=Path('site-dashboard-v450.js').read_text(encoding='utf-8')
+          assert "view()!=='stats'" in mapjs and "view()==='stats'" in mapjs
+          assert 'korea-map-natural-earth-10m.svg?v=4.4.17-r1' in mapjs
           stats=Path('incident-stats-v426.js').read_text(encoding='utf-8')
-          for x in ['4.4.0-dashboard-workflow1','data-stats-filter="all"','data-stats-month','최근 발생일 순','data-stats-inc','stats426-site-attention','stats426-site-manage','관심요망','관리필요']: assert x in stats,x
+          for x in ['4.4.17-dashboard-map1','data-stats-filter="all"','data-stats-month','최근 발생일 순','data-stats-inc','stats426-site-attention','stats426-site-manage','관심요망','관리필요']: assert x in stats,x
           flow=Path('incident-flow-v440.js').read_text(encoding='utf-8')
           for x in ['4.4.0-immediate-supplement-ack1','30분 이내 또는 현장 이탈 전','보완대기','보완검토대기','사고보고 최종승인','확인 기록','결재 아님','wf440QueueSig','wf440DecorSig']: assert x in flow,x
           incidents=Path('incidents-v410.js').read_text(encoding='utf-8')
