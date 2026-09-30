@@ -138,7 +138,7 @@ jobs:
           assert 'login-layout-v412.js?v=4.2.7-r1&amp;fix=guide-removed1' in html
           assert 'app-control-v410.js?v=4.4.10-r2&amp;fix=update8-server-fix' in html
           assert 'incident-stats-v426.js?v=4.4.17-r1&amp;fix=dashboard-map1' in html
-          assert 'site-dashboard-v450.js?v=4.4.17-r1&amp;fix=natural-earth1' in html
+          assert 'site-dashboard-v450.js?v=4.4.17-r1&amp;fix=dashboard-complete2' in html
           assert 'site-master-seed-v400.js?v=4.4.17-r1&amp;fix=excel-address1' in html
           assert Path('korea-map-natural-earth-10m.svg').exists()
           mapjs=Path('site-dashboard-v450.js').read_text(encoding='utf-8')
