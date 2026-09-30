@@ -20,7 +20,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),{chromium,webki
  await page.locator('[data-hf-history]').click();await page.locator('.hf452-history').first().waitFor();assert.equal(await page.locator('.hf452-history').count(),6);
  await page.screenshot({path:`qa-output/followup-${profile.name}-${profile.width}.png`,fullPage:true});
  await page.evaluate(async id=>{qaUser=qaActors.field;await enlOpenHistoricalFollowup(id)},id);assert.equal(await page.locator('#hfField').count(),0);
- await page.locator('[data-hf-list]').click();await page.locator('.hf452-kpi').waitFor();assert.ok((await page.locator('.hf452-kpi').innerText()).includes('완료\n1건'));
+ await page.locator('button[data-hf-list]').click();await page.locator('.hf452-kpi').waitFor();assert.ok((await page.locator('.hf452-kpi').innerText()).includes('완료\n1건'));
  await page.evaluate(()=>{qaUser=qaActors.other;currentView='followups';renderShell(qaUser)});await page.getByText('등록된 후속 개선조치가 없습니다.').waitFor();assert.equal(await page.locator('[data-hf-open]').count(),0);
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),'mobile no horizontal overflow');assert.deepEqual(errors,[]);assert.deepEqual(dialogs,[]);
  assert.equal((await f.db.query("select payload->>'status' status from enl_incident_shared where incident_id='qa-paju'")).rows[0].status,'closed');
