@@ -1,8 +1,8 @@
 
-/* E&L Accident Report App v4.4.18 - site profile + Korea distribution */
+/* E&L Accident Report App v4.4.19 - site profile + Korea distribution */
 (function(){
 'use strict';
-const VERSION='4.4.18-site-address-points1';
+const VERSION='4.4.19-region-labels1';
 const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
 const isSafety=u=>roleNorm(u&&u.role)==='safety';
 const E=v=>typeof esc==='function'?esc(v):String(v==null?'':v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -60,7 +60,7 @@ function marker(s){
 function mapHtml(){
  const a=dashboardRows(),mapped=a.filter(pos),unmapped=a.length-mapped.length,high=a.filter(s=>risk(s.site_id).high);
  const highList=high.length?high.map(s=>'<div class="sd450-risk-item"><span>'+E(s.site_name||s.site_id)+'</span><b>'+risk(s.site_id).count+'건</b></div>').join(''):'<div class="sd450-legend">현재 기준 고위험 사업장이 없습니다.</div>';
- return '<section class="panel sd450-map-panel" data-sd450-map><div class="sd450-map-head"><div><div class="ey">SITE DISTRIBUTION</div><h2>전국 사업장 분포</h2><p>대한민국 실제 해안선·도서·광역 행정경계 지도 위에 사업장을 표시합니다. 점을 누르면 사업장 요약정보를 확인할 수 있습니다.</p></div><div class="sd450-map-badges"><span class="sd450-map-badge">사업장 '+a.length+'곳</span><span class="sd450-map-badge risk">고위험 '+high.length+'곳</span></div></div><div class="sd450-map-layout"><div class="sd450-map-wrap"><div class="sd450-map-canvas"><img class="sd450-map-img" src="korea-map-natural-earth-10m.svg?v=4.4.17-r1" alt="대한민국 지도">'+mapped.map(marker).join('')+'</div><div class="sd450-map-source">지도 윤곽: Natural Earth 1:10m 공개 데이터 · 소피아그린 위치: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap 기여자</a></div></div><aside class="sd450-map-side"><div class="sd450-legend"><b>표시 기준</b><br><span class="sd450-dot normal"></span>일반 사업장: 사업장별 고유색<br><span class="sd450-dot high"></span>고위험 사업장: 빨간색<br><br>고위험은 <b>올해 사고 5건 이상</b> 또는 <b>현재 미종결 긴급·중대 사고 보유</b> 기준입니다.</div><div class="sd450-risk-list">'+highList+'</div><div class="sd450-map-note">확인된 시설 좌표만 표시합니다. 주소 좌표를 임의의 지역 중심점으로 대체하지 않습니다.'+(unmapped?' 좌표 확인 필요 '+unmapped+'곳은 지도 점에서 제외했습니다.':'')+' 가까운 점이 겹치면 사업장 선택목록을 이용하세요. 파주CC는 계약 종료로 지도에서 제외합니다.</div></aside></div></section>';
+ return '<section class="panel sd450-map-panel" data-sd450-map><div class="sd450-map-head"><div><div class="ey">SITE DISTRIBUTION</div><h2>전국 사업장 분포</h2><p>대한민국 실제 해안선·도서·광역 행정경계 지도 위에 사업장을 표시합니다. 점을 누르면 사업장 요약정보를 확인할 수 있습니다.</p></div><div class="sd450-map-badges"><span class="sd450-map-badge">사업장 '+a.length+'곳</span><span class="sd450-map-badge risk">고위험 '+high.length+'곳</span></div></div><div class="sd450-map-layout"><div class="sd450-map-wrap"><div class="sd450-map-canvas"><img class="sd450-map-img" src="korea-map-natural-earth-10m.svg?v=4.4.19-r1" alt="대한민국 지도">'+mapped.map(marker).join('')+'</div><div class="sd450-map-source">지도 윤곽: Natural Earth 1:10m 공개 데이터 · 소피아그린 위치: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap 기여자</a></div></div><aside class="sd450-map-side"><div class="sd450-legend"><b>표시 기준</b><br><span class="sd450-dot normal"></span>일반 사업장: 사업장별 고유색<br><span class="sd450-dot high"></span>고위험 사업장: 빨간색<br><br>고위험은 <b>올해 사고 5건 이상</b> 또는 <b>현재 미종결 긴급·중대 사고 보유</b> 기준입니다.</div><div class="sd450-risk-list">'+highList+'</div><div class="sd450-map-note">확인된 시설 좌표만 표시합니다. 주소 좌표를 임의의 지역 중심점으로 대체하지 않습니다.'+(unmapped?' 좌표 확인 필요 '+unmapped+'곳은 지도 점에서 제외했습니다.':'')+' 가까운 점이 겹치면 사업장 선택목록을 이용하세요. 파주CC는 계약 종료로 지도에서 제외합니다.</div></aside></div></section>';
 }
 function summary(id){
  const s=master(id),r=risk(id),p=(window.ENL_SITE_LOCATIONS||{})[id];
