@@ -18,8 +18,9 @@
   const sameSite=(i,u)=>String(i?.siteId||'')===String(u?.siteId||'');
   const norm=v=>String(v||'').replace(/\s+/g,'').trim().toLocaleLowerCase('ko-KR');
   const isAuthor=(i,u)=>{const rid=String(i?.reporterId||'');if(rid&&userId(u))return rid===userId(u);return !rid&&norm(i?.reporterName)===norm(u?.name)};
-  const reportAccepted=i=>!!i&&['approved','closed'].includes(String(i.status||''));
-  const isFinalized=i=>!!i&&String(i.status)==='closed'&&String(i.corrective?.status)==='approved';
+  const historicalClosed=i=>!!i&&i?.historicalImport?.enabled===true&&i?.historicalImport?.erpApproved===true&&i?.historicalImport?.workflowExempt===true&&String(i?.historicalImport?.transferState||'')==='closed'&&String(i?.status||'')==='closed';
+  const reportAccepted=i=>!!i&&!historicalClosed(i)&&['approved','closed'].includes(String(i.status||''));
+  const isFinalized=i=>!!i&&!historicalClosed(i)&&String(i.status)==='closed'&&String(i.corrective?.status)==='approved';
   const hasPlan=c=>!!c&&(!!text(c.planDetail)||!!c.planAt);
   const attachmentsHtml=arr=>typeof window.enlAttachmentGalleryHtml==='function'?window.enlAttachmentGalleryHtml(arr||[]):'';
   const bindAttachments=(root,arr)=>{try{window.enlBindAttachmentOpen?.(root,arr||[])}catch(e){}};
@@ -30,6 +31,7 @@
   let actionFilter={status:'',siteId:'',title:''};
 
   function statusText(i){
+    if(historicalClosed(i))return '과거사고 이관종결';
     const c=i?.corrective||{},s=String(c.status||'');
     if(isFinalized(i)||s==='approved')return '재발방지조치 확인완료';
     if(!hasPlan(c))return '재발방지계획 수립대기';
@@ -40,6 +42,7 @@
     return '현장 재발방지조치 대기';
   }
   function preventionBadge(i){
+    if(historicalClosed(i)){const label='과거사고 이관종결';return typeof badge==='function'?badge('p-done',label):`<span class="field411-badge">${ex(label)}</span>`;}
     const c=i?.corrective||{},s=String(c.status||''),label=statusText(i);
     if(typeof badge!=='function')return `<span class="field411-badge">${ex(label)}</span>`;
     return badge(s==='approved'?'p-done':s==='rejected'?'p-rejected':s==='submitted'?'p-review':'p-normal',label);
