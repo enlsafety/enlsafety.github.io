@@ -10,7 +10,7 @@ const sql=async(parts,...args)=>{
  if(query.includes('enl_incident_shared')){assert.ok(!query.includes('payload from'));assert.ok(!/summary|reporter|photos|password|incident_id/.test(query));return [{siteId:'s01',occurredAt:'2026-01-01',status:'rejected',category:'person',historicalEnabled:true}];}
  throw Error('Unexpected query');
 };sql.end=async()=>{};
-const ctx={Deno:{serve:f=>handler=f,env:{get:()=> 'isolated-test'}},postgres:()=>sql,Request,Response,TextEncoder,crypto,structuredClone,console};vm.createContext(ctx);vm.runInContext(stripTypeScriptTypes(source.replace(/^import .*;\n/gm,'')),ctx);
+const ctx={Deno:{serve:f=>handler=f,env:{get:()=> 'isolated-test'}},postgres:()=>sql,Request,Response,TextEncoder,crypto,structuredClone,console};vm.createContext(ctx);vm.runInContext(fs.readFileSync('site-contract-v451.js','utf8'),ctx);vm.runInContext(stripTypeScriptTypes(source.replace(/^import .*;\n/gm,'')),ctx);
 const invoke=async(role,proof='test-only-proof')=>{queries=[];const response=await handler(new Request('https://isolated.test',{method:'POST',headers:{'content-type':'application/json','x-enl-app':'incident-report-v2',origin:'https://enlsafety.github.io'},body:JSON.stringify({action:'dashboard_read',actor:{id:'u',role,siteId:'s01'},actorPasswordHash:proof})}));return {status:response.status,body:await response.json()}};
 (async()=>{
  for(const role of ['safety','manager','executive','final']){

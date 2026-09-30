@@ -310,3 +310,5 @@ window.ENL_SITE_LOCATIONS={
     "checkedAt": "2026-09-30"
   }
 };
+
+window.ENL_SITE_LOCATIONS.s34={address:"경기도 파주시 법원읍 화합로 306",lat:37.84788,lon:126.8998669,accuracy:"facility",sourceName:"한국문화정보원 공공데이터 (Purpleo 공개본)",source:"https://qae.purpleo.kr/article/7411",checkedAt:"2026-09-30"};
