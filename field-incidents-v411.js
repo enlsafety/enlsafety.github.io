@@ -12,9 +12,10 @@
   const isAuthor=(i,u)=>{const rid=String(i?.reporterId||'');if(rid&&userId(u))return rid===userId(u);return !rid&&norm(i?.reporterName)===norm(u?.name)};
   const dateText=v=>{try{return typeof fmt==='function'?fmt(v):String(v||'').replace('T',' ').slice(0,16)}catch(e){return String(v||'').slice(0,16)}};
   const dateOnly=v=>String(v||'').slice(0,10)||'-';
+  const historicalClosed=i=>!!i&&i?.historicalImport?.enabled===true&&i?.historicalImport?.erpApproved===true&&i?.historicalImport?.workflowExempt===true&&String(i?.historicalImport?.transferState||'')==='closed'&&String(i?.status||'')==='closed';
   const statusText=v=>v==='reported'?'즉시보고 검토대기':v==='supplement'?'보완대기':v==='supplement_submitted'?'보완검토대기':v==='rejected'?'반려':v==='approved'?'사고보고 최종승인':v==='closed'?'종결':String(v||'진행중');
   const actionText=v=>v==='planned'?'조치예정':v==='in_progress'?'조치중':v==='submitted'?'검토대기':v==='rejected'?'반려':v==='approved'?'승인완료':'미작성';
-  const actionTextFor=i=>!['approved','closed'].includes(String(i?.status||''))?'보고승인 대기':actionText(i?.corrective?.status);
+  const actionTextFor=i=>historicalClosed(i)?'이관종결':!['approved','closed'].includes(String(i?.status||''))?'보고승인 대기':actionText(i?.corrective?.status);
   const categoryText=v=>v==='person'?'대인사고':v==='property'?'대물사고':v==='near_miss'?'아차사고':v==='hazard'?'위험요인':'사고';
   const overview=i=>typeof window.enlIncidentOverviewHtml==='function'?window.enlIncidentOverviewHtml(i,{compact:true}):`<p class="summary">${escx(i.summary||'-')}</p>`;
   const quick=i=>typeof window.enlIncidentQuickSummary==='function'?window.enlIncidentQuickSummary(i):{headline:i.eventType||'사고'};
@@ -25,8 +26,8 @@
 
   function siteIncidents(u){return [...(data?.incidents||[])].filter(i=>sameSite(i,u)).sort((a,b)=>new Date(b.occurredAt||0)-new Date(a.occurredAt||0))}
   function myIncidents(u){return siteIncidents(u).filter(i=>isAuthor(i,u))}
-  function actionVisible(u){const eligible=(isManager(u)?siteIncidents(u):myIncidents(u));return eligible.filter(i=>['approved','closed'].includes(String(i.status||'')))}
-  function statusBadgeHtml(i){return `<span class="field411-badge ${i.status==='rejected'?'rejected':''}">${escx(statusText(i.status))}</span>`}
+  function actionVisible(u){const eligible=(isManager(u)?siteIncidents(u):myIncidents(u));return eligible.filter(i=>!historicalClosed(i)&&['approved','closed'].includes(String(i.status||'')))}
+  function statusBadgeHtml(i){return `<span class="field411-badge ${i.status==='rejected'?'rejected':''}">${escx(historicalClosed(i)?'이관종결':statusText(i.status))}</span>${historicalClosed(i)?'<span class="field411-badge">ERP 기결재</span>':''}`}
   function back(root,u){window.enlAddFieldBack?.(root,u)}
   function personInjuryClass(i){const d=i?.reportDetails||{},text=`${i?.eventType||''} ${d.injuryDetail||''}`,rules=[['골절',/골절/],['베임·절상',/베임|절상|열상/],['찔림',/찔림|자상/],['타박상',/타박/],['찰과상',/찰과/],['염좌',/염좌|삠/],['화상',/화상/],['탈구',/탈구/],['압궤',/압궤|끼임/],['절단',/절단/],['낙상',/낙상|넘어짐/]];const found=rules.filter(([,r])=>r.test(text)).map(([n])=>n);return [...new Set(found)].slice(0,2).join('·')||'부상 발생'}
   function publicSummary(i){return `${categoryText(i.category)} · ${i.eventType||'사고 발생'}`}
