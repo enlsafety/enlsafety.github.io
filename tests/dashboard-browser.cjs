@@ -17,7 +17,7 @@ try{for(const width of [1280,820,390]){
   window.app=document.getElementById('app');window.currentView='home';window.qaUser={id:'qa-safety',role:'safety',name:'안전관리자'};window.currentUser=()=>qaUser;
   window.data={sites:[],incidents:[]};window.roleName=x=>x;window.siteById=id=>data.sites.find(s=>s.id===id);window.fmt=x=>String(x).slice(0,10);window.statusBadge=x=>x;window.priorityBadge=x=>x||'';
   window.renderLogin=()=>{app.innerHTML='<div>LOGIN</div>'};window.saveSession=()=>{};
-  window.enlIncidentTable=arr=>'<div data-qa-table>'+arr.map(i=>i.id).join(',')+'</div>';
+  window.enlIncidentTable=(arr,edit)=>'<div data-qa-table data-edit="'+edit+'">'+arr.map(i=>'<button data-inc-id="'+i.id+'">'+i.id+'</button>').join(',')+'</div>';window.enlOpenIncidentReview=(id,edit)=>{window.qaReview={id,edit}};
  });
  await page.addScriptTag({content:fs.readFileSync('site-locations-v450.js','utf8')});
  await page.evaluate(()=>{
@@ -26,7 +26,7 @@ try{for(const width of [1280,820,390]){
   ENL_SITE_MASTER_SEED.push({site_id:'s99',site_name:'좌표 미확인 사업장',address:'확인 대기'});
   data.sites=ENL_SITE_MASTER_SEED.map(s=>({id:s.site_id,name:s.site_name}));
   const year=new Date().getFullYear();data.incidents=[{id:'urgent-prior-year',siteId:'s29',occurredAt:`${year-1}-01-01`,status:'approved',priority:'urgent'}, {id:'ordinary-current',siteId:'s01',occurredAt:`${year}-05-01`,status:'closed'}];
-  window.enlIncidentApi=async ({action})=>{if(action!=='site_list')throw Error('Mutation blocked');return {sites:ENL_SITE_MASTER_SEED}};
+  window.enlIncidentApi=async ({action})=>{if(action!=='dashboard_read')throw Error('Mutation blocked');return {sites:ENL_SITE_MASTER_SEED,metrics:data.incidents}};
  });
  for(const path of ['app-shell-v411.js','incident-stats-v426.js','site-dashboard-v450.js'])await page.addScriptTag({content:fs.readFileSync(path,'utf8')});
  await page.locator('[data-shell-view="stats"]').click();await page.locator('[data-sd450-kpis]').waitFor();
@@ -38,6 +38,19 @@ try{for(const width of [1280,820,390]){
  for(const id of await page.evaluate(()=>Object.keys(ENL_SITE_LOCATIONS))){await page.locator('#sd450Site').selectOption(id);assert.ok((await page.locator('[data-sd450-summary]').innerText()).includes(await page.evaluate(id=>ENL_SITE_LOCATIONS[id].address,id)));}
  await page.locator('[data-sd450-map-site="s29"]').click();assert.ok((await page.locator('[data-sd450-summary]').innerText()).includes('고위험'));
  assert.equal(await page.locator('[data-sd450-map-site="s29"].high').count(),1);
+
+ // Screen-space separation, every requested close pair must be individually clickable.
+ const centers=await page.locator('[data-sd450-map-site]').evaluateAll(bs=>bs.map(b=>{const r=b.getBoundingClientRect();return {id:b.dataset.sd450MapSite,x:r.x+r.width/2,y:r.y+r.height/2}}));
+ centers.forEach((p,i)=>centers.slice(0,i).forEach(q=>assert.ok(Math.hypot(p.x-q.x,p.y-q.y)>=21.8,`${p.id}/${q.id} overlap at ${width}`)));
+ for(const id of ['s05','s30','s15','s16','s24','s25']){await page.locator(`[data-sd450-map-site="${id}"]`).click();assert.equal(await page.locator('#sd450Site').inputValue(),id)}
+ await page.locator('[data-map-zoom="in"]').click();assert.equal(await page.locator('[data-map-scale]').innerText(),'150%');
+ const viewport=page.locator('.sd450-map-viewport');await viewport.scrollIntoViewIfNeeded();const box=await viewport.boundingBox();
+ const before=await page.locator('.sd450-map-canvas').evaluate(x=>x.style.transform);
+ await page.mouse.move(box.x+box.width*.8,box.y+box.height*.8);await page.mouse.down();await page.mouse.move(box.x+box.width*.8-30,box.y+box.height*.8-25,{steps:5});await page.mouse.up();
+ assert.notEqual(await page.locator('.sd450-map-canvas').evaluate(x=>x.style.transform),before,'drag pans zoomed map');
+ await page.locator('[data-map-zoom="reset"]').click();assert.equal(await page.locator('[data-map-scale]').innerText(),'100%');
+ assert.equal(await page.locator('[data-map-zoom="out"]').isDisabled(),true);
+ await page.locator('[data-sd450-map-site="s29"]').click();
  await page.screenshot({path:`qa-output/dashboard-${width}.png`,fullPage:true});
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no horizontal page overflow');
  await page.locator('[data-sd450-open]').click();await page.locator('[data-sd450-info]').waitFor();
@@ -50,7 +63,18 @@ try{for(const width of [1280,820,390]){
  await page.locator('[data-shell-view="stats"]').click();await page.locator('#sd450Site').selectOption('s99');assert.ok((await page.locator('[data-sd450-summary]').innerText()).includes('좌표 확인 필요'));
  await page.locator('#stats426Year').selectOption(String(new Date().getFullYear()-1));await page.locator('[data-sd450-map]').waitFor();assert.equal(await page.locator('[data-sd450-kpis]').count(),1);
  await page.locator('[data-stats-filter="all"]').click();assert.ok((await page.locator('#stats426Drill').innerText()).includes('1건'));
- await page.evaluate(()=>{qaUser={id:'manager',role:'manager',name:'관리자'};currentView='stats';renderShell(qaUser)});assert.equal(await page.locator('[data-sd450-map]').count(),0,'safety-only company map');
+
+ const safetyKpis=await page.locator('.sd450-kpis').innerText();
+ for(const role of ['manager','executive','final']){
+  await page.evaluate(role=>{qaUser={id:role,role,name:'본사 조회자'};currentView='stats';renderShell(qaUser)},role);
+  await page.locator('[data-sd450-map]').waitFor();await page.waitForFunction(()=>window.enlDashboardMetrics?.()!==null);
+  assert.equal(await page.locator('[data-sd450-map-site]').count(),33);assert.equal(await page.locator('.sd450-kpis').innerText(),safetyKpis,'same company metrics for HQ');
+  await page.locator('[data-sd450-map-site="s29"]').click();await page.locator('[data-sd450-open]').click();await page.locator('[data-sd450-info]').waitFor();
+  assert.equal(await page.locator('[data-qa-table]').getAttribute('data-edit'),'false');
+  await page.locator('[data-inc-id="urgent-prior-year"]').click();assert.equal(await page.evaluate(()=>qaReview.edit),false,'existing review remains read-only');
+ }
+ for(const role of ['field','worker']){await page.evaluate(role=>{qaUser={id:role,role,name:'현장'};currentView='stats';renderShell(qaUser)},role);assert.equal(await page.locator('[data-sd450-map]').count(),0);assert.equal(await page.locator('[data-stats426-nav]').count(),0)}
+
  assert.deepEqual(errors,[]);console.log(`PASS: ${width}px map, summary, risk, existing incident routing, filters, role guard`);await page.close();
 }}finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exit(1)});

@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.2.8 - interactive incident dashboard */
 (function(){
   'use strict';
-  const VERSION='4.4.17-dashboard-map1';
+  const VERSION='4.4.20-shared-dashboard1';
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   const escx=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const siteName=id=>{try{return siteById?.(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}};
@@ -46,7 +46,7 @@
     filtered.forEach(i=>{const d=validDate(i);if(d)months[d.getMonth()].count++});
     const siteMap=new Map();filtered.forEach(i=>{const id=String(i.siteId||'');if(!id)return;siteMap.set(id,(siteMap.get(id)||0)+1)});
     const siteRows=[...siteMap.entries()].map(([id,count])=>({id,name:siteName(id),count})).sort((a,b)=>b.count-a.count||String(a.name).localeCompare(String(b.name),'ko')).slice(0,10);
-    return {filtered,total:filtered.length,person,property,other,unresolved,months,siteRows}
+    return {year,siteId,filtered,total:filtered.length,person,property,other,unresolved,months,siteRows}
   }
   function monthChart(months){
     const max=Math.max(1,...months.map(x=>x.count));
@@ -69,8 +69,8 @@
   }
   function showDrill(root,u,s,title,predicate){
     const box=root.querySelector('#stats426Drill');if(!box)return;
-    const arr=recentFirst((s.filtered||[]).filter(predicate||(()=>true)));
-    box.classList.add('show');box.innerHTML=`<div class="stats426-drill-head"><div><h3>${escx(title)}</h3><p>${arr.length}건 · 최근 발생일 순</p></div><button type="button" class="stats426-drill-close" data-stats-close>닫기</button></div><div class="stats426-drill-list">${drillRows(arr)}</div>`;
+    const arr=recentFirst(summarize(allowedIncidents(u),s.year,s.siteId).filtered.filter(predicate||(()=>true))),total=(s.filtered||[]).filter(predicate||(()=>true)).length;
+    box.classList.add('show');box.innerHTML=`<div class="stats426-drill-head"><div><h3>${escx(title)}</h3><p>${arr.length}건 · 최근 발생일 순${total>arr.length?` · 전체 집계 ${total}건 중 조회 가능한 사고만 표시`:""}</p></div><button type="button" class="stats426-drill-close" data-stats-close>닫기</button></div><div class="stats426-drill-list">${drillRows(arr)}</div>`;
     box.querySelector('[data-stats-close]')?.addEventListener('click',()=>{box.classList.remove('show');box.innerHTML=''});
     box.querySelectorAll('[data-stats-inc]').forEach(b=>b.addEventListener('click',()=>openIncident(b.dataset.statsInc,u)));
     try{box.scrollIntoView({behavior:'smooth',block:'nearest'})}catch(e){}
@@ -79,8 +79,8 @@
   function renderStats(root,u,state={}){
     if(!root||!u)return;
     css();
-    const all=allowedIncidents(u),years=availableYears(all),year=Number(state.year)||years[0]||new Date().getFullYear(),siteId=String(state.siteId||''),sites=sitesForFilter(),s=summarize(all,year,siteId),role=roleNorm(u.role);
-    root.innerHTML=`<section class="stats426"><section class="panel"><div class="stats426-head"><div><div class="ey">SAFETY DASHBOARD</div><h2>안전 대시보드</h2><p>${role==='safety'?'전체 사고보고 자료':'조회 가능한 사고보고 자료'}를 기준으로 간단히 보여줍니다.</p></div><div class="stats426-filter"><select id="stats426Year" aria-label="통계 연도">${years.map(y=>`<option value="${y}" ${y===year?'selected':''}>${y}년</option>`).join('')}</select><select id="stats426Site" aria-label="통계 사업장"><option value="">전체 사업장</option>${sites.map(x=>`<option value="${escx(x.id)}" ${x.id===siteId?'selected':''}>${escx(x.name)}</option>`).join('')}</select></div></div></section><div class="stats426-cards"><button type="button" class="stats426-card" data-stats-filter="all"><span>${year}년 전체 사고</span><b>${s.total}건</b><small>${siteId?escx(siteName(siteId)):'전체 사업장'} · 목록보기</small></button><button type="button" class="stats426-card" data-stats-filter="person"><span>인명사고</span><b>${s.person}건</b><small>전체의 ${pct(s.person,s.total)}% · 목록보기</small></button><button type="button" class="stats426-card" data-stats-filter="property"><span>대물사고</span><b>${s.property}건</b><small>전체의 ${pct(s.property,s.total)}% · 목록보기</small></button><button type="button" class="stats426-card" data-stats-filter="unresolved"><span>미종결 사고</span><b>${s.unresolved}건</b><small>현재 종결 전 상태 · 목록보기</small></button></div><section id="stats426Drill" class="stats426-drill" aria-live="polite"></section><div class="stats426-grid"><section class="stats426-chart"><h3>월별 사고 발생</h3><p>${year}년 월별 사고건수 · 막대를 누르면 해당 월 사고목록을 확인할 수 있습니다.</p>${monthChart(s.months)}</section><section class="stats426-chart"><h3>사고 유형 비율</h3><p>인명 · 대물 · 기타</p>${donut(s)}</section></div><section class="stats426-chart"><h3>사업장별 사고건수</h3><p>사고가 많은 사업장부터 최대 10개까지 표시합니다. 3건 이상은 관심요망, 5건 이상은 관리필요로 강조합니다.</p>${siteRanking(s.siteRows)}</section><p class="stats426-note">※ 이 화면은 법정 재해율이 아닌 사고보고앱 등록자료의 단순 통계입니다. 재해율·도수율 등 공식 지표는 별도 기준 확정 후 추가합니다.</p></section>`;
+    const shared=window.enlDashboardMetrics?.(),all=Array.isArray(shared)?shared:allowedIncidents(u),years=availableYears(all),year=Number(state.year)||years[0]||new Date().getFullYear(),siteId=String(state.siteId||''),sites=sitesForFilter(),s=summarize(all,year,siteId),role=roleNorm(u.role);
+    root.innerHTML=`<section class="stats426"><section class="panel"><div class="stats426-head"><div><div class="ey">SAFETY DASHBOARD</div><h2>안전 대시보드</h2><p>${Array.isArray(shared)||role==='safety'?'전체 사고보고 집계':'조회 가능한 사고보고 자료'}를 기준으로 간단히 보여줍니다.</p></div><div class="stats426-filter"><select id="stats426Year" aria-label="통계 연도">${years.map(y=>`<option value="${y}" ${y===year?'selected':''}>${y}년</option>`).join('')}</select><select id="stats426Site" aria-label="통계 사업장"><option value="">전체 사업장</option>${sites.map(x=>`<option value="${escx(x.id)}" ${x.id===siteId?'selected':''}>${escx(x.name)}</option>`).join('')}</select></div></div></section><div class="stats426-cards"><button type="button" class="stats426-card" data-stats-filter="all"><span>${year}년 전체 사고</span><b>${s.total}건</b><small>${siteId?escx(siteName(siteId)):'전체 사업장'} · 목록보기</small></button><button type="button" class="stats426-card" data-stats-filter="person"><span>인명사고</span><b>${s.person}건</b><small>전체의 ${pct(s.person,s.total)}% · 목록보기</small></button><button type="button" class="stats426-card" data-stats-filter="property"><span>대물사고</span><b>${s.property}건</b><small>전체의 ${pct(s.property,s.total)}% · 목록보기</small></button><button type="button" class="stats426-card" data-stats-filter="unresolved"><span>미종결 사고</span><b>${s.unresolved}건</b><small>현재 종결 전 상태 · 목록보기</small></button></div><section id="stats426Drill" class="stats426-drill" aria-live="polite"></section><div class="stats426-grid"><section class="stats426-chart"><h3>월별 사고 발생</h3><p>${year}년 월별 사고건수 · 막대를 누르면 해당 월 사고목록을 확인할 수 있습니다.</p>${monthChart(s.months)}</section><section class="stats426-chart"><h3>사고 유형 비율</h3><p>인명 · 대물 · 기타</p>${donut(s)}</section></div><section class="stats426-chart"><h3>사업장별 사고건수</h3><p>사고가 많은 사업장부터 최대 10개까지 표시합니다. 3건 이상은 관심요망, 5건 이상은 관리필요로 강조합니다.</p>${siteRanking(s.siteRows)}</section><p class="stats426-note">※ 이 화면은 법정 재해율이 아닌 사고보고앱 등록자료의 단순 통계입니다. 재해율·도수율 등 공식 지표는 별도 기준 확정 후 추가합니다.</p></section>`;
     const y=document.getElementById('stats426Year'),site=document.getElementById('stats426Site');
     if(y)y.onchange=()=>renderStats(root,u,{year:Number(y.value),siteId:site?.value||''});
     if(site)site.onchange=()=>renderStats(root,u,{year:Number(y?.value)||year,siteId:site.value});
@@ -97,7 +97,7 @@
     if(!canUseStats(u))return;
     const nav=document.querySelector('.shell411-nav');if(!nav)return;
     let b=nav.querySelector('[data-stats426-nav]');
-    if(!b){b=document.createElement('button');b.type='button';b.className='stats426-nav';b.dataset.stats426Nav='1';b.dataset.shellView='stats';b.textContent='대시보드';roleNorm(u.role)==='safety'?nav.prepend(b):nav.appendChild(b)}
+    if(!b){b=document.createElement('button');b.type='button';b.className='stats426-nav';b.dataset.stats426Nav='1';b.dataset.shellView='stats';b.textContent='대시보드';nav.prepend(b)}
     nav.querySelectorAll('button').forEach(x=>x.classList.toggle('on',currentView==='stats'?x===b:x!==b&&x.classList.contains('on')));
     b.onclick=()=>{currentView='stats';try{enlPlatformSection='incident';localStorage.setItem(ENL_PLATFORM_SECTION_KEY,enlPlatformSection)}catch(e){}window.renderShell?.(u)};
   }
