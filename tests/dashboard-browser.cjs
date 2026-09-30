@@ -20,13 +20,15 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
   window.enlIncidentTable=(arr,edit)=>'<div data-qa-table data-edit="'+edit+'">'+arr.map(i=>'<button data-inc-id="'+i.id+'">'+i.id+'</button>').join(',')+'</div>';window.enlOpenIncidentReview=(id,edit)=>{window.qaReview={id,edit}};
  });
  await page.addScriptTag({content:fs.readFileSync('site-locations-v450.js','utf8')});
+ await page.addScriptTag({content:fs.readFileSync('site-master-seed-v400.js','utf8')});
  await page.evaluate(()=>{
-  window.ENL_SITE_MASTER_SEED=Object.entries(ENL_SITE_LOCATIONS).map(([id,p])=>({site_id:id,site_name:id==='s29'?'캐슬렉스 제주':'사업장 '+id,address:p.address,regular_count:3,daily_count:2,total_count:5,manager_name:'소장',part_name:'파트장',clerk_name:'서무'}));
+  const actualNames=Object.fromEntries(ENL_SITE_MASTER_SEED.map(s=>[s.site_id,s.site_name]));
+  window.ENL_SITE_MASTER_SEED=Object.entries(ENL_SITE_LOCATIONS).map(([id,p])=>({site_id:id,site_name:id==='s29'?'캐슬렉스 제주':actualNames[id]||'사업장 '+id,address:p.address,regular_count:3,daily_count:2,total_count:5,manager_name:'소장',part_name:'파트장',clerk_name:'서무'}));
   ENL_SITE_MASTER_SEED.push({site_id:'s34',site_name:'파주CC',address:'',active:true});
   ENL_SITE_MASTER_SEED.push({site_id:'s99',site_name:'좌표 미확인 사업장',address:'확인 대기'});
   data.sites=ENL_SITE_MASTER_SEED.map(s=>({id:s.site_id,name:s.site_name}));
   const year=new Date().getFullYear();data.incidents=[{id:'urgent-prior-year',siteId:'s29',occurredAt:`${year-1}-01-01`,status:'approved',priority:'urgent'}, {id:'ordinary-current',siteId:'s01',occurredAt:`${year}-05-01`,status:'closed'}];
-  window.enlIncidentApi=async ({action})=>{if(action!=='dashboard_read')throw Error('Mutation blocked');return {sites:ENL_SITE_MASTER_SEED,metrics:[...data.incidents,{siteId:'s01',occurredAt:`${year}-01-01`,status:'rejected',category:'person'}]}};
+  window.enlIncidentApi=async ({action})=>{if(action!=='dashboard_read')throw Error('Mutation blocked');return {sites:ENL_SITE_MASTER_SEED,metrics:[...data.incidents,{siteId:'s01',occurredAt:`${year}-01-01`,status:'rejected',category:'person'},...Array.from({length:3},()=>({siteId:'s02',occurredAt:`${year}-02-01`,status:'closed'})),...Array.from({length:5},()=>({siteId:'s03',occurredAt:`${year}-03-01`,status:'closed'}))]}};
  });
  for(const path of ['app-shell-v411.js','reader-ui-v414.js','incident-stats-v426.js','workflow-enhancements-v432.js','site-dashboard-v450.js'])await page.addScriptTag({content:fs.readFileSync(path,'utf8')});
  await page.locator('[data-shell-view="stats"]').click();await page.locator('[data-sd450-kpis]').waitFor();
@@ -36,8 +38,16 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  assert.equal(await page.locator('#sd450Site option[value="s34"]').count(),0);
  assert.ok((await page.locator('.sd450-map-note').innerText()).includes('파주CC'));
  for(const id of await page.evaluate(()=>Object.keys(ENL_SITE_LOCATIONS))){await page.locator('#sd450Site').selectOption(id);assert.ok((await page.locator('[data-sd450-summary]').innerText()).includes(await page.evaluate(id=>ENL_SITE_LOCATIONS[id].address,id)));}
- await page.locator('[data-sd450-map-site="s29"]').click();assert.ok((await page.locator('[data-sd450-summary]').innerText()).includes('고위험'));
- assert.equal(await page.locator('[data-sd450-map-site="s29"].high').count(),1);
+ await page.locator('[data-sd450-map-site="s29"]').click();assert.ok((await page.locator('[data-sd450-summary]').innerText()).includes('미종결 긴급·중대 사고 있음'));
+ assert.equal(await page.locator('[data-sd450-map-site="s29"].high').count(),0);
+ for(const [id,expected] of [['s29','rgb(32, 37, 43)'],['s02','rgb(232, 137, 24)'],['s03','rgb(216, 63, 69)']])assert.equal(await page.locator(`[data-sd450-map-site="${id}"]`).evaluate(b=>getComputedStyle(b).backgroundColor),expected);
+ const verifyLabels=async()=>{
+  const labels=await page.locator('.sd450-marker:not([hidden]) .sd450-marker-label').evaluateAll(bs=>bs.map(b=>{const r=b.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,visible:getComputedStyle(b).visibility==='visible',text:b.textContent}}));
+  if(touch){assert.ok(labels.every(x=>x.visible),'mobile names always visible');labels.forEach((a,i)=>labels.slice(0,i).forEach(b=>assert.ok(!(a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y),`labels overlap: ${a.text}/${b.text}`)))}
+  assert.ok(await page.locator('.sd450-marker:not([hidden])').evaluateAll(bs=>bs.every(b=>{for(let e=b;e&&!e.classList.contains('sd450-map-viewport');e=e.parentElement){if(getComputedStyle(e).transform!=='none')return false}return true})),'markers and labels must not inherit a scaled/composited map layer');
+ };
+ await verifyLabels();
+
 
  const circles=await page.locator('[data-sd450-map-site]').evaluateAll(bs=>bs.map(b=>{const r=b.getBoundingClientRect(),s=getComputedStyle(b);return {w:r.width,h:r.height,radius:s.borderRadius,min:s.minHeight}}));
  circles.forEach(c=>{assert.ok(Math.abs(c.w-c.h)<.1,`${engine}: marker must be circular, got ${c.w}x${c.h}`);assert.ok(c.h<=18.1,'touch button 44px rule must not stretch marker');assert.equal(c.radius,'50%')});
@@ -87,6 +97,10 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  }
  await page.locator('[data-map-zoom="reset"]').click();assert.equal(await scale(),100);assert.equal(await page.locator('[data-map-zoom="out"]').isDisabled(),true);
  await page.locator('[data-map-zoom="in"]').click();assert.equal(await scale(),150);await page.locator('[data-map-zoom="reset"]').click();
+ for(let i=0;i<6;i++)await page.locator('[data-map-zoom="in"]').click();assert.equal(await scale(),400);
+ await verifyLabels();
+ await page.locator('.sd450-map-viewport').screenshot({path:`qa-output/zoom400-${engine}-${width}.png`});
+ await page.locator('[data-map-zoom="reset"]').click();await verifyLabels();
  await page.locator('[data-sd450-map-site="s29"]').click();
  await page.screenshot({path:`qa-output/dashboard-${engine}-${width}.png`,fullPage:true});
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no horizontal page overflow');
@@ -105,7 +119,7 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  for(const role of ['manager','executive','final']){
   await page.evaluate(role=>{qaUser={id:role,role,name:'본사 조회자'};currentView='stats';renderShell(qaUser)},role);
   await page.locator('[data-sd450-map]').waitFor();await page.waitForFunction(()=>window.enlDashboardMetrics?.()!==null);
-  assert.equal(await page.locator('[data-sd450-map-site]').count(),33);assert.equal(await page.locator('.sd450-kpis').innerText(),safetyKpis,'same company metrics for HQ');assert.equal(await page.locator('[data-stats-filter=all] b').innerText(),'2건');await page.locator('[data-stats-filter=all]').click();assert.equal(await page.locator('[data-stats-inc]').count(),1,'aggregate-only rejected record must not disclose details');
+  assert.equal(await page.locator('[data-sd450-map-site]').count(),33);assert.equal(await page.locator('.sd450-kpis').innerText(),safetyKpis,'same company metrics for HQ');assert.equal(await page.locator('[data-stats-filter=all] b').innerText(),'10건');await page.locator('[data-stats-filter=all]').click();assert.equal(await page.locator('[data-stats-inc]').count(),1,'aggregate-only rejected record must not disclose details');
   await page.locator('[data-sd450-map-site="s29"]').click();await page.locator('[data-sd450-open]').click();await page.locator('[data-sd450-info]').waitFor();
   assert.equal(await page.locator('[data-qa-table]').getAttribute('data-edit'),'false');
   await page.locator('[data-inc-id="urgent-prior-year"]').click();assert.equal(await page.evaluate(()=>qaReview.edit),false,'existing review remains read-only');
