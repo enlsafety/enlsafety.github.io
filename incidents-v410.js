@@ -7,23 +7,28 @@
   const position=u=>String(u?.position||u?.jobTitle||'').trim();
   const roleOf=u=>String(u?.role||'')==='final'?'manager':String(u?.role||'');
   const isHqReader=u=>['manager','executive'].includes(roleOf(u));
+  const isHistorical=i=>!!i&&(String(i.recordMode||'')==='historical_transfer'||String(i?.historicalTransfer?.mode||'')==='historical_transfer'||(i?.historicalImport?.enabled===true&&i?.historicalImport?.erpApproved===true&&i?.historicalImport?.workflowExempt===true&&String(i?.historicalImport?.transferState||'')==='closed'));
   const isSiteUser=u=>!!u&&['field','worker'].includes(u.role);
   const isSiteManager=u=>isSiteUser(u)&&MANAGER_POSITIONS.includes(position(u));
   const sameSite=(i,u)=>!!i&&!!u&&String(i.siteId||'')===String(u.siteId||'');
   const userId=u=>String(u?.personnelId||u?.id||'');
   const isAuthor=(i,u)=>{const rid=String(i?.reporterId||'');if(rid&&userId(u))return rid===userId(u);return !!i&&!rid&&norm(i.reporterName)===norm(u?.name)};
   const siteName=id=>{try{return siteById(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}};
+  const historicalClosed=i=>!!i&&i?.historicalImport?.enabled===true&&i?.historicalImport?.erpApproved===true&&i?.historicalImport?.workflowExempt===true&&String(i?.historicalImport?.transferState||'')==='closed'&&String(i?.status||'')==='closed';
+  const historicalTags=i=>historicalClosed(i)?[typeof badge==='function'?badge('p-closed','과거사고'):'<span>과거사고</span>',typeof badge==='function'?badge('p-approved','ERP 기결재'):'<span>ERP 기결재</span>',typeof badge==='function'?badge('p-done','이관종결'):'<span>이관종결</span>',i?.historicalImport?.additionalAction&&i.historicalImport.additionalAction!=='none'?(typeof badge==='function'?badge('p-urgent','추가조치 필요'):'<span>추가조치 필요</span>'):''].join(''):'';
+  const actionStateText=v=>v==='confirmed'?'확인됨':v==='partial'?'일부 확인':v==='not_available'?'확인자료 없음':'미기재';
+  const followText=v=>v==='field_check'?'현장 확인 필요':v==='new_improvement'?'신규 개선조치 필요':'추가조치 없음';
   const statusLabel=v=>v==='reported'?'즉시보고 검토대기':v==='supplement'?'보완대기':v==='supplement_submitted'?'보완검토대기':v==='rejected'?'반려':v==='approved'?'사고보고 최종승인':v==='closed'?'종결':String(v||'진행중');
   const statusBadgeHtml=v=>typeof badge==='function'?badge(v==='reported'?'p-reported':v==='supplement'||v==='supplement_submitted'?'p-review':v==='rejected'?'p-rejected':v==='approved'?'p-approved':v==='closed'?'p-closed':'p-normal',statusLabel(v)):`<span>${statusLabel(v)}</span>`;
   const sortIncidentList=(a,b)=>{const p={urgent:3,important:2,normal:1};return (p[b?.priority]||0)-(p[a?.priority]||0)||(new Date(b?.occurredAt||0)-new Date(a?.occurredAt||0))};
   const cut=(v,n=76)=>{const s=String(v||'').replace(/\s+/g,' ').trim();return s.length>n?s.slice(0,n-1)+'…':s};
   const won=v=>{const n=Number(v||0);return Number.isFinite(n)&&n>0?`${n.toLocaleString('ko-KR')}원`:''};
 
-  function canEditIncident(i,u){if(!i||!u)return false;if(roleOf(u)==='safety')return true;if(!sameSite(i,u)||!['reported','rejected'].includes(i.status))return false;if(isSiteManager(u))return true;return u.role==='worker'&&isAuthor(i,u)}
+  function canEditIncident(i,u){if(!i||!u||isHistorical(i))return false;if(roleOf(u)==='safety')return true;if(!sameSite(i,u)||!['reported','rejected'].includes(i.status))return false;if(isSiteManager(u))return true;return u.role==='worker'&&isAuthor(i,u)}
   function canViewOriginal(i,u){if(!i||!u)return false;const r=roleOf(u);if(r==='safety')return true;if(['manager','executive'].includes(r))return ['reported','supplement','supplement_submitted','approved','closed'].includes(i.status);return sameSite(i,u)&&isSiteManager(u)}
 
   function quickSummary(i){
-    const d=i?.reportDetails||{},person=i?.category==='person',place=d.place||'',when=i?.occurredAt?fmt(i.occurredAt):'-';
+    const d=i?.reportDetails||{},person=i?.category==='person',place=d.place||'',h=i?.historicalTransfer||{},when=isHistorical(i)&&h.occurredDate?(h.occurredDate+(h.occurredTimeKnown&&h.occurredTime?' '+h.occurredTime:' · 시간 미확인')):(i?.occurredAt?fmt(i.occurredAt):'-');
     let impact='',headline='';
     if(person){impact=cut(d.injuryDetail||i?.injuredName||'부상내용 미입력',54);headline=`${i?.eventType||'대인사고'} · ${impact}`}
     else{const item=d.damagedItem||'파손 물품',cost=won(d.repairCost);impact=cut(d.damageDetail||item,54);headline=`${i?.eventType||'대물사고'} · ${item}${cost?' · '+cost:''}`}
@@ -67,14 +72,14 @@
 
   function originalTable(arr,u){
     if(!Array.isArray(arr)||!arr.length)return '<div class="empty">표시할 사고가 없습니다.</div>';
-    return `<div class="inc411-list">${arr.map(i=>{const q=quickSummary(i),rc=receipts(i).length;return `<button type="button" class="inc411-card" data-inc-id="${esc(i.id)}"><div class="inc411-card-date"><b>${esc(q.when)}</b><span>${esc(q.site)}</span></div><div class="inc411-card-main"><h3>${esc(q.headline)}</h3><p>${esc(q.circumstance||q.place)}</p><div class="inc411-card-tags">${typeof categoryBadge==='function'?categoryBadge(i.category):''}${typeof priorityBadge==='function'?priorityBadge(i.priority):''}${statusBadgeHtml(i.status)}${typeof actionBadge==='function'?actionBadge(i):''}</div></div><div class="inc411-card-side">${typeof legalBadge==='function'?legalBadge(i):''}${['approved','closed'].includes(i.status)?`<small>열람확인 ${rc}명</small>`:''}</div></button>`}).join('')}</div>`;
+    return `<div class="inc411-list">${arr.map(i=>{const q=quickSummary(i),rc=receipts(i).length,h=historicalClosed(i);return `<button type="button" class="inc411-card ${h?'historical-transfer':''}" data-inc-id="${esc(i.id)}"><div class="inc411-card-date"><b>${esc(q.when)}</b><span>${esc(q.site)}</span></div><div class="inc411-card-main"><h3>${esc(q.headline)}</h3><p>${esc(q.circumstance||q.place)}</p><div class="inc411-card-tags">${typeof categoryBadge==='function'?categoryBadge(i.category):''}${h?historicalTags(i):`${typeof priorityBadge==='function'?priorityBadge(i.priority):''}${statusBadgeHtml(i.status)}${typeof actionBadge==='function'?actionBadge(i):''}`}</div></div><div class="inc411-card-side">${h?'':(typeof legalBadge==='function'?legalBadge(i):'')}${!h&&['approved','closed'].includes(i.status)?`<small>열람확인 ${rc}명</small>`:''}</div></button>`}).join('')}</div>`;
   }
   function incidentTableFn(arr,admin,u){return originalTable(arr,u||currentUser())}
   function bindIncidentRowsFn(admin,u){const viewer=u||currentUser();document.querySelectorAll('[data-inc-id]').forEach(r=>{const i=(data.incidents||[]).find(x=>String(x.id)===String(r.dataset.incId));if(i&&canViewOriginal(i,viewer)){r.onclick=()=>openIncidentModalFn(i.id,admin,viewer);r.style.cursor='pointer'}else{r.onclick=null;r.style.cursor='default'}})}
 
   function siteRecords(u){return [...(data.incidents||[])].filter(i=>sameSite(i,u)).sort(sortIncidentList)}
   function visibleFieldRecords(u){const arr=siteRecords(u);return isSiteManager(u)?arr:arr.filter(i=>isAuthor(i,u))}
-  function privateCards(arr,u){if(!arr.length)return '<div class="empty">표시할 사고가 없습니다.</div>';return `<div class="incident-private-list">${arr.map(i=>{const editable=canEditIncident(i,u),q=quickSummary(i),rejected=i.status==='rejected';return `<article class="incident-private-card ${rejected?'rejected':''}"><div class="incident-private-top"><div>${typeof categoryBadge==='function'?categoryBadge(i.category):''}${statusBadgeHtml(i.status)}</div><b>${esc(q.when)}</b></div><h3>${esc(q.headline)}</h3>${overviewHtml(i,{compact:true})}${rejected&&i.rejectionNote?`<div class="incident-private-note"><b>반려사유</b><br>${esc(i.rejectionNote)}</div>`:''}${editable?`<div class="incident-private-actions"><button type="button" data-rejected-edit="${esc(i.id)}">${i.status==='reported'?'보고 회수 후 수정':'반려 내용 수정 후 재제출'}</button></div>`:''}</article>`}).join('')}</div>`}
+  function privateCards(arr,u){if(!arr.length)return '<div class="empty">표시할 사고가 없습니다.</div>';return `<div class="incident-private-list">${arr.map(i=>{const editable=canEditIncident(i,u),q=quickSummary(i),rejected=i.status==='rejected',h=historicalClosed(i);return `<article class="incident-private-card ${rejected?'rejected':''}"><div class="incident-private-top"><div>${typeof categoryBadge==='function'?categoryBadge(i.category):''}${h?historicalTags(i):statusBadgeHtml(i.status)}</div><b>${esc(q.when)}</b></div><h3>${esc(q.headline)}</h3>${overviewHtml(i,{compact:true})}${rejected&&i.rejectionNote?`<div class="incident-private-note"><b>반려사유</b><br>${esc(i.rejectionNote)}</div>`:''}${editable&&!h?`<div class="incident-private-actions"><button type="button" data-rejected-edit="${esc(i.id)}">${i.status==='reported'?'보고 회수 후 수정':'반려 내용 수정 후 재제출'}</button></div>`:''}</article>`}).join('')}</div>`}
   function bindRejectedEdits(root,u){root.querySelectorAll('[data-rejected-edit]').forEach(b=>b.onclick=()=>{const i=(data.incidents||[]).find(x=>String(x.id)===String(b.dataset.rejectedEdit));if(i&&canEditIncident(i,u))openEditIncidentModalFn(i,u)})}
 
   function renderUnifiedIncidentsFn(root,u){
@@ -93,27 +98,44 @@
     ['siteFilter','statusFilter','categoryFilter'].forEach(id=>document.getElementById(id)?.addEventListener('change',refresh));refresh();
   }
 
+  function historicalInfoHtml(i){
+    if(!isHistorical(i))return '';
+    const h=i.historicalTransfer||{},f=h.followUp||{},e=h.existingActionEvidence==='confirmed'?'확인됨':h.existingActionEvidence==='partial'?'일부 확인':'확인자료 없음';
+    const follow=f.type==='site_check'?'현장 확인 필요':f.type==='improvement'?'신규 개선조치 필요':'추가조치 없음';
+    return '<section class="inc411-section"><h3>과거사고 이관정보</h3><div class="inc411-section-body">'
+      +'<div class="inc411-kv"><b>등록구분</b><span>과거사고 · ERP 기결재 · 이관종결</span></div>'
+      +'<div class="inc411-kv"><b>기존 결재</b><span>ERP 기결재 완료'+(h.erpApprovalDate?' · '+esc(h.erpApprovalDate):'')+(h.erpReference?' · '+esc(h.erpReference):'')+'</span></div>'
+      +'<div class="inc411-kv"><b>기존 보고자</b><span>'+esc(h.originalReporterName||'미확인')+'</span></div>'
+      +'<div class="inc411-kv"><b>이관 등록자</b><span>'+esc(h.transferredBy||i.lastModifiedBy||'-')+(h.transferredAt?' · '+esc(fmt(h.transferredAt)):'')+'</span></div>'
+      +'<div class="inc411-kv"><b>기존 조치자료</b><span>'+esc(e)+(h.existingActionSummary?'\n'+esc(h.existingActionSummary):'')+'</span></div>'
+      +'<div class="inc411-kv"><b>현재 추가조치</b><span>'+esc(follow)+(f.note?'\n'+esc(f.note):'')+'</span></div>'
+      +'<div class="inc411-kv"><b>앱 처리상태</b><span>신규 재발방지계획·현장조치 절차 적용 제외</span></div>'
+      +'</div></section>';
+  }
+
   function bindModalAttachments(i){const root=document.getElementById('modalRoot');if(root&&typeof window.enlBindAttachmentOpen==='function')window.enlBindAttachmentOpen(root,i.photos||[])}
   function openIncidentModalFn(id,admin,u){
     const viewer=u||currentUser(),i=(data.incidents||[]).find(x=>String(x.id)===String(id));
     if(!i)return alert('해당 사고자료를 찾지 못했습니다. 최신 사고현황을 다시 불러와 주세요.');
     if(!canViewOriginal(i,viewer))return alert('사고보고서 원본 조회 권한이 없습니다.');
     if(typeof openModal!=='function')return alert('사고 검토 화면을 불러오지 못했습니다.');
-    const safety=roleOf(viewer)==='safety',hqReader=isHqReader(viewer),d=i.reportDetails||{},person=i.category==='person';
+    const safety=roleOf(viewer)==='safety',hqReader=isHqReader(viewer),d=i.reportDetails||{},person=i.category==='person',historical=historicalClosed(i),hist=i.historicalImport||{};
     const attachments=typeof window.enlAttachmentGalleryHtml==='function'?window.enlAttachmentGalleryHtml(i.photos||[]):'';
     const damageRows=person
       ? `<div class="inc411-kv"><b>부상 내용</b><span>${esc(d.injuryDetail||'-')}</span></div><div class="inc411-kv"><b>진단명</b><span>${esc(d.diagnosis||'-')}</span></div><div class="inc411-kv"><b>치료/의사소견</b><span>${esc(d.doctorOpinion||'-')}</span></div>${Number(d.medicalCost||0)>0?`<div class="inc411-kv"><b>진료비</b><span>${esc(won(d.medicalCost))}</span></div>`:''}`
       : `<div class="inc411-kv"><b>파손 물품</b><span>${esc(d.damagedItem||'-')}</span></div><div class="inc411-kv"><b>파손 내용</b><span>${esc(d.damageDetail||'-')}</span></div><div class="inc411-kv"><b>피해금액</b><span>${esc(won(d.repairCost)||'미확인')}</span></div>`;
     const ack=receipts(i).find(r=>String(r.userId)===String(userId(viewer)));
-    openModal(`<div class="modal-head"><div><div class="ey">INCIDENT REVIEW</div><h2>${esc(siteName(i.siteId))} · ${esc(i.eventType||'-')}</h2><div style="margin-top:7px">${typeof priorityBadge==='function'?priorityBadge(i.priority):''}${typeof categoryBadge==='function'?categoryBadge(i.category):''}${statusBadgeHtml(i.status)}${typeof legalBadge==='function'?legalBadge(i):''}</div></div><button class="x" data-close>×</button></div>
+    openModal(`<div class="modal-head"><div><div class="ey">INCIDENT REVIEW</div><h2>${esc(siteName(i.siteId))} · ${esc(i.eventType||'-')}</h2><div style="margin-top:7px">${typeof categoryBadge==='function'?categoryBadge(i.category):''}${historical?historicalTags(i):`${typeof priorityBadge==='function'?priorityBadge(i.priority):''}${statusBadgeHtml(i.status)}${typeof legalBadge==='function'?legalBadge(i):''}`}</div></div><button class="x" data-close>×</button></div>
       ${overviewHtml(i)}
+      ${historical?`<section class="inc411-section" style="border:2px solid #a9c8dc;background:#f5fafe"><h3>과거사고 이관정보</h3><div class="inc411-section-body"><div class="inc411-kv"><b>등록 성격</b><span>사고보고앱에서 최초 보고된 사고가 아닌 ERP 기결재 과거사고 이관자료</span></div><div class="inc411-kv"><b>ERP 결재</b><span>${esc([hist.erpApprovalDate,hist.erpApprovalRef].filter(Boolean).join(' · ')||'기결재 완료(상세 미기재)')}</span></div><div class="inc411-kv"><b>기존 보고자</b><span>${esc(hist.originalReporterName||'미기재')}</span></div><div class="inc411-kv"><b>기존 조치자료</b><span>${esc(actionStateText(hist.existingActionStatus))}${hist.existingActionNote?' · '+esc(hist.existingActionNote):''}</span></div><div class="inc411-kv"><b>현재 추가조치</b><span>${esc(followText(hist.additionalAction))}${hist.additionalActionNote?' · '+esc(hist.additionalActionNote):''}</span></div><div class="inc411-kv"><b>이관등록</b><span>${esc(hist.transferredByName||i.reporterName||'-')} · ${esc(hist.transferredAt?fmt(hist.transferredAt):'-')}</span></div><div class="inc411-kv"><b>종결 근거</b><span>${esc(hist.closureReason||'ERP 기결재 과거사고 이력관리 목적 이관종결')}</span></div></div></section>`:''}
       ${i.status==='rejected'&&i.rejectionNote?`<div class="reject-note"><b>반려사유</b><br>${esc(i.rejectionNote)}</div>`:''}
       <section class="inc411-section"><h3>피해 상황</h3><div class="inc411-section-body">${damageRows}</div></section>
-      <section class="inc411-section"><h3>사고 경위</h3><div class="inc411-section-body"><div class="inc411-kv"><b>사고 직전 작업</b><span>${esc(d.workAction||'-')}</span></div><div class="inc411-kv"><b>발생 과정</b><span>${esc(d.incidentHow||i.summary||'-')}</span></div><div class="inc411-kv"><b>즉시 조치</b><span>${esc(i.immediateAction||'-')}</span></div><div class="inc411-kv"><b>재발방지대책</b><span>${esc(d.preventionPlan||'-')}</span></div></div></section>
+      <section class="inc411-section"><h3>사고 경위</h3><div class="inc411-section-body"><div class="inc411-kv"><b>사고 직전 작업</b><span>${esc(d.workAction||'-')}</span></div><div class="inc411-kv"><b>발생 과정</b><span>${esc(d.incidentHow||i.summary||'-')}</span></div><div class="inc411-kv"><b>당시 조치</b><span>${esc(i.immediateAction||'-')}</span></div>${historical?`<div class="inc411-kv"><b>확인된 원인</b><span>${esc(d.environmentCause||'-')}</span></div>`:`<div class="inc411-kv"><b>재발방지대책</b><span>${esc(d.preventionPlan||'-')}</span></div>`}</div></section>
       ${attachments?`<section class="inc411-section"><h3>첨부 사진 · PDF</h3><div class="inc411-section-body">${attachments}</div></section>`:''}
-      ${safety?`<div class="inc411-priority-box"><label><span>관리등급 최종 설정</span><select id="priorityEdit411"><option value="normal" ${i.priority==='normal'?'selected':''}>일반</option><option value="important" ${i.priority==='important'?'selected':''}>중요</option><option value="urgent" ${i.priority==='urgent'?'selected':''}>긴급</option></select></label><small>최초 등록 시 자동 추천되며, 안전관리자가 사고의 실제 중요도를 검토해 최종 등급을 직접 변경할 수 있습니다.</small></div><label class="lbl"><span>안전관리자 검토의견 / 반려사유</span><textarea id="safetyNoteEdit" rows="3">${esc(i.safetyNote||i.rejectionNote||'')}</textarea></label>${readerStatusHtml(i)}<div class="modal-actions"><button class="btn-gray" id="saveNote">검토·등급 저장</button>${i.status==='reported'?'<button class="btn-reject" id="rejectInc">반려</button><button class="btn-blue" id="approveInc">사고 승인</button>':''}${i.status!=='closed'?'<button class="btn-green" id="closeInc">종결</button>':''}<button class="btn-red" id="editInc">사고정보 수정</button><button class="btn-red" id="deleteInc">삭제</button></div>`:''}
-      ${hqReader&&['approved','closed'].includes(i.status)?`<button type="button" id="ackIncident411" class="inc411-ack ${ack?'done':''}" ${ack?'disabled':''}>${ack?'✓ '+esc(fmt(ack.readAt))+' 열람 확인 완료':'열람 확인'}</button>`:''}`);
+      ${safety?(historical?`<div class="modal-actions"><button class="btn-blue" id="editInc">이관정보 수정</button><button class="btn-red" id="deleteInc">삭제</button></div>`:`<div class="inc411-priority-box"><label><span>관리등급 최종 설정</span><select id="priorityEdit411"><option value="normal" ${i.priority==='normal'?'selected':''}>일반</option><option value="important" ${i.priority==='important'?'selected':''}>중요</option><option value="urgent" ${i.priority==='urgent'?'selected':''}>긴급</option></select></label><small>최초 등록 시 자동 추천되며, 안전관리자가 사고의 실제 중요도를 검토해 최종 등급을 직접 변경할 수 있습니다.</small></div><label class="lbl"><span>안전관리자 검토의견 / 반려사유</span><textarea id="safetyNoteEdit" rows="3">${esc(i.safetyNote||i.rejectionNote||'')}</textarea></label>${readerStatusHtml(i)}<div class="modal-actions"><button class="btn-gray" id="saveNote">검토·등급 저장</button>${i.status==='reported'?'<button class="btn-reject" id="rejectInc">반려</button><button class="btn-blue" id="approveInc">사고 승인</button>':''}${i.status!=='closed'?'<button class="btn-green" id="closeInc">종결</button>':''}<button class="btn-red" id="editInc">사고정보 수정</button><button class="btn-red" id="deleteInc">삭제</button></div>`):''}
+      ${hqReader&&!historical&&['approved','closed'].includes(i.status)?`<button type="button" id="ackIncident411" class="inc411-ack ${ack?'done':''}" ${ack?'disabled':''}>${ack?'✓ '+esc(fmt(ack.readAt))+' 열람 확인 완료':'열람 확인'}</button>`:''}`);
     bindModalAttachments(i);
+    if(historical)return;
     if(hqReader){const btn=document.getElementById('ackIncident411');if(btn&&!ack)btn.onclick=async()=>{btn.disabled=true;btn.textContent='열람 확인 저장 중…';try{if(typeof window.enlIncidentAcknowledge!=='function')throw new Error('ack_not_ready');await window.enlIncidentAcknowledge(i.id,viewer);closeModal();renderShell(currentUser()||viewer);alert('열람 확인이 기록되었습니다.')}catch(e){btn.disabled=false;btn.textContent='열람 확인';alert('열람 확인을 저장하지 못했습니다. 다시 시도해 주세요.')}};return}
     if(!safety)return;
     const note=()=>document.getElementById('safetyNoteEdit')?.value.trim()||'';
@@ -129,6 +151,7 @@
 
   function openEditIncidentModalFn(i,u){
     const viewer=u||currentUser();if(!i||!viewer)return;
+    if(historicalClosed(i)&&roleOf(viewer)==='safety'&&typeof window.enlEditHistoricalTransfer449==='function')return window.enlEditHistoricalTransfer449(i,viewer);
     if(roleOf(viewer)!=='safety'&&typeof window.enlEditIncidentInReportForm==='function')return window.enlEditIncidentInReportForm(i,viewer);
     if(!canEditIncident(i,viewer))return alert('수정 권한이 없습니다.');
     if(typeof window.enlEditIncidentInReportForm==='function'&&['person','property'].includes(i.category))return window.enlEditIncidentInReportForm(i,viewer);

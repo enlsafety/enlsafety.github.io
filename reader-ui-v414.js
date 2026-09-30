@@ -6,8 +6,9 @@
   const isReader=u=>['manager','executive'].includes(roleNorm(u?.role));
   const escx=v=>typeof esc==='function'?esc(v):String(v??'');
   const siteName=id=>{try{return siteById?.(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}};
-  const finalized=i=>typeof window.enlIncidentFinalized==='function'?window.enlIncidentFinalized(i):!!i&&String(i.status)==='closed'&&String(i.corrective?.status)==='approved';
-  const actionText=i=>{const s=String(i?.corrective?.status||'');if(!s)return '사고조치 미작성';if(s==='planned')return '조치예정';if(s==='in_progress')return '조치중';if(s==='submitted')return '사고조치 검토대기';if(s==='rejected')return '사고조치 반려';if(s==='approved')return '사고조치 승인완료';return '조치상태 확인'};
+  const isHistorical=i=>!!i&&(String(i.recordMode||'')==='historical_transfer'||String(i?.historicalTransfer?.mode||'')==='historical_transfer'||(i?.historicalImport?.enabled===true&&i?.historicalImport?.erpApproved===true&&String(i?.historicalImport?.transferState||'')==='closed'));
+  const finalized=i=>isHistorical(i)||(typeof window.enlIncidentFinalized==='function'?window.enlIncidentFinalized(i):!!i&&String(i.status)==='closed'&&String(i.corrective?.status)==='approved');
+  const actionText=i=>{if(isHistorical(i))return '신규 재발방지 절차 적용 제외';const s=String(i?.corrective?.status||'');if(!s)return '사고조치 미작성';if(s==='planned')return '조치예정';if(s==='in_progress')return '조치중';if(s==='submitted')return '사고조치 검토대기';if(s==='rejected')return '사고조치 반려';if(s==='approved')return '사고조치 승인완료';return '조치상태 확인'};
 
   function ensureCss(){
     if(document.getElementById('reader414Css'))return;
@@ -30,7 +31,7 @@
     if(typeof window.openIncidentModal==='function')return window.openIncidentModal(id,false,u);
   }
 
-  function stateLabel(i){const s=String(i?.status||'');return s==='reported'?'즉시보고 검토대기':s==='supplement'?'보완대기':s==='supplement_submitted'?'보완검토대기':s==='approved'?'사고보고 최종승인':s==='closed'?'종결':'진행중'}
+  function stateLabel(i){if(isHistorical(i))return '과거사고 이관종결';const s=String(i?.status||'');return s==='reported'?'즉시보고 검토대기':s==='supplement'?'보완대기':s==='supplement_submitted'?'보완검토대기':s==='approved'?'사고보고 최종승인':s==='closed'?'종결':'진행중'}
   function renderReaderHome(u){
     const root=document.getElementById('view');if(!root||!isReader(u))return;
     const d=readerData(),recent=[...d.all].sort((a,b)=>new Date(b.updatedAt||b.occurredAt||0)-new Date(a.updatedAt||a.occurredAt||0)).slice(0,7);

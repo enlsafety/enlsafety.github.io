@@ -5,11 +5,14 @@
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   const isReader=u=>['manager','executive'].includes(roleNorm(u?.role));
   const isSite=u=>['field','worker'].includes(String(u?.role||''));
+  const isHistorical=i=>!!i&&(String(i.recordMode||'')==='historical_transfer'||String(i?.historicalTransfer?.mode||'')==='historical_transfer'||(i?.historicalImport?.enabled===true&&i?.historicalImport?.erpApproved===true&&i?.historicalImport?.workflowExempt===true&&String(i?.historicalImport?.transferState||'')==='closed'));
   const siteName=id=>{try{return siteById?.(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}};
   const escx=v=>typeof esc==='function'?esc(v):String(v??'');
   const now=()=>typeof nowISO==='function'?nowISO():new Date().toISOString();
-  const finalized=i=>!!i&&String(i.status)==='closed'&&String(i.corrective?.status)==='approved';
-  const reportApproved=i=>!!i&&String(i.status)==='approved';
+  const historicalClosed=i=>!!i&&i?.historicalImport?.enabled===true&&i?.historicalImport?.erpApproved===true&&i?.historicalImport?.workflowExempt===true&&String(i?.historicalImport?.transferState||'')==='closed'&&String(i?.status||'')==='closed';
+  const normalFinalized=i=>!!i&&String(i.status)==='closed'&&String(i.corrective?.status)==='approved';
+  const finalized=i=>historicalClosed(i)||normalFinalized(i);
+  const reportApproved=i=>!!i&&!historicalClosed(i)&&String(i.status)==='approved';
   const actionStatus=v=>v==='planned'?'조치예정':v==='in_progress'?'조치중':v==='submitted'?'사고조치 검토대기':v==='rejected'?'사고조치 반려':v==='approved'?'사고조치 승인완료':'사고조치 미작성';
   const snapshots=new Map();
   let closedMode=false;
@@ -25,8 +28,10 @@
     const ts=now();
     for(const i of data?.incidents||[]){
       if(!i?.id)continue;
+      if(isHistorical(i))continue;
       const prev=snapshots.get(String(i.id));
       const c=i.corrective&&typeof i.corrective==='object'?i.corrective:null;
+      if(historicalClosed(i))continue;
 
       // A finalized report was edited and resubmitted: both approvals must be obtained again.
       if(prev?.status==='closed'&&String(i.status)==='reported'){
@@ -65,7 +70,8 @@
   document.addEventListener('click',e=>{const b=e.target?.closest?.('#closeInc');if(!b)return;e.preventDefault();e.stopImmediatePropagation();alert('사고보고와 사고조치가 모두 승인되면 자동으로 종결됩니다. 별도 수동 종결은 하지 않습니다.')},true);
 
   function finalActionSection(i){
-    if(!finalized(i))return '';
+    if(historicalClosed(i))return '';
+    if(!normalFinalized(i))return '';
     const c=i.corrective||{},attachments=typeof window.enlAttachmentGalleryHtml==='function'?window.enlAttachmentGalleryHtml(c.afterPhotos||[]):'';
     return `<section class="lifecycle413-final" data-lifecycle-final="${escx(i.id)}"><h3>종결 사고조치</h3><div class="lifecycle413-final-body"><div class="lifecycle413-final-grid"><div><b>원인 분석</b><span>${escx(c.rootCause||'-')}</span></div><div><b>조치 내용</b><span>${escx(c.actionDetail||'-')}</span></div><div><b>조치 담당자</b><span>${escx(c.ownerName||'-')}</span></div><div><b>완료기한</b><span>${escx(c.dueDate||'-')}</span></div><div><b>사고보고 승인</b><span>${escx(i.approvedBy||'-')} · ${escx(i.approvedAt?fmt(i.approvedAt):'-')}</span></div><div><b>사고조치 승인</b><span>${escx(c.reviewedBy||'-')} · ${escx(c.reviewedAt?fmt(c.reviewedAt):'-')}</span></div></div>${c.reviewNote?`<div class="inc411-kv"><b>최종 검토의견</b><span>${escx(c.reviewNote)}</span></div>`:''}${attachments?`<div><b style="display:block;margin-bottom:7px;color:#658071">조치 사진 · PDF</b>${attachments}</div>`:''}</div></section>`;
   }
@@ -90,7 +96,7 @@
 
   try{
     actionStatusName=actionStatus;
-    actionBadge=function(i){const report=String(i?.status||''),s=String(i?.corrective?.status||'');if(!['approved','closed'].includes(report))return badge('p-normal','사고조치 보고승인 대기');if(!s)return badge('p-normal','사고조치 미작성');return badge(s==='approved'?'p-done':s==='rejected'?'p-rejected':'p-review',actionStatus(s))};
+    actionBadge=function(i){if(historicalClosed(i))return badge('p-done','이관종결');const report=String(i?.status||''),s=String(i?.corrective?.status||'');if(!['approved','closed'].includes(report))return badge('p-normal','사고조치 보고승인 대기');if(!s)return badge('p-normal','사고조치 미작성');return badge(s==='approved'?'p-done':s==='rejected'?'p-rejected':'p-review',actionStatus(s))};
   }catch(e){}
 
   function rewriteLabels(root=document){
@@ -111,7 +117,7 @@
   function renderClosedView(u=currentUser?.()){
     const root=document.getElementById('view');if(!root||!u)return;
     const arr=closedIncidents(u);
-    root.innerHTML=`<section class="panel"><div class="section-head"><div><div class="ey">FINALIZED INCIDENTS</div><h2>종결 사고</h2><p>사고보고와 사고조치가 모두 안전관리자 승인된 건만 표시합니다. 사고를 누르면 보고내용과 조치내용을 한 화면에서 확인할 수 있습니다.</p></div></div><div class="lifecycle413-closed-list">${arr.map(i=>{const q=typeof window.enlIncidentQuickSummary==='function'?window.enlIncidentQuickSummary(i):{headline:i.eventType||'사고',site:siteName(i.siteId),when:fmt(i.occurredAt)},c=i.corrective||{};return `<button type="button" class="lifecycle413-closed-card" data-lifecycle-open="${escx(i.id)}"><div>${typeof priorityBadge==='function'?priorityBadge(i.priority):''}${typeof statusBadge==='function'?statusBadge(i.status):''}${typeof actionBadge==='function'?actionBadge(i):''}</div><h3>${escx(q.site||siteName(i.siteId))} · ${escx(q.headline||i.eventType||'사고')}</h3>${typeof window.enlIncidentOverviewHtml==='function'?window.enlIncidentOverviewHtml(i,{compact:true}):''}<div class="lifecycle413-closed-action"><b>최종 조치</b><br>${escx(c.actionDetail||'-')}<br><small>${escx(c.reviewedBy||'안전관리자')} 승인 · ${escx(c.reviewedAt?fmt(c.reviewedAt):'-')}</small></div></button>`}).join('')||'<div class="empty">종결된 사고가 없습니다.</div>'}</div></section>`;
+    root.innerHTML=`<section class="panel"><div class="section-head"><div><div class="ey">FINALIZED INCIDENTS</div><h2>종결 사고</h2><p>일반 종결사고와 ERP 기결재 과거사고 이관종결 건을 함께 표시합니다.</p></div></div><div class="lifecycle413-closed-list">${arr.map(i=>{const q=typeof window.enlIncidentQuickSummary==='function'?window.enlIncidentQuickSummary(i):{headline:i.eventType||'사고',site:siteName(i.siteId),when:fmt(i.occurredAt)},c=i.corrective||{},h=historicalClosed(i),hi=i.historicalImport||{};return `<button type="button" class="lifecycle413-closed-card" data-lifecycle-open="${escx(i.id)}"><div>${h?(typeof badge==='function'?badge('p-done','과거사고 · ERP 기결재 · 이관종결'):''):`${typeof priorityBadge==='function'?priorityBadge(i.priority):''}${typeof statusBadge==='function'?statusBadge(i.status):''}${typeof actionBadge==='function'?actionBadge(i):''}`}</div><h3>${escx(q.site||siteName(i.siteId))} · ${escx(q.headline||i.eventType||'사고')}</h3>${typeof window.enlIncidentOverviewHtml==='function'?window.enlIncidentOverviewHtml(i,{compact:true}):''}${h?`<div class="lifecycle413-closed-action"><b>과거사고 이관종결</b><br>ERP 기결재 자료를 사고이력 관리를 위해 이관한 건입니다.<br><small>${escx(hi.transferredByName||i.reporterName||'-')} 이관등록 · ${escx(hi.transferredAt?fmt(hi.transferredAt):'-')}</small></div>`:`<div class="lifecycle413-closed-action"><b>최종 조치</b><br>${escx(c.actionDetail||'-')}<br><small>${escx(c.reviewedBy||'안전관리자')} 승인 · ${escx(c.reviewedAt?fmt(c.reviewedAt):'-')}</small></div>`}</button>`}).join('')||'<div class="empty">종결된 사고가 없습니다.</div>'}</div></section>`;
     root.querySelectorAll('[data-lifecycle-open]').forEach(b=>b.onclick=()=>window.enlOpenIncidentReview?.(b.dataset.lifecycleOpen,false,u));
     document.querySelectorAll('.shell411-nav button').forEach(b=>b.classList.remove('on'));document.querySelector('[data-lifecycle-closed]')?.classList.add('on');
   }

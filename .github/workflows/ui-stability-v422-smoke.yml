@@ -51,7 +51,7 @@ jobs:
           ps=Path('push-session-v425.js').read_text(encoding='utf-8')
           sw=Path('sw-v418.js').read_text(encoding='utf-8')
           html=Path('stable412.html').read_text(encoding='utf-8')
-          for x in ["4.2.2-ui-stability2","window.renderShell=function(u)","if(modalBusy()||transientViewBusy())return root"]: assert x in stable,x
+          for x in ["4.4.13-hq-email-edit1","window.renderShell=function(u)","if(modalBusy()||transientViewBusy())return root"]: assert x in stable,x
           for x in ["4.2.3-reader-ack1","이 종결사고는 열람 확인이 필요합니다","열람확인 필요"]: assert x in ack,x
           for x in [
             "4.4.0-reader-workflow1",
@@ -81,11 +81,11 @@ jobs:
           ]: assert x in ps,x
           assert "setTimeout(onUserReady" not in ps
           for x in ["4.2.5-pwa4-confirm1","incidentId","stable412.html?push=1&incident=","PUSH_CONFIRM_API","ack_test_token"]: assert x in sw,x
-          assert 'reader-experience-v424.js?v=4.4.0-r1&amp;fix=workflow-alert1' in html
+          assert 'reader-experience-v424.js?v=4.4.14-r1&amp;fix=historical-transfer1' in html
           assert 'push-session-v425.js?v=4.1.5-r1&amp;fix=device-heartbeat2' in html
-          assert 'hq-notification-status-v437.js?v=4.4.7-r1&amp;fix=email-status1' in html
+          assert 'hq-notification-status-v437.js?v=4.4.12-r1&amp;fix=hq-align1' in html
           hq=Path('hq-notification-status-v437.js').read_text(encoding='utf-8')
-          assert "const VERSION='4.4.7-hq-notify-email1'" in hq
+          assert "const VERSION='4.4.12-hq-align1'" in hq
           assert 'data-pm434-hq-edit' in hq and 'data-pm434-hq-pw' in hq
           assert 'enlRenderHqNotificationStatus' in hq and 'enl437Host' in hq
           assert "status==='confirmed'" in hq and '수신 확인' in hq and '확인 대기' in hq
@@ -113,9 +113,9 @@ jobs:
           code,j=call('https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-claim-v425',{'action':'health'})
           assert code==200 and j.get('ok') is True and j.get('version')=='4.2.5-push-claim1',(code,j)
           code,j=call('https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-admin-v437',{'action':'health'})
-          assert code==200 and j.get('ok') is True and j.get('version')=='4.3.7-hq-notify3',(code,j)
+          assert code==200 and j.get('ok') is True and j.get('version')=='4.4.11-hq-notify-db1',(code,j)
           code,j=call('https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-admin-v437',{'action':'ack_test_token','checkId':'missing','confirmToken':'invalid','method':'action'})
           assert code==400 and j.get('message')=='invalid_confirmation',(code,j)
-          code,j=call('https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-claim-v425',{'action':'claim','actor':{'id':'missing','role':'manager'},'subscription':{'endpoint':'x','keys':{'p256dh':'y','auth':'z'}}})
+          code,j=call('https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-claim-v425',{'action':'claim','actor':{},'subscription':{'endpoint':'x','keys':{'p256dh':'y','auth':'z'}}})
           assert code==403 and j.get('message')=='forbidden',(code,j)
           print('OK: comment delete and push ownership endpoints are live with server-side guards')

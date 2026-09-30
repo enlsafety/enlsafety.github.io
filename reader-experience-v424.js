@@ -9,7 +9,8 @@
   const isReader=u=>['manager','executive'].includes(roleNorm(u?.role));
   const uid=u=>String(u?.id||u?.personnelId||u?.username||'');
   const actor=u=>{try{return window.enlCurrentActor?.()||{id:uid(u),name:u?.name||'',role:roleNorm(u?.role),position:u?.position||u?.jobTitle||'',siteId:u?.siteId||''}}catch(e){return null}};
-  const finalized=i=>!!i&&String(i.status||'')==='closed'&&String(i.corrective?.status||'')==='approved';
+  const historicalClosed=i=>!!i&&i?.historicalImport?.enabled===true&&i?.historicalImport?.erpApproved===true&&i?.historicalImport?.workflowExempt===true&&String(i?.historicalImport?.transferState||'')==='closed'&&String(i?.status||'')==='closed';
+  const finalized=i=>historicalClosed(i)||!!i&&String(i.status||'')==='closed'&&String(i.corrective?.status||'')==='approved';
   const receiptFor=(i,u)=>(Array.isArray(i?.readReceipts)?i.readReceipts:[]).find(r=>String(r?.userId||'')===uid(u));
   const INQUIRY_SEEN_PREFIX='enl_reader_inquiry_seen_v424_';
   const commentOwners=new Map();
@@ -47,15 +48,15 @@
 
   function readerIncidentDots(u){
     const arr=[...(data?.incidents||[])];
-    const pending=arr.filter(i=>['reported','supplement','supplement_submitted'].includes(String(i.status||'')));
-    const unreadApproved=arr.filter(i=>String(i.status||'')==='approved'&&!receiptFor(i,u));
-    const unreadClosed=arr.filter(i=>finalized(i)&&!receiptFor(i,u));
+    const pending=arr.filter(i=>!historicalClosed(i)&&['reported','supplement','supplement_submitted'].includes(String(i.status||'')));
+    const unreadApproved=arr.filter(i=>!historicalClosed(i)&&String(i.status||'')==='approved'&&!receiptFor(i,u));
+    const unreadClosed=arr.filter(i=>!historicalClosed(i)&&finalized(i)&&!receiptFor(i,u));
     dot(document.querySelector('[data-shell-view="home"]'),pending.length+unreadApproved.length+unreadClosed.length>0,'새 사고보고 또는 확인이 필요한 사고가 있습니다');
     dot(document.querySelector('[data-shell-view="incidents"]'),pending.length+unreadApproved.length>0,'즉시보고·보완 또는 확인이 필요한 사고가 있습니다');
     dot(document.querySelector('[data-lifecycle-closed]'),unreadClosed.length>0,'열람 확인이 필요한 종결사고가 있습니다');
   }
   function safetyWorkDots(u){
-    const arr=[...(data?.incidents||[])],reported=arr.some(i=>['reported','supplement_submitted'].includes(String(i.status||''))),actions=arr.some(i=>String(i.corrective?.status||'')==='submitted');
+    const arr=[...(data?.incidents||[])],reported=arr.some(i=>!historicalClosed(i)&&['reported','supplement_submitted'].includes(String(i.status||''))),actions=arr.some(i=>!historicalClosed(i)&&String(i.corrective?.status||'')==='submitted');
     dot(document.querySelector('[data-shell-view="home"]'),reported||actions,'검토가 필요한 새 업무가 있습니다');
     dot(document.querySelector('[data-shell-view="incidents"]'),reported,'즉시보고 또는 보완검토 대기 사고가 있습니다');
     dot(document.querySelector('[data-shell-view="actions"]'),actions,'검토대기 사고조치가 있습니다');

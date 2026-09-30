@@ -18,6 +18,9 @@
   const incident=id=>(data?.incidents||[]).find(x=>String(x.id)===String(id));
   const fmt=v=>{if(!v)return '-';try{return new Date(v).toLocaleString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})}catch(e){return String(v)}};
   const site=id=>{try{return siteById?.(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}};
+  const historical=i=>!!i&&i?.historicalImport?.enabled===true&&i?.historicalImport?.erpApproved===true&&i?.historicalImport?.workflowExempt===true&&String(i?.historicalImport?.transferState||'')==='closed';
+  const actionState=v=>v==='confirmed'?'확인됨':v==='partial'?'일부 확인':v==='not_available'?'확인자료 없음':'미기재';
+  const followState=v=>v==='field_check'?'현장 확인 필요':v==='new_improvement'?'신규 개선조치 필요':'추가조치 없음';
 
   async function api(action,extra={},timeout=30000){
     const u=current(),hash=passwordHash(u);
@@ -46,6 +49,19 @@
     return m[v]||v||'기록';
   }
   function officialBox(i){
+    if(historical(i)){
+      const h=i.historicalImport||{};
+      return `<section class="official439-box"><h3>과거사고 ERP 이관기록</h3><div class="official439-grid">
+        <div><b>등록구분</b><span>과거사고 · ERP 기결재 · 이관종결</span></div>
+        <div><b>ERP 결재정보</b><span>${esc([h.erpApprovalDate,h.erpApprovalRef].filter(Boolean).join(' · ')||'기결재 완료(상세 미기재)')}</span></div>
+        <div><b>기존 ERP 보고자/작성자</b><span>${esc(h.originalReporterName||'미기재')}</span></div>
+        <div><b>이관등록자</b><span>${esc(h.transferredByName||i.reporterName||'-')}<br>${esc(fmt(h.transferredAt||i.createdAt))}</span></div>
+        <div><b>기존 조치자료</b><span>${esc(actionState(h.existingActionStatus))}${h.existingActionNote?'<br>'+esc(h.existingActionNote):''}</span></div>
+        <div><b>현재 추가조치</b><span>${esc(followState(h.additionalAction))}${h.additionalActionNote?'<br>'+esc(h.additionalActionNote):''}</span></div>
+        <div><b>이관종결 기록</b><span>${esc(h.closedByName||h.transferredByName||'-')}<br>${esc(fmt(h.closedAt||i.closedAt))}</span></div>
+        <div><b>종결 의미</b><span>사고이력 관리용 이관종결이며 과거 재발방지조치 완료를 의미하지 않음</span></div>
+      </div></section>`;
+    }
     const o=i?.officialRecord||{},reporter=o.reporter||{},review=o.review||{},approval=o.approval||{},final=o.finalApproval||{};
     const reporterText=reporter.name?reporter.name+(reporter.position?' · '+reporter.position:''):(i.reporterName||'-');
     const reviewText=review.name?review.name+(review.position?' · '+review.position:''):(i.approvedBy||'-');
@@ -65,13 +81,23 @@
     return [...(Array.isArray(i?.photos)?i.photos:[]),...(Array.isArray(i?.corrective?.afterPhotos)?i.corrective.afterPhotos:[])];
   }
   function printReport(i){
-    const d=i.reportDetails||{},c=i.corrective||{},o=i.officialRecord||{},files=attachments(i);
-    const rows=[
+    const d=i.reportDetails||{},c=i.corrective||{},o=i.officialRecord||{},files=attachments(i),h=i.historicalImport||{},isHist=historical(i);
+    const rows=isHist?[
+      ['등록구분','과거사고 · ERP 기결재 · 이관종결'],['사업장',site(i.siteId)],['사고번호',i.id],['발생일시',fmt(i.occurredAt)],['사고유형',i.eventType||'-'],
+      ['기존 ERP 보고자/작성자',h.originalReporterName||'-'],['ERP 결재정보',[h.erpApprovalDate,h.erpApprovalRef].filter(Boolean).join(' · ')||'기결재 완료(상세 미기재)'],
+      ['발생장소',d.place||'-'],['작업내용',d.workAction||'-'],['사고경위',d.incidentHow||i.summary||'-'],['당시 조치',i.immediateAction||'-'],
+      ['확인된 원인',d.environmentCause||'-'],['기존 조치자료',actionState(h.existingActionStatus)+(h.existingActionNote?' · '+h.existingActionNote:'')],
+      ['현재 추가조치',followState(h.additionalAction)+(h.additionalActionNote?' · '+h.additionalActionNote:'')]
+    ]:[
       ['사업장',site(i.siteId)],['사고번호',i.id],['발생일시',fmt(i.occurredAt)],['사고유형',i.eventType||'-'],['신고자',i.reporterName||'-'],
       ['발생장소',d.place||'-'],['작업내용',d.workAction||'-'],['사고경위',d.incidentHow||i.summary||'-'],['사고 직후 조치',i.immediateAction||'-'],
       ['원인 분석',c.rootCause||'-'],['재발방지계획',c.planDetail||d.preventionPlan||'-'],['재발방지조치',c.actionDetail||'-']
     ];
-    const approval=[
+    const approval=isHist?[
+      ['ERP 기결재','기존 ERP 자료',h.erpApprovalDate||''],
+      ['앱 이관등록',h.transferredByName||i.reporterName||'-',h.transferredAt||i.createdAt],
+      ['이관종결',h.closedByName||h.transferredByName||'-',h.closedAt||i.closedAt]
+    ]:[
       ['신고',o.reporter?.name||i.reporterName||'-',o.reporter?.at||i.createdAt],
       ['검토',o.review?.name||i.approvedBy||'-',o.review?.at||i.approvedAt],
       ['승인',o.approval?.name||i.approvedBy||'-',o.approval?.at||i.approvedAt],
@@ -124,7 +150,7 @@
     const u=current();if(!isSafety(u))return;
     const reason=prompt('삭제 사유를 입력해 주세요.\n승인·종결 사고도 사유와 감사로그 없이 삭제할 수 없습니다.','오등록 자료 삭제');
     if(reason===null)return;if(String(reason).trim().length<2)return alert('삭제 사유를 2자 이상 입력해 주세요.');
-    const stronger=['approved','closed'].includes(String(i.status||''))?'승인 완료된 공식 사고기록입니다. 삭제하면 자동 백업과 감사로그가 남습니다. 계속할까요?':'이 사고기록을 삭제할까요?';
+    const stronger=historical(i)?'ERP 기결재 과거사고 이관종결 기록입니다. 삭제하면 자동 백업과 감사로그가 남습니다. 계속할까요?':['approved','closed'].includes(String(i.status||''))?'승인 완료된 공식 사고기록입니다. 삭제하면 자동 백업과 감사로그가 남습니다. 계속할까요?':'이 사고기록을 삭제할까요?';
     if(!confirm(stronger))return;
     try{
       await api('delete_incident',{incidentId:i.id,reason:String(reason).trim()});

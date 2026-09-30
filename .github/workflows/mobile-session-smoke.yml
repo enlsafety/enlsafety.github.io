@@ -63,6 +63,6 @@ jobs:
           ]: assert x in control,x
           assert control.count('clearLoginForUpdate(')==3,control.count('clearLoginForUpdate(')
           assert 'session-refresh-v412.js?v=4.1.2-r16&amp;fix=session2&amp;mobile=session3' in html
-          assert 'app-control-v410.js?v=4.2.7-r1&amp;fix=update7-session-guard' in html
+          assert 'app-control-v410.js?v=4.4.10-r2&amp;fix=update8-server-fix' in html
           assert html.index('session-refresh-v412.js') < html.index('auth-v411.js')
           print('OK: mobile session persists; stale same-version global epochs do not clear fresh logins; real/manual updates still clear login')

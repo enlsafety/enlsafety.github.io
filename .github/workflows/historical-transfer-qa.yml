@@ -1,0 +1,83 @@
+name: historical transfer close QA
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'historical-transfer-v449.js'
+      - 'app-shell-v411.js'
+      - 'incidents-v410.js'
+      - 'field-incidents-v411.js'
+      - 'incident-stats-v426.js'
+      - 'workflow-prevention-v429.js'
+      - 'closed-incident-reopen-v438.js'
+      - 'workflow-lifecycle-v413.js'
+      - 'reader-ui-v414.js'
+      - 'reader-experience-v424.js'
+      - 'official-records-v439.js'
+      - 'stable412.html'
+      - 'version.json'
+      - 'index.html'
+      - '.github/workflows/historical-transfer-qa.yml'
+  workflow_dispatch:
+
+jobs:
+  historical-transfer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: |
+          node --check historical-transfer-v449.js
+          node --check app-shell-v411.js
+          node --check incidents-v410.js
+          node --check field-incidents-v411.js
+          node --check incident-stats-v426.js
+          node --check workflow-prevention-v429.js
+          node --check closed-incident-reopen-v438.js
+          node --check workflow-lifecycle-v413.js
+          node --check reader-ui-v414.js
+          node --check reader-experience-v424.js
+          node --check official-records-v439.js
+      - name: Historical transfer invariants
+        shell: python
+        run: |
+          import json
+          from pathlib import Path
+          hist=Path('historical-transfer-v449.js').read_text(encoding='utf-8')
+          inc=Path('incidents-v410.js').read_text(encoding='utf-8')
+          shell=Path('app-shell-v411.js').read_text(encoding='utf-8')
+          field=Path('field-incidents-v411.js').read_text(encoding='utf-8')
+          prev=Path('workflow-prevention-v429.js').read_text(encoding='utf-8')
+          reopen=Path('closed-incident-reopen-v438.js').read_text(encoding='utf-8')
+          stats=Path('incident-stats-v426.js').read_text(encoding='utf-8')
+          lifecycle=Path('workflow-lifecycle-v413.js').read_text(encoding='utf-8')
+          reader=Path('reader-ui-v414.js').read_text(encoding='utf-8')
+          reader_exp=Path('reader-experience-v424.js').read_text(encoding='utf-8')
+          official=Path('official-records-v439.js').read_text(encoding='utf-8')
+          stable=Path('stable412.html').read_text(encoding='utf-8')
+          version=json.loads(Path('version.json').read_text(encoding='utf-8'))
+          assert "historicalImport" in hist
+          for token in ["erpApproved:true","workflowExempt:true","silent:true","transferState:'closed'","status:'closed'","corrective:null","additionalAction","recordMode:'historical_transfer'","historicalTransfer","reporterId:''","hSeverity","enlStartHistoricalTransfer449"]:
+            assert token in hist, token
+          for token in ["historicalClosed","!historicalClosed(i)"]:
+            assert token in prev, token
+          assert "historicalClosed(i)" in reopen
+          for token in ["과거사고","ERP 기결재","이관종결","historicalImport"]:
+            assert token in inc, token
+          assert "이관종결" in stats
+          assert "historicalClosed" in field and "ERP 기결재" in field and "actionVisible" in field
+          assert "enlStartHistoricalTransfer449" in shell and "!isHistorical(i)" in shell
+          assert "historicalClosed" in lifecycle and "if(historicalClosed(i))continue" in lifecycle
+          assert "historicalClosed" in reader_exp and "!historicalClosed(i)" in reader_exp
+          assert "이관종결" in reader
+          assert "과거사고 ERP 이관기록" in official and "과거사고 · ERP 기결재 · 이관종결" in official
+          for asset in ['workflow-lifecycle-v413.js','reader-ui-v414.js','reader-experience-v424.js','official-records-v439.js']:
+            assert asset+'?v=4.4.14-r1&amp;fix=historical-transfer1' in stable, asset
+          assert 'historical-transfer-v449.js?v=4.4.14-r1' in stable
+          assert 'content="4.4.14-r1"' in stable
+          assert version["version"]=="4.4.14" and version["build"]=="stable-4414-r1"
+          print('OK: historical ERP transfer-close flow invariants preserved')
