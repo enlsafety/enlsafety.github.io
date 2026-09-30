@@ -1,8 +1,8 @@
 
-/* E&L Accident Report App v4.4.15 - site profile + Korea distribution */
+/* E&L Accident Report App v4.4.18 - site profile + Korea distribution */
 (function(){
 'use strict';
-const VERSION='4.4.17-site-dashboard-complete2';
+const VERSION='4.4.18-site-address-points1';
 const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
 const isSafety=u=>roleNorm(u&&u.role)==='safety';
 const E=v=>typeof esc==='function'?esc(v):String(v==null?'':v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -34,6 +34,8 @@ function rows(){
  masters.forEach(x=>x&&x.site_id&&x.active!==false&&ids.add(String(x.site_id)));
  return Array.from(ids).map(master).filter(x=>x.site_id&&x.site_id!=='site-hq'&&x.active!==false).sort((a,b)=>String(a.site_name||a.site_id).localeCompare(String(b.site_name||b.site_id),'ko'));
 }
+// Contract-ended sites are excluded only from the current dashboard, not history or DB.
+function dashboardRows(){return rows().filter(s=>String(s.site_id)!=='s34')}
 function cnt(s){const r=N(s.regular_count),d=N(s.daily_count),t=N(s.total_count);return {regular:r,daily:d,total:t||r+d}}
 function addr(s){if(T(s.address))return T(s.address);if(T(s.region))return T(s.region)+' (상세주소 미등록)';return '미등록'}
 function info(id){
@@ -56,19 +58,19 @@ function marker(s){
  return '<button type="button" class="sd450-marker '+(r.high?'high':'')+'" data-sd450-map-site="'+E(s.site_id)+'" style="left:'+z[0].toFixed(3)+'%;top:'+z[1].toFixed(3)+'%;background:'+fill+'" aria-label="'+E(name)+(r.high?' 고위험':'')+'" title="'+E(name)+' · '+E(region)+' · 올해 사고 '+r.count+'건'+(r.high?' · 고위험':'')+'"><span class="sd450-marker-label">'+E(name)+(r.high?' · 고위험':'')+'</span></button>';
 }
 function mapHtml(){
- const a=rows(),mapped=a.filter(pos),unmapped=a.length-mapped.length,high=a.filter(s=>risk(s.site_id).high);
+ const a=dashboardRows(),mapped=a.filter(pos),unmapped=a.length-mapped.length,high=a.filter(s=>risk(s.site_id).high);
  const highList=high.length?high.map(s=>'<div class="sd450-risk-item"><span>'+E(s.site_name||s.site_id)+'</span><b>'+risk(s.site_id).count+'건</b></div>').join(''):'<div class="sd450-legend">현재 기준 고위험 사업장이 없습니다.</div>';
- return '<section class="panel sd450-map-panel" data-sd450-map><div class="sd450-map-head"><div><div class="ey">SITE DISTRIBUTION</div><h2>전국 사업장 분포</h2><p>대한민국 실제 해안선·도서·광역 행정경계 지도 위에 사업장을 표시합니다. 점을 누르면 사업장 요약정보를 확인할 수 있습니다.</p></div><div class="sd450-map-badges"><span class="sd450-map-badge">사업장 '+a.length+'곳</span><span class="sd450-map-badge risk">고위험 '+high.length+'곳</span></div></div><div class="sd450-map-layout"><div class="sd450-map-wrap"><div class="sd450-map-canvas"><img class="sd450-map-img" src="korea-map-natural-earth-10m.svg?v=4.4.17-r1" alt="대한민국 지도">'+mapped.map(marker).join('')+'</div><div class="sd450-map-source">지도 윤곽: Natural Earth 1:10m 공개 데이터</div></div><aside class="sd450-map-side"><div class="sd450-legend"><b>표시 기준</b><br><span class="sd450-dot normal"></span>일반 사업장: 사업장별 고유색<br><span class="sd450-dot high"></span>고위험 사업장: 빨간색<br><br>고위험은 <b>올해 사고 5건 이상</b> 또는 <b>현재 미종결 긴급·중대 사고 보유</b> 기준입니다.</div><div class="sd450-risk-list">'+highList+'</div><div class="sd450-map-note">확인된 시설 좌표만 표시합니다. 주소 좌표를 임의의 지역 중심점으로 대체하지 않습니다.'+(unmapped?' 좌표 확인 필요 '+unmapped+'곳은 지도 점에서 제외했습니다.':'')+' 지도 아래 선택목록에서 모든 사업장을 조회할 수 있습니다.</div></aside></div></section>';
+ return '<section class="panel sd450-map-panel" data-sd450-map><div class="sd450-map-head"><div><div class="ey">SITE DISTRIBUTION</div><h2>전국 사업장 분포</h2><p>대한민국 실제 해안선·도서·광역 행정경계 지도 위에 사업장을 표시합니다. 점을 누르면 사업장 요약정보를 확인할 수 있습니다.</p></div><div class="sd450-map-badges"><span class="sd450-map-badge">사업장 '+a.length+'곳</span><span class="sd450-map-badge risk">고위험 '+high.length+'곳</span></div></div><div class="sd450-map-layout"><div class="sd450-map-wrap"><div class="sd450-map-canvas"><img class="sd450-map-img" src="korea-map-natural-earth-10m.svg?v=4.4.17-r1" alt="대한민국 지도">'+mapped.map(marker).join('')+'</div><div class="sd450-map-source">지도 윤곽: Natural Earth 1:10m 공개 데이터 · 소피아그린 위치: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap 기여자</a></div></div><aside class="sd450-map-side"><div class="sd450-legend"><b>표시 기준</b><br><span class="sd450-dot normal"></span>일반 사업장: 사업장별 고유색<br><span class="sd450-dot high"></span>고위험 사업장: 빨간색<br><br>고위험은 <b>올해 사고 5건 이상</b> 또는 <b>현재 미종결 긴급·중대 사고 보유</b> 기준입니다.</div><div class="sd450-risk-list">'+highList+'</div><div class="sd450-map-note">확인된 시설 좌표만 표시합니다. 주소 좌표를 임의의 지역 중심점으로 대체하지 않습니다.'+(unmapped?' 좌표 확인 필요 '+unmapped+'곳은 지도 점에서 제외했습니다.':'')+' 가까운 점이 겹치면 사업장 선택목록을 이용하세요. 파주CC는 계약 종료로 지도에서 제외합니다.</div></aside></div></section>';
 }
 function summary(id){
  const s=master(id),r=risk(id),p=(window.ENL_SITE_LOCATIONS||{})[id];
  return info(id)+'<div class="sd450-summary-stats"><b>올해 사고 '+r.count+'건</b><b>현재 미종결 '+r.open+'건</b><b class="'+(r.high?'sd450-high':'')+'">위험도: '+(r.high?'고위험':'일반')+'</b></div><p class="sd450-info-note">'+(pos(s)?'위치: 주소와 대조한 '+(p.accuracy==='building'?'건물':'시설 대표')+' 좌표 · '+E(p.sourceName):'좌표 확인 필요 · 지도에 임의 위치를 표시하지 않습니다.')+'</p><button type="button" class="primary" data-sd450-open="'+E(id)+'">사업장 사고목록 보기</button>';
 }
 function kpis(){
- const a=rows(),tot=a.reduce((r,s)=>{const c=cnt(s);r.regular+=c.regular;r.daily+=c.daily;r.total+=c.total;return r},{regular:0,daily:0,total:0});
+ const a=dashboardRows(),tot=a.reduce((r,s)=>{const c=cnt(s);r.regular+=c.regular;r.daily+=c.daily;r.total+=c.total;return r},{regular:0,daily:0,total:0});
  const incidents=data&&data.incidents||[],year=new Date().getFullYear();
  const values=[['전국 사업장 수',a.length,'곳'],['전체 인원',tot.total,'명'],['상용 인원',tot.regular,'명'],['일용 인원',tot.daily,'명'],['올해 사고 건수',incidents.filter(i=>new Date(i.occurredAt||0).getFullYear()===year).length,'건'],['현재 미종결 사고',incidents.filter(i=>String(i.status||'')!=='closed').length,'건'],['고위험 사업장 수',a.filter(s=>risk(s.site_id).high).length,'곳']];
- return '<section class="panel" data-sd450-kpis><h2>회사 전체 현황</h2><p class="sd450-info-note">'+year+'년 기준 · 아래 사고통계 필터와 별도 집계 · '+(loaded?'인원은 사업장 마스터 등록값 합계입니다. 0명·미등록 값은 확인이 필요합니다.':loadError?'최신 사업장 정보를 불러오지 못했습니다. 이전 등록값을 표시합니다.':'최신 사업장 정보를 확인하고 있습니다…')+'</p><div class="sd450-kpis">'+values.map(([label,value,unit])=>'<div><span>'+label+'</span><strong>'+value.toLocaleString()+'<small>'+unit+'</small></strong></div>').join('')+'</div></section>';
+ return '<section class="panel" data-sd450-kpis><h2>회사 전체 현황</h2><p class="sd450-info-note">'+year+'년 기준 · 사업장·인원은 파주CC(계약 종료) 제외 · 사고 건수는 전체 이력 기준 · 아래 사고통계 필터와 별도 집계 · '+(loaded?'인원은 사업장 마스터 등록값 합계입니다. 0명·미등록 값은 확인이 필요합니다.':loadError?'최신 사업장 정보를 불러오지 못했습니다. 이전 등록값을 표시합니다.':'최신 사업장 정보를 확인하고 있습니다…')+'</p><div class="sd450-kpis">'+values.map(([label,value,unit])=>'<div><span>'+label+'</span><strong>'+value.toLocaleString()+'<small>'+unit+'</small></strong></div>').join('')+'</div></section>';
 }
 function injectInfo(){
  if(view()!=='incidents')return;
@@ -83,7 +85,7 @@ function injectMap(u){
  const head=root.querySelector('.stats426-head');if(!head)return;
  root.querySelectorAll('[data-sd450-map],[data-sd450-kpis]').forEach(n=>n.remove());
  head.closest('.panel').insertAdjacentHTML('afterend',kpis()+mapHtml());
- const side=root.querySelector('.sd450-map-side'),a=rows();
+ const side=root.querySelector('.sd450-map-side'),a=dashboardRows();
  side.insertAdjacentHTML('afterbegin','<label class="sd450-select-label" for="sd450Site">사업장 선택</label><select id="sd450Site"><option value="">사업장을 선택하세요</option>'+a.map(s=>'<option value="'+E(s.site_id)+'">'+E(s.site_name)+(risk(s.site_id).high?' · 고위험':'')+(pos(s)?'':' · 좌표 확인 필요')+'</option>').join('')+'</select><div data-sd450-summary role="region" aria-label="사업장 요약" aria-live="polite"></div>');
  const select=root.querySelector('#sd450Site'),card=root.querySelector('[data-sd450-summary]');
  const show=id=>{preview=id;select.value=id;card.innerHTML=id?summary(id):'';const b=card.querySelector('[data-sd450-open]');if(b)b.onclick=()=>window.enlOpenSafetySiteIncidents(id)};
