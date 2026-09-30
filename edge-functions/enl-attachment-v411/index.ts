@@ -48,7 +48,7 @@ Deno.serve(async(req:Request)=>{
     }
     if(action==="sign"){
       const paths=(Array.isArray(body.paths)?body.paths:[]).map(clean).filter(Boolean).slice(0,30),urls:any={};
-      if(paths.some((path:string)=>path.startsWith("historical-followups/")))return json({ok:false,message:"use_followup_authorized_endpoint"},403);
+      if(paths.some((path:string)=>path.includes("historical-followups")))return json({ok:false,message:"use_followup_authorized_endpoint"},403);
       for(const path of paths){const {data,error}=await storage.createSignedUrl(path,600);if(!error&&data?.signedUrl)urls[path]=data.signedUrl;}
       return json({ok:true,urls});
     }
