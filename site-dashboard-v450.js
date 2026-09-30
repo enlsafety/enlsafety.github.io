@@ -94,12 +94,15 @@ function placeLabels(points,w,h){
  }
  return result;
 }
+function syncLabelLinks(root){
+ root.querySelectorAll('[data-label-link]').forEach(line=>{const button=Array.from(root.querySelectorAll('[data-sd450-map-site]')).find(b=>b.dataset.sd450MapSite===line.dataset.labelLink),label=button?.querySelector('.sd450-marker-label');line.style.display=label&&getComputedStyle(label).visibility==='visible'?'block':'none'});
+}
 function bindMap(root,a){
  const viewport=root.querySelector('.sd450-map-viewport'),stage=root.querySelector('.sd450-map-canvas');if(!viewport||!stage)return;
  if(mapResize)mapResize.disconnect();
  const overlay=root.querySelector('.sd450-annotations'),buttons=Array.from(overlay.querySelectorAll('[data-sd450-map-site]'));
- viewport.classList.toggle('sd450-show-labels',matchMedia('(hover: none), (pointer: coarse), (max-width: 560px)').matches);
  const draw=()=>{
+  viewport.classList.toggle('sd450-show-labels',matchMedia('(hover: none), (pointer: coarse), (max-width: 560px)').matches);
   const w=viewport.clientWidth,h=viewport.clientHeight,z=mapState.zoom;if(!w||!h)return;
   // Permit panning at 100%, while keeping part of the map within reach.
   mapState.x=Math.min(w*.35,Math.max(w-w*z-w*.35,mapState.x));mapState.y=Math.min(h*.35,Math.max(h-h*z-h*.35,mapState.y));
@@ -113,12 +116,13 @@ function bindMap(root,a){
   const labels=placeLabels(visible,w,h),links=overlay.querySelector('.sd450-marker-links');links.setAttribute('viewBox',`0 0 ${w} ${h}`);
   let lines=spread.map((p,i)=>Math.hypot(p.x-points[i].x,p.y-points[i].y)>2?`<line class="sd450-marker-link" x1="${points[i].x+mapState.x}" y1="${points[i].y+mapState.y}" x2="${p.x+mapState.x}" y2="${p.y+mapState.y}"/>`:'').join('');
   visible.forEach(p=>{const r=labels.get(p.id),label=p.b.querySelector('.sd450-marker-label');label.style.left=r.x-p.x+p.size/2+'px';label.style.top=r.y-p.y+p.size/2+'px';
-   lines+=`<line class="sd450-marker-label-link" x1="${p.x}" y1="${p.y}" x2="${Math.max(r.x,Math.min(r.x+r.w,p.x))}" y2="${Math.max(r.y,Math.min(r.y+r.h,p.y))}"/>`;
-  });links.innerHTML=lines;
+   lines+=`<line class="sd450-marker-label-link" data-label-link="${E(p.id)}" x1="${p.x}" y1="${p.y}" x2="${Math.max(r.x,Math.min(r.x+r.w,p.x))}" y2="${Math.max(r.y,Math.min(r.y+r.h,p.y))}"/>`;
+  });links.innerHTML=lines;syncLabelLinks(root);
   root.querySelector('[data-map-scale]').textContent=Math.round(z*100)+'%';root.querySelector('[data-map-zoom="out"]').disabled=z<=1;root.querySelector('[data-map-zoom="in"]').disabled=z>=4;
  };
  const zoom=(next,cx=viewport.clientWidth/2,cy=viewport.clientHeight/2)=>{next=Math.max(1,Math.min(4,next));const old=mapState.zoom;mapState.x=cx-(cx-mapState.x)*next/old;mapState.y=cy-(cy-mapState.y)*next/old;mapState.zoom=next;draw()};
  root.querySelectorAll('[data-map-zoom]').forEach(b=>b.onclick=()=>{const action=b.dataset.mapZoom;if(action==='reset'){mapState={zoom:1,x:0,y:0};draw()}else zoom(mapState.zoom+(action==='in'?.5:-.5))});
+ buttons.forEach(b=>['pointerenter','pointerleave','focus','blur'].forEach(type=>b.addEventListener(type,()=>syncLabelLinks(root))));
  const pointers=new Map();let gesture=null,moved=false;
  const local=e=>{const r=viewport.getBoundingClientRect();return {x:e.clientX-r.left,y:e.clientY-r.top}};
  const geometry=()=>{const p=Array.from(pointers.values());return p.length>1?{x:(p[0].x+p[1].x)/2,y:(p[0].y+p[1].y)/2,d:Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y)}:{...p[0],d:0}};
@@ -169,7 +173,7 @@ function injectMap(u){
  side.insertAdjacentHTML('afterbegin','<label class="sd450-select-label" for="sd450Site">사업장 선택</label><select id="sd450Site"><option value="">사업장을 선택하세요</option>'+a.map(s=>'<option value="'+E(s.site_id)+'">'+E(s.site_name)+(' · '+risk(s.site_id).level)+(pos(s)?'':' · 좌표 확인 필요')+'</option>').join('')+'</select><div data-sd450-summary role="region" aria-label="사업장 요약" aria-live="polite"></div>');
  bindMap(root,a);
  const select=root.querySelector('#sd450Site'),card=root.querySelector('[data-sd450-summary]');
- const show=id=>{preview=id;select.value=id;root.querySelectorAll('[data-sd450-map-site]').forEach(b=>{const selected=b.dataset.sd450MapSite===id;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',String(selected))});card.innerHTML=id?summary(id):'';const b=card.querySelector('[data-sd450-open]');if(b)b.onclick=()=>window.enlOpenSafetySiteIncidents(id)};
+ const show=id=>{preview=id;select.value=id;root.querySelectorAll('[data-sd450-map-site]').forEach(b=>{const selected=b.dataset.sd450MapSite===id;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',String(selected))});syncLabelLinks(root);card.innerHTML=id?summary(id):'';const b=card.querySelector('[data-sd450-open]');if(b)b.onclick=()=>window.enlOpenSafetySiteIncidents(id)};
  select.onchange=()=>show(select.value);
  root.querySelectorAll('[data-sd450-map-site]').forEach(b=>b.onclick=()=>{show(b.dataset.sd450MapSite);card.scrollIntoView({block:'nearest',behavior:'auto'})});
  if(a.some(s=>s.site_id===preview))show(preview);

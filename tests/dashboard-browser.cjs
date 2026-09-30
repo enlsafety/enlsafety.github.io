@@ -43,6 +43,8 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  for(const [id,expected] of [['s29','rgb(32, 37, 43)'],['s02','rgb(232, 137, 24)'],['s03','rgb(216, 63, 69)']])assert.equal(await page.locator(`[data-sd450-map-site="${id}"]`).evaluate(b=>getComputedStyle(b).backgroundColor),expected);
  const verifyLabels=async()=>{
   const labels=await page.locator('.sd450-marker:not([hidden]) .sd450-marker-label').evaluateAll(bs=>bs.map(b=>{const r=b.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,visible:getComputedStyle(b).visibility==='visible',text:b.textContent}}));
+  assert.ok(labels.length>0,'zoomed map retains visible markers');
+  assert.ok(await page.locator('.sd450-marker:not([hidden]) .sd450-marker-label').evaluateAll(bs=>bs.every(b=>getComputedStyle(b).transform==='none'&&getComputedStyle(b).fontSize==='11px')),'text remains native 11px without transform');
   if(touch){assert.ok(labels.every(x=>x.visible),'mobile names always visible');labels.forEach((a,i)=>labels.slice(0,i).forEach(b=>assert.ok(!(a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y),`labels overlap: ${a.text}/${b.text}`)))}
   assert.ok(await page.locator('.sd450-marker:not([hidden])').evaluateAll(bs=>bs.every(b=>{for(let e=b;e&&!e.classList.contains('sd450-map-viewport');e=e.parentElement){if(getComputedStyle(e).transform!=='none')return false}return true})),'markers and labels must not inherit a scaled/composited map layer');
  };
