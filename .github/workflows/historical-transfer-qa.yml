@@ -6,6 +6,7 @@ on:
     paths:
       - 'historical-transfer-v449.js'
       - 'incidents-v410.js'
+      - 'field-incidents-v411.js'
       - 'incident-stats-v426.js'
       - 'workflow-prevention-v429.js'
       - 'closed-incident-reopen-v438.js'
@@ -27,6 +28,7 @@ jobs:
         run: |
           node --check historical-transfer-v449.js
           node --check incidents-v410.js
+          node --check field-incidents-v411.js
           node --check incident-stats-v426.js
           node --check workflow-prevention-v429.js
           node --check closed-incident-reopen-v438.js
@@ -37,6 +39,7 @@ jobs:
           from pathlib import Path
           hist=Path('historical-transfer-v449.js').read_text(encoding='utf-8')
           inc=Path('incidents-v410.js').read_text(encoding='utf-8')
+          field=Path('field-incidents-v411.js').read_text(encoding='utf-8')
           prev=Path('workflow-prevention-v429.js').read_text(encoding='utf-8')
           reopen=Path('closed-incident-reopen-v438.js').read_text(encoding='utf-8')
           stats=Path('incident-stats-v426.js').read_text(encoding='utf-8')
@@ -51,6 +54,7 @@ jobs:
           for token in ["과거사고","ERP 기결재","이관종결","historicalImport"]:
             assert token in inc, token
           assert "이관종결" in stats
+          assert "historicalClosed" in field and "ERP 기결재" in field and "actionVisible" in field
           assert 'historical-transfer-v449.js?v=4.4.14-r1' in stable
           assert 'content="4.4.14-r1"' in stable
           assert version["version"]=="4.4.14" and version["build"]=="stable-4414-r1"
