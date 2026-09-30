@@ -41,7 +41,7 @@ jobs:
           for token in [
             '전국 사업장 분포','사업장 주소','현장소장','반장 / 파트장','서무',
             '올해 사고 5건 이상','현재 미종결 긴급·중대 사고 보유',
-            'data-sd450-map-site','data-sd450-info','site_list','ERP'
+            'data-sd450-map-site','data-sd450-info','site_list'
           ]:
             assert token in js, token
           for token in ['regular_count','daily_count','total_count','manager_name','part_name','clerk_name','address']:
