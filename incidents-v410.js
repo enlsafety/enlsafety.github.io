@@ -7,7 +7,7 @@
   const position=u=>String(u?.position||u?.jobTitle||'').trim();
   const roleOf=u=>String(u?.role||'')==='final'?'manager':String(u?.role||'');
   const isHqReader=u=>['manager','executive'].includes(roleOf(u));
-  const isHistorical=i=>!!i&&(String(i.recordMode||'')==='historical_transfer'||String(i?.historicalTransfer?.mode||'')==='historical_transfer');
+  const isHistorical=i=>!!i&&(String(i.recordMode||'')==='historical_transfer'||String(i?.historicalTransfer?.mode||'')==='historical_transfer'||(i?.historicalImport?.enabled===true&&i?.historicalImport?.erpApproved===true&&i?.historicalImport?.workflowExempt===true&&String(i?.historicalImport?.transferState||'')==='closed'));
   const isSiteUser=u=>!!u&&['field','worker'].includes(u.role);
   const isSiteManager=u=>isSiteUser(u)&&MANAGER_POSITIONS.includes(position(u));
   const sameSite=(i,u)=>!!i&&!!u&&String(i.siteId||'')===String(u.siteId||'');
