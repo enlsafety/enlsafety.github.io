@@ -1,6 +1,6 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 let code=fs.readFileSync('site-dashboard-v450.js','utf8');
-code=code.slice(0,code.indexOf('const base=window.renderShell'))+'window.test={risk,pos,rows,dashboardRows,master,cnt,mapXY,info,kpis,setMasters:v=>{masters=v;loaded=true}};})();';
+code=code.slice(0,code.indexOf('const base=window.renderShell'))+'window.test={spreadPoints,canDashboard,risk,pos,rows,dashboardRows,master,cnt,mapXY,info,kpis,setMasters:v=>{masters=v;loaded=true}};})();';
 const ctx={window:{},data:{sites:[],incidents:[]},Date,console};vm.createContext(ctx);vm.runInContext(code,ctx);
 const t=ctx.window.test,y=new Date().getFullYear();
 const incident=(extra={})=>({siteId:'s01',occurredAt:`${y}-05-01`,status:'reported',...extra});
@@ -18,3 +18,13 @@ vm.runInContext(fs.readFileSync('site-locations-v450.js','utf8'),ctx);for(const 
 t.setMasters([{site_id:'s01',site_name:'운영 사업장',address:'주소'},{site_id:'s34',site_name:'파주CC',active:true}]);assert.equal(t.rows().length,2,'ended site retained for historical lookup');assert.equal(t.dashboardRows().length,1,'ended site excluded from current dashboard');assert.equal(t.master('s34').site_name,'파주CC');
 assert.equal(Object.keys(ctx.window.ENL_SITE_LOCATIONS).length,33);assert.equal(ctx.window.ENL_SITE_LOCATIONS.s34,undefined);
 console.log('PASS: risk boundaries, historical exclusion, inactive records, address invalidation, escaping and coordinate bounds');
+
+for(const role of ['safety','manager','executive','final'])assert.equal(t.canDashboard({role}),true);
+for(const role of ['field','worker',''])assert.equal(t.canDashboard({role}),false);
+assert.equal(t.canDashboard({role:'manager',active:false}),false);
+for(const width of [280,600]){
+ const points=Object.entries(ctx.window.ENL_SITE_LOCATIONS).map(([id,p])=>{const [x,y]=t.mapXY(p.lat,p.lon);return {id,x:x*width/100,y:y*width/100}}),before=JSON.stringify(points),spread=t.spreadPoints(points);
+ assert.equal(JSON.stringify(points),before,'address projection must remain unchanged');
+ spread.forEach((p,i)=>{assert.ok(Math.hypot(p.x-points[i].x,p.y-points[i].y)<=60.001);spread.slice(0,i).forEach(q=>assert.ok(Math.hypot(p.x-q.x,p.y-q.y)>=21.99,`${p.id} and ${q.id} overlap`))});
+}
+console.log('PASS: all 33 markers separated on desktop/mobile without coordinate mutation; HQ roles');

@@ -205,7 +205,7 @@
     const stats=document.querySelector('.stats426');if(stats){
       const h=stats.querySelector('.stats426-head h2');if(h)h.textContent='사고 대시보드';
       const ey=stats.querySelector('.stats426-head .ey');if(ey)ey.textContent='DASHBOARD';
-      const p=stats.querySelector('.stats426-head p');if(p)p.textContent=roleNorm(u.role)==='safety'?'전체 사고보고 자료를 기준으로 주요 현황을 보여줍니다.':'승인·종결 사고를 기준으로 주요 현황을 보여줍니다.';
+      const p=stats.querySelector('.stats426-head p');if(p)p.textContent=Array.isArray(window.enlDashboardMetrics?.())||roleNorm(u.role)==='safety'?'전체 사고보고 집계를 기준으로 주요 현황을 보여줍니다.':'전체 집계를 확인하고 있습니다.';
     }
   }
 

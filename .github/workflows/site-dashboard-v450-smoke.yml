@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
       - name: JavaScript syntax
         run: node --check site-dashboard-v450.js
       - name: Site profile and Korea map invariants
@@ -51,7 +51,7 @@ jobs:
           for token in [
             '전국 사업장 분포','사업장 주소','현장소장','반장 / 파트장','서무',
             '올해 사고 5건 이상','현재 미종결 긴급·중대 사고 보유',
-            'data-sd450-map-site','data-sd450-info','site_list','Natural Earth 1:10m','korea-map-natural-earth-10m.svg'
+            'data-sd450-map-site','data-sd450-info','dashboard_read','Natural Earth 1:10m','korea-map-natural-earth-10m.svg'
           ]:
             assert token in js, token
           for token in ['regular_count','daily_count','total_count','manager_name','part_name','clerk_name','address']:
@@ -66,14 +66,16 @@ jobs:
           assert 'Natural Earth' in svg and '<svg' in svg and '<path' in svg
           for token in ['전남광주 장성군 북이면 사거리 752-1','경기 용인시 기흥구 청덕동 80-2','경기 화성시 동탄구 동탄순환대로 823, 702~703호']:
             assert token in seed, token
-          assert 'site-dashboard-v450.js?v=4.4.19-r1&amp;fix=region-labels1' in html
+          assert 'site-dashboard-v450.js?v=4.4.20-r1&amp;fix=map-controls1' in html
           assert 'site-master-seed-v400.js?v=4.4.17-r1&amp;fix=excel-address1' in html
-          assert 'content="4.4.19-r1"' in html
-          assert meta['version']=='4.4.19' and meta['build']=='stable-4419-r1'
-          assert "const BUILD='4419-r1'" in index
+          assert 'content="4.4.20-r1"' in html
+          assert meta['version']=='4.4.20' and meta['build']=='stable-4420-r1'
+          assert "const BUILD='4420-r1'" in index
           print('OK: site profile and Korea distribution dashboard invariants preserved')
       - name: Dashboard behavior tests
-        run: node tests/dashboard-unit.cjs
+        run: |
+          node tests/dashboard-unit.cjs
+          node tests/dashboard-edge.cjs
       - name: Install isolated browser QA
         run: |
           npm install --no-save --package-lock=false playwright@1.51.1
