@@ -1,14 +1,14 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 let code=fs.readFileSync('site-dashboard-v450.js','utf8');
-code=code.slice(0,code.indexOf('const base=window.renderShell'))+'window.test={spreadPoints,canDashboard,risk,pos,rows,dashboardRows,master,cnt,mapXY,info,kpis,setMasters:v=>{masters=v;loaded=true}};})();';
+code=code.slice(0,code.indexOf('const base=window.renderShell'))+'window.test={color,placeLabels,spreadPoints,canDashboard,risk,pos,rows,dashboardRows,master,cnt,mapXY,info,kpis,setMasters:v=>{masters=v;loaded=true}};})();';
 const ctx={window:{},data:{sites:[],incidents:[]},Date,console};vm.createContext(ctx);vm.runInContext(code,ctx);
 const t=ctx.window.test,y=new Date().getFullYear();
 const incident=(extra={})=>({siteId:'s01',occurredAt:`${y}-05-01`,status:'reported',...extra});
 ctx.data.incidents=[incident({occurredAt:`${y-1}-12-01`,priority:'urgent'})];
-assert.equal(t.risk('s01').high,true,'unresolved urgent from prior year');assert.equal(t.risk('s01').count,0);assert.equal(t.risk('s01').open,1);
+assert.equal(t.risk('s01').high,false,'colors use current-year counts only');assert.equal(t.risk('s01').activeHigh,true);assert.equal(t.risk('s01').count,0);assert.equal(t.risk('s01').open,1);
 ctx.data.incidents[0].recordMode='historical_transfer';assert.equal(t.risk('s01').high,false,'historical urgent excluded');
 ctx.data.incidents=Array.from({length:4},()=>incident({status:'closed'}));assert.equal(t.risk('s01').high,false);ctx.data.incidents.push(incident({status:'closed'}));assert.equal(t.risk('s01').high,true,'5 current-year accidents');
-for(const extra of [{severity:'major'},{potentialMajor:true},{priority:'urgent'}]){ctx.data.incidents=[incident(extra)];assert.equal(t.risk('s01').high,true);ctx.data.incidents[0].status='closed';assert.equal(t.risk('s01').high,false)}
+for(const extra of [{severity:'major'},{potentialMajor:true},{priority:'urgent'}]){ctx.data.incidents=[incident(extra)];assert.equal(t.risk('s01').high,false);assert.equal(t.risk('s01').activeHigh,true);ctx.data.incidents[0].status='closed';assert.equal(t.risk('s01').high,false)}
 ctx.window.ENL_SITE_MASTER_SEED=[{site_id:'s01',site_name:'검증',address:'주소',regular_count:3,daily_count:2}];ctx.data.sites=[{id:'s01',name:'검증'}];assert.equal(t.master('s01').address,'주소','undefined local field must not erase seed');
 t.setMasters([{site_id:'s01',active:false}]);assert.equal(t.rows().length,0,'inactive server site must not resurrect from seed');t.setMasters([]);assert.equal(t.rows().length,0,'successful empty server response is authoritative');
 ctx.window.ENL_SITE_LOCATIONS={s01:{address:'주소',lat:35.4,lon:126.8}};assert.ok(t.pos({site_id:'s01',address:'주소'}));assert.equal(t.pos({site_id:'s01',address:'이전된 주소'}),null);assert.equal(t.pos({site_id:'s99',region:'서울'}),null);
@@ -32,3 +32,6 @@ console.log('PASS: all 33 markers separated on desktop/mobile without coordinate
 const close=[{id:'a',x:10,y:10},{id:'b',x:11,y:10},{id:'c',x:40,y:40}],sp=t.spreadPoints(close);
 assert.equal(sp[0].x,10);assert.ok(Math.hypot(sp[1].x-11,sp[1].y-10)<=9.5,'minimal displacement for a close pair');assert.equal(JSON.stringify(sp[2]),JSON.stringify(close[2]));
 console.log('PASS: only heavily overlapping points move; already distinct points stay exactly fixed');
+
+for(const [n,level,color] of [[0,'일반','#20252b'],[1,'일반','#20252b'],[2,'일반','#20252b'],[3,'주의','#e88918'],[4,'주의','#e88918'],[5,'고위험','#d83f45'],[6,'고위험','#d83f45']]){ctx.data.incidents=Array.from({length:n},()=>incident());assert.equal(t.risk('s01').level,level);assert.equal(t.color('s01'),color)}
+console.log('PASS: 0/1/2 black, 3/4 orange, 5/6 red; urgency remains independent');
