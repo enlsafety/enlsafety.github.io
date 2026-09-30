@@ -113,7 +113,7 @@ function bindMap(root,a){
   const z=pointers.size>1&&gesture.d>0?Math.max(1,Math.min(4,gesture.z*g.d/gesture.d)):gesture.z;
   mapState={zoom:z,x:g.x-(gesture.x-gesture.ox)*z/gesture.z,y:g.y-(gesture.y-gesture.oy)*z/gesture.z};draw();
  });
- const stop=e=>{if(!pointers.has(e.pointerId))return;pointers.delete(e.pointerId);if(e.type==='pointercancel')moved=true;rebase();if(!pointers.size)viewport.classList.remove('dragging');if(viewport.hasPointerCapture(e.pointerId))viewport.releasePointerCapture(e.pointerId)};
+ const stop=e=>{if(e.type==='lostpointercapture'&&e.target!==viewport)return;if(!pointers.has(e.pointerId))return;pointers.delete(e.pointerId);if(e.type==='pointercancel')moved=true;rebase();if(!pointers.size)viewport.classList.remove('dragging');if(viewport.hasPointerCapture(e.pointerId))viewport.releasePointerCapture(e.pointerId)};
  viewport.addEventListener('pointerup',stop);viewport.addEventListener('pointercancel',stop);viewport.addEventListener('lostpointercapture',stop);
  viewport.addEventListener('click',e=>{if(moved){e.preventDefault();e.stopPropagation();moved=false}},true);
  viewport.addEventListener('dragstart',e=>e.preventDefault());
