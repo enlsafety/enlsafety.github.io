@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'historical-transfer-v449.js'
+      - 'app-shell-v411.js'
       - 'incidents-v410.js'
       - 'field-incidents-v411.js'
       - 'incident-stats-v426.js'
@@ -31,6 +32,7 @@ jobs:
       - name: JavaScript syntax
         run: |
           node --check historical-transfer-v449.js
+          node --check app-shell-v411.js
           node --check incidents-v410.js
           node --check field-incidents-v411.js
           node --check incident-stats-v426.js
@@ -47,6 +49,7 @@ jobs:
           from pathlib import Path
           hist=Path('historical-transfer-v449.js').read_text(encoding='utf-8')
           inc=Path('incidents-v410.js').read_text(encoding='utf-8')
+          shell=Path('app-shell-v411.js').read_text(encoding='utf-8')
           field=Path('field-incidents-v411.js').read_text(encoding='utf-8')
           prev=Path('workflow-prevention-v429.js').read_text(encoding='utf-8')
           reopen=Path('closed-incident-reopen-v438.js').read_text(encoding='utf-8')
@@ -58,7 +61,7 @@ jobs:
           stable=Path('stable412.html').read_text(encoding='utf-8')
           version=json.loads(Path('version.json').read_text(encoding='utf-8'))
           assert "historicalImport" in hist
-          for token in ["erpApproved:true","workflowExempt:true","silent:true","transferState:'closed'","status:'closed'","corrective:null","additionalAction"]:
+          for token in ["erpApproved:true","workflowExempt:true","silent:true","transferState:'closed'","status:'closed'","corrective:null","additionalAction","recordMode:'historical_transfer'","historicalTransfer","reporterId:''","hSeverity","enlStartHistoricalTransfer449"]:
             assert token in hist, token
           for token in ["historicalClosed","!historicalClosed(i)"]:
             assert token in prev, token
@@ -67,6 +70,7 @@ jobs:
             assert token in inc, token
           assert "이관종결" in stats
           assert "historicalClosed" in field and "ERP 기결재" in field and "actionVisible" in field
+          assert "enlStartHistoricalTransfer449" in shell and "!isHistorical(i)" in shell
           assert "historicalClosed" in lifecycle and "if(historicalClosed(i))continue" in lifecycle
           assert "historicalClosed" in reader_exp and "!historicalClosed(i)" in reader_exp
           assert "이관종결" in reader
