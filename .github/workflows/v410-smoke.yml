@@ -103,16 +103,16 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-4420-r1',meta
+          assert meta.get('build')=='stable-4421-r1',meta
           assert meta.get('stableEntry')=='stable412.html',meta
-          assert meta.get('version')=='4.4.20' and meta.get('currentStableVersion')=='4.4.20',meta
+          assert meta.get('version')=='4.4.21' and meta.get('currentStableVersion')=='4.4.21',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='4420-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4420-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
+          for x in ["const BUILD='4421-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4421-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.4.20-r1',
+            'enl-build" content="4.4.21-r1',
             'incident-sync-v411.js?v=4.4.0-r1&amp;fix=supplement-ack1',
             'workflow-prevention-v429.js?v=4.4.14-r1&amp;fix=historical-transfer1',
             'workflow-lifecycle-v413.js?v=4.4.14-r1&amp;fix=historical-transfer1',
@@ -138,7 +138,7 @@ jobs:
           assert 'login-layout-v412.js?v=4.2.7-r1&amp;fix=guide-removed1' in html
           assert 'app-control-v410.js?v=4.4.10-r2&amp;fix=update8-server-fix' in html
           assert 'incident-stats-v426.js?v=4.4.20-r1&amp;fix=shared-dashboard1' in html
-          assert 'site-dashboard-v450.js?v=4.4.20-r1&amp;fix=map-controls1' in html
+          assert 'site-dashboard-v450.js?v=4.4.21-r1&amp;fix=map-gestures1' in html
           assert 'site-master-seed-v400.js?v=4.4.17-r1&amp;fix=excel-address1' in html
           assert Path('korea-map-natural-earth-10m.svg').exists()
           mapjs=Path('site-dashboard-v450.js').read_text(encoding='utf-8')
