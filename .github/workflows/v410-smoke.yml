@@ -149,7 +149,7 @@ jobs:
           field=Path('field-incidents-v411.js').read_text(encoding='utf-8')
           for x in ["v==='supplement'?'보완대기'","v==='supplement_submitted'?'보완검토대기'"]: assert x in field,x
           reader=Path('reader-ui-v414.js').read_text(encoding='utf-8')
-          for x in ['4.4.0-reader-immediate1','즉시보고부터 보완·최종승인·종결','supplement_submitted']: assert x in reader,x
+          for x in ['4.4.8-reader-parallel-approval1','즉시보고부터 보완·최종승인·종결','supplement_submitted']: assert x in reader,x
           control=Path('app-control-v410.js').read_text(encoding='utf-8')
           for x in ['POST_LOGIN_GRACE_MS=15000','function sameStableVersion(target)','if(target&&sameStableVersion(target)){saveEpoch(epoch)','already_current']: assert x in control,x
           auth=Path('auth-v411.js').read_text(encoding='utf-8')
