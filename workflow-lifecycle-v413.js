@@ -5,6 +5,7 @@
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   const isReader=u=>['manager','executive'].includes(roleNorm(u?.role));
   const isSite=u=>['field','worker'].includes(String(u?.role||''));
+  const isHistorical=i=>!!i&&(String(i.recordMode||'')==='historical_transfer'||String(i?.historicalTransfer?.mode||'')==='historical_transfer');
   const siteName=id=>{try{return siteById?.(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}};
   const escx=v=>typeof esc==='function'?esc(v):String(v??'');
   const now=()=>typeof nowISO==='function'?nowISO():new Date().toISOString();
@@ -27,6 +28,7 @@
     const ts=now();
     for(const i of data?.incidents||[]){
       if(!i?.id)continue;
+      if(isHistorical(i))continue;
       const prev=snapshots.get(String(i.id));
       const c=i.corrective&&typeof i.corrective==='object'?i.corrective:null;
       if(historicalClosed(i))continue;
