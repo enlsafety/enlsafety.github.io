@@ -44,7 +44,7 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  // Screen-space separation, every requested close pair must be individually clickable.
  const centers=await page.locator('[data-sd450-map-site]').evaluateAll(bs=>bs.map(b=>{const r=b.getBoundingClientRect();return {id:b.dataset.sd450MapSite,x:r.x+r.width/2,y:r.y+r.height/2}}));
  centers.forEach((p,i)=>centers.slice(0,i).forEach(q=>assert.ok(Math.hypot(p.x-q.x,p.y-q.y)>=8.8,`${p.id}/${q.id} overlap at ${width}`)));
- for(const id of ['s05','s30','s15','s16','s24','s25']){await page.locator(`[data-sd450-map-site="${id}"]`).click();assert.equal(await page.locator('#sd450Site').inputValue(),id)}
+ for(const id of ['s05','s30','s15','s16','s24','s25']){const marker=page.locator(`[data-sd450-map-site="${id}"]`);if(touch)await marker.tap();else await marker.click();assert.equal(await page.locator('#sd450Site').inputValue(),id)}
  const viewport=page.locator('.sd450-map-viewport');await viewport.scrollIntoViewIfNeeded();const box=await viewport.boundingBox();
  const transform=()=>page.locator('.sd450-map-canvas').evaluate(x=>x.style.transform);
  const scale=async()=>parseInt(await page.locator('[data-map-scale]').innerText());

@@ -149,7 +149,7 @@ function injectMap(u){
  const select=root.querySelector('#sd450Site'),card=root.querySelector('[data-sd450-summary]');
  const show=id=>{preview=id;select.value=id;card.innerHTML=id?summary(id):'';const b=card.querySelector('[data-sd450-open]');if(b)b.onclick=()=>window.enlOpenSafetySiteIncidents(id)};
  select.onchange=()=>show(select.value);
- root.querySelectorAll('[data-sd450-map-site]').forEach(b=>b.onclick=()=>{show(b.dataset.sd450MapSite);card.scrollIntoView({block:'nearest',behavior:'smooth'})});
+ root.querySelectorAll('[data-sd450-map-site]').forEach(b=>b.onclick=()=>{show(b.dataset.sd450MapSite);card.scrollIntoView({block:'nearest',behavior:'auto'})});
  if(a.some(s=>s.site_id===preview))show(preview);
 }
 function enhance(u=currentUser&&currentUser()){if(!canDashboard(u)||!canDashboard(currentUser&&currentUser()))return;css();injectMap(u);injectInfo()}
