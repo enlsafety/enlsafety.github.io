@@ -103,16 +103,16 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-4414-r1',meta
+          assert meta.get('build')=='stable-4415-r1',meta
           assert meta.get('stableEntry')=='stable412.html',meta
-          assert meta.get('version')=='4.4.14' and meta.get('currentStableVersion')=='4.4.14',meta
+          assert meta.get('version')=='4.4.15' and meta.get('currentStableVersion')=='4.4.15',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='4414-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4414-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
+          for x in ["const BUILD='4415-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4415-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.4.14-r1',
+            'enl-build" content="4.4.15-r1',
             'incident-sync-v411.js?v=4.4.0-r1&amp;fix=supplement-ack1',
             'workflow-prevention-v429.js?v=4.4.14-r1&amp;fix=historical-transfer1',
             'workflow-lifecycle-v413.js?v=4.4.14-r1&amp;fix=historical-transfer1',
@@ -138,6 +138,7 @@ jobs:
           assert 'login-layout-v412.js?v=4.2.7-r1&amp;fix=guide-removed1' in html
           assert 'app-control-v410.js?v=4.4.10-r2&amp;fix=update8-server-fix' in html
           assert 'incident-stats-v426.js?v=4.4.14-r1&amp;fix=historical-transfer1' in html
+          assert 'site-dashboard-v450.js?v=4.4.15-r1&amp;fix=site-map1' in html
           stats=Path('incident-stats-v426.js').read_text(encoding='utf-8')
           for x in ['4.4.0-dashboard-workflow1','data-stats-filter="all"','data-stats-month','최근 발생일 순','data-stats-inc','stats426-site-attention','stats426-site-manage','관심요망','관리필요']: assert x in stats,x
           flow=Path('incident-flow-v440.js').read_text(encoding='utf-8')
