@@ -51,7 +51,7 @@ jobs:
           ps=Path('push-session-v425.js').read_text(encoding='utf-8')
           sw=Path('sw-v418.js').read_text(encoding='utf-8')
           html=Path('stable412.html').read_text(encoding='utf-8')
-          for x in ["4.2.2-ui-stability2","window.renderShell=function(u)","if(modalBusy()||transientViewBusy())return root"]: assert x in stable,x
+          for x in ["4.4.13-hq-email-edit1","window.renderShell=function(u)","if(modalBusy()||transientViewBusy())return root"]: assert x in stable,x
           for x in ["4.2.3-reader-ack1","이 종결사고는 열람 확인이 필요합니다","열람확인 필요"]: assert x in ack,x
           for x in [
             "4.4.0-reader-workflow1",
@@ -83,9 +83,9 @@ jobs:
           for x in ["4.2.5-pwa4-confirm1","incidentId","stable412.html?push=1&incident=","PUSH_CONFIRM_API","ack_test_token"]: assert x in sw,x
           assert 'reader-experience-v424.js?v=4.4.0-r1&amp;fix=workflow-alert1' in html
           assert 'push-session-v425.js?v=4.1.5-r1&amp;fix=device-heartbeat2' in html
-          assert 'hq-notification-status-v437.js?v=4.4.7-r1&amp;fix=email-status1' in html
+          assert 'hq-notification-status-v437.js?v=4.4.12-r1&amp;fix=hq-align1' in html
           hq=Path('hq-notification-status-v437.js').read_text(encoding='utf-8')
-          assert "const VERSION='4.4.7-hq-notify-email1'" in hq
+          assert "const VERSION='4.4.12-hq-align1'" in hq
           assert 'data-pm434-hq-edit' in hq and 'data-pm434-hq-pw' in hq
           assert 'enlRenderHqNotificationStatus' in hq and 'enl437Host' in hq
           assert "status==='confirmed'" in hq and '수신 확인' in hq and '확인 대기' in hq
