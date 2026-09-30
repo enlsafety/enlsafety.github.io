@@ -32,7 +32,7 @@ jobs:
           js=Path('incident-stats-v426.js').read_text(encoding='utf-8')
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            "4.4.0-dashboard-workflow1",
+            "4.4.17-dashboard-map1",
             "['safety','manager','executive']",
             "['reported','supplement','supplement_submitted','approved','closed']",
             "String(i.category||'')==='person'",
@@ -41,7 +41,7 @@ jobs:
             '월별 사고 발생',
             '사고 유형 비율',
             '사업장별 사고건수',
-            '간단 통계',
+            '대시보드',
             "b.dataset.shellView='stats'",
             'Array.from({length:12}',
             '.slice(0,10)',
@@ -60,7 +60,7 @@ jobs:
           assert 'fetch(' not in js, 'statistics module must not add network calls'
           assert 'setInterval(' not in js, 'statistics module must not add polling'
           assert 'MutationObserver' not in js, 'statistics module must not add observer loops'
-          script='incident-stats-v426.js?v=4.4.14-r1&amp;fix=historical-transfer1'
+          script='incident-stats-v426.js?v=4.4.17-r1&amp;fix=dashboard-map1'
           assert script in html
           assert html.index('app-shell-v411.js') < html.index('incident-stats-v426.js') < html.index('ui-stability-v422.js')
           print('OK: interactive role-scoped dashboard drill-downs are wired without network or polling')
