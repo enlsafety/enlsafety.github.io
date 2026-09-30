@@ -1,0 +1,56 @@
+name: site dashboard v450 smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site-dashboard-v450.js'
+      - 'stable412.html'
+      - 'version.json'
+      - 'index.html'
+      - '.github/workflows/site-dashboard-v450-smoke.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'site-dashboard-v450.js'
+      - 'stable412.html'
+      - 'version.json'
+      - 'index.html'
+      - '.github/workflows/site-dashboard-v450-smoke.yml'
+  workflow_dispatch:
+
+jobs:
+  site-dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        run: node --check site-dashboard-v450.js
+      - name: Site profile and Korea map invariants
+        shell: python
+        run: |
+          import json
+          from pathlib import Path
+          js=Path('site-dashboard-v450.js').read_text(encoding='utf-8')
+          html=Path('stable412.html').read_text(encoding='utf-8')
+          meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
+          index=Path('index.html').read_text(encoding='utf-8')
+          for token in [
+            '전국 사업장 분포','사업장 주소','현장소장','반장 / 파트장','서무',
+            '올해 사고 5건 이상','현재 미종결 긴급·중대 사고 보유',
+            'data-sd450-map-site','data-sd450-info','site_list','ERP'
+          ]:
+            assert token in js, token
+          for token in ['regular_count','daily_count','total_count','manager_name','part_name','clerk_name','address']:
+            assert token in js, token
+          assert "String(i.status||'')!=='closed'" in js
+          assert "String(i.priority||'')==='urgent'" in js
+          assert "String(i.severity||'')==='major'" in js
+          assert 'site-dashboard-v450.js?v=4.4.15-r1&amp;fix=site-map1' in html
+          assert 'content="4.4.15-r1"' in html
+          assert meta['version']=='4.4.15' and meta['build']=='stable-4415-r1'
+          assert "const BUILD='4415-r1'" in index
+          print('OK: site profile and Korea distribution dashboard invariants preserved')
