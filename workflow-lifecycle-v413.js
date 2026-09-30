@@ -5,7 +5,7 @@
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   const isReader=u=>['manager','executive'].includes(roleNorm(u?.role));
   const isSite=u=>['field','worker'].includes(String(u?.role||''));
-  const isHistorical=i=>!!i&&(String(i.recordMode||'')==='historical_transfer'||String(i?.historicalTransfer?.mode||'')==='historical_transfer');
+  const isHistorical=i=>!!i&&(String(i.recordMode||'')==='historical_transfer'||String(i?.historicalTransfer?.mode||'')==='historical_transfer'||(i?.historicalImport?.enabled===true&&i?.historicalImport?.erpApproved===true&&i?.historicalImport?.workflowExempt===true&&String(i?.historicalImport?.transferState||'')==='closed'));
   const siteName=id=>{try{return siteById?.(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}};
   const escx=v=>typeof esc==='function'?esc(v):String(v??'');
   const now=()=>typeof nowISO==='function'?nowISO():new Date().toISOString();
