@@ -42,7 +42,7 @@ function info(id){
 function yearInc(id){const y=new Date().getFullYear();return (data&&data.incidents||[]).filter(i=>String(i.siteId||'')===String(id)&&new Date(i.occurredAt||0).getFullYear()===y)}
 function risk(id){const a=yearInc(id),active=a.some(i=>!isHistorical(i)&&String(i.status||'')!=='closed'&&(String(i.priority||'')==='urgent'||String(i.severity||'')==='major'||i.potentialMajor===true));return {high:active||a.length>=5,count:a.length,activeHigh:active}}
 function hash(s){let h=0;for(const ch of String(s||''))h=(h*31+ch.charCodeAt(0))>>>0;return h}
-function color(id){return 'hsl('+(30+(hash(id)%295))+' 62% 44%)'}
+function color(id){const n=Number(String(id||'').replace(/\D/g,''))||hash(id),h=(n*137.508)%360,hue=(h<20||h>340)?(h+38)%360:h;return 'hsl('+hue.toFixed(1)+' 66% 43%)'}
 function pos(s){if(POS[String(s.site_id||'')])return POS[String(s.site_id||'')];const k=[s.region,s.address,s.site_name].filter(Boolean).join(' ');for(const x of REGION)if(x[0].test(k))return [x[1],x[2]];return null}
 function xy(lat,lon){return [Math.max(34,Math.min(372,50+((lon-125.8)/(129.7-125.8))*300)),Math.max(26,Math.min(510,28+((38.7-lat)/(38.7-33.0))*468))]}
 function point(s){
