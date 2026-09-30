@@ -35,13 +35,15 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  assert.equal(await page.locator('.sd450-kpis>div').count(),6);assert.equal(await page.locator('[data-sd450-map]').count(),1);
  assert.ok(await page.locator('.sd450-map-img').evaluate(img=>img.complete&&img.naturalWidth>0));
  assert.equal(await page.locator('[data-sd450-map-site]').count(),33);
- await page.locator('#sd450Scope').selectOption('all');assert.equal(await page.locator('[data-sd450-map-site]').count(),34);assert.equal(await page.locator('[data-sd450-map-site="s34"]').evaluate(b=>getComputedStyle(b).backgroundColor),'rgb(137, 147, 157)');await page.locator('#sd450Scope').selectOption('active');
+ assert.equal(await page.locator('#sd450Scope').count(),0);
  assert.equal(await page.locator('#sd450Site option[value="s34"]').count(),0);
  assert.ok((await page.locator('.sd450-kpis').innerText()).includes('전체인원(상용)'));
  assert.equal(await page.locator('.sd450-kpis>div').filter({hasText:'전체인원(상용)'}).locator('strong').innerText(),'99명');
  assert.equal(await page.locator('.sd450-kpis>div').filter({hasText:'일용 인원'}).locator('strong').innerText(),'66명');
  assert.ok(await page.locator('.sd450-primary-legend').evaluate(el=>el.getBoundingClientRect().bottom<=document.querySelector('.sd450-map-viewport').getBoundingClientRect().top),'legend must be above map, including mobile');
- assert.ok((await page.locator('.sd450-map-note').innerText()).includes('계약종료'));
+ assert.equal(await page.locator('.sd450-map-note').count(),0);
+ assert.ok((await page.locator('.sd450-primary-legend').innerText()).includes('계약종료 · 회색'));
+ assert.equal(await page.locator('.sd450-dot.closed').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(137, 147, 157)');
  const openSite=async id=>{
   const marker=page.locator(`[data-sd450-map-site="${id}"]`);
   if(touch){await marker.tap();assert.equal(await marker.getAttribute('aria-expanded'),'true','touch input must open a name for every HQ role');await marker.locator('.sd450-marker-label').tap()}else await marker.click();
