@@ -30,7 +30,7 @@
     if(typeof window.openIncidentModal==='function')return window.openIncidentModal(id,false,u);
   }
 
-  function stateLabel(i){const s=String(i?.status||'');return s==='reported'?'즉시보고 검토대기':s==='supplement'?'보완대기':s==='supplement_submitted'?'보완검토대기':s==='approved'?'사고보고 최종승인':s==='closed'?'종결':'진행중'}
+  function stateLabel(i){if(i?.historicalImport?.enabled===true&&i?.historicalImport?.erpApproved===true&&i?.historicalImport?.transferState==='closed')return '이관종결';const s=String(i?.status||'');return s==='reported'?'즉시보고 검토대기':s==='supplement'?'보완대기':s==='supplement_submitted'?'보완검토대기':s==='approved'?'사고보고 최종승인':s==='closed'?'종결':'진행중'}
   function renderReaderHome(u){
     const root=document.getElementById('view');if(!root||!isReader(u))return;
     const d=readerData(),recent=[...d.all].sort((a,b)=>new Date(b.updatedAt||b.occurredAt||0)-new Date(a.updatedAt||a.occurredAt||0)).slice(0,7);
