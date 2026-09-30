@@ -26,12 +26,17 @@
   function bindPicker(root,u){root.querySelector('[data-report-home]')?.addEventListener('click',()=>backHome(u));root.querySelectorAll('[data-report-type]').forEach(btn=>btn.addEventListener('click',()=>{activeEditId=null;activeType=btn.dataset.reportType;renderTypeForm(root,u,activeType,null)}))}
   function renderTypePicker(root,u){if(!root)return;activeType=null;activeEditId=null;root.innerHTML=`${topBack(u,'홈으로')}<section class="panel report-type-picker" data-report-picker="v410"><div class="section-head"><div><div class="ey">ACCIDENT REPORT</div><h2>사고 종류를 선택해 주세요</h2><p>발생한 사고에 맞는 경위서를 선택합니다.</p></div></div><div class="report-type-grid"><button type="button" class="report-type-card person" data-report-type="person"><span class="report-type-no">01</span><strong>대인사고</strong><small>사람이 다치거나 치료가 필요한 사고<br>부상·진단·진료비 중심 작성</small></button><button type="button" class="report-type-card property" data-report-type="property"><span class="report-type-no">02</span><strong>대물사고</strong><small>차량·장비·시설물이 파손된 사고<br>파손·복구견적 중심 작성</small></button></div><div class="report-type-note">사고 종류를 선택하면 해당 경위서에 필요한 항목만 표시됩니다.</div></section>`;patchHistoricalPicker(root);bindPicker(root,u)}
 
+  function historicalFlowHtml(active=1){
+    const steps=[['1','이관 시작'],['2','사고자료 입력'],['3','ERP·기존조치 확인'],['4','이관종결']];
+    return '<div class="report-type-note" style="margin:10px 0 14px;padding:10px;background:#f5fafe;border-color:#bfd8e8"><div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">'+steps.map(([n,t],idx)=>'<div style="padding:8px 5px;border-radius:9px;text-align:center;font-size:11px;font-weight:900;line-height:1.35;'+(idx+1<=active?'background:#1e5d91;color:#fff':'background:#fff;color:#667f92;border:1px solid #d7e4ed')+'"><span style="display:block;font-size:10px;opacity:.85">STEP '+n+'</span>'+t+'</div>').join('')+'</div></div>';
+  }
   function patchHistoricalPicker(root){
     if(!historicalMode||!root)return;
     const h=root.querySelector('.section-head h2'),p=root.querySelector('.section-head p'),note=root.querySelector('.report-type-note');
     if(h)h.textContent='과거사고 이관등록';
     if(p)p.textContent='ERP에서 이미 결재된 과거 사고를 신규 사고보고와 분리해 이관종결합니다.';
     if(note)note.textContent='이관종결 건은 신규 재발방지계획·현장조치 제출 절차에 넣지 않습니다.';
+    root.querySelector('.section-head')?.insertAdjacentHTML('afterend',historicalFlowHtml(1));
     const box=document.createElement('div');box.className='report-type-note';box.style.marginTop='10px';box.style.borderColor='#e3c681';box.style.background='#fff8e9';box.style.color='#75571e';box.textContent='ERP 기결재 사실과 실제 재발방지조치 확인 여부는 별도로 기록합니다. ERP 기결재만으로 조치완료로 표시하지 않습니다.';root.querySelector('.report-type-picker')?.appendChild(box);
   }
   function patchHistoricalForm(root,type){
@@ -40,6 +45,7 @@
     const h=form.querySelector('.section-head h2'),p=form.querySelector('.section-head p');
     if(h)h.textContent=(type==='person'?'대인사고':'대물사고')+' · 과거사고 이관';
     if(p)p.textContent='기존 ERP 사고자료에 확인되는 사실을 입력한 뒤 과거사고 이관종결로 등록합니다.';
+    form.querySelector('.section-head')?.insertAdjacentHTML('afterend',historicalFlowHtml(3));
     const sections=form.querySelectorAll('.report410-section'),closing=sections[4];
     if(closing)closing.innerHTML='<div class="report410-section-head"><b>5. ERP · 이관종결 정보</b><small>ERP 결재와 기존 조치 확인상태를 구분해 기록합니다.</small></div>'
       +'<label class="report410-check"><input id="historicalErpConfirmed" type="checkbox"><span><b>ERP 기결재 완료 확인 *</b><br>기존 ERP에서 결재 완료된 사고자료임을 확인했습니다.</span></label>'
