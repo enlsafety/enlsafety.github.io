@@ -51,7 +51,7 @@
   function officialBox(i){
     if(historical(i)){
       const h=i.historicalImport||{};
-      return `<section class="official439-box"><h3>과거사고 ERP 이관기록</h3><div class="official439-grid">
+      return `<section class="official439-box"><h3>과거사고 ERP 이관기록${window.ENLContracts?.badge(i.siteId)||''}</h3>${window.ENLContracts?.incidentDetail(i)||''}<div class="official439-grid">
         <div><b>등록구분</b><span>과거사고 · ERP 기결재 · 이관종결</span></div>
         <div><b>ERP 결재정보</b><span>${esc([h.erpApprovalDate,h.erpApprovalRef].filter(Boolean).join(' · ')||'기결재 완료(상세 미기재)')}</span></div>
         <div><b>기존 ERP 보고자/작성자</b><span>${esc(h.originalReporterName||'미기재')}</span></div>

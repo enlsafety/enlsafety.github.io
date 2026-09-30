@@ -1,22 +1,22 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 let code=fs.readFileSync('site-dashboard-v450.js','utf8');
-code=code.slice(0,code.indexOf('const base=window.renderShell'))+'window.test={color,spreadPoints,canDashboard,risk,pos,rows,dashboardRows,master,cnt,mapXY,info,kpis,setMasters:v=>{masters=v;loaded=true}};})();';
-const ctx={window:{},data:{sites:[],incidents:[]},Date,console};vm.createContext(ctx);vm.runInContext(code,ctx);
+code=code.slice(0,code.indexOf('const base=window.renderShell'))+'window.test={color,spreadPoints,canDashboard,risk,pos,rows,dashboardRows,master,cnt,mapXY,info,kpis,setMasters:v=>{masters=v;loaded=true;window.ENLContracts.setSites(v)}};})();';
+const ctx={data:{sites:[],incidents:[]},Date,console};ctx.window=ctx;vm.createContext(ctx);vm.runInContext(fs.readFileSync('site-contract-v451.js','utf8'),ctx);vm.runInContext(code,ctx);
 const t=ctx.window.test,y=new Date().getFullYear();
 const incident=(extra={})=>({siteId:'s01',occurredAt:`${y}-05-01`,status:'reported',...extra});
 ctx.data.incidents=[incident({occurredAt:`${y-1}-12-01`,priority:'urgent'})];
-assert.equal(t.risk('s01').high,false,'colors use current-year counts only');assert.equal(t.risk('s01').activeHigh,true);assert.equal(t.risk('s01').count,0);assert.equal(t.risk('s01').open,1);
+assert.equal(t.risk('s01').high,true,'active urgent incident triggers current high risk');assert.equal(t.risk('s01').activeHigh,true);assert.equal(t.risk('s01').count,0);assert.equal(t.risk('s01').open,1);
 ctx.data.incidents[0].recordMode='historical_transfer';assert.equal(t.risk('s01').high,false,'historical urgent excluded');
 ctx.data.incidents=Array.from({length:4},()=>incident({status:'closed'}));assert.equal(t.risk('s01').high,false);ctx.data.incidents.push(incident({status:'closed'}));assert.equal(t.risk('s01').high,true,'5 current-year accidents');
-for(const extra of [{severity:'major'},{potentialMajor:true},{priority:'urgent'}]){ctx.data.incidents=[incident(extra)];assert.equal(t.risk('s01').high,false);assert.equal(t.risk('s01').activeHigh,true);ctx.data.incidents[0].status='closed';assert.equal(t.risk('s01').high,false)}
+for(const extra of [{severity:'major'},{potentialMajor:true},{priority:'urgent'}]){ctx.data.incidents=[incident(extra)];assert.equal(t.risk('s01').high,true);assert.equal(t.risk('s01').activeHigh,true);ctx.data.incidents[0].status='closed';assert.equal(t.risk('s01').high,false)}
 ctx.window.ENL_SITE_MASTER_SEED=[{site_id:'s01',site_name:'검증',address:'주소',regular_count:3,daily_count:2}];ctx.data.sites=[{id:'s01',name:'검증'}];assert.equal(t.master('s01').address,'주소','undefined local field must not erase seed');
-t.setMasters([{site_id:'s01',active:false}]);assert.equal(t.rows().length,0,'inactive server site must not resurrect from seed');t.setMasters([]);assert.equal(t.rows().length,0,'successful empty server response is authoritative');
+t.setMasters([{site_id:'s01',active:false}]);assert.equal(t.rows().length,1,'closed site remains available for history');assert.equal(t.dashboardRows().length,0);t.setMasters([]);assert.equal(t.rows().length,0,'successful empty server response is authoritative');
 ctx.window.ENL_SITE_LOCATIONS={s01:{address:'주소',lat:35.4,lon:126.8}};assert.ok(t.pos({site_id:'s01',address:'주소'}));assert.equal(t.pos({site_id:'s01',address:'이전된 주소'}),null);assert.equal(t.pos({site_id:'s99',region:'서울'}),null);
 const [x,j]=t.mapXY(33.33834117,126.348717);assert.ok(x>0&&x<100&&j>70&&j<100,'Jeju in viewport');
 ctx.window.ENL_SITE_MASTER_SEED[0].site_name='<img onerror=alert(1)>';assert.ok(!t.info('s01').includes('<img'));
 vm.runInContext(fs.readFileSync('site-locations-v450.js','utf8'),ctx);for(const p of Object.values(ctx.window.ENL_SITE_LOCATIONS)){assert.ok(p.source.startsWith('https://'));assert.ok(p.address);assert.ok(p.lat>33&&p.lat<39&&p.lon>124&&p.lon<132)}
-t.setMasters([{site_id:'s01',site_name:'운영 사업장',address:'주소'},{site_id:'s34',site_name:'파주CC',active:true}]);assert.equal(t.rows().length,2,'ended site retained for historical lookup');assert.equal(t.dashboardRows().length,1,'ended site excluded from current dashboard');assert.equal(t.master('s34').site_name,'파주CC');
-assert.equal(Object.keys(ctx.window.ENL_SITE_LOCATIONS).length,33);assert.equal(ctx.window.ENL_SITE_LOCATIONS.s34,undefined);
+t.setMasters([{site_id:'s01',site_name:'운영 사업장',active:true,address:'주소'},{site_id:'s34',site_name:'파주CC',active:false}]);assert.equal(t.rows().length,2,'ended site retained for historical lookup');assert.equal(t.dashboardRows().length,1,'ended site excluded from current dashboard');assert.equal(t.master('s34').site_name,'파주CC');
+assert.equal(Object.keys(ctx.window.ENL_SITE_LOCATIONS).length,34);assert.ok(ctx.window.ENL_SITE_LOCATIONS.s34);
 console.log('PASS: risk boundaries, historical exclusion, inactive records, address invalidation, escaping and coordinate bounds');
 
 for(const role of ['safety','manager','executive','final'])assert.equal(t.canDashboard({role}),true);
@@ -33,5 +33,8 @@ const close=[{id:'a',x:10,y:10},{id:'b',x:11,y:10},{id:'c',x:40,y:40}],sp=t.spre
 assert.equal(sp[0].x,10);assert.ok(Math.hypot(sp[1].x-11,sp[1].y-10)<=9.5,'minimal displacement for a close pair');assert.equal(JSON.stringify(sp[2]),JSON.stringify(close[2]));
 console.log('PASS: only heavily overlapping points move; already distinct points stay exactly fixed');
 
+ctx.ENLContracts.setSites([{site_id:'s01',active:true}]);
 for(const [n,level,color] of [[0,'일반','#20252b'],[1,'일반','#20252b'],[2,'일반','#20252b'],[3,'주의','#e88918'],[4,'주의','#e88918'],[5,'고위험','#d83f45'],[6,'고위험','#d83f45']]){ctx.data.incidents=Array.from({length:n},()=>incident());assert.equal(t.risk('s01').level,level);assert.equal(t.color('s01'),color)}
 console.log('PASS: 0/1/2 black, 3/4 orange, 5/6 red; urgency remains independent');
+
+ctx.data.incidents=Array.from({length:6},()=>incident({siteId:'s34',priority:'urgent'}));assert.equal(t.risk('s34').high,false);assert.equal(t.color('s34'),'#89939d');assert.equal(t.dashboardRows('all').length,2);console.log('PASS: closed sites never enter current high risk, even with 6 incidents or urgent records');

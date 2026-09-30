@@ -60,7 +60,7 @@ jobs:
           assert 'fetch(' not in js, 'statistics module must not add network calls'
           assert 'setInterval(' not in js, 'statistics module must not add polling'
           assert 'MutationObserver' not in js, 'statistics module must not add observer loops'
-          script='incident-stats-v426.js?v=4.4.20-r1&amp;fix=shared-dashboard1'
+          script='incident-stats-v426.js?v=4.4.24-r1'
           assert script in html
           assert html.index('app-shell-v411.js') < html.index('incident-stats-v426.js') < html.index('ui-stability-v422.js')
           print('OK: interactive role-scoped dashboard drill-downs are wired without network or polling')

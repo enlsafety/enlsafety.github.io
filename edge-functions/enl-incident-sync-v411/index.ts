@@ -1,9 +1,10 @@
+import "./site-contract-v451.js";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import postgres from "npm:postgres@3.4.5";
 
 const ORIGIN="https://enlsafety.github.io";
 const APP="incident-report-v2";
-const VERSION="4.4.20-dashboard-read1";
+const VERSION="4.4.24-contract-status1";
 const cors={"Access-Control-Allow-Origin":ORIGIN,"Access-Control-Allow-Headers":"content-type, x-client-info, apikey, authorization, x-enl-app","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:cors});
 const clean=(v:any)=>String(v??"").trim();
@@ -176,7 +177,7 @@ Deno.serve(async(req:Request)=>{
       if(!["safety","manager","executive"].includes(actor.role))return json({ok:false,message:"forbidden"},403);
       const verified=await verifyActor(sql,body,true);
       if(!verified)return json({ok:false,message:"auth_proof_required"},403);
-      const sites=await sql`select site_id,site_name,site_type,region,address,regular_count,daily_count,total_count,manager_name,part_name,clerk_name,active from public.enl_site_master order by site_name`;
+      const sites=await sql`select site_id,site_name,site_type,region,address,regular_count,daily_count,total_count,manager_name,part_name,clerk_name,active,start_date,contract_end_date from public.enl_site_master order by site_name`;
       const metrics=await sql`select site_id as "siteId",payload->>'occurredAt' as "occurredAt",payload->>'status' as status,payload->>'category' as category,payload->>'priority' as priority,payload->>'severity' as severity,payload->'potentialMajor' as "potentialMajor",payload->>'recordMode' as "recordMode",payload->'historicalTransfer'->>'mode' as "transferMode",payload->'historicalImport'->'enabled' as "historicalEnabled" from public.enl_incident_shared`;
       return json({ok:true,sites,metrics:metrics.map((i:any)=>({...i,historicalTransfer:{mode:i.transferMode},historicalImport:{enabled:i.historicalEnabled===true}}))});
     }
@@ -240,7 +241,19 @@ Deno.serve(async(req:Request)=>{
         if(actor.role==="worker"&&prev&&!isMine(prev,actor)){ignored++;continue;}
         if(prev&&isHistoricalTransfer(prev)&&actor.role!=="safety")return json({ok:false,message:"historical_transfer_locked"},403);
         if(prev&&isHistoricalTransfer(prev)&&!incomingHistorical)return json({ok:false,message:"historical_transfer_locked"},409);
-        let next={...raw0,id,siteId};if(prev&&comparableIncident(next)===comparableIncident(prev)){ignored++;continue;}
+        let next={...raw0,id,siteId};
+        const contract=(globalThis as any).ENLContracts;
+        const occurrenceDate=(i:any)=>{if(clean(i?.historicalTransfer?.occurredDate))return clean(i.historicalTransfer.occurredDate);const d=new Date(i?.occurredAt||"");return Number.isFinite(d.getTime())?new Date(d.getTime()+9*60*60*1000).toISOString().slice(0,10):""};
+        if(!prev||clean(prev.siteId)!==siteId||occurrenceDate(prev)!==occurrenceDate(next)){
+          const masterRows=await sql`select site_id,active,start_date,contract_end_date from public.enl_site_master where site_id=${siteId} limit 1`;
+          const master=masterRows[0]||{site_id:siteId},date=occurrenceDate(next),check=contract.assess(master,date);
+          const needsConfirmation=incomingHistorical&&(check.outsideContractPeriod===true||(check.currentStatus==="closed"&&check.statusAtOccurrence==="unknown"));
+          const confirmed=actor.role==="safety"&&raw0.siteContractSnapshot?.confirmation?.confirmed===true;
+          if(needsConfirmation&&!confirmed)return json({ok:false,message:"contract_period_confirmation_required",detail:check.warning},409);
+          next.siteContractSnapshot=contract.snapshot(master,date,actor,needsConfirmation&&confirmed);
+        }else if(prev.siteContractSnapshot)next.siteContractSnapshot=structuredClone(prev.siteContractSnapshot);
+        else delete next.siteContractSnapshot;
+        if(prev&&comparableIncident(next)===comparableIncident(prev)){ignored++;continue;}
         next=preserveWorkflow(prev,next,actor);
         const requestedStatus=clean(raw0.status),prevReportHash=prev?await reportHash(prev):"",candidateHash=await reportHash(next);
         if(prev&&["approved","closed"].includes(clean(prev.status))&&prevReportHash!==candidateHash){

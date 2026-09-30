@@ -24,28 +24,29 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  await page.evaluate(()=>{
   const actualNames=Object.fromEntries(ENL_SITE_MASTER_SEED.map(s=>[s.site_id,s.site_name]));
   window.ENL_SITE_MASTER_SEED=Object.entries(ENL_SITE_LOCATIONS).map(([id,p])=>({site_id:id,site_name:id==='s29'?'캐슬렉스 제주':actualNames[id]||'사업장 '+id,address:p.address,regular_count:3,daily_count:2,total_count:5,manager_name:'소장',part_name:'파트장',clerk_name:'서무'}));
-  ENL_SITE_MASTER_SEED.push({site_id:'s34',site_name:'파주CC',address:'',active:true});
+  Object.assign(ENL_SITE_MASTER_SEED.find(s=>s.site_id==='s34'),{site_name:'파주CC',active:false,start_date:'2026-03',contract_end_date:'2026-04'});
   ENL_SITE_MASTER_SEED.push({site_id:'s99',site_name:'좌표 미확인 사업장',address:'확인 대기'});
   data.sites=ENL_SITE_MASTER_SEED.map(s=>({id:s.site_id,name:s.site_name}));
   const year=new Date().getFullYear();data.incidents=[{id:'urgent-prior-year',siteId:'s29',occurredAt:`${year-1}-01-01`,status:'approved',priority:'urgent'}, {id:'ordinary-current',siteId:'s01',occurredAt:`${year}-05-01`,status:'closed'}];
   window.enlIncidentApi=async ({action})=>{if(action!=='dashboard_read')throw Error('Mutation blocked');return {sites:ENL_SITE_MASTER_SEED,metrics:[...data.incidents,{siteId:'s01',occurredAt:`${year}-01-01`,status:'rejected',category:'person'},...Array.from({length:3},()=>({siteId:'s02',occurredAt:`${year}-02-01`,status:'closed'})),...Array.from({length:5},()=>({siteId:'s03',occurredAt:`${year}-03-01`,status:'closed'}))]}};
  });
- for(const path of ['app-shell-v411.js','reader-ui-v414.js','incident-stats-v426.js','workflow-enhancements-v432.js','site-dashboard-v450.js'])await page.addScriptTag({content:fs.readFileSync(path,'utf8')});
+ for(const path of ['site-contract-v451.js','app-shell-v411.js','reader-ui-v414.js','incident-stats-v426.js','workflow-enhancements-v432.js','site-dashboard-v450.js'])await page.addScriptTag({content:fs.readFileSync(path,'utf8')});
  await page.locator('[data-shell-view="stats"]').click();await page.locator('[data-sd450-kpis]').waitFor();
  assert.equal(await page.locator('.sd450-kpis>div').count(),7);assert.equal(await page.locator('[data-sd450-map]').count(),1);
  assert.ok(await page.locator('.sd450-map-img').evaluate(img=>img.complete&&img.naturalWidth>0));
  assert.equal(await page.locator('[data-sd450-map-site]').count(),33);
+ await page.locator('#sd450Scope').selectOption('all');assert.equal(await page.locator('[data-sd450-map-site]').count(),34);assert.equal(await page.locator('[data-sd450-map-site="s34"]').evaluate(b=>getComputedStyle(b).backgroundColor),'rgb(137, 147, 157)');await page.locator('#sd450Scope').selectOption('active');
  assert.equal(await page.locator('#sd450Site option[value="s34"]').count(),0);
- assert.ok((await page.locator('.sd450-map-note').innerText()).includes('파주CC'));
+ assert.ok((await page.locator('.sd450-map-note').innerText()).includes('계약종료'));
  const openSite=async id=>{
   const marker=page.locator(`[data-sd450-map-site="${id}"]`);
   if(touch){await marker.tap();assert.equal(await marker.getAttribute('aria-expanded'),'true','touch input must open a name for every HQ role');await marker.locator('.sd450-marker-label').tap()}else await marker.click();
  };
  if(touch)assert.equal(await page.locator('.sd450-marker-label').evaluateAll(bs=>bs.filter(b=>getComputedStyle(b).visibility==='visible').length),0,'mobile starts with points only, including high-risk points');
- for(const id of await page.evaluate(()=>Object.keys(ENL_SITE_LOCATIONS))){await page.locator('#sd450Site').selectOption(id);assert.ok((await page.locator('[data-sd450-summary]').innerText()).includes(await page.evaluate(id=>ENL_SITE_LOCATIONS[id].address,id)));}
+ for(const id of await page.evaluate(()=>Object.keys(ENL_SITE_LOCATIONS).filter(id=>id!=='s34'))){await page.locator('#sd450Site').selectOption(id);assert.ok((await page.locator('[data-sd450-summary]').innerText()).includes(await page.evaluate(id=>ENL_SITE_LOCATIONS[id].address,id)));}
  await openSite('s29');assert.ok((await page.locator('[data-sd450-summary]').innerText()).includes('미종결 긴급·중대 사고 있음'));
- assert.equal(await page.locator('[data-sd450-map-site="s29"].high').count(),0);
- for(const [id,expected] of [['s29','rgb(32, 37, 43)'],['s02','rgb(232, 137, 24)'],['s03','rgb(216, 63, 69)']])assert.equal(await page.locator(`[data-sd450-map-site="${id}"]`).evaluate(b=>getComputedStyle(b).backgroundColor),expected);
+ assert.equal(await page.locator('[data-sd450-map-site="s29"].high').count(),1);
+ for(const [id,expected] of [['s29','rgb(216, 63, 69)'],['s02','rgb(232, 137, 24)'],['s03','rgb(216, 63, 69)']])assert.equal(await page.locator(`[data-sd450-map-site="${id}"]`).evaluate(b=>getComputedStyle(b).backgroundColor),expected);
  const verifyLabels=async()=>{
   const labels=await page.locator('.sd450-marker:not([hidden]) .sd450-marker-label').evaluateAll(bs=>bs.map(b=>{const r=b.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,visible:getComputedStyle(b).visibility==='visible',text:b.textContent}}));
   assert.ok(labels.length>0,'zoomed map retains visible markers');

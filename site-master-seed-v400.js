@@ -40,3 +40,5 @@
   const SOURCE='이앤엘_사업장_통합목록_사업장별현황_20260811.xlsx';
   window.ENL_SITE_MASTER_SEED=R.map(r=>{const o={};F.forEach((k,i)=>o[k]=r[i]);o.start_date='';const xl=EXCEL_LOC[o.site_id]||{};o.region=xl.region||o.region||'';o.address=xl.address||'';o.total_count=(Number(o.regular_count)||0)+(Number(o.daily_count)||0);o.headcount_basis='직원 현재원 + 일용직 현재원(운영현황 원본값 / 법적 상시근로자수 별도 확인 필요)';o.source_site_name=o.site_id==='s33'?'본사(이앤엘)':(o.site_id==='s32'?'88골프장':o.site_name);o.source=SOURCE;return o;});
 })();
+
+window.ENL_SITE_MASTER_SEED.push({site_id:"s34",site_name:"파주CC",active:false,start_date:"2026-03",contract_end_date:"2026-04",address:"경기도 파주시 법원읍 화합로 306",region:"경기 파주",regular_count:0,daily_count:0,total_count:0,needs_verification:true,verification_note:"계약 시작·종료월은 업무담당자 확인. 정확한 일자 미확인."});
