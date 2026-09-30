@@ -25,6 +25,10 @@ assert.equal(t.canDashboard({role:'manager',active:false}),false);
 for(const width of [280,600]){
  const points=Object.entries(ctx.window.ENL_SITE_LOCATIONS).map(([id,p])=>{const [x,y]=t.mapXY(p.lat,p.lon);return {id,x:x*width/100,y:y*width/100}}),before=JSON.stringify(points),spread=t.spreadPoints(points);
  assert.equal(JSON.stringify(points),before,'address projection must remain unchanged');
- spread.forEach((p,i)=>{assert.ok(Math.hypot(p.x-points[i].x,p.y-points[i].y)<=60.001);spread.slice(0,i).forEach(q=>assert.ok(Math.hypot(p.x-q.x,p.y-q.y)>=21.99,`${p.id} and ${q.id} overlap`))});
+ spread.forEach((p,i)=>{if(points.every(q=>q.id===p.id||Math.hypot(q.x-points[i].x,q.y-points[i].y)>=9))assert.equal(JSON.stringify(p),JSON.stringify(points[i]),'isolated points must not move');assert.ok(Math.hypot(p.x-points[i].x,p.y-points[i].y)<=24.001);spread.slice(0,i).forEach(q=>assert.ok(Math.hypot(p.x-q.x,p.y-q.y)>=8.99,`${p.id} and ${q.id} overlap`))});
 }
 console.log('PASS: all 33 markers separated on desktop/mobile without coordinate mutation; HQ roles');
+
+const close=[{id:'a',x:10,y:10},{id:'b',x:11,y:10},{id:'c',x:40,y:40}],sp=t.spreadPoints(close);
+assert.equal(sp[0].x,10);assert.ok(Math.hypot(sp[1].x-11,sp[1].y-10)<=8.5,'minimal displacement for a close pair');assert.equal(JSON.stringify(sp[2]),JSON.stringify(close[2]));
+console.log('PASS: only heavily overlapping points move; already distinct points stay exactly fixed');

@@ -66,11 +66,11 @@ jobs:
           assert 'Natural Earth' in svg and '<svg' in svg and '<path' in svg
           for token in ['전남광주 장성군 북이면 사거리 752-1','경기 용인시 기흥구 청덕동 80-2','경기 화성시 동탄구 동탄순환대로 823, 702~703호']:
             assert token in seed, token
-          assert 'site-dashboard-v450.js?v=4.4.20-r1&amp;fix=map-controls1' in html
+          assert 'site-dashboard-v450.js?v=4.4.21-r1&amp;fix=map-gestures1' in html
           assert 'site-master-seed-v400.js?v=4.4.17-r1&amp;fix=excel-address1' in html
-          assert 'content="4.4.20-r1"' in html
-          assert meta['version']=='4.4.20' and meta['build']=='stable-4420-r1'
-          assert "const BUILD='4420-r1'" in index
+          assert 'content="4.4.21-r1"' in html
+          assert meta['version']=='4.4.21' and meta['build']=='stable-4421-r1'
+          assert "const BUILD='4421-r1'" in index
           print('OK: site profile and Korea distribution dashboard invariants preserved')
       - name: Dashboard behavior tests
         run: |
@@ -79,7 +79,7 @@ jobs:
       - name: Install isolated browser QA
         run: |
           npm install --no-save --package-lock=false playwright@1.51.1
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium webkit
       - name: Desktop tablet mobile dashboard QA
         run: node tests/dashboard-browser.cjs
       - uses: actions/upload-artifact@v4
