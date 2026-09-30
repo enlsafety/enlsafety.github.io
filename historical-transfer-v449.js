@@ -13,7 +13,7 @@ const C=id=>!!document.getElementById(id)?.checked;
 const N=()=>typeof nowISO==='function'?nowISO():new Date().toISOString();
 const isHist=i=>!!i&&(i.historicalImport?.enabled===true||String(i.recordMode||'')==='historical_transfer'||String(i?.historicalTransfer?.mode||'')==='historical_transfer');
 const isClosed=i=>isHist(i)&&i.status==='closed'&&i.historicalImport?.transferState==='closed';
-const siteName=id=>{try{return siteById?.(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}};
+const siteName=id=>{try{return window.ENLContracts?.site(id)?.site_name||siteById?.(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}};
 const pad=n=>String(n).padStart(2,'0');
 const today=()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`};
 function parts(i){if(i?.occurredAt){const d=new Date(i.occurredAt);if(!Number.isNaN(d.getTime()))return {date:`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`,time:`${pad(d.getHours())}:${pad(d.getMinutes())}`}}return {date:today(),time:''}}

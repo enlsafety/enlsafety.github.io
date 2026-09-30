@@ -14,3 +14,10 @@ PajuCC s34: user confirmed 2026-03 through 2026-04 only. No fabricated exact day
 All QA data, including three Paju incidents, is isolated in VM/browser fixtures. No test incidents are sent to production. Current database inspection found zero incident rows; this release does not create the user's historical three records.
 
 Validation: existing workflow invariants plus shared contract boundary tests, real Edge handler SQL-double tests, five map device profiles, actual historical form and annual filter tests in Chromium/WebKit. Runtime rollout results are recorded after verification.
+
+## Operations performed 2026-09-30
+
+- Migration site_contract_end_month_precision applied once. Only nullable contract_end_date text added.
+- Fresh SELECT confirmed s34 active=true and blank start/address/region, no end column before migration. Compare-and-set updated exactly one row to active=false, start_date=2026-03, contract_end_date=2026-04, verified address above, region=경기 파주, updated_at=2026-09-30 09:19:01.063885+00. Existing agency contract_period remains blank. Personnel/count/source/verification fields unchanged.
+- Pre-change site count34, incident count0, incident audit count47; incident payload digest d41d8cd98f00b204e9800998ecf8427e.
+- PR27 first full run: all10 workflows PASS, including five dashboard profiles and Chromium/WebKit historical forms. Final follow-up refines mixed date/month bounds and closed-site names when absent from active-only login directory.

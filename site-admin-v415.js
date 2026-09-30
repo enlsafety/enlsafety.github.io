@@ -127,7 +127,7 @@
     openModal(`<div class="modal-head"><div><div class="ey">SITE MASTER</div><h2>${site?'현장정보 조회·수정':'신규 현장 생성'}</h2></div><button class="x" data-close>×</button></div>${siteFormHtml(site)}${site?'<div id="sa415People" class="sa415-people"><div class="sa415-empty">근무자 명단을 불러오는 중입니다.</div></div>':''}`);
     document.getElementById('sa415SiteForm').onsubmit=async ev=>{
       ev.preventDefault();
-      const start=value('sa415Start'),end=value('sa415ContractEnd');if((start&&!window.ENLContracts.datePart(start))||(end&&!window.ENLContracts.datePart(end))||(start&&end&&start>end))return alert('계약 시작·종료는 YYYY-MM 또는 YYYY-MM-DD 형식으로 순서를 확인해 주세요.');
+      const start=value('sa415Start'),end=value('sa415ContractEnd');if((start&&!window.ENLContracts.datePart(start))||(end&&!window.ENLContracts.datePart(end))||(start&&end&&!window.ENLContracts.period({start_date:start,contract_end_date:end}).verified))return alert('계약 시작·종료는 YYYY-MM 또는 YYYY-MM-DD 형식으로 순서를 확인해 주세요.');
       const payload={
         site_id:site?.site_id||'',site_name:value('sa415Name'),region:value('sa415Region'),start_date:value('sa415Start'),contract_end_date:value('sa415ContractEnd'),contract_period:site?.contract_period||'',address:value('sa415Address'),site_type:value('sa415Type'),
         regular_count:number(value('sa415Regular')),daily_count:number(value('sa415Daily')),

@@ -6,7 +6,7 @@
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   const isField=u=>!!u&&['field','worker'].includes(u.role);
   const isHistorical=i=>!!i&&(String(i.recordMode||'')==='historical_transfer'||String(i?.historicalTransfer?.mode||'')==='historical_transfer'||(i?.historicalImport?.enabled===true&&i?.historicalImport?.erpApproved===true&&i?.historicalImport?.workflowExempt===true&&String(i?.historicalImport?.transferState||'')==='closed'));
-  const siteName=id=>{try{return siteById?.(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}};
+  const siteName=id=>{try{return window.ENLContracts?.site(id)?.site_name||siteById?.(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}};
   const escx=v=>typeof esc==='function'?esc(v):String(v??'');
   const qsum=i=>typeof window.enlIncidentQuickSummary==='function'?window.enlIncidentQuickSummary(i):{when:fmt(i.occurredAt),site:siteName(i.siteId),headline:i.eventType||'사고',circumstance:String(i.summary||'').slice(0,90)};
   let safetyListFilter={status:'',siteId:'',title:'전체 사고목록'};
