@@ -7,7 +7,7 @@ Baseline main: e8b2883aa9b272150d1ab525264c8cd0fe940c3b (4.4.23).
 - Active high risk: annual count >=5 OR unresolved urgent/major nonhistorical incident. Closed sites are neutral gray even with >=5 incidents.
 - Historical picker retains closed sites. Out-of-period or closed/unknown-period registrations require safety confirmation. Server independently checks master and stamps the authenticated actor. Existing unchanged-site/date records retain their snapshot; no existing-payload backfill.
 - One nullable column is additive. Two existing Edge functions require deployment: enl-incident-sync (site end persistence), enl-incident-sync-v411 (dashboard fields and authoritative snapshot). Existing custom authentication / verify_jwt=false retained. No RLS, Auth, Storage, notification, global refresh changes.
-- Deploy shared root site-contract-v451.js as a second file beside v411 index.ts, byte-identical to the browser helper. Legacy function source is the deployed version 13 plus contract_end_date persistence.
+- Deploy shared root site-contract-v451.js as a second file beside v411 index.ts, byte-identical to the browser helper. Legacy function source is the deployed version 13 plus contract_end_date persistence and preservation of existing month-only start dates from older date-only forms.
 
 PajuCC s34: user confirmed 2026-03 through 2026-04 only. No fabricated exact days. Closed map coordinates: 37.84788,126.8998669, public facility dataset https://qae.purpleo.kr/article/7411 ; address confirmed by official https://m.onetheclub.com/paju/main . Address is 경기도 파주시 법원읍 화합로 306.
 

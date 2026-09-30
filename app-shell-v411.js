@@ -60,6 +60,7 @@
   window.enlRenderApp=u=>{if(!u)return renderLogin();currentView=currentView||'home';return renderShell(u)};
   window.enlRenderFatal=e=>{app.innerHTML=`<section class="shell411-fatal"><h2>화면을 불러오지 못했습니다.</h2><p>로그인 정보는 유지됩니다. 아래 버튼으로 화면만 다시 불러와 주세요.</p><button type="button" id="fatalRetry411">화면 다시 불러오기</button></section>`;document.getElementById('fatalRetry411').onclick=()=>{currentView='home';renderShell(currentUser())}};
   window.ENL_SHELL_VERSION=VERSION;
+  window.addEventListener('enl-contracts-ready',()=>{const u=currentUser?.(),root=document.getElementById('view');if(currentView==='home'&&roleNorm(u?.role)==='safety'&&root)renderSafetyHome(root,u)});
 
   const u=currentUser?.();if(u){currentView=currentView||'home';renderShell(u);if(roleNorm(u.role)==='safety')setTimeout(()=>window.enlSyncHqUsers?.(u),250)}else renderLogin();
 })();
