@@ -74,9 +74,9 @@ jobs:
             assert token in seed, token
           assert 'site-dashboard-v450.js?v=4.4.26-r1' in html
           assert 'site-master-seed-v400.js?v=4.4.24-r1' in html
-          assert 'content="4.4.26-r1"' in html
-          assert meta['version']=='4.4.26' and meta['build']=='stable-4426-r1'
-          assert "const BUILD='4426-r1'" in index
+          assert 'content="4.4.27-r1"' in html
+          assert meta['version']=='4.4.27' and meta['build']=='stable-4427-r1'
+          assert "const BUILD='4427-r1'" in index
           print('OK: site profile and Korea distribution dashboard invariants preserved')
       - name: Dashboard behavior tests
         run: |

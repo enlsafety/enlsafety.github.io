@@ -1,0 +1,35 @@
+name: historical followup QA
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  followup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install isolated QA dependencies
+        run: |
+          npm install --no-save --package-lock=false @electric-sql/pglite@0.3.10 playwright@1.51.1
+          npx playwright install --with-deps chromium webkit
+      - name: Syntax and server policy
+        run: |
+          node --check historical-followup-v452.js
+          node --check app-shell-v411.js
+          node --check incidents-v410.js
+          node --check sw-v418.js
+          node tests/historical-followup-model.cjs
+          node tests/historical-followup-edge.cjs
+          node tests/historical-followup-mail.cjs
+      - name: Offline browser lifecycle
+        run: node tests/historical-followup-browser.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: followup-qa
+          path: qa-output/followup-*.png
