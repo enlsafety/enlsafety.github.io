@@ -42,6 +42,10 @@ const {chromium}=require('playwright'),fs=require('node:fs'),assert=require('nod
     await page.evaluate(()=>{
       data.incidents=[{id:'inc-sensitive',siteId:'s01',category:'person',eventType:'베임/찔림',status:'reported',priority:'normal',severity:'minor',injuredName:'테스트 근로자',occurredAt:'2026-10-01T13:20:00+09:00',createdAt:'2026-10-01T13:21:00+09:00',updatedAt:'2026-10-01T13:21:00+09:00',summary:'테스트 사고',immediateAction:'응급처치',photos:[],readReceipts:[],reportDetails:{place:'작업구역',workAction:'예지 작업',incidentHow:'작업 중 베임',injuryDetail:'왼쪽 손가락 베임',diagnosis:'민감진단명',doctorOpinion:'민감의사소견',medicalCost:50000,preventionPlan:'작업방법 개선'}}];
     });
+    await page.evaluate(()=>{
+      window.openModal=html=>{const root=document.getElementById('modalRoot');root.innerHTML='<div class="modal">'+html+'</div>'};
+      window.closeModal=()=>{document.getElementById('modalRoot').innerHTML=''};
+    });
     await page.addScriptTag({content:fs.readFileSync('incidents-v410.js','utf8')});
     await page.evaluate(()=>window.enlOpenIncidentReview('inc-sensitive',false,{id:'hq1',name:'본사관리자',role:'manager'}));
     let reviewText=await page.locator('#modalRoot').innerText();
