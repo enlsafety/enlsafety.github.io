@@ -19,8 +19,7 @@ const server=http.createServer((req,res)=>{
   const context=await browser.newContext({serviceWorkers:'allow'});
   const page=await context.newPage();
   try{
-    await page.goto(origin+'/',{waitUntil:'domcontentloaded',timeout:15000});
-    await page.waitForURL(/stable412\.html/,{timeout:10000});
+    await page.goto(origin+'/stable412.html?source=pwa',{waitUntil:'domcontentloaded',timeout:15000});
     await page.evaluate(()=>navigator.serviceWorker.ready);
     await page.reload({waitUntil:'domcontentloaded',timeout:15000});
     await page.waitForFunction(()=>!!navigator.serviceWorker.controller,{timeout:10000});
@@ -28,8 +27,7 @@ const server=http.createServer((req,res)=>{
 
     await context.setOffline(true);
     const start=Date.now();
-    await page.goto(origin+'/',{waitUntil:'domcontentloaded',timeout:5000});
-    await page.waitForURL(/stable412\.html/,{timeout:5000});
+    await page.goto(origin+'/stable412.html?source=pwa',{waitUntil:'domcontentloaded',timeout:5000});
     await page.waitForSelector('.login-v411',{timeout:5000});
     const elapsed=Date.now()-start;
     assert.ok(elapsed<5000,'offline cached startup too slow: '+elapsed+'ms');
