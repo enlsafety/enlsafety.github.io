@@ -32,10 +32,10 @@ assert.ok(shell.includes("window.enlRenderHqHome=renderSafetyHome"));
 for(const asset of [
   'field-ui-v411.js?v=4.4.37-r1&amp;fix=field-copy1',
   'field-incidents-v411.js?v=4.4.37-r1&amp;fix=field-copy2',
-  'app-shell-v411.js?v=4.4.37-r1&amp;fix=hq-dashboard1',
+  'app-shell-v411.js?v=4.4.38-r1&amp;fix=hq-attention1',
   'reader-ui-v414.js?v=4.4.37-r1&amp;fix=hq-dashboard1',
   'incident-flow-v440.js?v=4.4.37-r1&amp;fix=supplement-review1',
-  'management-approval-v448.js?v=4.4.37-r1&amp;fix=approved-only1'
+  'management-approval-v448.js?v=4.4.38-r1&amp;fix=own-sign1'
 ]) assert.ok(stable.includes(asset),asset);
 assert.equal(version.version,'4.4.37');
 assert.equal(version.build,'stable-4437-r1');
