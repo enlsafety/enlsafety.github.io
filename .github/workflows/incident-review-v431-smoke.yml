@@ -37,9 +37,9 @@ jobs:
             '미리보기 불러오는 중',
           ]
           for x in required: assert x in review,x
-          for x in ['u-field-demo','u-safety-demo','u-final-demo','enl_accident_demo_v1']:
+          for x in ['u-field-demo','u-safety-demo','u-final-demo','enl_accident_demo_v1','테스트 경영진','테스트 관리자','테스트 안전관리자']:
             assert x in cleanup,x
           assert 'incident-review-v431.js?v=4.1.2-r31&amp;fix=review-preview1' in html
-          assert 'production-cleanup-v431.js?v=4.1.2-r34&amp;fix=legacy-demo2' in html
+          assert 'production-cleanup-v431.js?v=4.4.38-r1&amp;fix=test-hq-cleanup1' in html
           assert html.index('workflow-prevention-v429.js') < html.index('incident-review-v431.js') < html.index('production-cleanup-v431.js')
           print('OK: stored incident images hydrate to thumbnails, detail rows are separated, legacy local demo records are purged')
