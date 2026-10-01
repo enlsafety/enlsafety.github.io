@@ -302,7 +302,7 @@ jobs:
           assert '전자결재 문서' not in official and '공식 전자결재 기록' not in official
           for x in ['supplement_request','보완요청','supplement_submit','보완자료 제출','corrective_approve','재발방지조치 승인','내용 확인기록']: assert x in official,x
           approval=Path('management-approval-v448.js').read_text(encoding='utf-8')
-          for x in ["4.4.38-own-sign1","function signable(i)","st==='approved'||(st==='closed'&&act==='approved')","aria-label=\\\"본인 결재하기\\\"","serverOk=true"]: assert x in approval,x
+          for x in ["4.4.38-own-sign1","function signable(i)","st==='approved'||(st==='closed'&&act==='approved')",'aria-label="본인 결재하기"',"serverOk=true"]: assert x in approval,x
           shell=Path('app-shell-v411.js').read_text(encoding='utf-8')
           for x in ["4.4.38-hq-attention1","즉시보고·보완 진행중","enlRenderHqHome=renderSafetyHome","승인완료 사고 결재가 필요합니다.","결재하러 가기","재발방지계획 수립대기"]: assert x in shell,x
           assert 'window.ENL_DEPLOY_VERSION' in shell and '이앤엘 사고보고앱 v4.1.1' not in shell
