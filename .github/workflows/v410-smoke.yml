@@ -304,7 +304,8 @@ jobs:
           for x in ['4.4.39-statutory-record1','PDF 보고서 출력','법정 사고기록','근로자 인적사항','재해 발생 원인 및 과정','재해 재발방지 계획','backup_restore','delete_incident','공식기록 · 백업/복원']: assert x in official,x
           for x in ['공식 사고기록 · 확인이력','사고보고 무결성 해시','최종 기록 해시','data-official439-audit','사고 변경·확인 감사로그','enlOfficialAuditOpen']: assert x not in official,x
           assert '전자결재 문서' not in official and '공식 전자결재 기록' not in official
-          for x in ['supplement_request','보완요청','supplement_submit','보완자료 제출','corrective_approve','재발방지조치 승인','내용 확인기록']: assert x in official,x
+          for x in ['supplement_request','보완요청','supplement_submit','보완자료 제출','corrective_approve','재발방지조치 승인']: assert x in official,x
+          assert '내용 확인기록' not in official
           approval=Path('management-approval-v448.js').read_text(encoding='utf-8')
           for x in ["4.4.39-crisp-sign1","function signable(i)","st==='approved'||(st==='closed'&&act==='approved')",'aria-label="본인 결재하기"',"serverOk=true","font-size:10.5px","text-rendering:geometricPrecision"]: assert x in approval,x
           assert 'enl448OwnPulse' not in approval and 'transform:scale(' not in approval
