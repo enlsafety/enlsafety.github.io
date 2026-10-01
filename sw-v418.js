@@ -2,7 +2,7 @@ const ENL_SW_VERSION='4.4.32-startup-cache1';
 const CACHE_NAME='enl-pwa-4432-startup1';
 const OFFLINE_URL='/stable412.html?offline=1';
 const ROOT_URL='/';
-const PRECACHE=["/","/stable412.html?offline=1","/korea-map-natural-earth-10m.svg","/manifest.webmanifest","/pwa-icon-180.png","/pwa-icon-192.png","/style.css","/v3.css","/field-readability-v331.css","/field-form-v362.css","/accident-app-v375.css","/accident-app-v376.css","/accident-app-v377.css","/accident-app-v382.css","/report-v410.css","/field-ui-v411.css","/responsive-v432.css","/core.js","/session-refresh-v412.js","/admin.js","/v3-shell.js","/v3-actions.js","/site-directory-v410.js","/platform-state-v411.js","/auth-v411.js","/login-layout-v412.js","/site-master-seed-v400.js","/site-contract-v451.js","/site-master-ambiguity-v400.js","/incidents-v410.js","/incident-sync-v411.js","/site-directory-sync-v410.js","/site-admin-v415.js","/review-dashboard-v410.js","/interaction-v410.js","/app-control-v410.js","/report-v410.js","/field-ui-v411.js","/field-incidents-v411.js","/historical-followup-v452.js","/app-shell-v411.js","/incident-stats-v426.js","/security-v412.js","/workflow-lifecycle-v413.js","/reader-ui-v414.js","/incident-category-ui-v417.js","/incident-excel-v421.js","/workflow-v412.js","/account-security-v420.js","/pwa-push-v418.js","/notification-profile-v441.js","/ui-stability-v422.js","/reader-ack-ux-v423.js","/reader-experience-v424.js","/push-session-v425.js","/preapproval-edit-v427.js","/sync-conflict-v428.js","/workflow-prevention-v429.js","/incident-review-v431.js","/production-cleanup-v431.js","/workflow-enhancements-v432.js","/site-admin-hotfix-v433.js","/personnel-management-v434.js","/hq-notification-status-v437.js","/legal-review-v435.js","/industrial-report-v436.js","/closed-incident-reopen-v438.js","/official-records-v439.js","/incident-flow-v440.js","/management-approval-v448.js","/historical-transfer-v449.js","/required-fields-v453.js","/site-locations-v450.js","/site-dashboard-v450.js"];
+const PRECACHE=["/","/stable412.html?offline=1","/korea-map-natural-earth-10m.svg","/manifest.webmanifest","/pwa-icon-180.png","/pwa-icon-192.png","/pwa-icon-512.png","/style.css","/v3.css","/field-readability-v331.css","/field-form-v362.css","/accident-app-v375.css","/accident-app-v376.css","/accident-app-v377.css","/accident-app-v382.css","/report-v410.css","/field-ui-v411.css","/responsive-v432.css","/core.js","/session-refresh-v412.js","/admin.js","/v3-shell.js","/v3-actions.js","/site-directory-v410.js","/platform-state-v411.js","/auth-v411.js","/login-layout-v412.js","/site-master-seed-v400.js","/site-contract-v451.js","/site-master-ambiguity-v400.js","/incidents-v410.js","/incident-sync-v411.js","/site-directory-sync-v410.js","/site-admin-v415.js","/review-dashboard-v410.js","/interaction-v410.js","/app-control-v410.js","/report-v410.js","/field-ui-v411.js","/field-incidents-v411.js","/historical-followup-v452.js","/app-shell-v411.js","/incident-stats-v426.js","/security-v412.js","/workflow-lifecycle-v413.js","/reader-ui-v414.js","/incident-category-ui-v417.js","/incident-excel-v421.js","/workflow-v412.js","/account-security-v420.js","/pwa-push-v418.js","/notification-profile-v441.js","/ui-stability-v422.js","/reader-ack-ux-v423.js","/reader-experience-v424.js","/push-session-v425.js","/preapproval-edit-v427.js","/sync-conflict-v428.js","/workflow-prevention-v429.js","/incident-review-v431.js","/production-cleanup-v431.js","/workflow-enhancements-v432.js","/site-admin-hotfix-v433.js","/personnel-management-v434.js","/hq-notification-status-v437.js","/legal-review-v435.js","/industrial-report-v436.js","/closed-incident-reopen-v438.js","/official-records-v439.js","/incident-flow-v440.js","/management-approval-v448.js","/historical-transfer-v449.js","/required-fields-v453.js","/site-locations-v450.js","/site-dashboard-v450.js"];
 
 async function putSafe(cache,key,response){
   try{if(response&&response.ok)await cache.put(key,response.clone())}catch(e){}
@@ -17,9 +17,13 @@ async function fetchWithTimeout(request,ms=5000){
 self.addEventListener('install',event=>{
   event.waitUntil((async()=>{
     const cache=await caches.open(CACHE_NAME);
-    await Promise.allSettled(PRECACHE.map(async url=>{
-      try{const r=await fetch(new Request(url,{cache:'reload'}));if(r&&r.ok)await cache.put(url,r.clone())}catch(e){}
-    }));
+    const batchSize=6;
+    for(let i=0;i<PRECACHE.length;i+=batchSize){
+      const batch=PRECACHE.slice(i,i+batchSize);
+      await Promise.allSettled(batch.map(async url=>{
+        try{const r=await fetch(new Request(url,{cache:'reload'}));if(r&&r.ok)await cache.put(url,r.clone())}catch(e){}
+      }));
+    }
     await self.skipWaiting();
   })());
 });
