@@ -95,7 +95,7 @@
   const mo=new MutationObserver(ms=>{
     for(const m of ms){
       if(m.type==='attributes'){queue(m.target);continue}
-      for(const n of m.addedNodes)if(n.nodeType===1)queue(n);
+      if(m.type==='childList'&&m.addedNodes.length)queue(m.target);
     }
   });
   const start=()=>{scan(document);mo.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['required','disabled','readonly']})};
