@@ -2,7 +2,7 @@
 (function(){
   'use strict';
 
-  const VERSION='4.4.0-immediate-required1';
+  const VERSION='4.4.32-startup-defer1';
   const MANAGER_POSITIONS=['현장소장','파트장','서무'];
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   const txt=v=>String(v??'').trim();
