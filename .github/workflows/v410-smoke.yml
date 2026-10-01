@@ -105,16 +105,16 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-4429-r1',meta
+          assert meta.get('build')=='stable-4430-r1',meta
           assert meta.get('stableEntry')=='stable412.html',meta
-          assert meta.get('version')=='4.4.29' and meta.get('currentStableVersion')=='4.4.29',meta
+          assert meta.get('version')=='4.4.30' and meta.get('currentStableVersion')=='4.4.30',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='4429-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4429-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
+          for x in ["const BUILD='4430-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4430-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.4.29-r1',
+            'enl-build" content="4.4.30-r1',
             'incident-sync-v411.js?v=4.4.0-r1&amp;fix=supplement-ack1',
             'workflow-prevention-v429.js?v=4.4.14-r1&amp;fix=historical-transfer1',
             'workflow-lifecycle-v413.js?v=4.4.14-r1&amp;fix=historical-transfer1',
@@ -140,7 +140,7 @@ jobs:
           assert 'login-layout-v412.js?v=4.2.7-r1&amp;fix=guide-removed1' in html
           assert 'app-control-v410.js?v=4.4.10-r2&amp;fix=update8-server-fix' in html
           assert 'incident-stats-v426.js?v=4.4.28-r1' in html
-          assert 'required-fields-v453.js?v=4.4.29-r1' in html
+          assert 'required-fields-v453.js?v=4.4.30-r1' in html
           assert 'ui-stability-v422.js?v=4.4.29-r1&amp;fix=hq-email-edit1-required1' in html
           assert 'historical-transfer-v449.js?v=4.4.29-r1&amp;fix=required1' in html
           assert 'site-dashboard-v450.js?v=4.4.26-r1' in html
@@ -152,7 +152,7 @@ jobs:
           stats=Path('incident-stats-v426.js').read_text(encoding='utf-8')
           for x in ['4.4.28-dashboard-filter-simplify1','data-stats-filter="all"','data-stats-month','최근 발생일 순','data-stats-inc','stats426-site-attention','stats426-site-manage','관심요망','관리필요']: assert x in stats,x
           required_fields=Path('required-fields-v453.js').read_text(encoding='utf-8')
-          for x in ["4.4.29-required-fields1","enl432-required-empty","enl432-required-filled","선택하세요","MutationObserver","aria-required"]: assert x in required_fields,x
+          for x in ["4.4.30-starred-selects1","enl432-required-empty","enl432-required-filled","선택하세요","MutationObserver","aria-required"]: assert x in required_fields,x
           hist=Path('historical-transfer-v449.js').read_text(encoding='utf-8')
           for x in ['<select id="hEvent" required><option value="">선택</option>','<select id="hAction" required><option value="">선택</option>','<select id="hFollow" required><option value="">선택</option>']: assert x in hist,x
           assert "siteStatus='active'" in stats and "siteId=''" in stats
