@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.1.1 - authoritative incident list/review runtime */
 (function(){
   'use strict';
-  const VERSION='4.1.1-r11';
+  const VERSION='4.4.35-full-detail1';
   const MANAGER_POSITIONS=['현장소장','파트장','서무'];
   const norm=v=>String(v||'').replace(/\s+/g,'').trim().toLocaleLowerCase('ko-KR');
   const position=u=>String(u?.position||u?.jobTitle||'').trim();
