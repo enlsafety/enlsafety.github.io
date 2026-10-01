@@ -36,10 +36,10 @@
     return {when,site:siteName(i?.siteId),place:place||'장소 미입력',headline,impact,circumstance,person};
   }
 
-  function overviewHtml(i,{compact=false}={}){
+  function overviewHtml(i,{compact=false,hideMedical=false}={}){
     const q=quickSummary(i),d=i?.reportDetails||{},person=i?.category==='person';
     const impact=person
-      ? `<div><span>부상</span><b>${esc(cut(d.injuryDetail||'-',80))}</b>${d.diagnosis?`<small>진단 ${esc(cut(d.diagnosis,45))}</small>`:''}</div>`
+      ? `<div><span>부상</span><b>${esc(cut(d.injuryDetail||'-',80))}</b>${!hideMedical&&d.diagnosis?`<small>진단 ${esc(cut(d.diagnosis,45))}</small>`:''}</div>`
       : `<div><span>피해</span><b>${esc(cut(d.damagedItem||d.damageDetail||'-',80))}</b>${won(d.repairCost)?`<small>예상 ${esc(won(d.repairCost))}</small>`:''}</div>`;
     return `<div class="inc411-overview ${compact?'compact':''}"><div><span>언제</span><b>${esc(q.when)}</b></div><div><span>어디서</span><b>${esc(cut(q.place,60))}</b></div>${impact}<div class="wide"><span>어떻게</span><b>${esc(q.circumstance||'-')}</b></div></div>`;
   }
@@ -119,14 +119,14 @@
     if(!i)return alert('해당 사고자료를 찾지 못했습니다. 최신 사고현황을 다시 불러와 주세요.');
     if(!canViewOriginal(i,viewer))return alert('사고보고서 원본 조회 권한이 없습니다.');
     if(typeof openModal!=='function')return alert('사고 검토 화면을 불러오지 못했습니다.');
-    const safety=roleOf(viewer)==='safety',hqReader=isHqReader(viewer),d=i.reportDetails||{},person=i.category==='person',historical=historicalClosed(i),hist=i.historicalImport||{};
+    const safety=roleOf(viewer)==='safety',hqReader=isHqReader(viewer),d=i.reportDetails||{},person=i.category==='person',historical=historicalClosed(i),hist=i.historicalImport||{},pendingSensitive=hqReader&&person&&!['approved','closed'].includes(String(i.status||''));
     const attachments=typeof window.enlAttachmentGalleryHtml==='function'?window.enlAttachmentGalleryHtml(i.photos||[]):'';
     const damageRows=person
-      ? `<div class="inc411-kv"><b>부상 내용</b><span>${esc(d.injuryDetail||'-')}</span></div><div class="inc411-kv"><b>진단명</b><span>${esc(d.diagnosis||'-')}</span></div><div class="inc411-kv"><b>치료/의사소견</b><span>${esc(d.doctorOpinion||'-')}</span></div>${Number(d.medicalCost||0)>0?`<div class="inc411-kv"><b>진료비</b><span>${esc(won(d.medicalCost))}</span></div>`:''}`
+      ? `<div class="inc411-kv"><b>부상 내용</b><span>${esc(d.injuryDetail||'-')}</span></div>${pendingSensitive?'':`<div class="inc411-kv"><b>진단명</b><span>${esc(d.diagnosis||'-')}</span></div><div class="inc411-kv"><b>치료/의사소견</b><span>${esc(d.doctorOpinion||'-')}</span></div>${Number(d.medicalCost||0)>0?`<div class="inc411-kv"><b>진료비</b><span>${esc(won(d.medicalCost))}</span></div>`:''}`}`
       : `<div class="inc411-kv"><b>파손 물품</b><span>${esc(d.damagedItem||'-')}</span></div><div class="inc411-kv"><b>파손 내용</b><span>${esc(d.damageDetail||'-')}</span></div><div class="inc411-kv"><b>복구 예상비용</b><span>${esc(d.repairCostPending===true||!Number(d.repairCost||0)?'사후 보완 예정':won(d.repairCost))}</span></div><div class="inc411-kv"><b>견적 / 비용 상세내역</b><span>${esc(d.repairCostDetail||'사후 보완 예정')}</span></div>`;
     const ack=receipts(i).find(r=>String(r.userId)===String(userId(viewer)));
     openModal(`<div class="modal-head"><div><div class="ey">INCIDENT REVIEW</div><h2>${esc(siteName(i.siteId))}${window.ENLContracts?.badge(i.siteId)||''} · ${esc(i.eventType||'-')}</h2>${window.ENLContracts?.incidentDetail(i)||''}<div style="margin-top:7px">${typeof categoryBadge==='function'?categoryBadge(i.category):''}${historical?historicalTags(i):`${typeof priorityBadge==='function'?priorityBadge(i.priority):''}${statusBadgeHtml(i.status)}${typeof legalBadge==='function'?legalBadge(i):''}`}</div></div><button class="x" data-close>×</button></div>
-      ${overviewHtml(i)}
+      ${overviewHtml(i,{hideMedical:pendingSensitive})}
       ${historical?`<section class="inc411-section" style="border:2px solid #a9c8dc;background:#f5fafe"><h3>과거사고 이관정보</h3><div class="inc411-section-body"><div class="inc411-kv"><b>등록 성격</b><span>사고보고앱에서 최초 보고된 사고가 아닌 ERP 기결재 과거사고 이관자료</span></div><div class="inc411-kv"><b>ERP 결재</b><span>${esc([hist.erpApprovalDate,hist.erpApprovalRef].filter(Boolean).join(' · ')||'기결재 완료(상세 미기재)')}</span></div><div class="inc411-kv"><b>기존 보고자</b><span>${esc(hist.originalReporterName||'미기재')}</span></div><div class="inc411-kv"><b>기존 조치자료</b><span>${esc(actionStateText(hist.existingActionStatus))}${hist.existingActionNote?' · '+esc(hist.existingActionNote):''}</span></div><div class="inc411-kv"><b>현재 추가조치</b><span>${esc(followText(hist.additionalAction))}${hist.additionalActionNote?' · '+esc(hist.additionalActionNote):''}</span></div><div class="inc411-kv"><b>이관등록</b><span>${esc(hist.transferredByName||i.reporterName||'-')} · ${esc(hist.transferredAt?fmt(hist.transferredAt):'-')}</span></div><div class="inc411-kv"><b>종결 근거</b><span>${esc(hist.closureReason||'ERP 기결재 과거사고 이력관리 목적 이관종결')}</span></div></div></section>`:''}
       ${i.status==='rejected'&&i.rejectionNote?`<div class="reject-note"><b>반려사유</b><br>${esc(i.rejectionNote)}</div>`:''}
       <section class="inc411-section"><h3>피해 상황</h3><div class="inc411-section-body">${damageRows}</div></section>

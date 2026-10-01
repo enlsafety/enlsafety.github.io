@@ -4,7 +4,7 @@ const {chromium}=require('playwright'),fs=require('node:fs'),assert=require('nod
   const browser=await chromium.launch();
   const page=await browser.newPage({viewport:{width:900,height:700}});
   try{
-    await page.route('http://enl-qa.test/**',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><html><head></head><body><div id="app"></div><input id="incidentPhotoInput" type="file"><input id="actionPhotoInput" type="file"><div id="gallery"></div></body></html>'}));
+    await page.route('http://enl-qa.test/**',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><html><head></head><body><div id="app"></div><input id="incidentPhotoInput" type="file"><input id="actionPhotoInput" type="file"><div id="gallery"></div><div id="modalRoot"></div></body></html>'}));
     await page.goto('http://enl-qa.test/fixture');
     await page.evaluate(()=>{
       localStorage.setItem('enl_safety_v3',JSON.stringify({version:3,sites:[{id:'s01',name:'테스트'}],users:[{id:'u1',name:'현장소장',role:'field',siteId:'s01',active:true}],incidents:[]}));
@@ -28,6 +28,8 @@ const {chromium}=require('playwright'),fs=require('node:fs'),assert=require('nod
       window.enlBindAttachmentOpen(root,qaAttachments);
     });
     await page.waitForFunction(()=>document.querySelector('[data-attach-preview="0"] img')&&document.querySelector('[data-attach-preview="1"] iframe'));
+    assert.equal(await page.evaluate(()=>qaAttachments[0].previewUrl),undefined,'signed preview URL must not mutate the persisted attachment object');
+    assert.equal(await page.evaluate(()=>qaAttachments[1].previewUrl),undefined,'signed PDF preview URL must remain ephemeral');
     assert.ok((await page.locator('[data-attach-preview="0"] img').getAttribute('src')).includes('sample.jpg'));
     assert.ok((await page.locator('[data-attach-preview="1"] iframe').getAttribute('src')).includes('sample.pdf'));
     assert.equal(await page.locator('[data-attach-open="0"]').getAttribute('aria-label'),'현장사진.jpg 원본 열기');
@@ -36,6 +38,24 @@ const {chromium}=require('playwright'),fs=require('node:fs'),assert=require('nod
     await page.waitForFunction(()=>window.__opened.includes('sample.pdf'));
     const persisted=await page.evaluate(()=>window.enlPersistAttachment(qaAttachments[0]));
     assert.equal(persisted.previewUrl,undefined);
-    console.log('PASS: image/PDF previews hydrate on PC/mobile-compatible gallery and click opens original PDF');
+
+    await page.evaluate(()=>{
+      data.incidents=[{id:'inc-sensitive',siteId:'s01',category:'person',eventType:'베임/찔림',status:'reported',priority:'normal',severity:'minor',injuredName:'테스트 근로자',occurredAt:'2026-10-01T13:20:00+09:00',createdAt:'2026-10-01T13:21:00+09:00',updatedAt:'2026-10-01T13:21:00+09:00',summary:'테스트 사고',immediateAction:'응급처치',photos:[],readReceipts:[],reportDetails:{place:'작업구역',workAction:'예지 작업',incidentHow:'작업 중 베임',injuryDetail:'왼쪽 손가락 베임',diagnosis:'민감진단명',doctorOpinion:'민감의사소견',medicalCost:50000,preventionPlan:'작업방법 개선'}}];
+    });
+    await page.evaluate(()=>{
+      window.openModal=html=>{const root=document.getElementById('modalRoot');root.innerHTML='<div class="modal">'+html+'</div>'};
+      window.closeModal=()=>{document.getElementById('modalRoot').innerHTML=''};
+    });
+    await page.addScriptTag({content:fs.readFileSync('incidents-v410.js','utf8')});
+    await page.evaluate(()=>window.enlOpenIncidentReview('inc-sensitive',false,{id:'hq1',name:'본사관리자',role:'manager'}));
+    let reviewText=await page.locator('#modalRoot').innerText();
+    assert.ok(reviewText.includes('왼쪽 손가락 베임'),'pending reader must see the reported injury context');
+    assert.ok(!reviewText.includes('민감진단명'),'pending HQ reader must not see diagnosis before final approval');
+    assert.ok(!reviewText.includes('민감의사소견'),'pending HQ reader must not see doctor opinion before final approval');
+    await page.evaluate(()=>{data.incidents[0].status='approved';window.enlOpenIncidentReview('inc-sensitive',false,{id:'hq1',name:'본사관리자',role:'manager'})});
+    reviewText=await page.locator('#modalRoot').innerText();
+    assert.ok(reviewText.includes('민감진단명'),'approved HQ reader should see the finalized diagnosis');
+    assert.ok(reviewText.includes('민감의사소견'),'approved HQ reader should see the finalized doctor opinion');
+    console.log('PASS: previews stay ephemeral, originals open, and pending HQ read-only view masks medical details');
   }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exit(1)});
