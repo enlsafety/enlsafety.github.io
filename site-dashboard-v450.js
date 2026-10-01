@@ -198,5 +198,5 @@ try{mo.observe(document.getElementById('app')||document.body,{childList:true,sub
 css();const u=currentUser&&currentUser();if(u){enhance(u);scheduleEnhanceLoad(u,1100)}
 window.enlRefreshSiteDashboard450=()=>{loaded=false;load(currentUser&&currentUser())};
 window.enlDashboardMetrics=()=>canDashboard(currentUser&&currentUser())&&loadedFor===JSON.stringify(actor(currentUser&&currentUser()))?metrics:null;
-window.ENL_SITE_DASHBOARD_VERSION=VERSION;
+window.ENL_SITE_DASHBOARD_VERSION='4.4.32-startup-defer1';
 })();
