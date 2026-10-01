@@ -188,12 +188,14 @@ async function load(u=currentUser&&currentUser()){
  if((loaded&&Date.now()-loadedAt<60000&&metricKey===signature)||loading||!canDashboard(u)||typeof window.enlIncidentApi!=='function')return;loading=true;
  try{const r=await window.enlIncidentApi({action:'dashboard_read',actor:actor(u)},15000);if(request!==requestVersion||JSON.stringify(actor(currentUser&&currentUser()))!==key)return;if(!Array.isArray(r&&r.sites)||!Array.isArray(r&&r.metrics))throw new Error('Invalid site list');masters=r.sites.filter(Boolean);window.ENLContracts.setSites(masters);metrics=r.metrics;loaded=true;loadedAt=Date.now();metricKey=signature;loadError=false;if(view()==='stats'&&window.enlRenderIncidentStats){const root=document.getElementById('view'),year=root?.querySelector('#stats426Year')?.value,siteId=root?.querySelector('#stats426Site')?.value,siteStatus=root?.querySelector('#stats426Status')?.value;window.enlRenderIncidentStats(root,u,{year,siteId,siteStatus})}enhance(u)}catch(e){if(request!==requestVersion)return;loadError=true;console.warn('[site-dashboard-v450] site master load skipped',e);enhance(u)}finally{if(request===requestVersion)loading=false}
 }
-const base=window.renderShell;if(typeof base==='function'){const wrap=function(u){const out=base.apply(this,arguments);setTimeout(()=>{enhance(u);load(u)},0);return out};window.renderShell=wrap;try{renderShell=wrap}catch(e){}}
-const cur=window.renderCurrentView;if(typeof cur==='function')window.renderCurrentView=function(u){const out=cur.apply(this,arguments);setTimeout(()=>{enhance(u);load(u)},0);return out};
+let startupLoadTimer=null;
+function scheduleEnhanceLoad(u,delay=900){if(startupLoadTimer)clearTimeout(startupLoadTimer);startupLoadTimer=setTimeout(()=>{startupLoadTimer=null;enhance(u);load(u)},delay)}
+const base=window.renderShell;if(typeof base==='function'){const wrap=function(u){const out=base.apply(this,arguments);scheduleEnhanceLoad(u,900);return out};window.renderShell=wrap;try{renderShell=wrap}catch(e){}}
+const cur=window.renderCurrentView;if(typeof cur==='function')window.renderCurrentView=function(u){const out=cur.apply(this,arguments);scheduleEnhanceLoad(u,900);return out};
 let queued=false;
 const mo=new MutationObserver(()=>{if(queued)return;queued=true;queueMicrotask(()=>{queued=false;const u=currentUser&&currentUser();if(!canDashboard(u))return;const root=document.getElementById('view');if(!root)return;if(view()==='stats'&&root.querySelector('.stats426-cards')&&!root.querySelector('[data-sd450-map]'))enhance(u);if(view()==='incidents'&&window.enlSafetySiteFilter&&window.enlSafetySiteFilter()&&!root.querySelector('[data-sd450-info]'))enhance(u)})});
 try{mo.observe(document.getElementById('app')||document.body,{childList:true,subtree:true})}catch(e){}
-css();const u=currentUser&&currentUser();if(u){enhance(u);load(u)}
+css();const u=currentUser&&currentUser();if(u){enhance(u);scheduleEnhanceLoad(u,1100)}
 window.enlRefreshSiteDashboard450=()=>{loaded=false;load(currentUser&&currentUser())};
 window.enlDashboardMetrics=()=>canDashboard(currentUser&&currentUser())&&loadedFor===JSON.stringify(actor(currentUser&&currentUser()))?metrics:null;
 window.ENL_SITE_DASHBOARD_VERSION=VERSION;
