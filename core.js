@@ -68,6 +68,7 @@ function attachmentActor(){const u=currentUser?.();return u?{id:u.id||u.personne
 function ensureAttachmentStyle(){if(document.getElementById('enlAttachmentStyle411'))return;const s=document.createElement('style');s.id='enlAttachmentStyle411';s.textContent=`.attach-grid411{display:grid;grid-template-columns:repeat(auto-fill,minmax(125px,1fr));gap:9px}.attach-card411{position:relative;min-height:104px;border:1px solid #ccd9e4;border-radius:12px;background:#f8fbfd;overflow:hidden;display:flex;align-items:center;justify-content:center;text-align:center;padding:9px;box-sizing:border-box}.attach-card411 img{width:100%;height:100%;min-height:86px;object-fit:cover;border-radius:8px}.attach-file411{display:grid;gap:5px;justify-items:center;color:#36536f;font-size:12px;font-weight:800;word-break:break-all}.attach-preview411{width:100%;height:100%;min-height:86px;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:8px;background:#eef4f8}.attach-pdf-preview411{width:100%;height:120px;border:0;background:#fff;pointer-events:none}.attach-preview-loading411{font-size:11px;color:#6e8293;font-weight:800;padding:8px}.attach-icon411{font-size:30px}.attach-open411{position:absolute;inset:0;border:0;background:transparent;cursor:pointer}.attach-remove411{position:absolute;right:5px;top:5px;z-index:2;width:27px;height:27px;border:0;border-radius:999px;background:rgba(25,50,72,.78);color:#fff;font-weight:900}.attach-gallery411{margin-top:12px}.attach-meta411{font-size:11px;color:#75879a}`;document.head.appendChild(s)}
 function attachmentKind(a){if(typeof a==='string')return 'image';return a?.kind||(String(a?.mime||'').includes('pdf')?'pdf':'image')}
 function attachmentName(a,i=0){if(typeof a==='string')return `사진 ${i+1}`;return a?.name||`${attachmentKind(a)==='pdf'?'PDF':'사진'} ${i+1}`}
+function attachmentDirectUrl(a){if(typeof a==='string')return a;if(!a||typeof a!=='object')return '';return a.previewUrl||a.url||a.storageUrl||a.dataUrl||''}
 function persistAttachment(a){if(typeof a==='string')return a;if(!a||typeof a!=='object')return a;const {previewUrl,...rest}=a;return rest}
 function fileToBase64(file){return file.arrayBuffer().then(buf=>{const bytes=new Uint8Array(buf);let binary='';const chunk=0x8000;for(let i=0;i<bytes.length;i+=chunk)binary+=String.fromCharCode(...bytes.subarray(i,i+chunk));return btoa(binary)})}
 function inferMime(file){if(file.type)return file.type;const ext=String(file.name||'').split('.').pop()?.toLowerCase();if(ext==='pdf')return 'application/pdf';if(['heic','heif'].includes(ext))return `image/${ext}`;if(ext==='png')return 'image/png';if(ext==='webp')return 'image/webp';return 'image/jpeg'}
@@ -84,13 +85,17 @@ function writeResponsiveImageViewer(w,url,name='사고사진'){
 }
 async function openAttachment(a){
   if(!a)return;
-  const kind=attachmentKind(a),name=attachmentName(a,0);
-  if(typeof a==='string'){
+  const kind=attachmentKind(a),name=attachmentName(a,0),direct=attachmentDirectUrl(a);
+  if(direct){
     const w=window.open('','_blank');
-    if(w)return writeResponsiveImageViewer(w,a,name);
-    return alert('원본 사진 창을 열지 못했습니다. 브라우저의 팝업 허용 설정을 확인해 주세요.');
+    if(kind==='image'){
+      if(w)return writeResponsiveImageViewer(w,direct,name);
+      return alert('원본 사진 창을 열지 못했습니다. 브라우저의 팝업 허용 설정을 확인해 주세요.');
+    }
+    if(w)w.location.replace(direct);else window.location.href=direct;
+    return;
   }
-  const path=a.path;if(!path)return alert('첨부파일 경로를 확인할 수 없습니다.');
+  const path=a?.path;if(!path)return alert('첨부파일 경로를 확인할 수 없습니다.');
   const w=window.open('','_blank');
   if(w){w.document.write('<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><body style="margin:0;background:#0b1117;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100dvh"><div>원본 파일을 불러오는 중입니다…</div></body>');w.document.close()}
   try{
@@ -102,9 +107,9 @@ async function openAttachment(a){
     if(w)w.location.replace(url);else window.location.href=url;
   }catch(e){try{w?.close()}catch(_){}alert('첨부파일을 열지 못했습니다. 다시 시도해 주세요.')}
 }
-function attachmentPreviewHtml(a,i=0){const kind=attachmentKind(a),name=attachmentName(a,i),preview=typeof a==='object'?a?.previewUrl:'';if(kind==='image'&&(typeof a==='string'||preview))return `<img src="${typeof a==='string'?a:preview}" alt="${esc(name)}">`;if(kind==='pdf'&&preview)return `<iframe class="attach-pdf-preview411" src="${esc(preview)}#toolbar=0&navpanes=0&scrollbar=0" title="${esc(name)} 미리보기" loading="lazy"></iframe>`;return `<div class="attach-file411"><span class="attach-icon411">${kind==='pdf'?'📄':'🖼️'}</span><b>${esc(name)}</b>${typeof a==='object'&&a?.size?`<span class="attach-meta411">${Math.max(1,Math.round(a.size/1024))}KB</span>`:''}<span class="attach-preview-loading411">${a?.path?'미리보기 불러오는 중…':'원본 미리보기'}</span></div>`}
+function attachmentPreviewHtml(a,i=0){const kind=attachmentKind(a),name=attachmentName(a,i),preview=attachmentDirectUrl(a);if(kind==='image'&&preview)return `<img src="${esc(preview)}" alt="${esc(name)}">`;if(kind==='pdf'&&preview)return `<iframe class="attach-pdf-preview411" src="${esc(preview)}#toolbar=0&navpanes=0&scrollbar=0" title="${esc(name)} 미리보기" loading="lazy"></iframe>`;return `<div class="attach-file411"><span class="attach-icon411">${kind==='pdf'?'📄':'🖼️'}</span><b>${esc(name)}</b>${typeof a==='object'&&a?.size?`<span class="attach-meta411">${Math.max(1,Math.round(a.size/1024))}KB</span>`:''}<span class="attach-preview-loading411">${a?.path?'미리보기 불러오는 중…':'원본 미리보기'}</span></div>`}
 function attachmentCardHtml(a,i,{removable=false}={}){const name=attachmentName(a,i);return `<div class="attach-card411" data-attach-card="${i}"><div class="attach-preview411" data-attach-preview="${i}">${attachmentPreviewHtml(a,i)}</div><button type="button" class="attach-open411" data-attach-open="${i}" aria-label="${esc(name)} 원본 열기"></button>${removable?`<button type="button" class="attach-remove411" data-rm="${i}">×</button>`:''}</div>`}
-async function hydrateAttachmentPreviews(root,arr){const list=Array.isArray(arr)?arr:[],paths=[...new Set(list.filter(a=>a&&typeof a==='object'&&a.path&&!a.previewUrl).map(a=>a.path))];if(paths.length){try{const urls=await signAttachments(paths);list.forEach(a=>{if(a&&typeof a==='object'&&a.path&&urls[a.path])a.previewUrl=urls[a.path]})}catch(e){}}list.forEach((a,i)=>{const box=root?.querySelector(`[data-attach-preview="${i}"]`);if(box)box.innerHTML=attachmentPreviewHtml(a,i)})}
+async function hydrateAttachmentPreviews(root,arr){const list=Array.isArray(arr)?arr:[],paths=[...new Set(list.filter(a=>a&&typeof a==='object'&&a.path&&!attachmentDirectUrl(a)).map(a=>a.path))];if(paths.length){try{const urls=await signAttachments(paths);list.forEach(a=>{if(a&&typeof a==='object'&&a.path&&urls[a.path])a.previewUrl=urls[a.path]})}catch(e){}}list.forEach((a,i)=>{const box=root?.querySelector(`[data-attach-preview="${i}"]`);if(box)box.innerHTML=attachmentPreviewHtml(a,i)})}
 function attachmentGalleryHtml(arr){const list=Array.isArray(arr)?arr:[];if(!list.length)return '';ensureAttachmentStyle();return `<div class="attach-grid411 attach-gallery411">${list.map((a,i)=>attachmentCardHtml(a,i)).join('')}</div>`}
 function bindAttachmentOpen(root,arr){const list=Array.isArray(arr)?arr:[];root?.querySelectorAll('[data-attach-open]').forEach(b=>b.onclick=()=>openAttachment(list[Number(b.dataset.attachOpen)]));hydrateAttachmentPreviews(root,list)}
 function photoPickerHtml(kind){ensureAttachmentStyle();return `<div class="photo-box"><div class="photo-head"><b>${kind==='incident'?'현장사진 / PDF':'개선조치 사진 / PDF'}</b><small id="${kind}PhotoCount">0 / ${MAX_PHOTOS}개</small></div><div class="photo-actions"><button type="button" class="secondary" id="${kind}PhotoBtn">사진·PDF 선택 / 촬영</button></div><div id="${kind}Thumbs" class="attach-grid411"></div></div>`}
