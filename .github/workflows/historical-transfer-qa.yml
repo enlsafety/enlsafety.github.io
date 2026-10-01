@@ -79,7 +79,9 @@ jobs:
           stable=Path('stable412.html').read_text(encoding='utf-8')
           version=json.loads(Path('version.json').read_text(encoding='utf-8'))
           assert "historicalImport" in hist
-          for token in ['<select id="hEvent" required><option value="">선택</option>','<select id="hAction" required><option value="">선택</option>','<select id="hFollow" required><option value="">선택</option>']:\n            assert token in hist, token\n          for token in ["erpApproved:true","workflowExempt:true","silent:true","transferState:'closed'","status:'closed'","corrective:null","additionalAction","recordMode:'historical_transfer'","historicalTransfer","reporterId:''","hSeverity","enlStartHistoricalTransfer449"]:
+          for token in ['<select id="hEvent" required><option value="">선택</option>','<select id="hAction" required><option value="">선택</option>','<select id="hFollow" required><option value="">선택</option>']:
+            assert token in hist, token
+          for token in ["erpApproved:true","workflowExempt:true","silent:true","transferState:'closed'","status:'closed'","corrective:null","additionalAction","recordMode:'historical_transfer'","historicalTransfer","reporterId:''","hSeverity","enlStartHistoricalTransfer449"]:
             assert token in hist, token
           for token in ["historicalClosed","!historicalClosed(i)"]:
             assert token in prev, token
