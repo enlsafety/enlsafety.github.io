@@ -2,7 +2,7 @@
 (function(){
   'use strict';
 
-  const VERSION='4.4.0-immediate-supplement-ack1';
+  const VERSION='4.4.35-supplement-preview1';
   const PUSH_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-v418';
   const CLIENT='incident-report-v2';
   const MANAGER_POSITIONS=['현장소장','파트장','서무'];
@@ -160,7 +160,10 @@
 
   function renderSupplementFiles(root){
     const list=root?.querySelector('#wf440SupplementFiles');if(!list)return;
-    list.innerHTML=supplementFiles.map((f,idx)=>`<div class="wf440-file"><span>${ex(f.name||f.fileName||'첨부자료')}</span><button type="button" data-wf440-file-rm="${idx}">삭제</button></div>`).join('')||'<span style="font-size:11px;color:#728598">첨부된 보완자료가 없습니다.</span>';
+    if(!supplementFiles.length){list.innerHTML='<span style="font-size:11px;color:#728598">첨부된 보완자료가 없습니다.</span>';return}
+    const gallery=typeof window.enlAttachmentGalleryHtml==='function'?window.enlAttachmentGalleryHtml(supplementFiles):'';
+    list.innerHTML=gallery+`<div class="wf440-file-controls">${supplementFiles.map((f,idx)=>`<div class="wf440-file"><span>${ex(f.name||f.fileName||'첨부자료')}</span><button type="button" data-wf440-file-rm="${idx}">삭제</button></div>`).join('')}</div>`;
+    try{window.enlBindAttachmentOpen?.(list,supplementFiles)}catch(e){}
     list.querySelectorAll('[data-wf440-file-rm]').forEach(b=>b.onclick=()=>{supplementFiles.splice(Number(b.dataset.wf440FileRm),1);renderSupplementFiles(root);validateSupplementVisual(root)});
   }
   function validateSupplementVisual(root){
@@ -186,8 +189,8 @@
         <label class="lbl"><span>진료비 상세내역</span><input id="wf440MedicalDetail" value="${ex(d.medicalCostDetail||'')}"></label>
       </div>`:`
       <div class="wf440-form-grid">
-        <label class="lbl"><span>수리·복구 견적금액${star('repairCost')}</span><input id="wf440RepairCost" type="number" min="0" inputmode="numeric" value="${ex(d.repairCost||'')}" ${required('repairCost')}></label>
-        <label class="lbl wf440-wide"><span>견적·비용 상세내역${star('repairCostDetail')}</span><textarea id="wf440RepairDetail" rows="3" ${required('repairCostDetail')}>${ex(d.repairCostDetail||'')}</textarea></label>
+        <label class="lbl"><span>수리·복구 견적금액${star('repairCost')}</span><input id="wf440RepairCost" type="number" min="0" inputmode="numeric" value="${ex(d.repairCostPending===true?'':(d.repairCost||''))}" ${required('repairCost')} placeholder="예: 350000"></label>
+        <label class="lbl wf440-wide"><span>견적·비용 상세내역${star('repairCostDetail')}</span><textarea id="wf440RepairDetail" rows="3" ${required('repairCostDetail')} placeholder="예: 지주 교체비 250,000원 + 도장비 100,000원">${ex(d.repairCostDetail==='사후 보완 예정'?'':(d.repairCostDetail||''))}</textarea></label>
       </div>`;
     openModal(`<div class="modal-head"><div><div class="ey">SUPPLEMENT</div><h2>${ex(siteName(i.siteId))} · 사고보고 보완자료</h2><p>사고 직후에는 알 수 없었던 진단·비용·견적 등의 사후 확인자료를 입력합니다.</p></div><button class="x" data-close>×</button></div>
       <div class="wf440-supplement-note"><b>안전관리자 요청사항</b><ul>${supplementList(i).map(x=>`<li>${ex(x)}</li>`).join('')||'<li>보완요청 메모를 확인해 주세요.</li>'}</ul>${i.supplement?.requestNote?`<div style="margin-top:6px">${ex(i.supplement.requestNote)}</div>`:''}</div>
@@ -209,7 +212,8 @@
       if(i.category==='person'){
         d.diagnosis=text(form.querySelector('#wf440Diagnosis')?.value);d.doctorOpinion=text(form.querySelector('#wf440Doctor')?.value);d.medicalCost=Number(form.querySelector('#wf440MedicalCost')?.value||0)||0;d.medicalCostDetail=text(form.querySelector('#wf440MedicalDetail')?.value);i.leaveEstimate=text(form.querySelector('#wf440Leave')?.value)||i.leaveEstimate||'unknown';
       }else{
-        d.repairCost=Number(form.querySelector('#wf440RepairCost')?.value||0)||0;d.repairCostDetail=text(form.querySelector('#wf440RepairDetail')?.value);
+        const repair=Number(form.querySelector('#wf440RepairCost')?.value||0)||0,detail=text(form.querySelector('#wf440RepairDetail')?.value);
+        d.repairCost=repair;d.repairCostPending=repair<=0;d.repairCostDetail=detail||(repair>0?'':'사후 보완 예정');
       }
       const ts=now();i.reportDetails=d;i.status='supplement_submitted';i.supplement={...(i.supplement||{}),status:'submitted',attachments:persistAttachments(supplementFiles),submittedBy:u.name,submittedById:uid(u),submittedAt:ts};
       const w=workflow(i);w.phase='supplement_review';w.supplementSubmittedAt=ts;w.supplementSubmittedBy=u.name;i.updatedAt=ts;

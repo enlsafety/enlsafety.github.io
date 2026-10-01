@@ -68,7 +68,7 @@ jobs:
           end=rx.index('function refreshNav()',start)
           assert "enlWorkflowApi({action:'comment_list'" not in rx[start:end]
           for x in [
-            "4.2.5-push-session3",
+            "4.4.35-pending-readonly1",
             "enl-push-claim-v425",
             "PENDING_KEY='enl_pending_push_incident_v425'",
             "claimForCurrentUser",
@@ -77,12 +77,15 @@ jobs:
             "urgentReadOnly",
             "scheduleUserReady",
             "schedulePendingOpen",
-            "안전관리자 검토 전 긴급사고"
+            "안전관리자 검토 전 긴급사고",
+            "관리자·경영진은 검토대기 단계에서도 현재 보고내용을 읽기 전용으로 확인할 수 있습니다."
           ]: assert x in ps,x
           assert "setTimeout(onUserReady" not in ps
+          assert "검토대기 단계 상세 열람은 긴급사고에 한해" not in ps
+          assert "!['approved','closed'].includes(status)&&!urgent(i)" not in ps
           for x in ["4.4.32-startup-cache1","incidentId","stable412.html?push=1&incident=","PUSH_CONFIRM_API","ack_test_token"]: assert x in sw,x
           assert 'reader-experience-v424.js?v=4.4.14-r1&amp;fix=historical-transfer1' in html
-          assert 'push-session-v425.js?v=4.1.5-r1&amp;fix=device-heartbeat2' in html
+          assert 'push-session-v425.js?v=4.4.35-r1&amp;fix=pending-readonly1' in html
           assert 'hq-notification-status-v437.js?v=4.4.12-r1&amp;fix=hq-align1' in html
           hq=Path('hq-notification-status-v437.js').read_text(encoding='utf-8')
           assert "const VERSION='4.4.12-hq-align1'" in hq
@@ -94,7 +97,7 @@ jobs:
           assert html.index('personnel-management-v434.js') < html.index('hq-notification-status-v437.js')
           assert 'lastClaimAt=0' in ps and '__device:deviceMeta()' in ps
           assert html.rfind('push-session-v425.js') > html.rfind('reader-experience-v424.js')
-          print('OK: instant own-comment delete, stable UI, urgent read-only detail, and deduplicated push readiness')
+          print('OK: reader deep-links open pending details read-only; UI and push readiness remain stable')
       - name: Live endpoint guards
         shell: python
         run: |
