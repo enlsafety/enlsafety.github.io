@@ -64,7 +64,6 @@ jobs:
             "보완검토대기",
             "사고보고 최종승인",
             "진단서·영수증·견적서 등 보완자료",
-            "확인 기록",
             "결재 아님",
             "management_view",
             "view_list",
@@ -90,7 +89,7 @@ jobs:
           for x in ["실제 조치 완료일 *","attachments().length<1"]: assert x in enhance,x
           for x in ["원인 분석 *","재발방지계획 *","실제 실시한 재발방지조치 *","submittedById","reviewedById"]: assert x in prevention,x
           for x in ["즉시보고부터 보완·최종승인·종결","supplement_submitted"]: assert x in reader,x
-          assert "incident-flow-v440.js?v=4.4.37-r1&amp;fix=supplement-review1" in html
+          assert "incident-flow-v440.js?v=4.4.39-r1&amp;fix=no-confirm-history1" in html
           assert html.index('official-records-v439.js') < html.index('incident-flow-v440.js')
           print('OK: immediate report -> supplement -> final confirmation -> prevention workflow is wired')
       - name: Non-invasive production API health
