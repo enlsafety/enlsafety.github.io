@@ -111,7 +111,7 @@
     currentIncidentId=i.id;
     if(!modal.querySelector('[data-official439-box]')){
       const wrap=document.createElement('div');wrap.dataset.official439Box='1';wrap.innerHTML=officialBox(i);
-      const actions=modal.querySelector('.modal-actions')||modal.querySelector('#ackIncident411');
+      const actions=modal.querySelector('.modal-actions')||modal.lastElementChild;
       if(actions)actions.insertAdjacentElement('beforebegin',wrap);else modal.appendChild(wrap);
     }
     const actions=modal.querySelector('.modal-actions');
