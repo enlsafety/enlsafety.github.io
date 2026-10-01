@@ -36,7 +36,10 @@ async function run(engine){
 
     await page.evaluate(()=>window.enlRenderFieldHome(document.getElementById('view'),window.__u));
     assert.equal(await page.locator('.field-six-new').textContent(),'1');
-    assert.ok((await page.locator('.field-six-alert').innerText()).includes('사고보고 보완요청 1건'));
+    const homeAlert=await page.locator('.field-six-alert').innerText();
+    assert.ok(homeAlert.includes('사고보고 보완요청 1건'));
+    assert.ok(!homeAlert.includes('안전관리자가 보완을 요청'), 'home alert must not contain the removed helper sentence');
+    assert.equal(await page.locator('.field-six-alert span').count(),0,'home alert helper span must be removed');
     assert.ok((await page.locator('[data-field-task="records"]').innerText()).includes('보완요청 1건'));
     if(await page.locator('[data-field-notification-setup]').count()){
       await page.locator('[data-field-notification-setup]').click();
@@ -44,7 +47,12 @@ async function run(engine){
     }
 
     await page.evaluate(()=>window.enlRenderFieldRecords(document.getElementById('view'),window.__u));
+    assert.equal(await page.locator('.field411-head p').count(),0,'record header description must be removed');
+    assert.equal(await page.locator('.field411-manager-note').count(),0,'record processing-order note must be removed');
     for(const key of ['supplement','action','approved','waiting','closed'])assert.ok(await page.locator('[data-field-group="'+key+'"]').count(),key+' group missing');
+    const supplementText=await page.locator('[data-field-group="supplement"]').innerText();
+    assert.ok(supplementText.includes('안전관리자가 추가자료를 요청한 사고입니다.'));
+    assert.ok(!/요청했어|하면 돼|해야 해|등록했어|승인됐어|기록이야|완료했어|기다리면 돼/.test(supplementText));
     assert.ok((await page.locator('[data-field-group="supplement"]').innerText()).includes('보완자료 작성하기'));
     assert.ok((await page.locator('[data-field-group="approved"]').innerText()).includes('재발방지계획'));
     assert.ok((await page.locator('[data-field-group="action"]').innerText()).includes('사고 조치 작성하기'));
