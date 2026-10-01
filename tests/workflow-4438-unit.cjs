@@ -28,13 +28,13 @@ for(const x of [
   "재발방지 관리"
 ]) assert.ok(prevention.includes(x),x);
 
-assert.ok(workflow.includes("4.4.38-optional-hq-comment1"));
+assert.ok(workflow.includes("4.4.39-comment-empty1"));
 assert.ok(workflow.includes('id="wf412CommentBody"'));
 assert.ok(workflow.includes('data-enl-optional="1"'));
 assert.ok(!workflow.includes('id="wf412CommentBody" maxlength="2000" required'));
 
 for(const x of [
-  "4.4.38-own-sign1",
+  "4.4.39-crisp-sign1",
   "legacyTestPerson",
   "serverOk=true",
   "aria-label=\"본인 결재하기\"",
@@ -50,14 +50,14 @@ for(const x of ["4.4.38-hq-cache-prune1","remote=Array.isArray(r.users)?r.users:
 for(const asset of [
   'auth-v411.js?v=4.4.38-r1&amp;fix=hq-cache-prune1',
   'app-shell-v411.js?v=4.4.38-r1&amp;fix=hq-attention1',
-  'workflow-v412.js?v=4.4.38-r1&amp;fix=optional-hq-comment1',
+  'workflow-v412.js?v=4.4.39-r1&amp;fix=comment-empty1',
   'workflow-prevention-v429.js?v=4.4.38-r1&amp;fix=prevention-alert1',
   'production-cleanup-v431.js?v=4.4.38-r1&amp;fix=test-hq-cleanup1',
-  'management-approval-v448.js?v=4.4.38-r1&amp;fix=own-sign1'
+  'management-approval-v448.js?v=4.4.39-r1&amp;fix=crisp-sign1'
 ]) assert.ok(stable.includes(asset),asset);
 
-assert.ok(stable.includes('content="4.4.38-r1"'));
-assert.ok(index.includes("const BUILD='4438-r1'"));
-assert.equal(version.version,'4.4.38');
-assert.equal(version.build,'stable-4438-r1');
+assert.ok(stable.includes('content="4.4.39-r1"'));
+assert.ok(index.includes("const BUILD='4439-r1'"));
+assert.equal(version.version,'4.4.39');
+assert.equal(version.build,'stable-4439-r1');
 console.log('PASS: recurrence-plan alert, HQ approval attention, optional opinion, own-sign highlight and stale test cleanup');
