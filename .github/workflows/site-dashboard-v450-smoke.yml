@@ -106,11 +106,13 @@ jobs:
           assert 'Natural Earth' in svg and '<svg' in svg and '<path' in svg
           for token in ['전남광주 장성군 북이면 사거리 752-1','경기 용인시 기흥구 청덕동 80-2','경기 화성시 동탄구 동탄순환대로 823, 702~703호']:
             assert token in seed, token
-          assert 'site-dashboard-v450.js?v=4.4.32-r1&amp;fix=startup-defer1' in html
+          assert 'site-dashboard-v450.js?v=4.4.33-r1&amp;fix=map-lock1' in html
           assert 'site-master-seed-v400.js?v=4.4.24-r1' in html
-          assert 'content="4.4.32-r1"' in html
-          assert meta['version']=='4.4.32' and meta['build']=='stable-4432-r1'
-          assert "const BUILD='4432-r1'" in index
+          dash=Path('site-dashboard-v450.js').read_text(encoding='utf-8')
+          for x in ['4.4.33-map-lock1','data-map-lock','map-interactive','touch-action:pan-y','if(!interactive)return;e.preventDefault()']: assert x in dash,x
+          assert 'content="4.4.33-r1"' in html
+          assert meta['version']=='4.4.33' and meta['build']=='stable-4433-r1'
+          assert "const BUILD='4433-r1'" in index
           print('OK: site profile and Korea distribution dashboard invariants preserved')
       - name: Dashboard behavior tests
         run: |

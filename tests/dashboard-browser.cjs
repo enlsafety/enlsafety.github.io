@@ -47,6 +47,14 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  await page.waitForFunction(()=>window.enlDashboardMetrics?.()!==null,{timeout:5000});
  await page.waitForTimeout(1350);
  await page.locator('[data-sd450-map]').waitFor();
+ const viewport=page.locator('.sd450-map-viewport'),mapLock=page.locator('[data-map-lock]');
+ assert.equal(await viewport.getAttribute('data-map-interactive'),'0','map must start locked');
+ assert.equal(await mapLock.getAttribute('aria-pressed'),'false','map lock control must start off');
+ assert.equal(await page.locator('[data-map-scale]').innerText(),'100%');
+ const lockedWheelPrevented=await viewport.evaluate(el=>{const e=new WheelEvent('wheel',{bubbles:true,cancelable:true,deltaY:120,clientX:10,clientY:10});el.dispatchEvent(e);return e.defaultPrevented});
+ assert.equal(lockedWheelPrevented,false,'locked map must not capture page wheel scrolling');
+ assert.equal(await page.locator('[data-map-scale]').innerText(),'100%','locked wheel must not zoom the map');
+ if(touch){assert.equal(await viewport.evaluate(el=>getComputedStyle(el).touchAction),'pan-y','locked mobile map must allow vertical page scrolling');assert.equal(await page.locator('[data-sd450-map-site]').first().evaluate(el=>getComputedStyle(el).touchAction),'pan-y','locked map markers must allow vertical page scrolling')}
  const openSite=async id=>{
   const marker=page.locator(`[data-sd450-map-site="${id}"]`);
   if(touch){await marker.tap();assert.equal(await marker.getAttribute('aria-expanded'),'true','touch input must open a name for every HQ role');await marker.locator('.sd450-marker-label').tap()}else await marker.click();
@@ -89,7 +97,11 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
   window.qaLabelOffsets=[];const b=document.querySelector('[data-sd450-map-site="s25"] .sd450-marker-label');
   window.qaLabelObserver=new MutationObserver(()=>qaLabelOffsets.push({left:b.style.left,top:b.style.top}));qaLabelObserver.observe(b,{attributes:true,attributeFilter:['style']});
  });
- const viewport=page.locator('.sd450-map-viewport');await viewport.scrollIntoViewIfNeeded();const box=await viewport.boundingBox();
+ if(await mapLock.getAttribute('aria-pressed')!=='true'){if(touch)await mapLock.tap();else await mapLock.click()}
+ assert.equal(await viewport.getAttribute('data-map-interactive'),'1','one deliberate click/tap must enable map interaction');
+ assert.equal(await mapLock.getAttribute('aria-pressed'),'true');
+ if(touch)assert.equal(await viewport.evaluate(el=>getComputedStyle(el).touchAction),'none','active mobile map must capture drag/pinch only after tap');
+ await viewport.scrollIntoViewIfNeeded();const box=await viewport.boundingBox();
  const transform=()=>page.locator('.sd450-map-canvas').evaluate(x=>x.style.transform);
  const scale=async()=>parseInt(await page.locator('[data-map-scale]').innerText());
  const before=await transform();
