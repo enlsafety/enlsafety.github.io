@@ -23,18 +23,18 @@ const server=http.createServer((req,res)=>{
     await page.evaluate(()=>navigator.serviceWorker.ready);
     await page.reload({waitUntil:'domcontentloaded',timeout:15000});
     await page.waitForFunction(()=>!!navigator.serviceWorker.controller,{timeout:10000});
+    await page.waitForFunction(async()=>{const c=await caches.open('enl-pwa-4432-startup1');return !!(await c.match('/stable412.html?offline=1'))},{timeout:15000});
     await page.waitForTimeout(300);
 
-    await context.setOffline(true);
+    await new Promise(resolve=>server.close(resolve));
     const start=Date.now();
     await page.goto(origin+'/stable412.html?source=pwa',{waitUntil:'domcontentloaded',timeout:5000});
     await page.waitForSelector('.login-v411',{timeout:5000});
     const elapsed=Date.now()-start;
-    assert.ok(elapsed<5000,'offline cached startup too slow: '+elapsed+'ms');
-    console.log('PASS: installed-app shell and static assets open offline from cache in '+elapsed+'ms');
+    assert.ok(elapsed<5000,'cached startup with origin unavailable too slow: '+elapsed+'ms');
+    console.log('PASS: installed-app shell and static assets open from service-worker cache with origin unavailable in '+elapsed+'ms');
   }finally{
-    await context.setOffline(false).catch(()=>{});
     await browser.close();
-    await new Promise(resolve=>server.close(resolve));
+    if(server.listening)await new Promise(resolve=>server.close(resolve));
   }
 })().catch(e=>{console.error(e);server.close(()=>{});process.exit(1)});
