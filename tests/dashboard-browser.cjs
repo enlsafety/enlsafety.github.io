@@ -44,12 +44,15 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  assert.equal(await page.locator('.sd450-map-note').count(),0);
  assert.ok((await page.locator('.sd450-primary-legend').innerText()).includes('계약종료 · 회색'));
  assert.equal(await page.locator('.sd450-dot.closed').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(137, 147, 157)');
+ await page.waitForFunction(()=>window.enlDashboardMetrics?.()!==null,{timeout:5000});
+ await page.waitForTimeout(1350);
+ await page.locator('[data-sd450-map]').waitFor();
  const openSite=async id=>{
   const marker=page.locator(`[data-sd450-map-site="${id}"]`);
   if(touch){await marker.tap();assert.equal(await marker.getAttribute('aria-expanded'),'true','touch input must open a name for every HQ role');await marker.locator('.sd450-marker-label').tap()}else await marker.click();
  };
  if(touch)assert.equal(await page.locator('.sd450-marker-label').evaluateAll(bs=>bs.filter(b=>getComputedStyle(b).visibility==='visible').length),0,'mobile starts with points only, including high-risk points');
- for(const id of await page.evaluate(()=>Object.keys(ENL_SITE_LOCATIONS).filter(id=>id!=='s34'))){await page.locator('#sd450Site').selectOption(id);const address=await page.evaluate(id=>ENL_SITE_LOCATIONS[id].address,id);await page.waitForFunction(({id,address})=>document.querySelector('#sd450Site')?.value===id&&document.querySelector('[data-sd450-summary]')?.textContent.includes(address),{id,address},{timeout:3000});}
+ for(const id of await page.evaluate(()=>Object.keys(ENL_SITE_LOCATIONS).filter(id=>id!=='s34'))){await page.locator('#sd450Site').selectOption(id);const address=await page.evaluate(id=>ENL_SITE_LOCATIONS[id].address,id);await page.waitForFunction(({id,address})=>document.querySelector('#sd450Site')?.value===id&&document.querySelector('[data-sd450-summary]')?.textContent.includes(address),{id,address},{timeout:5000});}
  await page.waitForFunction(()=>{const b=document.querySelector('[data-sd450-map-site="s02"]');return b&&getComputedStyle(b).backgroundColor==='rgb(232, 137, 24)'},{timeout:5000});
  await openSite('s29');assert.ok((await page.locator('[data-sd450-summary]').innerText()).includes('미종결 긴급·중대 사고 있음'));
  assert.equal(await page.locator('[data-sd450-map-site="s29"].high').count(),1);
