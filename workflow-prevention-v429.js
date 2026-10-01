@@ -2,7 +2,7 @@
 (function(){
   'use strict';
 
-  const VERSION='4.4.38-prevention-alert1';
+  const VERSION='4.4.40-prevention-autodraft1';
   const LEGACY_SENTINEL='후속 단계에서 안전관리자가 별도 수립';
   const MANAGER_POSITIONS=['현장소장','파트장','서무'];
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
@@ -28,6 +28,117 @@
   const persistAttachments=arr=>(arr||[]).map(a=>typeof window.enlPersistAttachment==='function'?window.enlPersistAttachment(a):a);
   const quick=i=>typeof window.enlIncidentQuickSummary==='function'?window.enlIncidentQuickSummary(i):{headline:i?.eventType||'사고',site:siteName(i?.siteId),when:i?.occurredAt?(typeof fmt==='function'?fmt(i.occurredAt):i.occurredAt):'-'};
   const overview=i=>typeof window.enlIncidentOverviewHtml==='function'?window.enlIncidentOverviewHtml(i,{compact:true}):`<p class="summary">${ex(i?.summary||'-')}</p>`;
+
+
+  function targetDate(days){
+    const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()+Number(days||0));
+    const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+  function suggestedOwner(i){
+    const rank=new Map(MANAGER_POSITIONS.map((p,n)=>[p,n]));
+    const users=Array.isArray(data?.users)?data.users:[];
+    const candidates=users.filter(x=>String(x?.siteId||'')===String(i?.siteId||'')&&x?.active!==false&&isField(x)&&rank.has(text(x?.position||x?.jobTitle)))
+      .sort((a,b)=>(rank.get(text(a?.position||a?.jobTitle))??99)-(rank.get(text(b?.position||b?.jobTitle))??99)||text(a?.name).localeCompare(text(b?.name),'ko'));
+    const p=candidates[0],position=text(p?.position||p?.jobTitle),name=text(p?.name);
+    if(!p)return '현장소장';
+    if(name&&position&&name.includes(position))return name;
+    return [position,name].filter(Boolean).join(' ')||'현장소장';
+  }
+  function incidentDraftSource(i){
+    const d=i?.reportDetails||{};
+    return [i?.eventType,i?.summary,d.workAction,d.incidentHow,d.environmentCause,d.behaviorCause,i?.immediateAction,d.injuryDetail,d.diagnosis,d.damagedItem,d.damageDetail,d.specialNote].map(text).filter(Boolean).join(' ');
+  }
+  function hazardDraft(i){
+    const d=i?.reportDetails||{},event=text(i?.eventType),source=incidentDraftSource(i);
+    const finish='조치 완료 후 현장소장이 이행 여부를 확인하고 사진 등 증빙을 남겨 안전관리자에게 제출한다.';
+    if(event==='붕괴/전도'||/강풍|안전망|방풍|펜스|휀스|구조물.{0,12}(전도|붕괴)|전도.{0,12}구조물/.test(source)){
+      return {
+        cause:'구조물의 고정·지지 상태와 기상조건 변화에 따른 작업중지·접근통제 기준이 충분히 확보되지 않아 전도·붕괴 위험이 현실화된 것으로 판단됨.',
+        plan:'1. 사고 관련 구조물과 동일·유사 구조물의 고정·지지·기초 상태를 즉시 점검하고 불량부는 보강 또는 사용중지한다.\n2. 강풍 등 기상 악화 시 작업중지 및 접근금지 기준을 정하고, 위험구역을 표시·통제한다.\n3. 구조물 설치·해체·이동 작업 전 고정상태와 주변 인원 유무를 확인하는 절차를 작업방법에 반영하고 TBM으로 공유한다.\n4. '+finish
+      };
+    }
+    if(/골프공|타구|티샷|샷.{0,8}(위험|충돌)|페어웨이|그린.{0,8}작업/.test(source)){
+      return {
+        cause:'골프 경기구역과 작업구역의 분리, 작업자와 경기운영 인력 간 사전 연락 및 타구 접근 시 작업중지 기준이 충분하지 않아 타구 위험에 노출된 것으로 판단됨.',
+        plan:'1. 코스 작업 전 경기 진행 여부를 확인하고 작업구역과 타구 위험구역을 구분해 작업자 접근을 통제한다.\n2. 캐디·경기운영·현장 작업자 간 연락방법을 정하고, 타구가 예상되거나 플레이가 접근하면 즉시 작업을 중지하고 안전구역으로 대피한다.\n3. 반복 노출 구간은 작업시간 조정, 감시자 배치, 방호시설 등 추가 통제수단을 검토·적용한다.\n4. '+finish
+      };
+    }
+    if(event==='차량/중장비'||/지게차|카트|차량|중장비|굴삭기|로더|후진|충돌|부딪힘/.test(source)){
+      return {
+        cause:'차량·장비와 보행자 또는 시설물의 동선 분리, 사각지대 확인, 정지·유도 절차가 충분하지 않아 충돌 위험이 발생한 것으로 판단됨.',
+        plan:'1. 사고 지점의 차량·장비 동선과 보행 동선을 분리하고 교차구간·사각지대에는 정지선, 표지, 반사경 등 필요한 통제수단을 보완한다.\n2. 후진·협소구간·시야불량 작업은 유도자 배치 또는 작업구역 출입통제를 적용하고 제한속도·정지·확인 절차를 준수한다.\n3. 운전자와 작업자에게 현장 동선 및 충돌예방 수칙을 TBM으로 재교육하고 동일 위험구간을 함께 점검한다.\n4. '+finish
+      };
+    }
+    if(event==='넘어짐'||/미끄러|걸려|넘어짐|미끄럼|단차|바닥.{0,8}(젖|불량)/.test(source)){
+      return {
+        cause:'통행로의 바닥상태·단차·장애물 등 넘어짐 위험요인의 제거와 작업 전 확인이 충분하지 않아 보행 중 균형을 잃은 것으로 판단됨.',
+        plan:'1. 사고 장소와 동일 통행로의 미끄럼·단차·장애물·배수 상태를 즉시 점검하고 위험요인을 제거 또는 보수한다.\n2. 미끄럼 위험구간은 미끄럼방지 조치와 경고표지를 적용하고, 통행로 적치물 관리 기준을 정해 상시 확보한다.\n3. 작업 전 통행로 상태 확인과 적정 안전화를 포함한 넘어짐 예방수칙을 TBM으로 공유한다.\n4. '+finish
+      };
+    }
+    if(event==='추락'||/추락|고소작업|사다리|개구부|안전대/.test(source)){
+      return {
+        cause:'고소작업의 추락방지설비, 작업발판·사다리 상태, 안전대 체결 및 작업 전 확인 절차가 충분하지 않아 추락 위험이 발생한 것으로 판단됨.',
+        plan:'1. 작업발판·사다리·개구부·난간 등 추락 위험설비를 점검하고 필요한 방호조치를 완료하기 전까지 해당 작업을 중지한다.\n2. 안전대 부착설비와 체결방법을 확인하고 고소작업 전 작업장소·설비·보호구 점검 절차를 적용한다.\n3. 동일 고소작업자에게 추락예방 작업방법과 금지사항을 TBM으로 재교육하고 작업 중 준수 여부를 확인한다.\n4. '+finish
+      };
+    }
+    if(event==='끼임'||/끼임|협착|말림|회전체|컨베이어/.test(source)){
+      return {
+        cause:'설비의 위험점 방호, 정비·청소 시 정지 및 에너지 차단, 손 접근 금지 절차가 충분하지 않아 끼임 위험이 발생한 것으로 판단됨.',
+        plan:'1. 해당 설비를 즉시 정지·점검하고 방호덮개·인터록 등 위험점 방호상태를 보완한 뒤 안전확인 후 사용한다.\n2. 정비·청소·이물제거 시 전원 차단 및 재가동 방지 절차를 작업방법에 반영하고 손을 위험점에 넣는 작업을 금지한다.\n3. 동일 설비 작업자에게 끼임 예방 및 에너지 차단 절차를 재교육하고 관리감독자가 준수 여부를 확인한다.\n4. '+finish
+      };
+    }
+    if(event==='베임/찔림'||/베임|찔림|절단|칼|날붙이|예초기|절삭/.test(source)){
+      return {
+        cause:'날카로운 공구·설비의 방호상태와 안전한 취급방법, 작업에 적합한 보호구 사용 확인이 충분하지 않아 베임·찔림 위험이 발생한 것으로 판단됨.',
+        plan:'1. 사용 공구·설비의 파손, 날, 덮개·방호장치 상태를 점검하고 불량품은 즉시 교체 또는 사용중지한다.\n2. 절단 방향, 손 위치, 보관·운반방법 등 안전 작업방법을 정하고 작업 특성에 맞는 보호구를 지급·착용한다.\n3. 동일 작업자에게 공구 취급 및 베임·찔림 예방수칙을 TBM으로 재교육한다.\n4. '+finish
+      };
+    }
+    if(event==='감전'||/감전|누전|전기|활선|콘센트|전선/.test(source)){
+      return {
+        cause:'전기설비의 절연·접지·누전보호 상태와 전원 차단 확인, 손상 전기기기 사용통제가 충분하지 않아 감전 위험이 발생한 것으로 판단됨.',
+        plan:'1. 관련 전기설비의 전원을 차단하고 전선·플러그·접지·누전차단기 상태를 점검해 이상 설비는 수리 전까지 사용중지한다.\n2. 전기작업은 전원 차단과 무전압 확인 후 실시하도록 절차를 정하고 임의 활선작업을 금지한다.\n3. 동일 구역의 전기기기와 이동식 전기설비를 추가 점검하고 감전예방 수칙을 작업자에게 재교육한다.\n4. '+finish
+      };
+    }
+    if(event==='화재/폭발'||/화재|폭발|용접|용단|인화성|가연성|점화원/.test(source)){
+      return {
+        cause:'점화원과 가연·인화성 물질의 분리, 화기작업 통제 및 소화설비 확인이 충분하지 않아 화재·폭발 위험이 발생한 것으로 판단됨.',
+        plan:'1. 점화원과 가연·인화성 물질을 분리하고 누출·잔류물·주변 가연물을 제거한 뒤 안전상태를 확인한다.\n2. 화기작업은 작업 전 위험확인, 소화기 비치, 불티 비산방지, 필요 시 화재감시자 배치 등 통제절차를 적용한다.\n3. 관련 작업자에게 화재·폭발 예방과 비상조치 방법을 재교육하고 동일 위험구역을 추가 점검한다.\n4. '+finish
+      };
+    }
+    if(event==='질식/중독'||/밀폐공간|산소농도|유해가스|질식|중독/.test(source)){
+      return {
+        cause:'유해가스·산소결핍 가능성에 대한 사전 측정, 환기, 출입통제 및 감시체계가 충분하지 않아 질식·중독 위험이 발생한 것으로 판단됨.',
+        plan:'1. 해당 구역 출입을 통제하고 작업 전 산소 및 유해가스 농도를 측정해 안전기준 충족 여부를 확인한다.\n2. 필요한 환기, 감시인 배치, 출입관리 및 구조장비 등 밀폐공간 작업절차를 적용한다.\n3. 작업자와 감시인에게 질식·중독 예방 및 비상구조 절차를 재교육하고 작업 전 점검을 기록한다.\n4. '+finish
+      };
+    }
+    if(event==='근골격'||/중량물|들기|운반|근골격|반복작업|부담작업/.test(source)){
+      return {
+        cause:'중량물 취급방법, 보조장비 사용, 반복·부담작업의 작업자세와 작업분담이 충분히 관리되지 않아 신체부담이 증가한 것으로 판단됨.',
+        plan:'1. 중량·반복 작업의 취급방법과 작업높이를 점검하고 운반구·리프트 등 보조장비 사용 또는 2인 작업을 적용한다.\n2. 불필요한 반복·비틀림·과도한 힘 사용을 줄이도록 작업순서와 작업방법을 조정한다.\n3. 작업자에게 올바른 취급자세와 근골격계 부담 예방수칙을 교육하고 동일 작업의 부담요인을 재점검한다.\n4. '+finish
+      };
+    }
+    if(event==='설비/시설 파손'||/파손|고장|설비|시설물/.test(source)){
+      return {
+        cause:'설비·시설의 이상징후 확인, 예방점검 및 이상 발견 시 사용중지·보수 절차가 충분하지 않아 손상 또는 2차 위험이 발생한 것으로 판단됨.',
+        plan:'1. 손상된 설비·시설은 사용을 중지하거나 접근을 통제하고 원상복구 또는 교체 후 안전상태를 확인한다.\n2. 동일 형식의 설비·시설을 추가 점검하고 점검주기와 이상 발견 시 보고·사용중지 기준을 보완한다.\n3. 관련 작업자에게 설비 이상 발견 시 조치절차와 임의 사용 금지사항을 공유한다.\n4. '+finish
+      };
+    }
+    return {
+      cause:'작업 전 위험요인 확인, 작업구역 통제 및 안전 작업방법의 준수 여부 확인이 충분하지 않아 사고 위험이 현실화된 것으로 판단됨.',
+      plan:'1. 사고 발생 장소와 동일·유사 작업의 위험요인을 즉시 점검하고 확인된 위험요인을 제거·보완한다.\n2. 해당 작업의 안전 작업방법, 작업구역 통제, 필요한 보호구 및 금지사항을 정리해 작업 전 TBM으로 공유한다.\n3. 동일 유형 작업을 추가 점검해 같은 위험요인이 남아 있지 않은지 확인한다.\n4. '+finish
+    };
+  }
+  function autoPreventionDraft(i){
+    const d=i?.reportDetails||{},hazard=hazardDraft(i);
+    const mechanism=text(d.incidentHow)||text(i?.summary)||text(i?.eventType)||'사고 발생';
+    const cause=[`발생 메커니즘: ${mechanism}`];
+    if(text(d.environmentCause))cause.push(`환경적 요인: ${text(d.environmentCause)}`);
+    if(text(d.behaviorCause))cause.push(`행동적 요인: ${text(d.behaviorCause)}`);
+    cause.push(`관리상 원인: ${hazard.cause}`);
+    const days=(i?.potentialMajor===true||String(i?.priority||'')==='urgent')?3:(String(i?.priority||'')==='important'||String(i?.category||'')==='person')?7:14;
+    return {rootCause:cause.join('\n'),planDetail:hazard.plan,ownerName:suggestedOwner(i),dueDate:targetDate(days)};
+  }
 
   let actionFilter={status:'',siteId:'',title:''};
 
@@ -159,7 +270,8 @@
       }
       return openReadOnly(i,u);
     }
-    openModal(`<div class="modal-head"><div><div class="ey">PREVENTION PLAN</div><h2>${ex(siteName(i.siteId))} · 재발방지계획 ${plan?'확인·수정':'등록'}</h2><div style="margin-top:7px">${preventionBadge(i)}</div></div><button class="x" data-close>×</button></div>${overview(i)}${flowHtml(i)}${c.status==='rejected'&&c.reviewNote?`<div class="prev429-reject"><b>현장 조치 보완요청 중</b><br>${ex(c.reviewNote)}</div>`:''}<form id="prev429PlanForm"><label class="lbl"><span>원인 분석 *</span><textarea id="prev429RootCause" rows="3" required placeholder="사고 발생의 직접·간접 원인을 사실에 근거해 정리합니다.">${ex(c.rootCause||'')}</textarea></label><label class="lbl"><span>재발방지계획 *</span><textarea id="prev429PlanDetail" rows="4" required placeholder="설비개선, 작업방법 변경, 보호구, 교육 등 재발방지를 위해 실시해야 할 계획을 구체적으로 입력합니다.">${ex(c.planDetail||'')}</textarea></label><div class="formgrid"><label class="lbl"><span>조치 담당자 *</span><input id="prev429Owner" value="${ex(c.ownerName||'')}" required placeholder="예: 현장소장 홍길동"></label><label class="lbl"><span>완료 목표일 *</span><input id="prev429Due" type="date" value="${ex(c.dueDate||'')}" required></label></div><button class="primary full" type="submit">${plan?'재발방지계획 수정 저장':'재발방지계획 등록'}</button></form>`);
+    const draft=autoPreventionDraft(i),rootCauseValue=text(c.rootCause)||draft.rootCause,planDetailValue=text(c.planDetail)||draft.planDetail,ownerValue=text(c.ownerName)||draft.ownerName,dueValue=text(c.dueDate)||draft.dueDate;
+    openModal(`<div class="modal-head"><div><div class="ey">PREVENTION PLAN</div><h2>${ex(siteName(i.siteId))} · 재발방지계획 ${plan?'확인·수정':'등록'}</h2><div style="margin-top:7px">${preventionBadge(i)}</div></div><button class="x" data-close>×</button></div>${overview(i)}${flowHtml(i)}${c.status==='rejected'&&c.reviewNote?`<div class="prev429-reject"><b>현장 조치 보완요청 중</b><br>${ex(c.reviewNote)}</div>`:''}<form id="prev429PlanForm"><label class="lbl"><span>원인 분석 *</span><textarea id="prev429RootCause" rows="3" required placeholder="사고 발생의 직접·간접 원인을 사실에 근거해 정리합니다.">${ex(rootCauseValue)}</textarea></label><label class="lbl"><span>재발방지계획 *</span><textarea id="prev429PlanDetail" rows="4" required placeholder="설비개선, 작업방법 변경, 보호구, 교육 등 재발방지를 위해 실시해야 할 계획을 구체적으로 입력합니다.">${ex(planDetailValue)}</textarea></label><div class="formgrid"><label class="lbl"><span>조치 담당자 *</span><input id="prev429Owner" value="${ex(ownerValue)}" required placeholder="예: 현장소장 홍길동"></label><label class="lbl"><span>완료 목표일 *</span><input id="prev429Due" type="date" value="${ex(dueValue)}" required></label></div><button class="primary full" type="submit">${plan?'재발방지계획 수정 저장':'재발방지계획 등록'}</button></form>`);
     document.getElementById('prev429PlanForm').onsubmit=e=>{e.preventDefault();if(!e.currentTarget.reportValidity())return;const ts=now(),prevStatus=String(c.status||'');c.rootCause=text(document.getElementById('prev429RootCause')?.value);c.planDetail=text(document.getElementById('prev429PlanDetail')?.value);c.ownerName=text(document.getElementById('prev429Owner')?.value);c.dueDate=text(document.getElementById('prev429Due')?.value);c.planBy=c.planBy||u.name;c.planById=c.planById||userId(u);c.planAt=c.planAt||ts;c.planUpdatedBy=u.name;c.planUpdatedAt=ts;if(!plan)c.status=text(c.actionDetail)?'in_progress':'planned';else if(!prevStatus||prevStatus==='none')c.status='planned';historyPush(c,{action:plan?'prevention_plan_updated':'prevention_plan_registered',by:u.name,at:ts,note:c.planDetail});i.corrective=c;i.updatedAt=ts;saveData();closeModal();renderShell(u);alert(plan?'재발방지계획을 수정했습니다.':'재발방지계획을 등록했습니다. 현장에서 재발방지조치를 등록할 수 있습니다.')};
   }
 
