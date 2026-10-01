@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.1.6 - approval comments, audit display and unified safety inquiries */
 (function(){
   'use strict';
-  const VERSION='4.4.38-optional-hq-comment1';
+  const VERSION='4.4.39-comment-empty1';
   const API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-workflow-v412';
   const CLIENT='incident-report-v2';
   const INQUIRY_CATEGORIES=['앱 사용법','안전 관련 문의','기타'];
@@ -74,10 +74,10 @@
     if(!box||!i)return;box.querySelector('.wf412-comments-list').innerHTML='<div class="wf412-empty">의견을 불러오는 중입니다.</div>';
     try{
       const r=await api({action:'comment_list',actor:actor(u),incidentId:i.id});const list=r.comments||[],safety=roleNorm(u.role)==='safety',target=box.querySelector('.wf412-comments-list');
-      target.innerHTML=list.length?list.map(c=>commentHtml(c,safety)).join(''):'<div class="wf412-empty">등록된 관리자·경영진 의견이 없습니다.</div>';
+      target.innerHTML=list.length?list.map(c=>commentHtml(c,safety)).join(''):'<div class="wf412-empty">-</div>';
       target.querySelectorAll('[data-wf-comment-read]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{await api({action:'comment_read',actor:actor(u),commentId:b.dataset.wfCommentRead});await loadComments(box,i,u)}catch(e){b.disabled=false;alert('열람 처리를 저장하지 못했습니다.')}});
       target.querySelectorAll('[data-wf-comment-reply]').forEach(b=>b.onclick=()=>{const id=b.dataset.wfCommentReply,card=b.closest('.wf412-comment');if(!card)return;let form=card.querySelector('.wf412-comment-form');if(form){form.remove();return}card.insertAdjacentHTML('beforeend',`<form class="wf412-comment-form" data-wf-reply-form="${ex(id)}"><textarea maxlength="2000" required placeholder="관리자·경영진 의견에 대한 답변을 입력해 주세요."></textarea><button type="submit">답변 등록</button></form>`);form=card.querySelector('.wf412-comment-form');form.onsubmit=async ev=>{ev.preventDefault();const body=text(form.querySelector('textarea')?.value);if(!body)return;const btn=form.querySelector('button');btn.disabled=true;try{await api({action:'comment_reply',actor:actor(u),commentId:id,body});await loadComments(box,i,u)}catch(e){btn.disabled=false;alert('답변을 저장하지 못했습니다.')}}});
-    }catch(e){box.querySelector('.wf412-comments-list').innerHTML='<div class="wf412-empty">의견을 불러오지 못했습니다.</div>'}
+    }catch(e){box.querySelector('.wf412-comments-list').innerHTML='<div class="wf412-empty">-</div>'}
   }
   function mountIncidentExtras(){
     const root=document.getElementById('modalRoot');if(!root||!root.querySelector('.modal')||!root.textContent.includes('INCIDENT REVIEW'))return;
