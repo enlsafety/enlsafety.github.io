@@ -189,7 +189,7 @@
     if(foregroundControlTimer)clearTimeout(foregroundControlTimer);
     foregroundControlTimer=setTimeout(()=>{foregroundControlTimer=null;refreshControls();checkGlobalControl()},delay);
   }
-  scheduleForegroundControl(500);
+  scheduleForegroundControl(2600);
   setInterval(checkGlobalControl,CONTROL_POLL_MS);
   window.addEventListener('pageshow',()=>scheduleForegroundControl(100));
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')scheduleForegroundControl(100)});

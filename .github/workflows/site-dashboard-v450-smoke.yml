@@ -9,7 +9,17 @@ on:
       - 'tests/dashboard*'
       - 'tests/site-contract*'
       - 'tests/required-fields*'
+      - 'tests/report-date-picker*'
+      - 'tests/startup-cache*'
       - 'required-fields-v453.js'
+      - 'report-v410.js'
+      - 'report-v410.css'
+      - 'sw-v418.js'
+      - 'pwa-push-v418.js'
+      - 'incident-sync-v411.js'
+      - 'site-directory-sync-v410.js'
+      - 'app-control-v410.js'
+      - 'workflow-enhancements-v432.js'
       - 'historical-transfer-v449.js'
       - 'industrial-report-v436.js'
       - 'ui-stability-v422.js'
@@ -33,7 +43,17 @@ on:
       - 'tests/dashboard*'
       - 'tests/site-contract*'
       - 'tests/required-fields*'
+      - 'tests/report-date-picker*'
+      - 'tests/startup-cache*'
       - 'required-fields-v453.js'
+      - 'report-v410.js'
+      - 'report-v410.css'
+      - 'sw-v418.js'
+      - 'pwa-push-v418.js'
+      - 'incident-sync-v411.js'
+      - 'site-directory-sync-v410.js'
+      - 'app-control-v410.js'
+      - 'workflow-enhancements-v432.js'
       - 'historical-transfer-v449.js'
       - 'industrial-report-v436.js'
       - 'ui-stability-v422.js'
@@ -86,11 +106,11 @@ jobs:
           assert 'Natural Earth' in svg and '<svg' in svg and '<path' in svg
           for token in ['전남광주 장성군 북이면 사거리 752-1','경기 용인시 기흥구 청덕동 80-2','경기 화성시 동탄구 동탄순환대로 823, 702~703호']:
             assert token in seed, token
-          assert 'site-dashboard-v450.js?v=4.4.26-r1' in html
+          assert 'site-dashboard-v450.js?v=4.4.32-r1&amp;fix=startup-defer1' in html
           assert 'site-master-seed-v400.js?v=4.4.24-r1' in html
-          assert 'content="4.4.31-r1"' in html
-          assert meta['version']=='4.4.31' and meta['build']=='stable-4431-r1'
-          assert "const BUILD='4431-r1'" in index
+          assert 'content="4.4.32-r1"' in html
+          assert meta['version']=='4.4.32' and meta['build']=='stable-4432-r1'
+          assert "const BUILD='4432-r1'" in index
           print('OK: site profile and Korea distribution dashboard invariants preserved')
       - name: Dashboard behavior tests
         run: |
@@ -108,6 +128,8 @@ jobs:
           node tests/dashboard-browser.cjs
           node tests/site-contract-browser.cjs
           node tests/required-fields-browser.cjs
+          node tests/report-date-picker-browser.cjs
+          node tests/startup-cache-browser.cjs
           node tests/site-admin-browser.cjs
       - uses: actions/upload-artifact@v4
         if: always()

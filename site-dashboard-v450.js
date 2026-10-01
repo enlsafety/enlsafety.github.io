@@ -160,6 +160,7 @@ function injectInfo(){
 function injectMap(u){
  if(!canDashboard(u)||view()!=='stats')return;
  const root=document.getElementById('view');if(!root)return;
+ markDashboardInteraction();
  const head=root.querySelector('.stats426-head');if(!head)return;
  root.querySelectorAll('[data-sd450-map],[data-sd450-kpis]').forEach(n=>n.remove());
  head.closest('.panel').insertAdjacentHTML('afterend',kpis()+mapHtml());
@@ -168,10 +169,11 @@ function injectMap(u){
  bindMap(root,a);
  const select=root.querySelector('#sd450Site'),card=root.querySelector('[data-sd450-summary]');
  const show=id=>{preview=id;select.value=id;root.querySelectorAll('[data-sd450-map-site]').forEach(b=>{const selected=b.dataset.sd450MapSite===id;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',String(selected))});card.innerHTML=id?summary(id):'';const b=card.querySelector('[data-sd450-open]');if(b)b.onclick=()=>window.enlOpenSafetySiteIncidents(id)};
- select.onchange=()=>show(select.value);
+ select.onchange=()=>{markDashboardInteraction();show(select.value)};
  const viewport=root.querySelector('.sd450-map-viewport'),buttons=Array.from(root.querySelectorAll('[data-sd450-map-site]'));
  const reveal=button=>{buttons.forEach(b=>{const open=b===button;b.classList.toggle('label-open',open);b.setAttribute('aria-expanded',String(open))});if(button)anchorLabel(button,viewport)};
  buttons.forEach(b=>{b.setAttribute('aria-expanded','false');b.onclick=e=>{
+  markDashboardInteraction();
   if(touchMap()){
    const nameTap=e.target.closest('.sd450-marker-label'),keyboardConfirm=e.detail===0&&b.classList.contains('label-open');
    if(!b.classList.contains('label-open')||(!nameTap&&!keyboardConfirm)){reveal(b);return}
@@ -186,15 +188,35 @@ async function load(u=currentUser&&currentUser()){
  const key=JSON.stringify(actor(u));if(loadedFor!==key){loadedFor=key;loaded=false;loading=false;masters=[];metrics=null;requestVersion++;}
  const request=requestVersion,signature=JSON.stringify(data&&data.incidents||[]);
  if((loaded&&Date.now()-loadedAt<60000&&metricKey===signature)||loading||!canDashboard(u)||typeof window.enlIncidentApi!=='function')return;loading=true;
- try{const r=await window.enlIncidentApi({action:'dashboard_read',actor:actor(u)},15000);if(request!==requestVersion||JSON.stringify(actor(currentUser&&currentUser()))!==key)return;if(!Array.isArray(r&&r.sites)||!Array.isArray(r&&r.metrics))throw new Error('Invalid site list');masters=r.sites.filter(Boolean);window.ENLContracts.setSites(masters);metrics=r.metrics;loaded=true;loadedAt=Date.now();metricKey=signature;loadError=false;if(view()==='stats'&&window.enlRenderIncidentStats){const root=document.getElementById('view'),year=root?.querySelector('#stats426Year')?.value,siteId=root?.querySelector('#stats426Site')?.value,siteStatus=root?.querySelector('#stats426Status')?.value;window.enlRenderIncidentStats(root,u,{year,siteId,siteStatus})}enhance(u)}catch(e){if(request!==requestVersion)return;loadError=true;console.warn('[site-dashboard-v450] site master load skipped',e);enhance(u)}finally{if(request===requestVersion)loading=false}
+ try{const r=await window.enlIncidentApi({action:'dashboard_read',actor:actor(u)},15000);if(request!==requestVersion||JSON.stringify(actor(currentUser&&currentUser()))!==key)return;if(!Array.isArray(r&&r.sites)||!Array.isArray(r&&r.metrics))throw new Error('Invalid site list');masters=r.sites.filter(Boolean);window.ENLContracts.setSites(masters);metrics=r.metrics;loaded=true;loadedAt=Date.now();metricKey=signature;loadError=false;
+ const applyLoaded=()=>{if(request!==requestVersion||JSON.stringify(actor(currentUser&&currentUser()))!==key)return;if(view()==='stats'&&window.enlRenderIncidentStats){const root=document.getElementById('view'),year=root?.querySelector('#stats426Year')?.value,siteId=root?.querySelector('#stats426Site')?.value,siteStatus=root?.querySelector('#stats426Status')?.value;window.enlRenderIncidentStats(root,u,{year,siteId,siteStatus})}enhance(u)};
+ applyLoadedWhenIdle(applyLoaded);
+ }catch(e){if(request!==requestVersion)return;loadError=true;console.warn('[site-dashboard-v450] site master load skipped',e);enhance(u)}finally{if(request===requestVersion)loading=false}
 }
-const base=window.renderShell;if(typeof base==='function'){const wrap=function(u){const out=base.apply(this,arguments);setTimeout(()=>{enhance(u);load(u)},0);return out};window.renderShell=wrap;try{renderShell=wrap}catch(e){}}
-const cur=window.renderCurrentView;if(typeof cur==='function')window.renderCurrentView=function(u){const out=cur.apply(this,arguments);setTimeout(()=>{enhance(u);load(u)},0);return out};
+let startupLoadTimer=null,lastDashboardInteractionAt=0,loadedRefreshTimer=null,pendingLoadedApply=null;
+function flushLoadedWhenIdle(){
+ if(!pendingLoadedApply)return;
+ const idle=Date.now()-lastDashboardInteractionAt;
+ if(lastDashboardInteractionAt&&idle<1200){if(loadedRefreshTimer)clearTimeout(loadedRefreshTimer);loadedRefreshTimer=setTimeout(flushLoadedWhenIdle,Math.max(80,1220-idle));return}
+ const fn=pendingLoadedApply;pendingLoadedApply=null;loadedRefreshTimer=null;fn();
+}
+function markDashboardInteraction(){
+ lastDashboardInteractionAt=Date.now();
+ if(pendingLoadedApply){if(loadedRefreshTimer)clearTimeout(loadedRefreshTimer);loadedRefreshTimer=setTimeout(flushLoadedWhenIdle,1220)}
+}
+function applyLoadedWhenIdle(fn){
+ pendingLoadedApply=fn;
+ flushLoadedWhenIdle();
+}
+
+function scheduleEnhanceLoad(u,delay=900){if(startupLoadTimer)clearTimeout(startupLoadTimer);startupLoadTimer=setTimeout(()=>{startupLoadTimer=null;const root=document.getElementById('view');if(view()==='stats'&&!root?.querySelector('[data-sd450-map]'))enhance(u);else if(view()==='incidents'&&window.enlSafetySiteFilter?.()&&!root?.querySelector('[data-sd450-info]'))enhance(u);load(u)},delay)}
+const base=window.renderShell;if(typeof base==='function'){const wrap=function(u){const out=base.apply(this,arguments);scheduleEnhanceLoad(u,900);return out};window.renderShell=wrap;try{renderShell=wrap}catch(e){}}
+const cur=window.renderCurrentView;if(typeof cur==='function')window.renderCurrentView=function(u){const out=cur.apply(this,arguments);scheduleEnhanceLoad(u,900);return out};
 let queued=false;
 const mo=new MutationObserver(()=>{if(queued)return;queued=true;queueMicrotask(()=>{queued=false;const u=currentUser&&currentUser();if(!canDashboard(u))return;const root=document.getElementById('view');if(!root)return;if(view()==='stats'&&root.querySelector('.stats426-cards')&&!root.querySelector('[data-sd450-map]'))enhance(u);if(view()==='incidents'&&window.enlSafetySiteFilter&&window.enlSafetySiteFilter()&&!root.querySelector('[data-sd450-info]'))enhance(u)})});
 try{mo.observe(document.getElementById('app')||document.body,{childList:true,subtree:true})}catch(e){}
-css();const u=currentUser&&currentUser();if(u){enhance(u);load(u)}
+css();const u=currentUser&&currentUser();if(u){enhance(u);scheduleEnhanceLoad(u,1100)}
 window.enlRefreshSiteDashboard450=()=>{loaded=false;load(currentUser&&currentUser())};
 window.enlDashboardMetrics=()=>canDashboard(currentUser&&currentUser())&&loadedFor===JSON.stringify(actor(currentUser&&currentUser()))?metrics:null;
-window.ENL_SITE_DASHBOARD_VERSION=VERSION;
+window.ENL_SITE_DASHBOARD_VERSION='4.4.32-startup-defer1';
 })();
