@@ -19,8 +19,9 @@ assert.ok(field.includes('안전관리자가 추가자료를 요청한 사고입
 assert.ok(field.includes('보완자료 작성이 필요합니다'));
 assert.ok(flow.includes('wf440-supplement-submitted'));
 assert.ok(flow.includes('현장 보완 제출내용'));
+assert.ok(!flow.includes('addAckSection('));
+assert.ok(!flow.includes('사고보고 확인 기록'));
 assert.ok(flow.includes("if(!(isSafety(u)||isReader(u)))return"));
-assert.ok(flow.includes("status==='approved'||(status==='closed'&&actionStatus==='approved')"));
 assert.ok(approval.includes("function signable(i)"));
 assert.ok(approval.includes("st==='approved'||(st==='closed'&&act==='approved')"));
 assert.ok(!approval.includes("SIGN=['reported','supplement','supplement_submitted','approved','closed']"));
