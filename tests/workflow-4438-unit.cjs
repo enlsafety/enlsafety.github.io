@@ -21,7 +21,7 @@ for(const x of [
 ]) assert.ok(shell.includes(x),x);
 
 for(const x of [
-  "4.4.38-prevention-alert1",
+  "4.4.40-prevention-autodraft1",
   "prev429-nav-alert",
   "prev429-nav-attention",
   "preventionPlanMissing",
@@ -51,7 +51,7 @@ for(const asset of [
   'auth-v411.js?v=4.4.38-r1&amp;fix=hq-cache-prune1',
   'app-shell-v411.js?v=4.4.38-r1&amp;fix=hq-attention1',
   'workflow-v412.js?v=4.4.39-r1&amp;fix=comment-empty1',
-  'workflow-prevention-v429.js?v=4.4.38-r1&amp;fix=prevention-alert1',
+  'workflow-prevention-v429.js?v=4.4.40-r1&amp;fix=prevention-autodraft1',
   'production-cleanup-v431.js?v=4.4.38-r1&amp;fix=test-hq-cleanup1',
   'management-approval-v448.js?v=4.4.39-r1&amp;fix=crisp-sign1'
 ]) assert.ok(stable.includes(asset),asset);
