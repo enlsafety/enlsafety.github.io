@@ -107,16 +107,16 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-4435-r1',meta
+          assert meta.get('build')=='stable-4436-r1',meta
           assert meta.get('stableEntry')=='stable412.html',meta
-          assert meta.get('version')=='4.4.35' and meta.get('currentStableVersion')=='4.4.35',meta
+          assert meta.get('version')=='4.4.36' and meta.get('currentStableVersion')=='4.4.36',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='4435-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4435-r1',"/sw-v418.js?v=4.4.32-startup-cache1"]: assert x in index,x
+          for x in ["const BUILD='4436-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4436-r1',"/sw-v418.js?v=4.4.32-startup-cache1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.4.35-r1',
+            'enl-build" content="4.4.36-r1',
             'incident-sync-v411.js?v=4.4.34-r1&amp;fix=proof-reuse1',
             'workflow-prevention-v429.js?v=4.4.14-r1&amp;fix=historical-transfer1',
             'workflow-lifecycle-v413.js?v=4.4.14-r1&amp;fix=historical-transfer1',
@@ -131,7 +131,7 @@ jobs:
             'official-records-v439.js?v=4.4.24-r1',
             'incidents-v410.js?v=4.4.35-r1&amp;fix=full-detail1',
             'report-v410.js?v=4.4.35-r1&amp;fix=form-guidance1',
-            'field-incidents-v411.js?v=4.4.14-r1&amp;fix=historical-transfer1',
+            'field-incidents-v411.js?v=4.4.36-r1&amp;fix=field-status-hub1',
             'app-shell-v411.js?v=4.4.27-r1',
             'reader-ui-v414.js?v=4.4.14-r1&amp;fix=historical-transfer1',
             'reader-experience-v424.js?v=4.4.14-r1&amp;fix=historical-transfer1',
@@ -142,6 +142,7 @@ jobs:
           assert 'core.js?v=4.4.35-r1&amp;fix=attachment-preview1' in html
           assert 'auth-v411.js?v=4.4.29-r1&amp;fix=hq-email1-required1' in html
           assert 'login-layout-v412.js?v=4.2.7-r1&amp;fix=guide-removed1' in html
+          assert 'field-ui-v411.js?v=4.4.36-r1&amp;fix=supplement-badge1' in html
           assert 'app-control-v410.js?v=4.4.32-r1&amp;fix=startup-defer1' in html
           assert 'incident-stats-v426.js?v=4.4.28-r1' in html
           assert 'required-fields-v453.js?v=4.4.31-r1' in html
@@ -183,7 +184,9 @@ jobs:
           for x in ['4.4.35-form-guidance1','사후 보완 예정','data-auto-pending','environmentCause410','behaviorCause410','specialNote410','repairCostPending']: assert x in report,x
           assert report.count('placeholder="예:') >= 12, report.count('placeholder="예:')
           field=Path('field-incidents-v411.js').read_text(encoding='utf-8')
-          for x in ["v==='supplement'?'보완대기'","v==='supplement_submitted'?'보완검토대기'"]: assert x in field,x
+          for x in ["v==='supplement'?'보완대기'","v==='supplement_submitted'?'보완검토대기'","4.4.36-field-status-hub1","보완자료 작성하기","사고 조치 작성하기","data-field-group"]: assert x in field,x
+          field_ui=Path('field-ui-v411.js').read_text(encoding='utf-8')
+          for x in ["4.4.36-supplement-badge1","field-six-new","보완요청","enlOpenPwaNotificationSettings"]: assert x in field_ui,x
           reader=Path('reader-ui-v414.js').read_text(encoding='utf-8')
           for x in ['4.4.8-reader-parallel-approval1','즉시보고부터 보완·최종승인·종결','supplement_submitted']: assert x in reader,x
           control=Path('app-control-v410.js').read_text(encoding='utf-8')
@@ -196,11 +199,13 @@ jobs:
           for x in ["const selectedLabel=details.dataset.selectedLabel411||''","if(selectedLabel)details.open=false",'login411-summary-label']: assert x in layout,x
           assert 'GUIDE_HTML' not in layout and "grid-row:4" in layout
           assert 'hq-notification-status-v437.js?v=4.4.12-r1&amp;fix=hq-align1' in html
-          assert 'pwa-push-v418.js?v=4.4.32-r1&amp;fix=startup-cache1' in html
-          assert 'push-session-v425.js?v=4.4.35-r1&amp;fix=pending-readonly1' in html
+          assert 'pwa-push-v418.js?v=4.4.36-r1&amp;fix=push-repair1' in html
+          assert 'push-session-v425.js?v=4.4.36-r1&amp;fix=subscription-repair1' in html
           assert 'notification-profile-v441.js?v=4.4.7-r1&amp;fix=server-dispatch1' in html
           ps=Path('push-session-v425.js').read_text(encoding='utf-8')
-          assert "4.4.35-pending-readonly1" in ps
+          assert "4.4.36-subscription-repair1" in ps and "enlEnsurePushSubscription" in ps
+          pwa=Path('pwa-push-v418.js').read_text(encoding='utf-8')
+          for x in ["4.4.36-push-repair1","ensurePushSubscriptionSilently","window.enlEnsurePushSubscription","window.enlOpenPwaNotificationSettings"]: assert x in pwa,x
           assert "검토대기 단계 상세 열람은 긴급사고에 한해" not in ps
           assert "!['approved','closed'].includes(status)&&!urgent(i)" not in ps
           assert 'site-admin-v415.js?v=4.4.29-r1&amp;fix=required1' in html

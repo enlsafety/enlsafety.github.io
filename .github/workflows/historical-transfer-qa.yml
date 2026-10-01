@@ -100,6 +100,6 @@ jobs:
           assert 'official-records-v439.js?v=4.4.24-r1' in stable
           assert 'site-contract-v451.js?v=4.4.24-r1' in stable
           assert 'historical-transfer-v449.js?v=4.4.29-r1&amp;fix=required1' in stable
-          assert 'content="4.4.35-r1"' in stable
-          assert version["version"]=="4.4.35" and version["build"]=="stable-4435-r1"
+          assert 'content="4.4.36-r1"' in stable
+          assert version["version"]=="4.4.36" and version["build"]=="stable-4436-r1"
           print('OK: historical ERP transfer-close flow invariants preserved')

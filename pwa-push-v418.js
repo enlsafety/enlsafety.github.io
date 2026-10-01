@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.1.8 - PWA install + web push */
 (function(){
   'use strict';
-  const VERSION='4.4.32-pwa-startup1';
+  const VERSION='4.4.36-push-repair1';
   const PUSH_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-v418';
   const CLIENT='incident-report-v2';
   const SW_URL='/sw-v418.js?v=4.4.32-startup-cache1';
@@ -13,6 +13,7 @@
   let renderQueued=false;
   let lastReaderIncidentId='';
   const flushedUsers=new Set();
+  const repairedUsers=new Set();
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const actor=()=>{try{return window.enlCurrentActor?.()||null}catch(e){return null}};
@@ -62,8 +63,10 @@
   async function ensureSw(){if(swReg)return swReg;if(!('serviceWorker' in navigator))throw new Error('service_worker_unsupported');swReg=await navigator.serviceWorker.register(SW_URL,{scope:'/'});await navigator.serviceWorker.ready;return swReg}
   function b64ToBytes(v){const pad='='.repeat((4-v.length%4)%4),base=(v+pad).replace(/-/g,'+').replace(/_/g,'/'),raw=atob(base),arr=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i);return arr}
   async function currentSub(){try{const reg=await ensureSw();return await reg.pushManager.getSubscription()}catch(e){return null}}
+  async function ensurePushSubscriptionSilently(){const u=actor();if(!u||!supportsPush()||Notification.permission!=='granted'||(isIOS()&&!isStandalone()))return null;try{const reg=await ensureSw(),h=await health();let sub=await reg.pushManager.getSubscription();if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToBytes(h.vapidPublicKey)});const prefs=loadPrefs(u);await api('subscribe',{actor:u,subscription:sub.toJSON(),preferences:withDeviceMeta(prefs),userAgent:navigator.userAgent});return sub}catch(e){console.warn('push subscription auto-repair skipped',e?.message||e);return null}}
   async function flush(){const u=actor();if(!u)return;try{await api('flush',{actor:u},15000)}catch(e){console.warn('push flush skipped',e?.message||e)}}
   window.enlPushFlush=flush;
+  window.enlEnsurePushSubscription=ensurePushSubscriptionSilently;
 
   function ensureCss(){if(document.getElementById('enlPwa418Css'))return;const s=document.createElement('style');s.id='enlPwa418Css';s.textContent=`
     .enl-pwa-top418{min-height:44px;border:2px solid #8db9d8;border-radius:12px;background:#f2f9fe;color:#174d78;padding:0 13px;font-weight:950;white-space:nowrap;display:inline-flex;align-items:center;gap:7px;justify-content:center}.enl-pwa-top418.on{background:#e8f7ef;border-color:#8bc6a6;color:#216647}.enl-pwa-top418.warn{background:#fff7ea;border-color:#e5bd78;color:#80591f}.enl418-dot{width:8px;height:8px;border-radius:50%;background:currentColor;display:inline-block}.enl418-overlay{position:fixed;inset:0;z-index:100000;background:rgba(16,43,66,.54);display:flex;align-items:flex-start;justify-content:center;padding:calc(env(safe-area-inset-top) + 18px) 10px 18px;overflow:auto}.enl418-modal{width:min(620px,100%);margin:auto;background:#fff;border-radius:22px;border:1px solid #bfd8ea;box-shadow:0 22px 60px rgba(15,52,79,.24);overflow:hidden}.enl418-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 18px 14px;background:#eef8ff;border-bottom:1px solid #cfe2ef}.enl418-head h2{margin:0;color:#173b66;font-size:22px}.enl418-head p{margin:5px 0 0;color:#647c8e;font-size:13px;line-height:1.45}.enl418-close{width:44px;height:44px;border:1px solid #bfd4e3;border-radius:11px;background:#fff;color:#315873;font-size:24px}.enl418-body{padding:16px;display:grid;gap:12px}.enl418-status{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.enl418-step{padding:11px;border:1px solid #d6e3ec;border-radius:12px;background:#f9fcfe}.enl418-step small{display:block;color:#778b9b;font-weight:800;font-size:10px}.enl418-step b{display:block;margin-top:4px;color:#274e6b;font-size:13px}.enl418-guide{padding:12px 13px;border-radius:12px;background:#f1f8fd;color:#315d7c;line-height:1.55;font-size:13px}.enl418-guide strong{color:#174d78}.enl418-message{min-height:20px;color:#526d81;font-size:13px;font-weight:800}.enl418-message.ok{color:#226b49}.enl418-message.err{color:#a43c3c}.enl418-pref-list{display:grid;gap:7px}.enl418-pref{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 12px;border:1px solid #d6e3ec;border-radius:12px;background:#fff}.enl418-pref b{display:block;color:#264e6c;font-size:14px}.enl418-pref small{display:block;margin-top:3px;color:#748797;font-size:11px;line-height:1.35}.enl418-pref input{width:23px;height:23px;accent-color:#1e5d91;flex:0 0 auto}.enl418-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.enl418-actions button{min-height:50px;border:1px solid #a9c6da;border-radius:12px;background:#fff;color:#24516f;font-weight:950;font-size:14px}.enl418-actions .primary{grid-column:1/-1;border-color:#1e5d91;background:#1e5d91;color:#fff;font-size:16px}.enl418-actions .danger{color:#9a3c3c;border-color:#dfb1b1}.enl418-ios-steps{margin:8px 0 0;padding-left:20px}.enl418-ios-steps li{margin:6px 0}.topbar .enl-pwa-top418{flex:0 0 auto}@media(max-width:700px){.topbar{flex-wrap:wrap}.topbar .enl-pwa-top418{order:3;width:100%;margin-top:5px}.enl418-status{grid-template-columns:1fr}.enl418-actions{grid-template-columns:1fr}.enl418-actions .primary{grid-column:auto}.enl418-modal{border-radius:18px}.enl418-body{padding:13px}}
@@ -116,7 +119,7 @@
   async function disablePush(){const u=actor();if(!u)return;try{const sub=await currentSub();if(sub){try{await api('unsubscribe',{actor:u,endpoint:sub.endpoint})}catch(e){}await sub.unsubscribe()}setMessage('이 기기의 사고보고앱 알림을 껐습니다.','ok');await renderStatus()}catch(e){setMessage('알림 해제 중 오류가 발생했습니다.','err')}}
 
   function injectTopButton(){
-    const u=actor(),top=document.querySelector('.topbar');if(!u||!top)return;let btn=document.getElementById('enlPwaTop418');if(!btn){btn=document.createElement('button');btn.type='button';btn.id='enlPwaTop418';btn.className='enl-pwa-top418';btn.innerHTML='🔔 알림 설정';btn.addEventListener('click',openModal);const user=top.querySelector('.user-wrap');if(user)top.insertBefore(btn,user);else top.appendChild(btn)}setTimeout(updateTopButton,1800);if(!flushedUsers.has(String(u.id||''))){flushedUsers.add(String(u.id||''));setTimeout(flush,3600)}
+    const u=actor(),top=document.querySelector('.topbar');if(!u||!top)return;let btn=document.getElementById('enlPwaTop418');if(!btn){btn=document.createElement('button');btn.type='button';btn.id='enlPwaTop418';btn.className='enl-pwa-top418';btn.innerHTML='🔔 알림 설정';btn.addEventListener('click',openModal);const user=top.querySelector('.user-wrap');if(user)top.insertBefore(btn,user);else top.appendChild(btn)}setTimeout(updateTopButton,1800);const repairKey=String(u.id||'');if(repairKey&&!repairedUsers.has(repairKey)&&typeof Notification!=='undefined'&&Notification.permission==='granted'){repairedUsers.add(repairKey);setTimeout(()=>ensurePushSubscriptionSilently().then(()=>updateTopButton()).catch(()=>{}),350)}if(!flushedUsers.has(repairKey)){flushedUsers.add(repairKey);setTimeout(flush,3600)}
   }
   function scheduleInject(){if(renderQueued)return;renderQueued=true;requestAnimationFrame(()=>{renderQueued=false;injectTopButton()})}
 
@@ -145,5 +148,6 @@
     if(lastReaderIncidentId&&document.getElementById('modalRoot')?.contains(t)&&/사고\s*조치|조치\s*보고|개선\s*조치/.test(String(t.textContent||''))){setTimeout(()=>api('management_view',{actor:u,incidentId:lastReaderIncidentId,documentType:'corrective_action'}).then(flush).catch(()=>{}),80)}
   },true);
 
+  window.enlOpenPwaNotificationSettings=()=>openModal();
   window.ENL_PWA_PUSH_VERSION=VERSION;
 })();
