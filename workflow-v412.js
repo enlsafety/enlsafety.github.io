@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.1.6 - approval comments, audit display and unified safety inquiries */
 (function(){
   'use strict';
-  const VERSION='4.1.6-inquiry3-throttle1';
+  const VERSION='4.4.38-optional-hq-comment1';
   const API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-workflow-v412';
   const CLIENT='incident-report-v2';
   const INQUIRY_CATEGORIES=['앱 사용법','안전 관련 문의','기타'];
@@ -86,7 +86,7 @@
     const r=roleNorm(u.role);if(!['safety','manager','executive'].includes(r)||!['approved','closed'].includes(i.status))return;
     if(modal.querySelector('[data-wf-comments]'))return;
     const hq=['manager','executive'].includes(r);
-    const html=`<section class="wf412-comments" data-wf-comments><div class="wf412-comments-head"><h3>관리자·경영진 의견</h3><span class="wf412-status">승인 사고 전용</span></div><div class="wf412-comments-list"></div>${hq?`<form class="wf412-comment-form" id="wf412CommentForm"><textarea id="wf412CommentBody" maxlength="2000" required placeholder="사고 내용 또는 조치사항에 대한 의견을 입력해 주세요."></textarea><button type="submit">의견 등록</button></form>`:''}</section>`;
+    const html=`<section class="wf412-comments" data-wf-comments><div class="wf412-comments-head"><h3>관리자·경영진 의견</h3><span class="wf412-status">승인 사고 전용</span></div><div class="wf412-comments-list"></div>${hq?`<form class="wf412-comment-form" id="wf412CommentForm"><textarea id="wf412CommentBody" maxlength="2000" aria-required="false" data-enl-optional="1" placeholder="사고 내용 또는 조치사항에 대한 의견을 입력해 주세요. (선택)"></textarea><button type="submit">의견 등록</button></form>`:''}</section>`;
     modal.insertAdjacentHTML('beforeend',html);const box=modal.querySelector('[data-wf-comments]');
     if(hq){const form=box.querySelector('#wf412CommentForm');form.onsubmit=async ev=>{ev.preventDefault();const body=text(box.querySelector('#wf412CommentBody')?.value);if(!body)return;const btn=form.querySelector('button');btn.disabled=true;try{await api({action:'comment_add',actor:actor(u),incidentId:i.id,body});box.querySelector('#wf412CommentBody').value='';await loadComments(box,i,u)}catch(e){btn.disabled=false;alert(e?.message==='not_approved'?'안전관리자 승인 후 의견을 등록할 수 있습니다.':'의견을 저장하지 못했습니다.')}}}
     loadComments(box,i,u);
