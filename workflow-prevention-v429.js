@@ -100,9 +100,10 @@
   function preventionPlanMissing(u=currentUser?.()){if(!isSafety(u))return 0;return [...(data?.incidents||[])].filter(i=>reportAccepted(i)&&!historicalClosed(i)&&String(i.status||'')==='approved'&&!hasPlan(i.corrective)).length}
   function patchPreventionNav(u=currentUser?.()){
     const btn=document.querySelector('.shell411-nav [data-shell-view="actions"]');if(!btn||!isSafety(u))return;
-    const count=preventionPlanMissing(u);btn.querySelector('.prev429-nav-alert')?.remove();btn.classList.toggle('prev429-nav-attention',count>0);
-    const label=[...btn.childNodes].find(n=>n.nodeType===Node.TEXT_NODE);if(label)label.textContent='재발방지 관리';else if(!btn.textContent.trim())btn.append('재발방지 관리');
-    if(count>0){const badge=document.createElement('span');badge.className='prev429-nav-alert';badge.textContent=String(count);badge.setAttribute('aria-label',`재발방지계획 수립대기 ${count}건`);btn.appendChild(badge)}
+    const count=preventionPlanMissing(u),existing=btn.querySelector('.prev429-nav-alert');btn.classList.toggle('prev429-nav-attention',count>0);
+    const label=[...btn.childNodes].find(n=>n.nodeType===Node.TEXT_NODE);if(label&&text(label.textContent)!=='재발방지 관리')label.textContent='재발방지 관리';else if(!label&&!existing)btn.prepend('재발방지 관리');
+    if(count>0){const badge=existing||document.createElement('span');if(!existing){badge.className='prev429-nav-alert';btn.appendChild(badge)}if(badge.textContent!==String(count))badge.textContent=String(count);badge.setAttribute('aria-label',`재발방지계획 수립대기 ${count}건`)}
+    else if(existing)existing.remove();
   }
 
   function reportUiRewrite(root=document){
