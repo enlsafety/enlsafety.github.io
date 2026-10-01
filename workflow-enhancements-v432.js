@@ -267,7 +267,7 @@
   const initial=currentUser?.();
   if(initial&&canDashboard(initial)&&!dashboardBooted){
     dashboardBooted=true;
-    setTimeout(()=>{try{currentView='stats';window.renderShell?.(initial);queuePatch()}catch(e){}},0);
+    setTimeout(()=>{try{currentView='stats';window.renderShell?.(initial);queuePatch()}catch(e){}},320);
   }
 
   const observer=new MutationObserver(queuePatch);observer.observe(document.body,{childList:true,subtree:true});
