@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.2.5 - push ownership + post-login deep links */
 (function(){
   'use strict';
-  const VERSION='4.2.5-push-session3';
+  const VERSION='4.4.35-pending-readonly1';
   const CLAIM_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-claim-v425';
   const CLIENT='incident-report-v2';
   const SW_URL='/sw-v418.js?v=4.2.5-pwa4-confirm1';
@@ -98,7 +98,7 @@
   function showPendingReviewNotice(i){
     const title='사고가 안전관리자 검토대기 중입니다';
     const detail=`${siteName(i?.siteId)} · ${i?.eventType||i?.category||'사고'} · ${fmtx(i?.occurredAt)}`;
-    const message='관리자·경영진의 검토대기 단계 상세 열람은 긴급사고에 한해 제공됩니다.';
+    const message='관리자·경영진은 검토대기 단계에서도 현재 보고내용을 읽기 전용으로 확인할 수 있습니다.';
     if(typeof openModal==='function')openModal(`<div class="modal-head"><div><div class="ey">REVIEW PENDING</div><h2>${esc(title)}</h2><p>${esc(detail)}</p></div><button class="x" data-close>×</button></div><div style="padding:14px"><div style="padding:14px;border:1px solid #cfdde7;border-radius:12px;background:#f7fbfe;color:#405f78;font-weight:850;line-height:1.6">${esc(message)}</div></div>`);
     else alert(`${title}\n${detail}\n\n${message}`);
   }
@@ -110,10 +110,7 @@
       try{await claimForCurrentUser(false)}catch(e){}
       try{await window.enlIncidentPullNow?.()}catch(e){}
       const i=incidentById(p.incidentId);if(!i)return;
-      const r=roleNorm(u.role),status=String(i.status||'');
-      if(['manager','executive'].includes(r)&&!['approved','closed'].includes(status)&&!urgent(i)){
-        clearPending();setTimeout(()=>showPendingReviewNotice(i),80);return;
-      }
+      const r=roleNorm(u.role);
       clearPending();primeWorkflowIncident(i.id);
       setTimeout(()=>{
         try{
