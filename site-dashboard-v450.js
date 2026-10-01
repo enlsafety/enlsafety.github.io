@@ -168,10 +168,11 @@ function injectMap(u){
  bindMap(root,a);
  const select=root.querySelector('#sd450Site'),card=root.querySelector('[data-sd450-summary]');
  const show=id=>{preview=id;select.value=id;root.querySelectorAll('[data-sd450-map-site]').forEach(b=>{const selected=b.dataset.sd450MapSite===id;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',String(selected))});card.innerHTML=id?summary(id):'';const b=card.querySelector('[data-sd450-open]');if(b)b.onclick=()=>window.enlOpenSafetySiteIncidents(id)};
- select.onchange=()=>show(select.value);
+ select.onchange=()=>{lastDashboardInteractionAt=Date.now();show(select.value)};
  const viewport=root.querySelector('.sd450-map-viewport'),buttons=Array.from(root.querySelectorAll('[data-sd450-map-site]'));
  const reveal=button=>{buttons.forEach(b=>{const open=b===button;b.classList.toggle('label-open',open);b.setAttribute('aria-expanded',String(open))});if(button)anchorLabel(button,viewport)};
  buttons.forEach(b=>{b.setAttribute('aria-expanded','false');b.onclick=e=>{
+  lastDashboardInteractionAt=Date.now();
   if(touchMap()){
    const nameTap=e.target.closest('.sd450-marker-label'),keyboardConfirm=e.detail===0&&b.classList.contains('label-open');
    if(!b.classList.contains('label-open')||(!nameTap&&!keyboardConfirm)){reveal(b);return}
@@ -186,9 +187,14 @@ async function load(u=currentUser&&currentUser()){
  const key=JSON.stringify(actor(u));if(loadedFor!==key){loadedFor=key;loaded=false;loading=false;masters=[];metrics=null;requestVersion++;}
  const request=requestVersion,signature=JSON.stringify(data&&data.incidents||[]);
  if((loaded&&Date.now()-loadedAt<60000&&metricKey===signature)||loading||!canDashboard(u)||typeof window.enlIncidentApi!=='function')return;loading=true;
- try{const r=await window.enlIncidentApi({action:'dashboard_read',actor:actor(u)},15000);if(request!==requestVersion||JSON.stringify(actor(currentUser&&currentUser()))!==key)return;if(!Array.isArray(r&&r.sites)||!Array.isArray(r&&r.metrics))throw new Error('Invalid site list');masters=r.sites.filter(Boolean);window.ENLContracts.setSites(masters);metrics=r.metrics;loaded=true;loadedAt=Date.now();metricKey=signature;loadError=false;if(view()==='stats'&&window.enlRenderIncidentStats){const root=document.getElementById('view'),year=root?.querySelector('#stats426Year')?.value,siteId=root?.querySelector('#stats426Site')?.value,siteStatus=root?.querySelector('#stats426Status')?.value;window.enlRenderIncidentStats(root,u,{year,siteId,siteStatus})}enhance(u)}catch(e){if(request!==requestVersion)return;loadError=true;console.warn('[site-dashboard-v450] site master load skipped',e);enhance(u)}finally{if(request===requestVersion)loading=false}
+ try{const r=await window.enlIncidentApi({action:'dashboard_read',actor:actor(u)},15000);if(request!==requestVersion||JSON.stringify(actor(currentUser&&currentUser()))!==key)return;if(!Array.isArray(r&&r.sites)||!Array.isArray(r&&r.metrics))throw new Error('Invalid site list');masters=r.sites.filter(Boolean);window.ENLContracts.setSites(masters);metrics=r.metrics;loaded=true;loadedAt=Date.now();metricKey=signature;loadError=false;
+ const applyLoaded=()=>{if(request!==requestVersion||JSON.stringify(actor(currentUser&&currentUser()))!==key)return;if(view()==='stats'&&window.enlRenderIncidentStats){const root=document.getElementById('view'),year=root?.querySelector('#stats426Year')?.value,siteId=root?.querySelector('#stats426Site')?.value,siteStatus=root?.querySelector('#stats426Status')?.value;window.enlRenderIncidentStats(root,u,{year,siteId,siteStatus})}enhance(u)};
+ const idleFor=Date.now()-lastDashboardInteractionAt;
+ if(lastDashboardInteractionAt&&idleFor<700){if(loadedRefreshTimer)clearTimeout(loadedRefreshTimer);loadedRefreshTimer=setTimeout(()=>{loadedRefreshTimer=null;applyLoaded()},Math.max(80,720-idleFor))}else applyLoaded();
+ }catch(e){if(request!==requestVersion)return;loadError=true;console.warn('[site-dashboard-v450] site master load skipped',e);enhance(u)}finally{if(request===requestVersion)loading=false}
 }
-let startupLoadTimer=null;
+let startupLoadTimer=null,lastDashboardInteractionAt=0,loadedRefreshTimer=null;
+
 function scheduleEnhanceLoad(u,delay=900){if(startupLoadTimer)clearTimeout(startupLoadTimer);startupLoadTimer=setTimeout(()=>{startupLoadTimer=null;enhance(u);load(u)},delay)}
 const base=window.renderShell;if(typeof base==='function'){const wrap=function(u){const out=base.apply(this,arguments);scheduleEnhanceLoad(u,900);return out};window.renderShell=wrap;try{renderShell=wrap}catch(e){}}
 const cur=window.renderCurrentView;if(typeof cur==='function')window.renderCurrentView=function(u){const out=cur.apply(this,arguments);scheduleEnhanceLoad(u,900);return out};
