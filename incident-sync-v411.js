@@ -163,8 +163,9 @@
   window.enlIncidentAcknowledge=acknowledge;
   window.enlIncidentServerReady=()=>serverReady;
 
-  function syncOnForeground(){if(!currentUser())return;scheduleSync(120)}
-  if(currentUser())scheduleSync(120);
+  let firstForegroundSync=true;
+  function syncOnForeground(){if(!currentUser())return;const delay=firstForegroundSync?700:120;firstForegroundSync=false;scheduleSync(delay)}
+  if(currentUser())scheduleSync(700);
   setInterval(()=>{if(!currentUser()||document.visibilityState==='hidden'||syncing||syncTimer)return;if(dirty||deferredDeletedIds.size)syncNow([]);else pull(true).catch(()=>{})},15000);
   window.addEventListener('online',()=>{if(currentUser())scheduleSync(500)});
   window.addEventListener('pageshow',syncOnForeground);
