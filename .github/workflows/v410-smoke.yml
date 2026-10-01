@@ -188,7 +188,7 @@ jobs:
           field_ui=Path('field-ui-v411.js').read_text(encoding='utf-8')
           for x in ["4.4.37-field-copy1","field-six-new","보완요청","enlOpenPwaNotificationSettings"]: assert x in field_ui,x
           reader=Path('reader-ui-v414.js').read_text(encoding='utf-8')
-          for x in ['4.4.8-reader-parallel-approval1','즉시보고부터 보완·최종승인·종결','supplement_submitted']: assert x in reader,x
+          for x in ['4.4.37-hq-dashboard1','검토대기·보완대기 단계에서는 조회만 가능하며','supplement_submitted']: assert x in reader,x
           control=Path('app-control-v410.js').read_text(encoding='utf-8')
           for x in ['POST_LOGIN_GRACE_MS=15000','function sameStableVersion(target)','if(target&&sameStableVersion(target)){saveEpoch(epoch)','already_current']: assert x in control,x
           auth=Path('auth-v411.js').read_text(encoding='utf-8')
