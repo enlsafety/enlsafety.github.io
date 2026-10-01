@@ -9,7 +9,17 @@ on:
       - 'tests/dashboard*'
       - 'tests/site-contract*'
       - 'tests/required-fields*'
+      - 'tests/report-date-picker*'
+      - 'tests/startup-cache*'
       - 'required-fields-v453.js'
+      - 'report-v410.js'
+      - 'report-v410.css'
+      - 'sw-v418.js'
+      - 'pwa-push-v418.js'
+      - 'incident-sync-v411.js'
+      - 'site-directory-sync-v410.js'
+      - 'app-control-v410.js'
+      - 'workflow-enhancements-v432.js'
       - 'historical-transfer-v449.js'
       - 'industrial-report-v436.js'
       - 'ui-stability-v422.js'
@@ -33,7 +43,17 @@ on:
       - 'tests/dashboard*'
       - 'tests/site-contract*'
       - 'tests/required-fields*'
+      - 'tests/report-date-picker*'
+      - 'tests/startup-cache*'
       - 'required-fields-v453.js'
+      - 'report-v410.js'
+      - 'report-v410.css'
+      - 'sw-v418.js'
+      - 'pwa-push-v418.js'
+      - 'incident-sync-v411.js'
+      - 'site-directory-sync-v410.js'
+      - 'app-control-v410.js'
+      - 'workflow-enhancements-v432.js'
       - 'historical-transfer-v449.js'
       - 'industrial-report-v436.js'
       - 'ui-stability-v422.js'
@@ -108,6 +128,8 @@ jobs:
           node tests/dashboard-browser.cjs
           node tests/site-contract-browser.cjs
           node tests/required-fields-browser.cjs
+          node tests/report-date-picker-browser.cjs
+          node tests/startup-cache-browser.cjs
           node tests/site-admin-browser.cjs
       - uses: actions/upload-artifact@v4
         if: always()
