@@ -1,18 +1,24 @@
 /* E&L Accident Report App v4.4.29 - unified required field UX */
 (function(){
   'use strict';
-  const VERSION='4.4.29-required-fields1';
+  const VERSION='4.4.30-starred-selects1';
   const EMPTY='enl432-required-empty',FILLED='enl432-required-filled';
 
   const text=v=>String(v==null?'':v).trim();
   const isControl=el=>!!el&&el.matches?.('input,textarea,select');
 
-  function starRequired(el){
-    if(el.required)return true;
+  function hasStarMarker(el){
     const label=el.closest?.('label');
     if(!label)return false;
-    const marker=label.querySelector('span');
-    return !!marker&&/\*/.test(marker.textContent||'');
+    const copy=label.cloneNode(true);
+    copy.querySelectorAll('input,textarea,select,option,button,small').forEach(n=>n.remove());
+    return /\*/.test(copy.textContent||'');
+  }
+
+  function requiredState(el){
+    const starred=hasStarMarker(el);
+    if(el.tagName==='SELECT')return starred;
+    return !!el.required||starred;
   }
 
   function prepareSelect(el){
@@ -41,7 +47,7 @@
       el.closest?.('label')?.classList.remove('enl432-label-empty');
       return;
     }
-    const required=starRequired(el);
+    const required=requiredState(el);
     if(required&&!el.required)el.required=true;
     if(!required){
       el.classList.remove(EMPTY,FILLED);
