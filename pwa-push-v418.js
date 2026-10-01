@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.1.8 - PWA install + web push */
 (function(){
   'use strict';
-  const VERSION='4.1.8-pwa-push2';
+  const VERSION='4.4.32-pwa-startup1';
   const PUSH_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-v418';
   const CLIENT='incident-report-v2';
   const SW_URL='/sw-v418.js?v=4.4.32-startup-cache1';
