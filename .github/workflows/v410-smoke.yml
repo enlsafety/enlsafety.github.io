@@ -136,6 +136,7 @@ jobs:
             'incident-flow-v440.js?v=4.4.0-r1&amp;fix=workflow1',
           ]
           for x in required: assert x in html,x
+          assert 'session-refresh-v412.js?v=4.4.34-r1&amp;fix=proof-reuse1' in html
           assert 'auth-v411.js?v=4.4.29-r1&amp;fix=hq-email1-required1' in html
           assert 'login-layout-v412.js?v=4.2.7-r1&amp;fix=guide-removed1' in html
           assert 'app-control-v410.js?v=4.4.32-r1&amp;fix=startup-defer1' in html
@@ -272,6 +273,8 @@ jobs:
           for x in ['supplement_request','보완요청','supplement_submit','보완자료 제출','corrective_approve','재발방지조치 승인','내용 확인기록']: assert x in official,x
           shell=Path('app-shell-v411.js').read_text(encoding='utf-8')
           assert 'window.ENL_DEPLOY_VERSION' in shell and '이앤엘 사고보고앱 v4.1.1' not in shell
+          session_js=Path('session-refresh-v412.js').read_text(encoding='utf-8')
+          for x in ['4.4.34-proof-reuse1','envelope(v,at,true)','envelope(v,at,false)','mergeLocalProof']: assert x in session_js,x
           sync=Path('incident-sync-v411.js').read_text(encoding='utf-8')
           assert 'authProof()' in sync and 'actorPasswordHash' in sync and 'actorPinHash' in sync and 'auth_proof_required' in sync and 'requireFreshLogin' in sync and 'session_auth_expired' in sync
           assert '공식 사고기록을 서버에 저장하려면' not in sync and 'cacheProof' not in sync and 'proofHash(' not in sync
