@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.1.2 - mobile background-safe login session */
 (function(){
   'use strict';
-  const VERSION='4.1.2-r16-session3';
+  const VERSION='4.4.34-proof-reuse1';
   const BACKUP_KEY='enl_safety_session_refresh_v412';
   const COOKIE_KEY='enl_safety_session_refresh_v412';
   const VIEW_KEY='enl_safety_view_refresh_v412';
@@ -19,17 +19,30 @@
     const u=v.worker||v.manager;
     return !!(u&&typeof u==='object'&&(u.id||u.personnelId)&&u.name&&u.role);
   }
-  function safeSession(v){
+  function safeSession(v,keepProof=false){
     if(!validSession(v))return null;
     try{
       const copy=JSON.parse(JSON.stringify(v));
-      const strip=o=>{if(!o||typeof o!=='object')return;delete o.passwordHash;delete o.pinHash;delete o.password_hash;delete o.pin_hash;delete o.password;delete o.pin};
-      strip(copy);strip(copy.worker);strip(copy.manager);
+      if(!keepProof){
+        const strip=o=>{if(!o||typeof o!=='object')return;delete o.passwordHash;delete o.pinHash;delete o.password_hash;delete o.pin_hash;delete o.password;delete o.pin};
+        strip(copy);strip(copy.worker);strip(copy.manager);
+      }
       return copy;
     }catch(e){return null}
   }
-  function envelope(v,savedAt=Date.now()){
-    const safe=safeSession(v);return safe?{savedAt:Number(savedAt)||Date.now(),session:safe}:null;
+  function envelope(v,savedAt=Date.now(),keepProof=false){
+    const safe=safeSession(v,keepProof);return safe?{savedAt:Number(savedAt)||Date.now(),session:safe}:null;
+  }
+  function sameActor(a,b){
+    const x=a?.worker||a?.manager||{},y=b?.worker||b?.manager||{};
+    return !!((x.id||x.personnelId)&&(y.id||y.personnelId)&&String(x.id||x.personnelId)===String(y.id||y.personnelId)&&String(x.role||'')===String(y.role||''));
+  }
+  function mergeLocalProof(base,local){
+    if(!validSession(base)||!validSession(local)||!sameActor(base,local))return base;
+    const copy=JSON.parse(JSON.stringify(base)),dst=copy.worker||copy.manager,src=local.worker||local.manager;
+    if(src?.passwordHash)dst.passwordHash=src.passwordHash;
+    if(src?.pinHash)dst.pinHash=src.pinHash;
+    return copy;
   }
   function normalizeStored(raw){
     if(!raw||typeof raw!=='object')return null;
@@ -58,15 +71,15 @@
     if(!rows.length)return {session:null,expired:false,savedAt:0};
     const row=rows[0];
     if(isExpired(row))return {session:null,expired:true,savedAt:row.savedAt};
-    return {session:row.session,expired:false,savedAt:row.savedAt};
+    const localProof=local&&!isExpired(local)?local.session:null;
+    return {session:localProof?mergeLocalProof(row.session,localProof):row.session,expired:false,savedAt:row.savedAt};
   }
   function persistBackup(v,touch=true){
     const at=touch?Date.now():lastActiveAt;
-    const row=envelope(v,at);if(!row)return false;
-    lastActiveAt=row.savedAt;
-    const serialized=JSON.stringify(row);
-    try{localStorage.setItem(BACKUP_KEY,serialized)}catch(e){}
-    try{document.cookie=`${COOKIE_KEY}=${encodeURIComponent(serialized)}; Path=/; Max-Age=${COOKIE_MAX_AGE}; SameSite=Lax; Secure`}catch(e){}
+    const localRow=envelope(v,at,true),cookieRow=envelope(v,at,false);if(!localRow||!cookieRow)return false;
+    lastActiveAt=localRow.savedAt;
+    try{localStorage.setItem(BACKUP_KEY,JSON.stringify(localRow))}catch(e){}
+    try{document.cookie=`${COOKIE_KEY}=${encodeURIComponent(JSON.stringify(cookieRow))}; Path=/; Max-Age=${COOKIE_MAX_AGE}; SameSite=Lax; Secure`}catch(e){}
     return true;
   }
   function clearBackup({draft=true}={}){
