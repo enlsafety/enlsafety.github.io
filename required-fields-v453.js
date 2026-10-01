@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.4.29 - unified required field UX */
 (function(){
   'use strict';
-  const VERSION='4.4.30-starred-selects1';
+  const VERSION='4.4.31-date-confirm-perf1';
   const EMPTY='enl432-required-empty',FILLED='enl432-required-filled';
 
   const text=v=>String(v==null?'':v).trim();
@@ -10,9 +10,11 @@
   function hasStarMarker(el){
     const label=el.closest?.('label');
     if(!label)return false;
-    const copy=label.cloneNode(true);
-    copy.querySelectorAll('input,textarea,select,option,button,small').forEach(n=>n.remove());
-    return /\*/.test(copy.textContent||'');
+    for(const node of label.childNodes){
+      if(node.nodeType===3&&/\*/.test(node.textContent||''))return true;
+      if(node.nodeType===1&&node.matches?.('span,b,strong')&&/\*/.test(node.textContent||''))return true;
+    }
+    return false;
   }
 
   function requiredState(el){
@@ -36,6 +38,7 @@
   }
 
   function filled(el){
+    if(el.dataset.enlConfirmRequired==='1'&&el.dataset.enlConfirmed!=='1')return false;
     if(el.type==='checkbox'||el.type==='radio')return !!el.checked;
     return text(el.value)!=='';
   }
@@ -67,21 +70,32 @@
     root.querySelectorAll?.('input,textarea,select').forEach(state);
   }
 
-  document.addEventListener('input',e=>state(e.target),true);
-  document.addEventListener('change',e=>state(e.target),true);
+  const confirmAndState=e=>{
+    const el=e.target;
+    if(el?.dataset?.enlConfirmRequired==='1')el.dataset.enlConfirmed='1';
+    state(el);
+  };
+  document.addEventListener('input',confirmAndState,true);
+  document.addEventListener('change',confirmAndState,true);
   document.addEventListener('focusin',e=>state(e.target),true);
   document.addEventListener('invalid',e=>state(e.target),true);
   document.addEventListener('reset',e=>setTimeout(()=>scan(e.target),0),true);
 
   let queued=false;
-  const queue=()=>{
-    if(queued)return;queued=true;
-    queueMicrotask(()=>{queued=false;scan(document)});
+  const pending=new Set();
+  const flush=()=>{
+    queued=false;
+    const roots=[...pending];pending.clear();
+    roots.forEach(root=>root?.isConnected&&scan(root));
+  };
+  const queue=root=>{
+    if(root?.nodeType===1)pending.add(root);
+    if(queued)return;queued=true;queueMicrotask(flush);
   };
   const mo=new MutationObserver(ms=>{
     for(const m of ms){
-      if(m.type==='attributes'){queue();continue}
-      for(const n of m.addedNodes)if(n.nodeType===1){queue();break}
+      if(m.type==='attributes'){queue(m.target);continue}
+      if(m.type==='childList'&&m.addedNodes.length)queue(m.target);
     }
   });
   const start=()=>{scan(document);mo.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['required','disabled','readonly']})};
