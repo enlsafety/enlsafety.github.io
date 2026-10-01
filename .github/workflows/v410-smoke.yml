@@ -170,7 +170,7 @@ jobs:
           assert "siteStatus='active'" in stats and "siteId=''" in stats
           assert 'id="stats426Status"' not in stats and 'id="stats426Site"' not in stats
           flow=Path('incident-flow-v440.js').read_text(encoding='utf-8')
-          for x in ['4.4.35-supplement-preview1','30분 이내 또는 현장 이탈 전','보완대기','보완검토대기','사고보고 최종승인','확인 기록','결재 아님','wf440QueueSig','wf440DecorSig']: assert x in flow,x
+          for x in ['4.4.37-supplement-review1','30분 이내 또는 현장 이탈 전','보완대기','보완검토대기','사고보고 최종승인','확인 기록','결재 아님','wf440QueueSig','wf440DecorSig']: assert x in flow,x
           assert 'window.enlAttachmentGalleryHtml' in flow and 'window.enlBindAttachmentOpen' in flow
           assert 'repairCostPending=repair<=0' in flow
           core=Path('core.js').read_text(encoding='utf-8')
