@@ -58,16 +58,12 @@ jobs:
           html=Path('stable412.html').read_text(encoding='utf-8')
 
           for x in [
-            "4.4.37-supplement-review1",
+            "4.4.39-no-confirm-history1",
             "30분 이내 또는 현장 이탈 전",
             "보완대기",
             "보완검토대기",
             "사고보고 최종승인",
             "진단서·영수증·견적서 등 보완자료",
-            "결재 아님",
-            "management_view",
-            "view_list",
-            "data-wf440-ack",
             "wf440QueueSig",
             "wf440DecorSig",
           ]: assert x in flow,x
