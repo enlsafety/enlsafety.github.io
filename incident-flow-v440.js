@@ -2,7 +2,7 @@
 (function(){
   'use strict';
 
-  const VERSION='4.4.0-immediate-supplement-ack1';
+  const VERSION='4.4.35-supplement-preview1';
   const PUSH_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-v418';
   const CLIENT='incident-report-v2';
   const MANAGER_POSITIONS=['현장소장','파트장','서무'];
