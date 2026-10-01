@@ -68,14 +68,14 @@
   document.addEventListener('reset',e=>setTimeout(()=>scan(e.target),0),true);
 
   let queued=false;
-  const queue=root=>{
+  const queue=()=>{
     if(queued)return;queued=true;
-    queueMicrotask(()=>{queued=false;scan(root&&root.isConnected?root:document)});
+    queueMicrotask(()=>{queued=false;scan(document)});
   };
   const mo=new MutationObserver(ms=>{
     for(const m of ms){
-      if(m.type==='attributes'){queue(m.target);continue}
-      for(const n of m.addedNodes)if(n.nodeType===1){queue(n);break}
+      if(m.type==='attributes'){queue();continue}
+      for(const n of m.addedNodes)if(n.nodeType===1){queue();break}
     }
   });
   const start=()=>{scan(document);mo.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['required','disabled','readonly']})};
