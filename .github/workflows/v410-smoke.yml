@@ -38,6 +38,7 @@ on:
       - 'hq-notification-status-v437.js'
       - 'sw-v418.js'
       - 'manifest.webmanifest'
+      - 'required-fields-v453.js'
       - '.github/workflows/v410-smoke.yml'
   pull_request:
     branches: [main]
@@ -76,6 +77,7 @@ on:
       - 'hq-notification-status-v437.js'
       - 'sw-v418.js'
       - 'manifest.webmanifest'
+      - 'required-fields-v453.js'
       - '.github/workflows/v410-smoke.yml'
   workflow_dispatch:
 
@@ -90,7 +92,7 @@ jobs:
 
       - name: JavaScript syntax
         run: |
-          for f in core.js auth-v411.js notification-profile-v441.js login-layout-v412.js incidents-v410.js incident-sync-v411.js report-v410.js field-incidents-v411.js app-shell-v411.js reader-ui-v414.js incident-stats-v426.js reader-experience-v424.js incident-flow-v440.js workflow-lifecycle-v413.js workflow-prevention-v429.js incident-review-v431.js production-cleanup-v431.js workflow-enhancements-v432.js site-admin-v415.js site-admin-hotfix-v433.js personnel-management-v434.js legal-review-v435.js industrial-report-v436.js closed-incident-reopen-v438.js official-records-v439.js incident-excel-v421.js pwa-push-v418.js push-session-v425.js hq-notification-status-v437.js sw-v418.js; do
+          for f in core.js auth-v411.js notification-profile-v441.js login-layout-v412.js incidents-v410.js incident-sync-v411.js report-v410.js field-incidents-v411.js app-shell-v411.js reader-ui-v414.js incident-stats-v426.js reader-experience-v424.js incident-flow-v440.js workflow-lifecycle-v413.js workflow-prevention-v429.js incident-review-v431.js production-cleanup-v431.js workflow-enhancements-v432.js site-admin-v415.js site-admin-hotfix-v433.js personnel-management-v434.js legal-review-v435.js industrial-report-v436.js closed-incident-reopen-v438.js official-records-v439.js incident-excel-v421.js pwa-push-v418.js push-session-v425.js hq-notification-status-v437.js required-fields-v453.js sw-v418.js; do
             node --check "$f"
           done
 
@@ -103,16 +105,16 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-4428-r1',meta
+          assert meta.get('build')=='stable-4429-r1',meta
           assert meta.get('stableEntry')=='stable412.html',meta
-          assert meta.get('version')=='4.4.28' and meta.get('currentStableVersion')=='4.4.28',meta
+          assert meta.get('version')=='4.4.29' and meta.get('currentStableVersion')=='4.4.29',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='4428-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4428-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
+          for x in ["const BUILD='4429-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4429-r1',"/sw-v418.js?v=4.2.5-pwa4-confirm1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.4.28-r1',
+            'enl-build" content="4.4.29-r1',
             'incident-sync-v411.js?v=4.4.0-r1&amp;fix=supplement-ack1',
             'workflow-prevention-v429.js?v=4.4.14-r1&amp;fix=historical-transfer1',
             'workflow-lifecycle-v413.js?v=4.4.14-r1&amp;fix=historical-transfer1',
@@ -122,7 +124,7 @@ jobs:
             'site-admin-hotfix-v433.js?v=4.1.2-r33&amp;fix=site-api1',
             'personnel-management-v434.js?v=4.4.12-r1&amp;fix=hq-rank-align1',
             'legal-review-v435.js?v=4.1.2-r35&amp;fix=legal-simplify1',
-            'industrial-report-v436.js?v=4.4.0-r1&amp;fix=deadline-confirmation3',
+            'industrial-report-v436.js?v=4.4.29-r1&amp;fix=deadline-confirmation3-required1',
             'closed-incident-reopen-v438.js?v=4.4.14-r1&amp;fix=historical-transfer1',
             'official-records-v439.js?v=4.4.24-r1',
             'incidents-v410.js?v=4.4.27-r1',
@@ -134,10 +136,13 @@ jobs:
             'incident-flow-v440.js?v=4.4.0-r1&amp;fix=workflow1',
           ]
           for x in required: assert x in html,x
-          assert 'auth-v411.js?v=4.4.11-r1&amp;fix=hq-email1' in html
+          assert 'auth-v411.js?v=4.4.29-r1&amp;fix=hq-email1-required1' in html
           assert 'login-layout-v412.js?v=4.2.7-r1&amp;fix=guide-removed1' in html
           assert 'app-control-v410.js?v=4.4.10-r2&amp;fix=update8-server-fix' in html
           assert 'incident-stats-v426.js?v=4.4.28-r1' in html
+          assert 'required-fields-v453.js?v=4.4.29-r1' in html
+          assert 'ui-stability-v422.js?v=4.4.29-r1&amp;fix=hq-email-edit1-required1' in html
+          assert 'historical-transfer-v449.js?v=4.4.29-r1&amp;fix=required1' in html
           assert 'site-dashboard-v450.js?v=4.4.26-r1' in html
           assert 'site-master-seed-v400.js?v=4.4.24-r1' in html
           assert Path('korea-map-natural-earth-10m.svg').exists()
@@ -146,6 +151,10 @@ jobs:
           assert 'korea-map-natural-earth-10m.svg?v=4.4.19-r1' in mapjs
           stats=Path('incident-stats-v426.js').read_text(encoding='utf-8')
           for x in ['4.4.28-dashboard-filter-simplify1','data-stats-filter="all"','data-stats-month','최근 발생일 순','data-stats-inc','stats426-site-attention','stats426-site-manage','관심요망','관리필요']: assert x in stats,x
+          required_fields=Path('required-fields-v453.js').read_text(encoding='utf-8')
+          for x in ["4.4.29-required-fields1","enl432-required-empty","enl432-required-filled","선택하세요","MutationObserver","aria-required"]: assert x in required_fields,x
+          hist=Path('historical-transfer-v449.js').read_text(encoding='utf-8')
+          for x in ['<select id="hEvent" required><option value="">선택</option>','<select id="hAction" required><option value="">선택</option>','<select id="hFollow" required><option value="">선택</option>']: assert x in hist,x
           assert "siteStatus='active'" in stats and "siteId=''" in stats
           assert 'id="stats426Status"' not in stats and 'id="stats426Site"' not in stats
           flow=Path('incident-flow-v440.js').read_text(encoding='utf-8')
@@ -172,7 +181,7 @@ jobs:
           assert 'pwa-push-v418.js?v=4.4.0-r1&amp;fix=workflow-push1' in html
           assert 'push-session-v425.js?v=4.1.5-r1&amp;fix=device-heartbeat2' in html
           assert 'notification-profile-v441.js?v=4.4.7-r1&amp;fix=server-dispatch1' in html
-          assert 'site-admin-v415.js?v=4.4.25-r1' in html
+          assert 'site-admin-v415.js?v=4.4.29-r1&amp;fix=required1' in html
           profile=Path('notification-profile-v441.js').read_text(encoding='utf-8')
           for x in ['profile_get','profile_update','긴급사고는 앱 푸시·이메일 OFF 설정과 관계없이 강제 수신됩니다.','4.4.7-notification-profile2']: assert x in profile,x
           assert 'enl-email-v441' not in profile and 'emailFlush' not in profile
@@ -198,7 +207,7 @@ jobs:
           hotfix='site-admin-hotfix-v433.js?v=4.1.2-r33&fix=site-api1'
           personnel='personnel-management-v434.js?v=4.4.12-r1&fix=hq-rank-align1'
           legal='legal-review-v435.js?v=4.1.2-r35&fix=legal-simplify1'
-          industrial='industrial-report-v436.js?v=4.4.0-r1&fix=deadline-confirmation3'
+          industrial='industrial-report-v436.js?v=4.4.29-r1&fix=deadline-confirmation3-required1'
           assert p.scripts.index(hotfix) < p.scripts.index(personnel) < p.scripts.index(legal) < p.scripts.index(industrial)
 
           cleanup=Path('production-cleanup-v431.js').read_text(encoding='utf-8')
