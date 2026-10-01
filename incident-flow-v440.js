@@ -160,7 +160,10 @@
 
   function renderSupplementFiles(root){
     const list=root?.querySelector('#wf440SupplementFiles');if(!list)return;
-    list.innerHTML=supplementFiles.map((f,idx)=>`<div class="wf440-file"><span>${ex(f.name||f.fileName||'첨부자료')}</span><button type="button" data-wf440-file-rm="${idx}">삭제</button></div>`).join('')||'<span style="font-size:11px;color:#728598">첨부된 보완자료가 없습니다.</span>';
+    if(!supplementFiles.length){list.innerHTML='<span style="font-size:11px;color:#728598">첨부된 보완자료가 없습니다.</span>';return}
+    const gallery=typeof window.enlAttachmentGalleryHtml==='function'?window.enlAttachmentGalleryHtml(supplementFiles):'';
+    list.innerHTML=gallery+`<div class="wf440-file-controls">${supplementFiles.map((f,idx)=>`<div class="wf440-file"><span>${ex(f.name||f.fileName||'첨부자료')}</span><button type="button" data-wf440-file-rm="${idx}">삭제</button></div>`).join('')}</div>`;
+    try{window.enlBindAttachmentOpen?.(list,supplementFiles)}catch(e){}
     list.querySelectorAll('[data-wf440-file-rm]').forEach(b=>b.onclick=()=>{supplementFiles.splice(Number(b.dataset.wf440FileRm),1);renderSupplementFiles(root);validateSupplementVisual(root)});
   }
   function validateSupplementVisual(root){
