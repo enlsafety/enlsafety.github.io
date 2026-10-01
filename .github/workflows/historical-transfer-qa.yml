@@ -79,6 +79,8 @@ jobs:
           stable=Path('stable412.html').read_text(encoding='utf-8')
           version=json.loads(Path('version.json').read_text(encoding='utf-8'))
           assert "historicalImport" in hist
+          for token in ['<select id="hEvent" required><option value="">선택</option>','<select id="hAction" required><option value="">선택</option>','<select id="hFollow" required><option value="">선택</option>']:
+            assert token in hist, token
           for token in ["erpApproved:true","workflowExempt:true","silent:true","transferState:'closed'","status:'closed'","corrective:null","additionalAction","recordMode:'historical_transfer'","historicalTransfer","reporterId:''","hSeverity","enlStartHistoricalTransfer449"]:
             assert token in hist, token
           for token in ["historicalClosed","!historicalClosed(i)"]:
@@ -97,7 +99,7 @@ jobs:
             assert asset+'?v=4.4.14-r1&amp;fix=historical-transfer1' in stable, asset
           assert 'official-records-v439.js?v=4.4.24-r1' in stable
           assert 'site-contract-v451.js?v=4.4.24-r1' in stable
-          assert 'historical-transfer-v449.js?v=4.4.24-r1' in stable
-          assert 'content="4.4.28-r1"' in stable
-          assert version["version"]=="4.4.28" and version["build"]=="stable-4428-r1"
+          assert 'historical-transfer-v449.js?v=4.4.29-r1&amp;fix=required1' in stable
+          assert 'content="4.4.29-r1"' in stable
+          assert version["version"]=="4.4.29" and version["build"]=="stable-4429-r1"
           print('OK: historical ERP transfer-close flow invariants preserved')
