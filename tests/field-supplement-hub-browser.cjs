@@ -56,7 +56,7 @@ async function run(engine){
     assert.ok((await page.locator('[data-field-group="supplement"]').innerText()).includes('보완자료 작성하기'));
     assert.ok((await page.locator('[data-field-group="approved"]').innerText()).includes('재발방지계획'));
     assert.ok((await page.locator('[data-field-group="action"]').innerText()).includes('사고 조치 작성하기'));
-    assert.ok((await page.locator('[data-field-group="closed"]').innerText()).includes('종결 완료'));
+    assert.ok((await page.locator('[data-field-group="closed"]').innerText()).includes('종결이 완료되었습니다'));
     await page.locator('[data-field-supplement="inc-supp"]').click();
     assert.equal(await page.evaluate(()=>window.__supplement),'inc-supp');
     await page.locator('[data-field-action="inc-action"]').click();
