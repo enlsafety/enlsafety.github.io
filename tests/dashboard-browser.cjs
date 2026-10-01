@@ -153,6 +153,7 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  for(const role of ['manager','executive','final']){
   await page.evaluate(role=>{qaUser={id:role,role,name:'본사 조회자'};currentView='stats';renderShell(qaUser)},role);
   await page.locator('[data-sd450-map]').waitFor();await page.waitForFunction(()=>window.enlDashboardMetrics?.()!==null);
+  await page.waitForFunction(()=>document.querySelector('[data-stats-filter="all"] b')?.textContent==='10건',{timeout:5000});
   assert.equal(await page.locator('[data-sd450-map-site]').count(),33);assert.equal(await page.locator('.sd450-kpis').innerText(),safetyKpis,'same company metrics for HQ');assert.equal(await page.locator('[data-stats-filter=all] b').innerText(),'10건');await page.locator('[data-stats-filter=all]').click();assert.equal(await page.locator('[data-stats-inc]').count(),1,'aggregate-only rejected record must not disclose details');
   await openSite('s29');await page.locator('[data-sd450-open]').click();await page.locator('[data-sd450-info]').waitFor();
   assert.equal(await page.locator('[data-qa-table]').getAttribute('data-edit'),'false');
