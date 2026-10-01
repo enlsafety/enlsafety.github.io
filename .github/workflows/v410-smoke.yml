@@ -105,17 +105,17 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-4433-r1',meta
+          assert meta.get('build')=='stable-4434-r1',meta
           assert meta.get('stableEntry')=='stable412.html',meta
-          assert meta.get('version')=='4.4.33' and meta.get('currentStableVersion')=='4.4.33',meta
+          assert meta.get('version')=='4.4.34' and meta.get('currentStableVersion')=='4.4.34',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='4433-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4433-r1',"/sw-v418.js?v=4.4.32-startup-cache1"]: assert x in index,x
+          for x in ["const BUILD='4434-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4434-r1',"/sw-v418.js?v=4.4.32-startup-cache1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.4.33-r1',
-            'incident-sync-v411.js?v=4.4.32-r1&amp;fix=startup-defer1',
+            'enl-build" content="4.4.34-r1',
+            'incident-sync-v411.js?v=4.4.34-r1&amp;fix=proof-reuse1',
             'workflow-prevention-v429.js?v=4.4.14-r1&amp;fix=historical-transfer1',
             'workflow-lifecycle-v413.js?v=4.4.14-r1&amp;fix=historical-transfer1',
             'incident-review-v431.js?v=4.1.2-r31&amp;fix=review-preview1',
@@ -273,7 +273,8 @@ jobs:
           shell=Path('app-shell-v411.js').read_text(encoding='utf-8')
           assert 'window.ENL_DEPLOY_VERSION' in shell and '이앤엘 사고보고앱 v4.1.1' not in shell
           sync=Path('incident-sync-v411.js').read_text(encoding='utf-8')
-          assert 'authProof()' in sync and 'actorPasswordHash' in sync and 'actorPinHash' in sync and 'auth_proof_required' in sync and 'cacheProof' in sync
+          assert 'authProof()' in sync and 'actorPasswordHash' in sync and 'actorPinHash' in sync and 'auth_proof_required' in sync and 'requireFreshLogin' in sync and 'session_auth_expired' in sync
+          assert '공식 사고기록을 서버에 저장하려면' not in sync and 'cacheProof' not in sync and 'proofHash(' not in sync
           reopen=Path('closed-incident-reopen-v438.js').read_text(encoding='utf-8')
           for x in ['closed_rollback_to_report_approved',"i.status='approved'",'i.corrective=null','종결 취소 · 사고승인 단계로','enlEditIncidentInReportForm']: assert x in reopen,x
           lifecycle=Path('workflow-lifecycle-v413.js').read_text(encoding='utf-8')
