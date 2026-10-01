@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.1.5 - authoritative field/worker UI */
 (function(){
   'use strict';
-  const VERSION='4.4.36-supplement-badge1';
+  const VERSION='4.4.37-field-copy1';
   const isField=u=>!!u&&['field','worker'].includes(u.role);
   const siteName=u=>{try{return siteById?.(u?.siteId)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(u?.siteId))?.name||'소속 사업장'}catch(e){return '소속 사업장'}};
   const title=u=>u?.position||u?.jobTitle||(u?.role==='worker'?'일반근로자':'현장관리');
@@ -34,7 +34,7 @@
       .field-six-btn{position:relative}.field-six-btn.field-six-attention-btn{border-color:#db5a5a!important;box-shadow:0 0 0 2px rgba(214,62,62,.09),0 8px 20px rgba(104,35,35,.08)}
       .field-six-new{position:absolute;right:10px;top:9px;min-width:27px;height:27px;padding:0 7px;border-radius:999px;background:#d83b3b;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:950;line-height:1;box-shadow:0 3px 9px rgba(172,36,36,.28)}
       .field-six-alert{margin:0 0 12px;padding:12px 13px;border:2px solid #dc6767;border-radius:13px;background:#fff4f4;color:#783333;display:flex;align-items:center;gap:10px;flex-wrap:wrap;line-height:1.5}
-      .field-six-alert b{color:#a92f2f}.field-six-alert span{flex:1 1 240px;font-size:12px}.field-six-alert button{min-height:38px;border:1px solid #caa2a2;border-radius:9px;background:#fff;color:#8b3333;padding:0 11px;font-weight:900}
+      .field-six-alert b{color:#a92f2f;flex:1 1 220px}.field-six-alert button{min-height:38px;border:1px solid #caa2a2;border-radius:9px;background:#fff;color:#8b3333;padding:0 11px;font-weight:900}
       @media(max-width:560px){.field-six-alert{align-items:flex-start}.field-six-alert button{width:100%}}
     `;document.head.appendChild(style);
   }
@@ -42,7 +42,7 @@
     if(!root||!isField(u))return;
     ensureHomeAlertCss();
     const pending=supplementCount(u),needsPush=pending>0&&((typeof Notification==='undefined')||Notification.permission!=='granted');
-    root.innerHTML=`<section class="field-six-home"><div class="field-six-head"><h2>${esc(siteName(u))}</h2><p>필요한 메뉴를 선택해 주세요.</p><span class="field-six-role">${esc(title(u))} · ${esc(u.name||'')}</span></div>${pending?`<div class="field-six-alert"><b>사고보고 보완요청 ${pending}건</b><span>안전관리자가 보완을 요청했어. 아래 <strong>사고 기록</strong>에서 요청내용을 확인하고 바로 보완자료를 작성하면 돼.</span>${needsPush?'<button type="button" data-field-notification-setup>휴대폰 알림 켜기</button>':''}</div>`:''}<div class="field-six-grid"><button class="field-six-btn" data-field-task="accident_report"><span class="field-six-no">01</span><strong>사고 보고</strong><small>대인·대물 사고를 보고</small></button><button class="field-six-btn" data-field-task="accident_action"><span class="field-six-no">02</span><strong>사고 조치</strong><small>사고 후 조치내용 등록</small></button><button class="field-six-btn ${pending?'field-six-attention-btn':''}" data-field-task="records">${pending?`<span class="field-six-new" aria-label="보완요청 ${pending}건">${pending}</span>`:''}<span class="field-six-no">03</span><strong>사고 기록</strong><small>${pending?`보완요청 ${pending}건<br>확인·작성 필요`:'우리 현장<br>사고기록 확인'}</small></button><button class="field-six-btn" data-field-task="inquiry"><span class="field-six-no">04</span><strong>기타 문의</strong><small>안전관리자 문의 및 답변 확인</small></button></div></section>`;
+    root.innerHTML=`<section class="field-six-home"><div class="field-six-head"><h2>${esc(siteName(u))}</h2><p>필요한 메뉴를 선택해 주세요.</p><span class="field-six-role">${esc(title(u))} · ${esc(u.name||'')}</span></div>${pending?`<div class="field-six-alert"><b>사고보고 보완요청 ${pending}건</b>${needsPush?'<button type="button" data-field-notification-setup>휴대폰 알림 켜기</button>':''}</div>`:''}<div class="field-six-grid"><button class="field-six-btn" data-field-task="accident_report"><span class="field-six-no">01</span><strong>사고 보고</strong><small>대인·대물 사고를 보고</small></button><button class="field-six-btn" data-field-task="accident_action"><span class="field-six-no">02</span><strong>사고 조치</strong><small>사고 후 조치내용 등록</small></button><button class="field-six-btn ${pending?'field-six-attention-btn':''}" data-field-task="records">${pending?`<span class="field-six-new" aria-label="보완요청 ${pending}건">${pending}</span>`:''}<span class="field-six-no">03</span><strong>사고 기록</strong><small>${pending?`보완요청 ${pending}건<br>확인·작성 필요`:'우리 현장<br>사고기록 확인'}</small></button><button class="field-six-btn" data-field-task="inquiry"><span class="field-six-no">04</span><strong>기타 문의</strong><small>안전관리자 문의 및 답변 확인</small></button></div></section>`;
     root.querySelectorAll('[data-field-task]').forEach(b=>b.onclick=()=>go(b.dataset.fieldTask,u));
     root.querySelector('[data-field-notification-setup]')?.addEventListener('click',()=>{if(typeof window.enlOpenPwaNotificationSettings==='function')window.enlOpenPwaNotificationSettings();else document.getElementById('enlPwaTop418')?.click()});
   }
