@@ -4,7 +4,7 @@ const {chromium}=require('playwright'),fs=require('node:fs'),assert=require('nod
   const browser=await chromium.launch();
   const page=await browser.newPage({viewport:{width:900,height:700}});
   try{
-    await page.route('http://enl-qa.test/**',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><html><head></head><body><div id="app"></div><input id="incidentPhotoInput" type="file"><input id="actionPhotoInput" type="file"><div id="gallery"></div></body></html>'}));
+    await page.route('http://enl-qa.test/**',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><html><head></head><body><div id="app"></div><input id="incidentPhotoInput" type="file"><input id="actionPhotoInput" type="file"><div id="gallery"></div><div id="modalRoot"></div></body></html>'}));
     await page.goto('http://enl-qa.test/fixture');
     await page.evaluate(()=>{
       localStorage.setItem('enl_safety_v3',JSON.stringify({version:3,sites:[{id:'s01',name:'테스트'}],users:[{id:'u1',name:'현장소장',role:'field',siteId:'s01',active:true}],incidents:[]}));
