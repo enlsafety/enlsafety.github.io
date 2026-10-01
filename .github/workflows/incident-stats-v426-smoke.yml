@@ -32,7 +32,7 @@ jobs:
           js=Path('incident-stats-v426.js').read_text(encoding='utf-8')
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            "4.4.20-shared-dashboard1",
+            "4.4.28-dashboard-filter-simplify1",
             "['safety','manager','executive']",
             "['reported','supplement','supplement_submitted','approved','closed']",
             "String(i.category||'')==='person'",
@@ -60,7 +60,11 @@ jobs:
           assert 'fetch(' not in js, 'statistics module must not add network calls'
           assert 'setInterval(' not in js, 'statistics module must not add polling'
           assert 'MutationObserver' not in js, 'statistics module must not add observer loops'
-          script='incident-stats-v426.js?v=4.4.26-r1'
+          assert "siteStatus='active'" in js and "siteId=''" in js, 'dashboard must stay on active all-sites scope'
+          assert 'id="stats426Status"' not in js, 'status dropdown must be removed'
+          assert 'id="stats426Site"' not in js, 'site dropdown must be removed'
+          assert 'id="stats426Year"' in js, 'year dropdown must remain'
+          script='incident-stats-v426.js?v=4.4.28-r1'
           assert script in html
           assert html.index('app-shell-v411.js') < html.index('incident-stats-v426.js') < html.index('ui-stability-v422.js')
           print('OK: interactive role-scoped dashboard drill-downs are wired without network or polling')
