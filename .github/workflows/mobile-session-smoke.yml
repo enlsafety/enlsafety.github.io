@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'session-refresh-v412.js'
+      - 'tests/session-proof-reuse.cjs'
+      - 'tests/session-proof-reuse.cjs'
       - 'app-control-v410.js'
       - 'stable412.html'
       - '.github/workflows/mobile-session-smoke.yml'
@@ -29,6 +31,7 @@ jobs:
         run: |
           node --check session-refresh-v412.js
           node --check app-control-v410.js
+          node tests/session-proof-reuse.cjs
       - name: Mobile persistence rules
         shell: python
         run: |
@@ -46,6 +49,10 @@ jobs:
             "enlRestoreForegroundSession",
             "enlClearRefreshSession",
             "clearSessionExplicit('logout')",
+            "4.4.34-proof-reuse1",
+            "envelope(v,at,true)",
+            "envelope(v,at,false)",
+            "mergeLocalProof",
           ]: assert x in session,x
           for x in [
             "function clearLoginForUpdate(reason='manual_update')",
@@ -62,7 +69,7 @@ jobs:
             "document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')scheduleForegroundControl(100)})",
           ]: assert x in control,x
           assert control.count('clearLoginForUpdate(')==3,control.count('clearLoginForUpdate(')
-          assert 'session-refresh-v412.js?v=4.1.2-r16&amp;fix=session2&amp;mobile=session3' in html
+          assert 'session-refresh-v412.js?v=4.4.34-r1&amp;fix=proof-reuse1' in html
           assert 'app-control-v410.js?v=4.4.32-r1&amp;fix=startup-defer1' in html
           assert html.index('session-refresh-v412.js') < html.index('auth-v411.js')
           print('OK: mobile session persists; stale same-version global epochs do not clear fresh logins; real/manual updates still clear login')
