@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.2.5 - push ownership + post-login deep links */
 (function(){
   'use strict';
-  const VERSION='4.4.35-pending-readonly1';
+  const VERSION='4.4.36-subscription-repair1';
   const CLAIM_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-claim-v425';
   const CLIENT='incident-report-v2';
   const SW_URL='/sw-v418.js?v=4.2.5-pwa4-confirm1';
@@ -43,7 +43,7 @@
   }
   async function claimForCurrentUser(force=false){
     const u=actor();if(!u||claimBusy||!('Notification' in window)||Notification.permission!=='granted')return false;
-    const sub=await currentSubscription();if(!sub)return false;
+    let sub=await currentSubscription();if(!sub&&typeof window.enlEnsurePushSubscription==='function'){try{sub=await window.enlEnsurePushSubscription()}catch(e){}}if(!sub)return false;
     const key=userId(u)+'|'+String(sub.endpoint||'');if(!force&&key===lastClaimKey&&Date.now()-lastClaimAt<15*60*1000)return true;
     claimBusy=true;
     try{
