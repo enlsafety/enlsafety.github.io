@@ -33,7 +33,7 @@
   function targetDate(days){
     const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()+Number(days||0));
     const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');
-    return \`${y}-${m}-${day}\`;
+    return `${y}-${m}-${day}`;
   }
   function suggestedOwner(i){
     const rank=new Map(MANAGER_POSITIONS.map((p,n)=>[p,n]));
@@ -132,10 +132,10 @@
   function autoPreventionDraft(i){
     const d=i?.reportDetails||{},hazard=hazardDraft(i);
     const mechanism=text(d.incidentHow)||text(i?.summary)||text(i?.eventType)||'사고 발생';
-    const cause=[\`발생 메커니즘: ${mechanism}\`];
-    if(text(d.environmentCause))cause.push(\`환경적 요인: ${text(d.environmentCause)}\`);
-    if(text(d.behaviorCause))cause.push(\`행동적 요인: ${text(d.behaviorCause)}\`);
-    cause.push(\`관리상 원인: ${hazard.cause}\`);
+    const cause=[`발생 메커니즘: ${mechanism}`];
+    if(text(d.environmentCause))cause.push(`환경적 요인: ${text(d.environmentCause)}`);
+    if(text(d.behaviorCause))cause.push(`행동적 요인: ${text(d.behaviorCause)}`);
+    cause.push(`관리상 원인: ${hazard.cause}`);
     const days=(i?.potentialMajor===true||String(i?.priority||'')==='urgent')?3:(String(i?.priority||'')==='important'||String(i?.category||'')==='person')?7:14;
     return {rootCause:cause.join('\n'),planDetail:hazard.plan,ownerName:suggestedOwner(i),dueDate:targetDate(days)};
   }
