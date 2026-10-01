@@ -54,14 +54,14 @@ jobs:
           reader_required=[
             "document.querySelector('[data-shell-view=\"actions\"]')?.remove()",
             "String(currentView)==='actions'",
-            "4.4.8-reader-parallel-approval1",
-            "즉시보고부터 보완·최종승인·종결",
+            "4.4.37-hq-dashboard1",
+            "검토대기·보완대기 단계에서는 조회만 가능하며",
             "supplement_submitted",
             "사고 조회",
           ]
           for x in reader_required: assert x in reader,x
           assert 'workflow-lifecycle-v413.js?v=4.4.14-r1&amp;fix=historical-transfer1' in html
-          assert 'reader-ui-v414.js?v=4.4.14-r1&amp;fix=historical-transfer1' in html
+          assert 'reader-ui-v414.js?v=4.4.37-r1&amp;fix=hq-dashboard1' in html
           assert 'closed-incident-reopen-v438.js?v=4.4.14-r1&amp;fix=historical-transfer1' in html
           for x in ['closed_rollback_to_report_approved',"i.status='approved'","i.corrective=null",'reopenedAt','enlEditIncidentInReportForm']: assert x in reopen,x
           assert 'historicalClosed' in js and 'if(historicalClosed(i))continue' in js

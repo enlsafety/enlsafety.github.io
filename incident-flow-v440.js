@@ -2,7 +2,7 @@
 (function(){
   'use strict';
 
-  const VERSION='4.4.35-supplement-preview1';
+  const VERSION='4.4.37-supplement-review1';
   const PUSH_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-v418';
   const CLIENT='incident-report-v2';
   const MANAGER_POSITIONS=['현장소장','파트장','서무'];
@@ -38,7 +38,7 @@
       .wf440-sla b{display:block;color:#784f00;font-size:14px;margin-bottom:3px}.wf440-sla small{display:block;margin-top:4px;color:#81662e}
       .wf440-stage{margin:10px 0 12px;padding:12px 13px;border:1.5px solid #bfd4e3;border-radius:12px;background:#f5faff;color:#315a77;line-height:1.5}
       .wf440-stage b{display:block;color:#174d78;font-size:14px}.wf440-stage.supplement{border-color:#e7be66;background:#fff9e9;color:#735619}.wf440-stage.approved{border-color:#94c5a7;background:#f0f9f3;color:#286044}
-      .wf440-supplement-note{margin:10px 0;padding:11px 12px;border:1px solid #e4c77d;border-radius:11px;background:#fff9e8;color:#6e551e;font-size:12px;line-height:1.55}
+      .wf440-supplement-note{margin:10px 0;padding:11px 12px;border:1px solid #e4c77d;border-radius:11px;background:#fff9e8;color:#6e551e;font-size:12px;line-height:1.55}.wf440-supplement-submitted{margin-top:9px;padding:10px 11px;border:2px solid #e19a31;border-radius:10px;background:#fff7e8;color:#6d4a12}.wf440-supplement-submitted>b{display:block;margin-bottom:7px;color:#9a5e08;font-size:13px}.wf440-supplement-change-list{display:grid;gap:6px}.wf440-supplement-change{display:grid;grid-template-columns:130px minmax(0,1fr);gap:8px;padding:7px 8px;border:1px solid #efc77f;border-radius:8px;background:#fff}.wf440-supplement-change b{color:#805512;font-size:11px}.wf440-supplement-change span{color:#3f5364;font-size:12px;white-space:pre-wrap;word-break:break-word}@media(max-width:560px){.wf440-supplement-change{grid-template-columns:1fr;gap:3px}}
       .wf440-supplement-note ul{margin:6px 0 0 18px;padding:0}.wf440-supplement-note li{margin:3px 0}
       .wf440-safety-actions{display:flex;gap:7px;flex-wrap:wrap;margin:11px 0}.wf440-safety-actions button{min-height:44px;border:0;border-radius:10px;padding:0 13px;font-weight:950}
       .wf440-supp-btn{background:#d59122;color:#fff}.wf440-final-btn{background:#216b48;color:#fff}.wf440-invalid-btn{background:#fff;color:#973d3d;border:1px solid #dda9a9!important}
@@ -249,7 +249,7 @@
 
   async function addAckSection(modal,i,u,type){
     if(!canConfirm(u))return;
-    const allowed=type==='incident_report'?['approved','closed'].includes(String(i.status||'')):String(i.corrective?.status||'')==='approved';
+    const status=String(i.status||''),actionStatus=String(i.corrective?.status||''),allowed=type==='incident_report'?(status==='approved'||(status==='closed'&&actionStatus==='approved')):actionStatus==='approved';
     if(!allowed)return;
     const existing=modal.querySelector(`[data-wf440-confirm="${type}"]`);if(existing)existing.remove();
     if(type==='incident_report'){modal.querySelector('.reader423-ack-banner')?.remove();modal.querySelector('#ackIncident411')?.remove()}
@@ -270,10 +270,27 @@
     return `<section class="wf440-stage ${s.includes('supplement')?'supplement':['approved','closed'].includes(s)?'approved':''}"><b>${ex(stateLabel(i))}</b>${ex(desc)}<small>${ex(sla)}</small></section>`;
   }
 
+  function supplementSubmittedRows(i){
+    const d=i?.reportDetails||{},s=i?.supplement||{},requested=new Set(s.requestedFields||[]),rows=[],leave={none:'휴업 없음',under3:'3일 미만', '3plus':'3일 이상',longterm:'장기치료·중상 가능',unknown:'미확인'},money=v=>{const n=Number(v||0);return Number.isFinite(n)&&n>0?n.toLocaleString('ko-KR')+'원':'미확인'};
+    const add=(key,label,value)=>{if(requested.has(key))rows.push([label,text(value)||'미입력'])};
+    if(i?.category==='person'){
+      add('diagnosis','진단명',d.diagnosis);
+      add('doctorOpinion','의사 소견·치료 예상기간',d.doctorOpinion);
+      add('medicalCost','병원비·진료비',money(d.medicalCost));
+      add('leaveEstimate','휴업·치료기간',leave[String(i.leaveEstimate||d.leaveEstimate||'unknown')]||String(i.leaveEstimate||d.leaveEstimate||'미확인'));
+      if(requested.has('medicalDocument'))rows.push(['진단서·병원비 등 증빙',Array.isArray(s.attachments)&&s.attachments.length?s.attachments.length+'개 첨부':'첨부 없음']);
+    }else{
+      add('repairCost','수리·복구 견적금액',d.repairCostPending===true?'사후 보완 예정':money(d.repairCost));
+      add('repairCostDetail','견적·비용 상세내역',d.repairCostDetail);
+      if(requested.has('estimateDocument'))rows.push(['견적서·수리 관련 증빙',Array.isArray(s.attachments)&&s.attachments.length?s.attachments.length+'개 첨부':'첨부 없음']);
+    }
+    return rows;
+  }
   function supplementInfo(i){
     if(!i?.supplement||!['supplement','supplement_submitted','approved','closed'].includes(String(i.status||'')))return '';
-    const items=supplementList(i),s=i.supplement;
-    return `<section class="wf440-supplement-note"><b>사후 보완정보</b>${items.length?`<ul>${items.map(x=>`<li>${ex(x)}</li>`).join('')}</ul>`:''}${s.requestNote?`<div style="margin-top:6px"><b>요청사항</b> ${ex(s.requestNote)}</div>`:''}${s.submittedBy?`<div style="margin-top:5px">보완 제출: ${ex(s.submittedBy)} · ${ex(typeof fmt==='function'?fmt(s.submittedAt):s.submittedAt||'')}</div>`:''}</section>`;
+    const items=supplementList(i),s=i.supplement,rows=s.submittedAt?supplementSubmittedRows(i):[];
+    const submitted=rows.length?`<div class="wf440-supplement-submitted"><b>현장 보완 제출내용</b><div class="wf440-supplement-change-list">${rows.map(([label,value])=>`<div class="wf440-supplement-change"><b>${ex(label)}</b><span>${ex(value)}</span></div>`).join('')}</div></div>`:'';
+    return `<section class="wf440-supplement-note"><b>사후 보완정보</b>${items.length?`<ul>${items.map(x=>`<li>${ex(x)}</li>`).join('')}</ul>`:''}${s.requestNote?`<div style="margin-top:6px"><b>요청사항</b> ${ex(s.requestNote)}</div>`:''}${s.submittedBy?`<div style="margin-top:5px">보완 제출: ${ex(s.submittedBy)} · ${ex(typeof fmt==='function'?fmt(s.submittedAt):s.submittedAt||'')}</div>`:''}${submitted}</section>`;
   }
 
   function decorateIncidentModal(id,override=null){
@@ -318,7 +335,7 @@
   }
 
   function patchReaderPending(){
-    const u=currentUser?.();if(!isReader(u))return;
+    const u=currentUser?.();if(!(isSafety(u)||isReader(u)))return;
     const nav=document.querySelector('[data-shell-view="incidents"]');if(nav&&nav.textContent!=='사고 조회')nav.textContent='사고 조회';
     const stats=document.querySelector('.stats426');if(!stats)return;
     const arr=[...(data?.incidents||[])].filter(i=>['reported','supplement','supplement_submitted'].includes(String(i.status||''))).sort((a,b)=>new Date(b.occurredAt||0)-new Date(a.occurredAt||0)).slice(0,8);
@@ -327,11 +344,8 @@
     stats.querySelector('.wf440-reader-pending')?.remove();
     if(!arr.length)return;
     const box=document.createElement('section');box.className='wf440-reader-pending';box.innerHTML=`<h3>즉시보고 · 보완 진행 중 ${arr.length}건</h3><div class="wf440-reader-pending-list">${arr.map(i=>`<button type="button" data-wf440-reader-open="${ex(i.id)}"><b>${ex(siteName(i.siteId))} · ${ex(stateLabel(i))}</b><small>${ex(String(i.occurredAt||'').slice(0,16).replace('T',' '))} · ${ex(i.eventType||'사고')}</small></button>`).join('')}</div>`;stats.insertBefore(box,stats.children[1]||null);
-    box.querySelectorAll('[data-wf440-reader-open]').forEach(b=>b.onclick=()=>window.enlOpenIncidentReview?.(b.dataset.wf440ReaderOpen,false,u));
+    box.querySelectorAll('[data-wf440-reader-open]').forEach(b=>b.onclick=()=>window.enlOpenIncidentReview?.(b.dataset.wf440ReaderOpen,isSafety(u),u));
   }
-
-  const baseFieldRecords=window.enlRenderFieldRecords;
-  if(typeof baseFieldRecords==='function')window.enlRenderFieldRecords=function(root,u){const out=baseFieldRecords.apply(this,arguments);setTimeout(()=>injectSupplementQueue(root,u),0);return out};
 
   function wrapOpen(name){
     const base=window[name];if(typeof base!=='function'||base.__wf440)return;
@@ -347,7 +361,7 @@
 
   function patchAll(){
     patchQueued=false;patchImmediateForm();patchReaderPending();
-    const u=currentUser?.(),root=document.getElementById('view');if(root&&isFieldManager(u)&&String(currentView)==='incidents')injectSupplementQueue(root,u);
+    const u=currentUser?.(),root=document.getElementById('view');
     const modal=document.querySelector('#modalRoot .modal');if(modal&&activeId)decorateIncidentModal(activeId);
   }
   function queuePatch(){if(patchQueued)return;patchQueued=true;requestAnimationFrame(patchAll)}

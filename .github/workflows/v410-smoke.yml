@@ -94,7 +94,7 @@ jobs:
 
       - name: JavaScript syntax
         run: |
-          for f in core.js auth-v411.js notification-profile-v441.js login-layout-v412.js incidents-v410.js incident-sync-v411.js report-v410.js field-incidents-v411.js app-shell-v411.js reader-ui-v414.js incident-stats-v426.js reader-experience-v424.js incident-flow-v440.js workflow-lifecycle-v413.js workflow-prevention-v429.js incident-review-v431.js production-cleanup-v431.js workflow-enhancements-v432.js site-admin-v415.js site-admin-hotfix-v433.js personnel-management-v434.js legal-review-v435.js industrial-report-v436.js closed-incident-reopen-v438.js official-records-v439.js incident-excel-v421.js pwa-push-v418.js push-session-v425.js hq-notification-status-v437.js required-fields-v453.js sw-v418.js; do
+          for f in core.js auth-v411.js notification-profile-v441.js login-layout-v412.js incidents-v410.js incident-sync-v411.js report-v410.js field-incidents-v411.js app-shell-v411.js reader-ui-v414.js incident-stats-v426.js reader-experience-v424.js incident-flow-v440.js workflow-lifecycle-v413.js workflow-prevention-v429.js incident-review-v431.js production-cleanup-v431.js workflow-enhancements-v432.js site-admin-v415.js site-admin-hotfix-v433.js personnel-management-v434.js legal-review-v435.js industrial-report-v436.js closed-incident-reopen-v438.js official-records-v439.js management-approval-v448.js incident-excel-v421.js pwa-push-v418.js push-session-v425.js hq-notification-status-v437.js required-fields-v453.js sw-v418.js; do
             node --check "$f"
           done
 
@@ -107,16 +107,16 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-4436-r1',meta
+          assert meta.get('build')=='stable-4437-r1',meta
           assert meta.get('stableEntry')=='stable412.html',meta
-          assert meta.get('version')=='4.4.36' and meta.get('currentStableVersion')=='4.4.36',meta
+          assert meta.get('version')=='4.4.37' and meta.get('currentStableVersion')=='4.4.37',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='4436-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4436-r1',"/sw-v418.js?v=4.4.32-startup-cache1"]: assert x in index,x
+          for x in ["const BUILD='4437-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4437-r1',"/sw-v418.js?v=4.4.32-startup-cache1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.4.36-r1',
+            'enl-build" content="4.4.37-r1',
             'incident-sync-v411.js?v=4.4.34-r1&amp;fix=proof-reuse1',
             'workflow-prevention-v429.js?v=4.4.14-r1&amp;fix=historical-transfer1',
             'workflow-lifecycle-v413.js?v=4.4.14-r1&amp;fix=historical-transfer1',
@@ -131,18 +131,18 @@ jobs:
             'official-records-v439.js?v=4.4.24-r1',
             'incidents-v410.js?v=4.4.35-r1&amp;fix=full-detail1',
             'report-v410.js?v=4.4.35-r1&amp;fix=form-guidance1',
-            'field-incidents-v411.js?v=4.4.36-r1&amp;fix=field-status-hub1',
-            'app-shell-v411.js?v=4.4.27-r1',
-            'reader-ui-v414.js?v=4.4.14-r1&amp;fix=historical-transfer1',
+            'field-incidents-v411.js?v=4.4.37-r1&amp;fix=field-copy2',
+            'app-shell-v411.js?v=4.4.37-r1&amp;fix=hq-dashboard1',
+            'reader-ui-v414.js?v=4.4.37-r1&amp;fix=hq-dashboard1',
             'reader-experience-v424.js?v=4.4.14-r1&amp;fix=historical-transfer1',
-            'incident-flow-v440.js?v=4.4.35-r1&amp;fix=supplement-preview1',
+            'incident-flow-v440.js?v=4.4.37-r1&amp;fix=supplement-review1',
           ]
           for x in required: assert x in html,x
           assert 'session-refresh-v412.js?v=4.4.34-r1&amp;fix=proof-reuse1' in html
           assert 'core.js?v=4.4.35-r1&amp;fix=attachment-preview1' in html
           assert 'auth-v411.js?v=4.4.29-r1&amp;fix=hq-email1-required1' in html
           assert 'login-layout-v412.js?v=4.2.7-r1&amp;fix=guide-removed1' in html
-          assert 'field-ui-v411.js?v=4.4.36-r1&amp;fix=supplement-badge1' in html
+          assert 'field-ui-v411.js?v=4.4.37-r1&amp;fix=field-copy1' in html
           assert 'app-control-v410.js?v=4.4.32-r1&amp;fix=startup-defer1' in html
           assert 'incident-stats-v426.js?v=4.4.28-r1' in html
           assert 'required-fields-v453.js?v=4.4.31-r1' in html
@@ -170,7 +170,7 @@ jobs:
           assert "siteStatus='active'" in stats and "siteId=''" in stats
           assert 'id="stats426Status"' not in stats and 'id="stats426Site"' not in stats
           flow=Path('incident-flow-v440.js').read_text(encoding='utf-8')
-          for x in ['4.4.35-supplement-preview1','30분 이내 또는 현장 이탈 전','보완대기','보완검토대기','사고보고 최종승인','확인 기록','결재 아님','wf440QueueSig','wf440DecorSig']: assert x in flow,x
+          for x in ['4.4.37-supplement-review1','30분 이내 또는 현장 이탈 전','보완대기','보완검토대기','사고보고 최종승인','확인 기록','결재 아님','wf440QueueSig','wf440DecorSig']: assert x in flow,x
           assert 'window.enlAttachmentGalleryHtml' in flow and 'window.enlBindAttachmentOpen' in flow
           assert 'repairCostPending=repair<=0' in flow
           core=Path('core.js').read_text(encoding='utf-8')
@@ -184,11 +184,11 @@ jobs:
           for x in ['4.4.35-form-guidance1','사후 보완 예정','data-auto-pending','environmentCause410','behaviorCause410','specialNote410','repairCostPending']: assert x in report,x
           assert report.count('placeholder="예:') >= 12, report.count('placeholder="예:')
           field=Path('field-incidents-v411.js').read_text(encoding='utf-8')
-          for x in ["v==='supplement'?'보완대기'","v==='supplement_submitted'?'보완검토대기'","4.4.36-field-status-hub1","보완자료 작성하기","사고 조치 작성하기","data-field-group"]: assert x in field,x
+          for x in ["v==='supplement'?'보완대기'","v==='supplement_submitted'?'보완검토대기'","4.4.37-field-copy2","보완자료 작성하기","사고 조치 작성하기","data-field-group"]: assert x in field,x
           field_ui=Path('field-ui-v411.js').read_text(encoding='utf-8')
-          for x in ["4.4.36-supplement-badge1","field-six-new","보완요청","enlOpenPwaNotificationSettings"]: assert x in field_ui,x
+          for x in ["4.4.37-field-copy1","field-six-new","보완요청","enlOpenPwaNotificationSettings"]: assert x in field_ui,x
           reader=Path('reader-ui-v414.js').read_text(encoding='utf-8')
-          for x in ['4.4.8-reader-parallel-approval1','즉시보고부터 보완·최종승인·종결','supplement_submitted']: assert x in reader,x
+          for x in ['4.4.37-hq-dashboard1','검토대기·보완대기 단계에서는 조회만 가능하며','supplement_submitted']: assert x in reader,x
           control=Path('app-control-v410.js').read_text(encoding='utf-8')
           for x in ['POST_LOGIN_GRACE_MS=15000','function sameStableVersion(target)','if(target&&sameStableVersion(target)){saveEpoch(epoch)','already_current']: assert x in control,x
           auth=Path('auth-v411.js').read_text(encoding='utf-8')
@@ -290,7 +290,10 @@ jobs:
           for x in ['PDF 보고서 출력','공식 사고기록 · 확인이력','감사로그','backup_restore','delete_incident','공식기록 · 백업/복원']: assert x in official,x
           assert '전자결재 문서' not in official and '공식 전자결재 기록' not in official
           for x in ['supplement_request','보완요청','supplement_submit','보완자료 제출','corrective_approve','재발방지조치 승인','내용 확인기록']: assert x in official,x
+          approval=Path('management-approval-v448.js').read_text(encoding='utf-8')
+          for x in ["4.4.37-approved-only1","function signable(i)","st==='approved'||(st==='closed'&&act==='approved')"]: assert x in approval,x
           shell=Path('app-shell-v411.js').read_text(encoding='utf-8')
+          for x in ["4.4.37-hq-dashboard1","즉시보고·보완 진행중","enlRenderHqHome=renderSafetyHome"]: assert x in shell,x
           assert 'window.ENL_DEPLOY_VERSION' in shell and '이앤엘 사고보고앱 v4.1.1' not in shell
           session_js=Path('session-refresh-v412.js').read_text(encoding='utf-8')
           for x in ['4.4.34-proof-reuse1','envelope(v,at,true)','envelope(v,at,false)','mergeLocalProof']: assert x in session_js,x
