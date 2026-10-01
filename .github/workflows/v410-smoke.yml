@@ -249,7 +249,7 @@ jobs:
           workflow=Path('workflow-v412.js').read_text(encoding='utf-8')
           assert '4.4.38-optional-hq-comment1' in workflow and 'data-enl-optional="1"' in workflow
           assert 'id="wf412CommentBody" maxlength="2000" required' not in workflow
-          assert "const VERSION='4.3.1-cleanup2'" in cleanup
+          assert "const VERSION='4.4.38-test-hq-cleanup1'" in cleanup
           assert "new Set(['u-field-demo','u-final-demo'])" in cleanup
           assert "u-safety-demo" in cleanup and 'must not be removed' in cleanup
 
