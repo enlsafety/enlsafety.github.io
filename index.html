@@ -45,7 +45,6 @@
   const isKakao=/KAKAOTALK/i.test(ua);
   const isStandalone=()=>window.matchMedia?.('(display-mode: standalone)').matches===true||window.navigator.standalone===true;
   const goStable=()=>{try{location.replace(stable())}catch(e){location.href=stable()}};
-  navigator.serviceWorker?.register('/sw-v418.js?v=4.4.32-startup-cache1',{scope:'/'}).catch(()=>{});
   if(!isAndroid||isStandalone()){goStable();return;}
   const root=document.getElementById('androidInstaller'),btn=document.getElementById('installBtn'),status=document.getElementById('installStatus'),kakaoGuide=document.getElementById('kakaoGuide'),chromeBtn=document.getElementById('chromeBtn');root.hidden=false;
   let deferredInstall=null,fallbackTimer=null;const setStatus=(text,kind='')=>{status.textContent=text;status.className=`status ${kind}`.trim()};const setReady=()=>{btn.disabled=false;btn.textContent='사고보고앱 설치';setStatus('설치 준비가 완료되었습니다. 아래 버튼을 눌러주세요.','ok')};
@@ -53,6 +52,7 @@
   window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;if(fallbackTimer)clearTimeout(fallbackTimer);if(!isKakao)setReady();});
   window.addEventListener('appinstalled',()=>{deferredInstall=null;try{localStorage.setItem('enl_android_pwa_installed_at',String(Date.now()))}catch(e){}btn.disabled=true;btn.textContent='설치 완료';setStatus('설치가 완료되었습니다. 홈 화면의 사고보고앱을 열어 로그인한 뒤 알림을 켜주세요.','ok');document.getElementById('continueBtn').textContent='사고보고앱으로 계속하기';});
   btn.onclick=async()=>{if(!deferredInstall){setStatus('설치창을 바로 열 수 없는 상태입니다. Chrome 메뉴의 “앱 설치” 또는 “홈 화면에 추가”를 선택해 주세요.','warn');return}btn.disabled=true;btn.textContent='설치창 여는 중…';try{deferredInstall.prompt();const choice=await deferredInstall.userChoice;if(choice?.outcome==='accepted'){setStatus('설치를 진행하고 있습니다. 설치 완료 후 홈 화면의 사고보고앱을 열어주세요.','ok');btn.textContent='설치 진행 중…'}else{setStatus('설치가 취소되었습니다. 필요할 때 다시 설치 버튼을 눌러주세요.','warn');btn.disabled=false;btn.textContent='사고보고앱 설치'}deferredInstall=null}catch(e){setStatus('설치창을 열지 못했습니다. Chrome 메뉴에서 “앱 설치”를 선택해 주세요.','err');btn.disabled=false;btn.textContent='사고보고앱 설치'}};
+  navigator.serviceWorker?.register('/sw-v418.js?v=4.4.32-startup-cache1',{scope:'/'}).catch(()=>{});
   if(!isKakao){fallbackTimer=setTimeout(()=>{if(!deferredInstall){btn.disabled=false;setStatus('자동 설치창 준비가 지연되고 있습니다. 버튼을 눌러 설치 메뉴 안내를 확인할 수 있습니다.','warn')}},3500);}
 })();
 </script>
