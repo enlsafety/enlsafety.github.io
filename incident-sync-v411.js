@@ -15,42 +15,36 @@
   function actor(){const u=currentUser();return u?{id:u.id||u.personnelId||u.username||'',name:u.name||'',role:roleNorm(u.role),position:u.position||u.jobTitle||'',siteId:u.siteId||''}:null}
   function authProof(){
     let u=null;try{u=currentUser?.()||null}catch(e){}
+    const sessionUser=session?.manager||session?.worker||null;
     let passwordHash=String(u?.passwordHash||'').trim(),pinHash=String(u?.pinHash||'').trim();
+    if(sessionUser&&String(sessionUser.id||sessionUser.personnelId||'')===String(u?.id||u?.personnelId||'')){
+      if(!passwordHash)passwordHash=String(sessionUser.passwordHash||'').trim();
+      if(!pinHash)pinHash=String(sessionUser.pinHash||'').trim();
+    }
     if(!passwordHash&&u?.id){try{const local=(data?.users||[]).find(x=>String(x?.id||'')===String(u.id));passwordHash=String(local?.passwordHash||'').trim()}catch(e){}}
     return {actorPasswordHash:passwordHash||undefined,actorPinHash:pinHash||undefined};
   }
-  async function proofHash(text){const b=new TextEncoder().encode(String(text||'')),h=await crypto.subtle.digest('SHA-256',b);return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,'0')).join('')}
-  function cacheProof(hash){
-    const u=currentUser?.();if(!u||!hash)return;
-    const r=roleNorm(u.role);
-    if(['safety','manager','executive'].includes(r)){
-      u.passwordHash=hash;
-      try{const x=(data?.users||[]).find(v=>String(v?.id||'')===String(u.id||''));if(x)x.passwordHash=hash;baseSaveData()}catch(e){}
-      try{if(session?.manager)session.manager.passwordHash=hash}catch(e){}
-    }else{
-      u.pinHash=hash;
-      try{if(session?.manager)session.manager.pinHash=hash;if(session?.worker)session.worker.pinHash=hash}catch(e){}
+  let authProofExpiredNotified=false;
+  function requireFreshLogin(){
+    if(!authProofExpiredNotified){
+      authProofExpiredNotified=true;
+      alert('로그인 인증정보가 만료되었습니다. 다시 로그인하면 방금 작성한 사고기록이 자동으로 서버에 반영됩니다.');
     }
-    try{saveSession?.()}catch(e){}
+    try{window.enlClearRefreshSession?.('auth_proof_required')}catch(e){}
+    setTimeout(()=>{try{window.enlRenderLogin?.()}catch(e){try{renderLogin?.()}catch(_){}}},0);
   }
-  async function call(body,timeout=9000,retryProof=true){
+  async function call(body,timeout=9000){
     const controller=typeof AbortController!=='undefined'?new AbortController():null;
     const timer=controller?setTimeout(()=>controller.abort(),timeout):null;
     try{
       const payload={...body,...authProof()};
       const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify(payload),signal:controller?.signal,cache:'no-store'});
       const j=await r.json().catch(()=>({}));
-      if((!r.ok||j?.ok===false)&&j?.message==='auth_proof_required'&&retryProof){
-        const u=currentUser?.(),label=['safety','manager','executive'].includes(roleNorm(u?.role))?'현재 계정 비밀번호':'현재 비밀번호(PIN)';
-        const pw=prompt(`공식 사고기록을 서버에 저장하려면 ${label}를 다시 입력해 주세요.`);
-        if(!String(pw||'').trim())throw new Error('auth_proof_required');
-        cacheProof(await proofHash(pw));
-        return await call(body,timeout,false);
+      if((!r.ok||j?.ok===false)&&j?.message==='auth_proof_required'){
+        requireFreshLogin();
+        throw new Error('session_auth_expired');
       }
-      if(!r.ok||j?.ok===false){
-        if(j?.message==='auth_proof_required')alert('비밀번호 확인에 실패했습니다. 공식 사고기록은 서버에 반영되지 않았습니다.');
-        throw new Error(j?.message||`sync_http_${r.status}`);
-      }
+      if(!r.ok||j?.ok===false)throw new Error(j?.message||`sync_http_${r.status}`);
       return j;
     }finally{if(timer)clearTimeout(timer)}
   }
@@ -170,5 +164,5 @@
   window.addEventListener('online',()=>{if(currentUser())scheduleSync(500)});
   window.addEventListener('pageshow',syncOnForeground);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncOnForeground()});
-  window.ENL_INCIDENT_SYNC_VERSION='4.4.32-startup-defer1';
+  window.ENL_INCIDENT_SYNC_VERSION='4.4.34-proof-reuse1';
 })();
