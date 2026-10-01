@@ -228,7 +228,7 @@
 
   function finalApprove(i,u){
     if(!confirm('이 사고보고 내용을 최종승인할까요?\n이 확인은 전자결재가 아니라 사고보고 내용 확정 단계이며, 이후 재발방지계획을 수립합니다.'))return;
-    applySafetyFields(i,u);const ts=now();i.status='approved';i.approvedBy=u.name;i.approvedAt=ts;i.rejectionNote='';i.readReceipts=[];
+    applySafetyFields(i,u);const ts=now();i.status='approved';i.approvedBy=u.name;i.approvedAt=ts;i.rejectionNote='';
     if(i.supplement)i.supplement={...i.supplement,status:'accepted',approvedBy:u.name,approvedById:uid(u),approvedAt:ts};
     const w=workflow(i);w.phase='report_approved';w.finalApprovedAt=ts;w.finalApprovedBy=u.name;w.finalApprovedById=uid(u);i.updatedAt=ts;
     saveData();closeModal();renderShell(u);alert('사고보고를 최종승인했습니다. 이제 재발방지계획을 수립할 수 있습니다.');
