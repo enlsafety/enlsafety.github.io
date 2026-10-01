@@ -98,9 +98,9 @@ jobs:
           for asset in ['workflow-lifecycle-v413.js','reader-experience-v424.js']:
             assert asset+'?v=4.4.14-r1&amp;fix=historical-transfer1' in stable, asset
           assert 'reader-ui-v414.js?v=4.4.37-r1&amp;fix=hq-dashboard1' in stable
-          assert 'official-records-v439.js?v=4.4.24-r1' in stable
+          assert 'official-records-v439.js?v=4.4.39-r1&amp;fix=statutory-record1' in stable
           assert 'site-contract-v451.js?v=4.4.24-r1' in stable
           assert 'historical-transfer-v449.js?v=4.4.29-r1&amp;fix=required1' in stable
-          assert 'content="4.4.38-r1"' in stable
-          assert version["version"]=="4.4.38" and version["build"]=="stable-4438-r1"
+          assert 'content="4.4.39-r1"' in stable
+          assert version["version"]=="4.4.39" and version["build"]=="stable-4439-r1"
           print('OK: historical ERP transfer-close flow invariants preserved')
