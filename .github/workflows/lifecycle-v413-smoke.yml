@@ -54,8 +54,8 @@ jobs:
           reader_required=[
             "document.querySelector('[data-shell-view=\"actions\"]')?.remove()",
             "String(currentView)==='actions'",
-            "4.4.8-reader-parallel-approval1",
-            "즉시보고부터 보완·최종승인·종결",
+            "4.4.37-hq-dashboard1",
+            "검토대기·보완대기 단계에서는 조회만 가능하며",
             "supplement_submitted",
             "사고 조회",
           ]
