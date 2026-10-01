@@ -209,7 +209,7 @@ function applyLoadedWhenIdle(fn){
  flushLoadedWhenIdle();
 }
 
-function scheduleEnhanceLoad(u,delay=900){if(startupLoadTimer)clearTimeout(startupLoadTimer);startupLoadTimer=setTimeout(()=>{startupLoadTimer=null;enhance(u);load(u)},delay)}
+function scheduleEnhanceLoad(u,delay=900){if(startupLoadTimer)clearTimeout(startupLoadTimer);startupLoadTimer=setTimeout(()=>{startupLoadTimer=null;const root=document.getElementById('view');if(view()==='stats'&&!root?.querySelector('[data-sd450-map]'))enhance(u);else if(view()==='incidents'&&window.enlSafetySiteFilter?.()&&!root?.querySelector('[data-sd450-info]'))enhance(u);load(u)},delay)}
 const base=window.renderShell;if(typeof base==='function'){const wrap=function(u){const out=base.apply(this,arguments);scheduleEnhanceLoad(u,900);return out};window.renderShell=wrap;try{renderShell=wrap}catch(e){}}
 const cur=window.renderCurrentView;if(typeof cur==='function')window.renderCurrentView=function(u){const out=cur.apply(this,arguments);scheduleEnhanceLoad(u,900);return out};
 let queued=false;
