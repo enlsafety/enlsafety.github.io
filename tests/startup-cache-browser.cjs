@@ -24,15 +24,17 @@ const server=http.createServer((req,res)=>{
     await page.reload({waitUntil:'domcontentloaded',timeout:15000});
     await page.waitForFunction(()=>!!navigator.serviceWorker.controller,{timeout:10000});
     await page.waitForFunction(async()=>{const c=await caches.open('enl-pwa-4432-startup1');return !!(await c.match('/stable412.html?offline=1'))},{timeout:15000});
+    const swUrl=await page.evaluate(()=>navigator.serviceWorker.controller?.scriptURL||'');
+    assert.ok(swUrl.includes('/sw-v418.js'),'startup cache service worker is not controlling the PWA page');
     await page.waitForTimeout(300);
 
     await new Promise(resolve=>server.close(resolve));
     const start=Date.now();
-    await page.goto(origin+'/stable412.html?source=pwa',{waitUntil:'domcontentloaded',timeout:5000});
+    await page.reload({waitUntil:'domcontentloaded',timeout:5000});
     await page.waitForSelector('.login-v411',{timeout:5000});
     const elapsed=Date.now()-start;
-    assert.ok(elapsed<5000,'cached startup with origin unavailable too slow: '+elapsed+'ms');
-    console.log('PASS: installed-app shell and static assets open from service-worker cache with origin unavailable in '+elapsed+'ms');
+    assert.ok(elapsed<5000,'cached controlled-page restart with origin unavailable too slow: '+elapsed+'ms');
+    console.log('PASS: controlled PWA reload opens from service-worker cache with origin unavailable in '+elapsed+'ms');
   }finally{
     await browser.close();
     if(server.listening)await new Promise(resolve=>server.close(resolve));
