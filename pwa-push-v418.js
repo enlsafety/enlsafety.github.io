@@ -4,7 +4,7 @@
   const VERSION='4.1.8-pwa-push2';
   const PUSH_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-v418';
   const CLIENT='incident-report-v2';
-  const SW_URL='/sw-v418.js?v=4.2.5-pwa4-confirm1';
+  const SW_URL='/sw-v418.js?v=4.4.32-startup-cache1';
   const PREF_PREFIX='enl_push_preferences_v1_';
   const rawFetch=window.fetch.bind(window);
   let deferredInstall=null;
@@ -116,7 +116,7 @@
   async function disablePush(){const u=actor();if(!u)return;try{const sub=await currentSub();if(sub){try{await api('unsubscribe',{actor:u,endpoint:sub.endpoint})}catch(e){}await sub.unsubscribe()}setMessage('이 기기의 사고보고앱 알림을 껐습니다.','ok');await renderStatus()}catch(e){setMessage('알림 해제 중 오류가 발생했습니다.','err')}}
 
   function injectTopButton(){
-    const u=actor(),top=document.querySelector('.topbar');if(!u||!top)return;let btn=document.getElementById('enlPwaTop418');if(!btn){btn=document.createElement('button');btn.type='button';btn.id='enlPwaTop418';btn.className='enl-pwa-top418';btn.innerHTML='🔔 알림 설정';btn.addEventListener('click',openModal);const user=top.querySelector('.user-wrap');if(user)top.insertBefore(btn,user);else top.appendChild(btn)}updateTopButton();if(!flushedUsers.has(String(u.id||''))){flushedUsers.add(String(u.id||''));setTimeout(flush,500)}
+    const u=actor(),top=document.querySelector('.topbar');if(!u||!top)return;let btn=document.getElementById('enlPwaTop418');if(!btn){btn=document.createElement('button');btn.type='button';btn.id='enlPwaTop418';btn.className='enl-pwa-top418';btn.innerHTML='🔔 알림 설정';btn.addEventListener('click',openModal);const user=top.querySelector('.user-wrap');if(user)top.insertBefore(btn,user);else top.appendChild(btn)}setTimeout(updateTopButton,1800);if(!flushedUsers.has(String(u.id||''))){flushedUsers.add(String(u.id||''));setTimeout(flush,3600)}
   }
   function scheduleInject(){if(renderQueued)return;renderQueued=true;requestAnimationFrame(()=>{renderQueued=false;injectTopButton()})}
 
