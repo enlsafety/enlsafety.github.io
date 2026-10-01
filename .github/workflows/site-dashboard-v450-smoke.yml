@@ -33,6 +33,13 @@ on:
       - 'industrial-report-v436.js'
       - 'ui-stability-v422.js'
       - 'auth-v411.js'
+      - 'app-shell-v411.js'
+      - 'workflow-prevention-v429.js'
+      - 'workflow-v412.js'
+      - 'management-approval-v448.js'
+      - 'production-cleanup-v431.js'
+      - 'tests/workflow-4438-unit.cjs'
+      - 'tests/attention-workflow-browser.cjs'
       - 'site-admin-v415.js'
       - 'tests/site-admin*'
       - 'edge-functions/enl-incident-sync/index.ts'
@@ -76,6 +83,13 @@ on:
       - 'industrial-report-v436.js'
       - 'ui-stability-v422.js'
       - 'auth-v411.js'
+      - 'app-shell-v411.js'
+      - 'workflow-prevention-v429.js'
+      - 'workflow-v412.js'
+      - 'management-approval-v448.js'
+      - 'production-cleanup-v431.js'
+      - 'tests/workflow-4438-unit.cjs'
+      - 'tests/attention-workflow-browser.cjs'
       - 'site-admin-v415.js'
       - 'tests/site-admin*'
       - 'edge-functions/enl-incident-sync/index.ts'
@@ -104,6 +118,11 @@ jobs:
           node --check field-ui-v411.js
           node --check field-incidents-v411.js
           node --check pwa-push-v418.js
+          node --check app-shell-v411.js
+          node --check workflow-prevention-v429.js
+          node --check workflow-v412.js
+          node --check management-approval-v448.js
+          node --check production-cleanup-v431.js
       - name: Site profile and Korea map invariants
         shell: python
         run: |
@@ -137,9 +156,9 @@ jobs:
           assert 'site-master-seed-v400.js?v=4.4.24-r1' in html
           dash=Path('site-dashboard-v450.js').read_text(encoding='utf-8')
           for x in ['4.4.33-map-lock1','data-map-lock','map-interactive','touch-action:pan-y','if(!interactive)return;e.preventDefault()']: assert x in dash,x
-          assert 'content="4.4.37-r1"' in html
-          assert meta['version']=='4.4.37' and meta['build']=='stable-4437-r1'
-          assert "const BUILD='4437-r1'" in index
+          assert 'content="4.4.38-r1"' in html
+          assert meta['version']=='4.4.38' and meta['build']=='stable-4438-r1'
+          assert "const BUILD='4438-r1'" in index
           print('OK: site profile and Korea distribution dashboard invariants preserved')
       - name: Dashboard behavior tests
         run: |
@@ -149,6 +168,7 @@ jobs:
           node tests/site-contract-edge.cjs
           node tests/site-admin-edge.cjs
           node tests/workflow-4437-unit.cjs
+          node tests/workflow-4438-unit.cjs
       - name: Install isolated browser QA
         run: |
           npm install --no-save --package-lock=false playwright@1.51.1
@@ -162,6 +182,7 @@ jobs:
           node tests/report-guidance-browser.cjs
           node tests/attachment-preview-browser.cjs
           node tests/field-supplement-hub-browser.cjs
+          node tests/attention-workflow-browser.cjs
           node tests/startup-cache-browser.cjs
           node tests/site-admin-browser.cjs
       - uses: actions/upload-artifact@v4
