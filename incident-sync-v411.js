@@ -170,5 +170,5 @@
   window.addEventListener('online',()=>{if(currentUser())scheduleSync(500)});
   window.addEventListener('pageshow',syncOnForeground);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncOnForeground()});
-  window.ENL_INCIDENT_SYNC_VERSION='4.4.0-supplement-ack1';
+  window.ENL_INCIDENT_SYNC_VERSION='4.4.32-startup-defer1';
 })();
