@@ -111,16 +111,16 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-4438-r1',meta
+          assert meta.get('build')=='stable-4439-r1',meta
           assert meta.get('stableEntry')=='stable412.html',meta
-          assert meta.get('version')=='4.4.38' and meta.get('currentStableVersion')=='4.4.38',meta
+          assert meta.get('version')=='4.4.39' and meta.get('currentStableVersion')=='4.4.39',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='4438-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4438-r1',"/sw-v418.js?v=4.4.32-startup-cache1"]: assert x in index,x
+          for x in ["const BUILD='4439-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4439-r1',"/sw-v418.js?v=4.4.32-startup-cache1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.4.38-r1',
+            'enl-build" content="4.4.39-r1',
             'incident-sync-v411.js?v=4.4.34-r1&amp;fix=proof-reuse1',
             'workflow-prevention-v429.js?v=4.4.38-r1&amp;fix=prevention-alert1',
             'workflow-lifecycle-v413.js?v=4.4.14-r1&amp;fix=historical-transfer1',
@@ -132,26 +132,27 @@ jobs:
             'legal-review-v435.js?v=4.1.2-r35&amp;fix=legal-simplify1',
             'industrial-report-v436.js?v=4.4.29-r1&amp;fix=deadline-confirmation3-required1',
             'closed-incident-reopen-v438.js?v=4.4.14-r1&amp;fix=historical-transfer1',
-            'official-records-v439.js?v=4.4.24-r1',
-            'incidents-v410.js?v=4.4.35-r1&amp;fix=full-detail1',
+            'official-records-v439.js?v=4.4.39-r1&amp;fix=statutory-record1',
+            'incidents-v410.js?v=4.4.39-r1&amp;fix=no-read-confirm1',
             'report-v410.js?v=4.4.35-r1&amp;fix=form-guidance1',
             'field-incidents-v411.js?v=4.4.37-r1&amp;fix=field-copy2',
             'app-shell-v411.js?v=4.4.38-r1&amp;fix=hq-attention1',
             'reader-ui-v414.js?v=4.4.37-r1&amp;fix=hq-dashboard1',
-            'reader-experience-v424.js?v=4.4.14-r1&amp;fix=historical-transfer1',
-            'incident-flow-v440.js?v=4.4.37-r1&amp;fix=supplement-review1',
+            'reader-experience-v424.js?v=4.4.39-r1&amp;fix=no-read-confirm1',
+            'incident-flow-v440.js?v=4.4.39-r1&amp;fix=no-confirm-history1',
           ]
           for x in required: assert x in html,x
           assert 'session-refresh-v412.js?v=4.4.34-r1&amp;fix=proof-reuse1' in html
           assert 'core.js?v=4.4.35-r1&amp;fix=attachment-preview1' in html
           assert 'auth-v411.js?v=4.4.38-r1&amp;fix=hq-cache-prune1' in html
           assert 'login-layout-v412.js?v=4.2.7-r1&amp;fix=guide-removed1' in html
-          assert 'workflow-v412.js?v=4.4.38-r1&amp;fix=optional-hq-comment1' in html
+          assert 'workflow-v412.js?v=4.4.39-r1&amp;fix=comment-empty1' in html
           assert 'field-ui-v411.js?v=4.4.37-r1&amp;fix=field-copy1' in html
           assert 'app-control-v410.js?v=4.4.32-r1&amp;fix=startup-defer1' in html
           assert 'incident-stats-v426.js?v=4.4.28-r1' in html
           assert 'required-fields-v453.js?v=4.4.31-r1' in html
           assert 'ui-stability-v422.js?v=4.4.29-r1&amp;fix=hq-email-edit1-required1' in html
+          assert 'reader-ack-ux-v423.js' not in html
           assert 'historical-transfer-v449.js?v=4.4.29-r1&amp;fix=required1' in html
           assert 'site-dashboard-v450.js?v=4.4.33-r1&amp;fix=map-lock1' in html
           assert 'site-master-seed-v400.js?v=4.4.24-r1' in html
@@ -175,7 +176,8 @@ jobs:
           assert "siteStatus='active'" in stats and "siteId=''" in stats
           assert 'id="stats426Status"' not in stats and 'id="stats426Site"' not in stats
           flow=Path('incident-flow-v440.js').read_text(encoding='utf-8')
-          for x in ['4.4.37-supplement-review1','30분 이내 또는 현장 이탈 전','보완대기','보완검토대기','사고보고 최종승인','확인 기록','결재 아님','wf440QueueSig','wf440DecorSig']: assert x in flow,x
+          for x in ['4.4.39-no-confirm-history1','30분 이내 또는 현장 이탈 전','보완대기','보완검토대기','사고보고 최종승인','wf440QueueSig','wf440DecorSig']: assert x in flow,x
+          for x in ['addAckSection(','recordView(','사고보고 확인 기록','최초 조회기록','readReceipts']: assert x not in flow,x
           assert 'window.enlAttachmentGalleryHtml' in flow and 'window.enlBindAttachmentOpen' in flow
           assert 'repairCostPending=repair<=0' in flow
           core=Path('core.js').read_text(encoding='utf-8')
@@ -247,7 +249,8 @@ jobs:
           cleanup=Path('production-cleanup-v431.js').read_text(encoding='utf-8')
           for x in ['4.4.38-test-hq-cleanup1','테스트 경영진','테스트 관리자','테스트 안전관리자']: assert x in cleanup,x
           workflow=Path('workflow-v412.js').read_text(encoding='utf-8')
-          assert '4.4.38-optional-hq-comment1' in workflow and 'data-enl-optional="1"' in workflow
+          assert '4.4.39-comment-empty1' in workflow and 'data-enl-optional="1"' in workflow
+          assert '의견을 불러오지 못했습니다.' not in workflow and '<div class="wf412-empty">-</div>' in workflow
           assert 'id="wf412CommentBody" maxlength="2000" required' not in workflow
           assert "const VERSION='4.4.38-test-hq-cleanup1'" in cleanup
           assert "new Set(['u-field-demo','u-final-demo'])" in cleanup
@@ -298,11 +301,14 @@ jobs:
           enhancement=Path('workflow-enhancements-v432.js').read_text(encoding='utf-8')
           for x in ["confirm('수신완료 처리 하시겠습니까?')",'실제 조치 완료일 *','attachments().length<1',"currentView='stats'"]: assert x in enhancement,x
           official=Path('official-records-v439.js').read_text(encoding='utf-8')
-          for x in ['PDF 보고서 출력','공식 사고기록 · 확인이력','감사로그','backup_restore','delete_incident','공식기록 · 백업/복원']: assert x in official,x
+          for x in ['4.4.39-statutory-record1','PDF 보고서 출력','법정 사고기록','근로자 인적사항','재해 발생 원인 및 과정','재해 재발방지 계획','backup_restore','delete_incident','공식기록 · 백업/복원']: assert x in official,x
+          for x in ['공식 사고기록 · 확인이력','사고보고 무결성 해시','최종 기록 해시','data-official439-audit','사고 변경·확인 감사로그','enlOfficialAuditOpen']: assert x not in official,x
           assert '전자결재 문서' not in official and '공식 전자결재 기록' not in official
-          for x in ['supplement_request','보완요청','supplement_submit','보완자료 제출','corrective_approve','재발방지조치 승인','내용 확인기록']: assert x in official,x
+          for x in ['supplement_request','보완요청','supplement_submit','보완자료 제출','corrective_approve','재발방지조치 승인']: assert x in official,x
+          assert '내용 확인기록' not in official
           approval=Path('management-approval-v448.js').read_text(encoding='utf-8')
-          for x in ["4.4.38-own-sign1","function signable(i)","st==='approved'||(st==='closed'&&act==='approved')",'aria-label="본인 결재하기"',"serverOk=true"]: assert x in approval,x
+          for x in ["4.4.39-crisp-sign1","function signable(i)","st==='approved'||(st==='closed'&&act==='approved')",'aria-label="본인 결재하기"',"serverOk=true","font-size:10.5px","text-rendering:geometricPrecision"]: assert x in approval,x
+          assert 'enl448OwnPulse' not in approval and 'transform:scale(' not in approval
           shell=Path('app-shell-v411.js').read_text(encoding='utf-8')
           for x in ["4.4.38-hq-attention1","즉시보고·보완 진행중","enlRenderHqHome=renderSafetyHome","승인완료 사고 결재가 필요합니다.","결재하러 가기","재발방지계획 수립대기"]: assert x in shell,x
           assert 'window.ENL_DEPLOY_VERSION' in shell and '이앤엘 사고보고앱 v4.1.1' not in shell

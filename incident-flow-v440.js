@@ -2,7 +2,7 @@
 (function(){
   'use strict';
 
-  const VERSION='4.4.37-supplement-review1';
+  const VERSION='4.4.39-no-confirm-history1';
   const PUSH_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-v418';
   const CLIENT='incident-report-v2';
   const MANAGER_POSITIONS=['현장소장','파트장','서무'];
@@ -228,7 +228,7 @@
 
   function finalApprove(i,u){
     if(!confirm('이 사고보고 내용을 최종승인할까요?\n이 확인은 전자결재가 아니라 사고보고 내용 확정 단계이며, 이후 재발방지계획을 수립합니다.'))return;
-    applySafetyFields(i,u);const ts=now();i.status='approved';i.approvedBy=u.name;i.approvedAt=ts;i.rejectionNote='';i.readReceipts=[];
+    applySafetyFields(i,u);const ts=now();i.status='approved';i.approvedBy=u.name;i.approvedAt=ts;i.rejectionNote='';
     if(i.supplement)i.supplement={...i.supplement,status:'accepted',approvedBy:u.name,approvedById:uid(u),approvedAt:ts};
     const w=workflow(i);w.phase='report_approved';w.finalApprovedAt=ts;w.finalApprovedBy=u.name;w.finalApprovedById=uid(u);i.updatedAt=ts;
     saveData();closeModal();renderShell(u);alert('사고보고를 최종승인했습니다. 이제 재발방지계획을 수립할 수 있습니다.');
@@ -241,28 +241,6 @@
       const j=await r.json().catch(()=>({}));if(!r.ok||j?.ok===false)throw new Error(j?.message||'push_api_error');return j;
     }catch(e){return null}
   }
-  function recordView(id,documentType='incident_report'){const u=currentUser?.();if(!canConfirm(u))return;pushApi('management_view',{incidentId:id,documentType}).then(()=>window.enlPushFlush?.()).catch(()=>{})}
-  async function viewHistory(id){return (await pushApi('view_list',{incidentId:id}))?.views||[]}
-
-  function acknowledgements(i,type){return (Array.isArray(i?.acknowledgements)?i.acknowledgements:[]).filter(x=>String(x.documentType||'incident_report')===type)}
-  function myAck(i,u,type){return acknowledgements(i,type).find(x=>String(x.userId||'')===uid(u))}
-
-  async function addAckSection(modal,i,u,type){
-    if(!canConfirm(u))return;
-    const status=String(i.status||''),actionStatus=String(i.corrective?.status||''),allowed=type==='incident_report'?(status==='approved'||(status==='closed'&&actionStatus==='approved')):actionStatus==='approved';
-    if(!allowed)return;
-    const existing=modal.querySelector(`[data-wf440-confirm="${type}"]`);if(existing)existing.remove();
-    if(type==='incident_report'){modal.querySelector('.reader423-ack-banner')?.remove();modal.querySelector('#ackIncident411')?.remove()}
-    const mine=myAck(i,u,type),arr=acknowledgements(i,type),box=document.createElement('section');box.className='wf440-confirm';box.dataset.wf440Confirm=type;
-    box.innerHTML=`<h3>${type==='incident_report'?'사고보고 확인 기록':'재발방지조치 확인 기록'} <small style="font-weight:700">(결재 아님)</small></h3><p>내용을 실제로 확인한 사람의 이름·역할·확인시각을 기록합니다. 전자결재 또는 법적 전자서명을 대체하지 않습니다.</p><div class="wf440-confirm-list">${arr.map(x=>`<div class="wf440-confirm-person"><b>${ex(x.name||'-')} · ${ex(x.position||x.role||'-')}</b><span>${ex(typeof fmt==='function'?fmt(x.ackAt||x.readAt):(x.ackAt||x.readAt||''))}</span></div>`).join('')||'<span style="font-size:11px;color:#6b7c70">아직 확인 기록이 없습니다.</span>'}</div><button type="button" class="${mine?'done':''}" ${mine?'disabled':''} data-wf440-ack="${type}">${mine?'✓ 확인 기록 완료':'이 내용을 확인했습니다'}</button><div class="wf440-viewlog"><b>최초 조회기록</b><div class="wf440-viewlog-list" data-wf440-views>불러오는 중…</div></div>`;
-    const anchor=modal.querySelector('.modal-actions')||modal.querySelector('[data-lifecycle-final]')||modal.lastElementChild;anchor?.insertAdjacentElement('beforebegin',box);
-    box.querySelector('[data-wf440-ack]')?.addEventListener('click',async b=>{
-      b.target.disabled=true;b.target.textContent='확인 기록 저장 중…';
-      try{await window.enlIncidentAcknowledge?.(i.id,u,type);const fresh=incident(i.id)||i;decorateIncidentModal(i.id,fresh)}catch(e){b.target.disabled=false;b.target.textContent='다시 확인하기';alert(e?.message==='auth_proof_required'?'현재 계정 비밀번호 확인이 필요합니다.':'확인 기록을 저장하지 못했습니다.')}
-    });
-    const views=await viewHistory(i.id),target=box.querySelector('[data-wf440-views]');if(target&&box.isConnected){const filtered=views.filter(v=>String(v.document_type)===type);target.innerHTML=filtered.map(v=>`<span class="wf440-view-chip">${ex(v.viewer_name||'-')} · ${ex(typeof fmt==='function'?fmt(v.first_viewed_at):v.first_viewed_at||'')}</span>`).join('')||'<span class="wf440-view-chip">조회기록 없음</span>'}
-  }
-
   function stageBanner(i){
     const s=String(i.status||''),w=workflow(i),delay=Number(w.immediateDelayMinutes);
     const sla=Number.isFinite(delay)?` · 발생 후 약 ${delay}분에 최초보고`:'';
@@ -302,8 +280,6 @@
     modal.querySelectorAll('.wf440-stage,.wf440-supplement-note[data-wf440-modal]').forEach(x=>x.remove());
     const head=modal.querySelector('.modal-head');if(head){head.insertAdjacentHTML('afterend',stageBanner(i));if(i.supplement){const holder=document.createElement('div');holder.className='wf440-supplement-note';holder.dataset.wf440Modal='1';holder.innerHTML=supplementInfo(i).replace(/^<section[^>]*>|<\/section>$/g,'');head.nextElementSibling?.insertAdjacentElement('afterend',holder)}}
     if(isReader(u)&&i.category==='person'&&!['approved','closed'].includes(String(i.status||''))){head?.insertAdjacentHTML('afterend','<div class="wf440-sensitive">관리자·경영진 화면에서는 진단명·의사소견·진단서 등 민감한 의료 상세정보를 제한하여 표시합니다.</div>')}
-    recordView(i.id,'incident_report');
-
     if(isSafety(u)){
       modal.querySelector('#closeInc')?.remove();
       modal.querySelector('.wf440-safety-actions')?.remove();
@@ -318,8 +294,6 @@
         actions.querySelector('[data-wf440-final]')?.addEventListener('click',()=>finalApprove(i,u));
       }
     }
-    addAckSection(modal,i,u,'incident_report');
-    if(String(i.corrective?.status||'')==='approved'){recordView(i.id,'corrective_action');addAckSection(modal,i,u,'corrective_action')}
   }
 
   function injectSupplementQueue(root,u){
@@ -353,11 +327,6 @@
     try{if(name==='openIncidentModal')openIncidentModal=wrapped}catch(e){}
   }
   wrapOpen('enlOpenIncidentReview');wrapOpen('openIncidentModal');
-
-  const baseCorrective=window.openUnifiedCorrectiveModal;
-  if(typeof baseCorrective==='function'&&!baseCorrective.__wf440){
-    const wrapped=function(id){activeId=String(id||'');const out=baseCorrective.apply(this,arguments);setTimeout(()=>{const i=incident(activeId),u=currentUser?.();if(i&&i.corrective?.status==='approved'){recordView(i.id,'corrective_action');const modal=document.querySelector('#modalRoot .modal');if(modal)addAckSection(modal,i,u,'corrective_action')}},80);return out};wrapped.__wf440=true;window.openUnifiedCorrectiveModal=wrapped;
-  }
 
   function patchAll(){
     patchQueued=false;patchImmediateForm();patchReaderPending();

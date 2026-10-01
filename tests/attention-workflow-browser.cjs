@@ -22,7 +22,7 @@ async function managerHome(engine){
       window.roleName=r=>r==='manager'?'관리자':r==='executive'?'경영진':r==='safety'?'안전관리자':r;
       window.priorityBadge=()=>'';window.statusBadge=s=>'<span>'+s+'</span>';window.actionBadge=()=>'';window.saveSession=()=>{};window.renderLogin=()=>{};
       window.enlIncidentQuickSummary=i=>({when:String(i.occurredAt).slice(0,16).replace('T',' '),site:siteById(i.siteId)?.name,headline:i.eventType,circumstance:'사고 상세'});
-      window.enlIncidentTable=()=>'';window.enlOpenIncidentReview=id=>{window.__opened=id};window.ENL_DEPLOY_VERSION='4.4.38';
+      window.enlIncidentTable=()=>'';window.enlOpenIncidentReview=id=>{window.__opened=id};window.ENL_DEPLOY_VERSION='4.4.39';
     });
     await page.addScriptTag({content:fs.readFileSync('app-shell-v411.js','utf8')});
     assert.equal(await page.locator('[data-hq-approval-alert]').count(),1);
@@ -81,7 +81,12 @@ async function approvalDetail(engine){
     assert.ok((await page.locator('[data-enl448-sign]').innerText()).includes('본인'));
     assert.ok((await page.locator('[data-enl448-sign]').innerText()).includes('결재하기'));
     assert.equal(await page.locator('[data-enl448-own-guide]').count(),1);
-    console.log('PASS:',engine.name(),'server-authoritative approval roster and visually emphasized own approval cell');
+    const visual=await page.locator('[data-enl448-sign]').evaluate(el=>{const cs=getComputedStyle(el),pill=getComputedStyle(el.querySelector('.enl448-a'));return {animation:cs.animationName,transform:cs.transform,height:cs.height,pillFont:pill.fontSize}});
+    assert.equal(visual.animation,'none');
+    assert.equal(visual.transform,'none');
+    assert.ok(parseFloat(visual.height)<=66);
+    assert.ok(parseFloat(visual.pillFont)>=9.5);
+    console.log('PASS:',engine.name(),'server-authoritative approval roster and crisp own approval cell');
   }finally{await browser.close()}
 }
 

@@ -19,8 +19,9 @@ assert.ok(field.includes('안전관리자가 추가자료를 요청한 사고입
 assert.ok(field.includes('보완자료 작성이 필요합니다'));
 assert.ok(flow.includes('wf440-supplement-submitted'));
 assert.ok(flow.includes('현장 보완 제출내용'));
+assert.ok(!flow.includes('addAckSection('));
+assert.ok(!flow.includes('사고보고 확인 기록'));
 assert.ok(flow.includes("if(!(isSafety(u)||isReader(u)))return"));
-assert.ok(flow.includes("status==='approved'||(status==='closed'&&actionStatus==='approved')"));
 assert.ok(approval.includes("function signable(i)"));
 assert.ok(approval.includes("st==='approved'||(st==='closed'&&act==='approved')"));
 assert.ok(!approval.includes("SIGN=['reported','supplement','supplement_submitted','approved','closed']"));
@@ -34,9 +35,9 @@ for(const asset of [
   'field-incidents-v411.js?v=4.4.37-r1&amp;fix=field-copy2',
   'app-shell-v411.js?v=4.4.38-r1&amp;fix=hq-attention1',
   'reader-ui-v414.js?v=4.4.37-r1&amp;fix=hq-dashboard1',
-  'incident-flow-v440.js?v=4.4.37-r1&amp;fix=supplement-review1',
-  'management-approval-v448.js?v=4.4.38-r1&amp;fix=own-sign1'
+  'incident-flow-v440.js?v=4.4.39-r1&amp;fix=no-confirm-history1',
+  'management-approval-v448.js?v=4.4.39-r1&amp;fix=crisp-sign1'
 ]) assert.ok(stable.includes(asset),asset);
-assert.equal(version.version,'4.4.38');
-assert.equal(version.build,'stable-4438-r1');
+assert.equal(version.version,'4.4.39');
+assert.equal(version.build,'stable-4439-r1');
 console.log('PASS: formal field copy, supplement highlight, finalized-only approval and unified HQ dashboard wiring');
