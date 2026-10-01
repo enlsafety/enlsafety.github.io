@@ -10,9 +10,15 @@ on:
       - 'tests/site-contract*'
       - 'tests/required-fields*'
       - 'tests/report-date-picker*'
+      - 'tests/report-guidance*'
+      - 'tests/attachment-preview*'
       - 'tests/startup-cache*'
       - 'required-fields-v453.js'
       - 'report-v410.js'
+      - 'core.js'
+      - 'incidents-v410.js'
+      - 'incident-flow-v440.js'
+      - 'push-session-v425.js'
       - 'report-v410.css'
       - 'sw-v418.js'
       - 'pwa-push-v418.js'
@@ -44,9 +50,15 @@ on:
       - 'tests/site-contract*'
       - 'tests/required-fields*'
       - 'tests/report-date-picker*'
+      - 'tests/report-guidance*'
+      - 'tests/attachment-preview*'
       - 'tests/startup-cache*'
       - 'required-fields-v453.js'
       - 'report-v410.js'
+      - 'core.js'
+      - 'incidents-v410.js'
+      - 'incident-flow-v440.js'
+      - 'push-session-v425.js'
       - 'report-v410.css'
       - 'sw-v418.js'
       - 'pwa-push-v418.js'
@@ -76,7 +88,13 @@ jobs:
         with:
           node-version: '24'
       - name: JavaScript syntax
-        run: node --check site-dashboard-v450.js
+        run: |
+          node --check site-dashboard-v450.js
+          node --check core.js
+          node --check report-v410.js
+          node --check incidents-v410.js
+          node --check incident-flow-v440.js
+          node --check push-session-v425.js
       - name: Site profile and Korea map invariants
         shell: python
         run: |
@@ -110,9 +128,9 @@ jobs:
           assert 'site-master-seed-v400.js?v=4.4.24-r1' in html
           dash=Path('site-dashboard-v450.js').read_text(encoding='utf-8')
           for x in ['4.4.33-map-lock1','data-map-lock','map-interactive','touch-action:pan-y','if(!interactive)return;e.preventDefault()']: assert x in dash,x
-          assert 'content="4.4.34-r1"' in html
-          assert meta['version']=='4.4.34' and meta['build']=='stable-4434-r1'
-          assert "const BUILD='4434-r1'" in index
+          assert 'content="4.4.35-r1"' in html
+          assert meta['version']=='4.4.35' and meta['build']=='stable-4435-r1'
+          assert "const BUILD='4435-r1'" in index
           print('OK: site profile and Korea distribution dashboard invariants preserved')
       - name: Dashboard behavior tests
         run: |
@@ -131,6 +149,8 @@ jobs:
           node tests/site-contract-browser.cjs
           node tests/required-fields-browser.cjs
           node tests/report-date-picker-browser.cjs
+          node tests/report-guidance-browser.cjs
+          node tests/attachment-preview-browser.cjs
           node tests/startup-cache-browser.cjs
           node tests/site-admin-browser.cjs
       - uses: actions/upload-artifact@v4
