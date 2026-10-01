@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'index.html'
+      - 'core.js'
       - 'version.json'
       - 'stable412.html'
       - 'auth-v411.js'
@@ -44,6 +45,7 @@ on:
     branches: [main]
     paths:
       - 'index.html'
+      - 'core.js'
       - 'version.json'
       - 'stable412.html'
       - 'auth-v411.js'
@@ -105,16 +107,16 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-4434-r1',meta
+          assert meta.get('build')=='stable-4435-r1',meta
           assert meta.get('stableEntry')=='stable412.html',meta
-          assert meta.get('version')=='4.4.34' and meta.get('currentStableVersion')=='4.4.34',meta
+          assert meta.get('version')=='4.4.35' and meta.get('currentStableVersion')=='4.4.35',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='4434-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4434-r1',"/sw-v418.js?v=4.4.32-startup-cache1"]: assert x in index,x
+          for x in ["const BUILD='4435-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4435-r1',"/sw-v418.js?v=4.4.32-startup-cache1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.4.34-r1',
+            'enl-build" content="4.4.35-r1',
             'incident-sync-v411.js?v=4.4.34-r1&amp;fix=proof-reuse1',
             'workflow-prevention-v429.js?v=4.4.14-r1&amp;fix=historical-transfer1',
             'workflow-lifecycle-v413.js?v=4.4.14-r1&amp;fix=historical-transfer1',
@@ -127,16 +129,17 @@ jobs:
             'industrial-report-v436.js?v=4.4.29-r1&amp;fix=deadline-confirmation3-required1',
             'closed-incident-reopen-v438.js?v=4.4.14-r1&amp;fix=historical-transfer1',
             'official-records-v439.js?v=4.4.24-r1',
-            'incidents-v410.js?v=4.4.27-r1',
-            'report-v410.js?v=4.4.32-r1&amp;fix=date-picker1',
+            'incidents-v410.js?v=4.4.35-r1&amp;fix=full-detail1',
+            'report-v410.js?v=4.4.35-r1&amp;fix=form-guidance1',
             'field-incidents-v411.js?v=4.4.14-r1&amp;fix=historical-transfer1',
             'app-shell-v411.js?v=4.4.27-r1',
             'reader-ui-v414.js?v=4.4.14-r1&amp;fix=historical-transfer1',
             'reader-experience-v424.js?v=4.4.14-r1&amp;fix=historical-transfer1',
-            'incident-flow-v440.js?v=4.4.0-r1&amp;fix=workflow1',
+            'incident-flow-v440.js?v=4.4.35-r1&amp;fix=supplement-preview1',
           ]
           for x in required: assert x in html,x
           assert 'session-refresh-v412.js?v=4.4.34-r1&amp;fix=proof-reuse1' in html
+          assert 'core.js?v=4.4.35-r1&amp;fix=attachment-preview1' in html
           assert 'auth-v411.js?v=4.4.29-r1&amp;fix=hq-email1-required1' in html
           assert 'login-layout-v412.js?v=4.2.7-r1&amp;fix=guide-removed1' in html
           assert 'app-control-v410.js?v=4.4.32-r1&amp;fix=startup-defer1' in html
@@ -166,12 +169,19 @@ jobs:
           assert "siteStatus='active'" in stats and "siteId=''" in stats
           assert 'id="stats426Status"' not in stats and 'id="stats426Site"' not in stats
           flow=Path('incident-flow-v440.js').read_text(encoding='utf-8')
-          for x in ['4.4.0-immediate-supplement-ack1','30분 이내 또는 현장 이탈 전','보완대기','보완검토대기','사고보고 최종승인','확인 기록','결재 아님','wf440QueueSig','wf440DecorSig']: assert x in flow,x
+          for x in ['4.4.35-supplement-preview1','30분 이내 또는 현장 이탈 전','보완대기','보완검토대기','사고보고 최종승인','확인 기록','결재 아님','wf440QueueSig','wf440DecorSig']: assert x in flow,x
+          assert 'window.enlAttachmentGalleryHtml' in flow and 'window.enlBindAttachmentOpen' in flow
+          assert 'repairCostPending=repair<=0' in flow
+          core=Path('core.js').read_text(encoding='utf-8')
+          for x in ['attachmentPreviewHtml','hydrateAttachmentPreviews','attach-pdf-preview411','window.enlHydrateAttachmentPreviews','signAttachments(paths)']: assert x in core,x
           incidents=Path('incidents-v410.js').read_text(encoding='utf-8')
           for x in ["'supplement'?'보완대기'","'supplement_submitted'?'보완검토대기'","reported','supplement','supplement_submitted','approved','closed"]: assert x in incidents,x
+          for x in ['4.4.35-full-detail1','환경적 요인','행동적 요인','견적 / 비용 상세내역','특이사항','사후 보완 예정']: assert x in incidents,x
           report=Path('report-v410.js').read_text(encoding='utf-8')
           assert "['preventionPlan410','재발 방지 대책']" not in report
           assert '사진 없이 우선 보고할 수 있습니다.' in report and '현장사진 또는 PDF 파일을 1개 이상 등록해 주세요.' not in report
+          for x in ['4.4.35-form-guidance1','사후 보완 예정','data-auto-pending','environmentCause410','behaviorCause410','specialNote410','repairCostPending']: assert x in report,x
+          assert report.count('placeholder="예:') >= 12, report.count('placeholder="예:')
           field=Path('field-incidents-v411.js').read_text(encoding='utf-8')
           for x in ["v==='supplement'?'보완대기'","v==='supplement_submitted'?'보완검토대기'"]: assert x in field,x
           reader=Path('reader-ui-v414.js').read_text(encoding='utf-8')
@@ -187,8 +197,12 @@ jobs:
           assert 'GUIDE_HTML' not in layout and "grid-row:4" in layout
           assert 'hq-notification-status-v437.js?v=4.4.12-r1&amp;fix=hq-align1' in html
           assert 'pwa-push-v418.js?v=4.4.32-r1&amp;fix=startup-cache1' in html
-          assert 'push-session-v425.js?v=4.1.5-r1&amp;fix=device-heartbeat2' in html
+          assert 'push-session-v425.js?v=4.4.35-r1&amp;fix=pending-readonly1' in html
           assert 'notification-profile-v441.js?v=4.4.7-r1&amp;fix=server-dispatch1' in html
+          ps=Path('push-session-v425.js').read_text(encoding='utf-8')
+          assert "4.4.35-pending-readonly1" in ps
+          assert "검토대기 단계 상세 열람은 긴급사고에 한해" not in ps
+          assert "!['approved','closed'].includes(status)&&!urgent(i)" not in ps
           assert 'site-admin-v415.js?v=4.4.29-r1&amp;fix=required1' in html
           profile=Path('notification-profile-v441.js').read_text(encoding='utf-8')
           for x in ['profile_get','profile_update','긴급사고는 앱 푸시·이메일 OFF 설정과 관계없이 강제 수신됩니다.','4.4.7-notification-profile2']: assert x in profile,x
