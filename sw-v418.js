@@ -60,14 +60,14 @@ self.addEventListener('fetch',event=>{
   if(!staticAsset)return;
   event.respondWith((async()=>{
     const cache=await caches.open(CACHE_NAME);
-    const cached=await cache.match(req,{ignoreSearch:true});
-    if(cached)return cached;
+    const exact=await cache.match(req);
+    if(exact)return exact;
     try{
       const fresh=await fetch(req);
-      if(fresh&&fresh.ok)putSafe(cache,url.pathname,fresh);
+      if(fresh&&fresh.ok){putSafe(cache,req,fresh);putSafe(cache,url.pathname,fresh)}
       return fresh;
     }catch(e){
-      return (await cache.match(url.pathname,{ignoreSearch:true})) || Response.error();
+      return (await cache.match(url.pathname)) || Response.error();
     }
   })());
 });
