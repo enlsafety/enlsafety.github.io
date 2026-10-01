@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.1.1 - authoritative authentication */
 (function(){
   'use strict';
-  const VERSION='4.4.11-hq-email1';
+  const VERSION='4.4.38-hq-cache-prune1';
   const LOGIN_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-login-v411';
   const CLIENT='incident-report-v2';
   const MANAGER_POSITIONS=['현장소장','파트장','서무'];
@@ -111,7 +111,7 @@
   }
 
   let hqSyncing=false;
-  async function syncHqUsers(u=currentUser?.()){if(hqSyncing||roleNorm(u?.role)!=='safety')return;hqSyncing=true;try{const r=await api({action:'hq_list',actor:actor(u)});for(const x of r.users||[])mergeHq(x,(data.users||[]).find(v=>v.id===x.id)?.passwordHash||'');try{window.dispatchEvent(new Event('enl-hq-users-synced'))}catch(e){}}catch(e){console.warn('HQ sync skipped',e)}finally{hqSyncing=false}}
+  async function syncHqUsers(u=currentUser?.()){if(hqSyncing||roleNorm(u?.role)!=='safety')return;hqSyncing=true;try{const r=await api({action:'hq_list',actor:actor(u)}),remote=Array.isArray(r.users)?r.users:[],ids=new Set(remote.map(x=>String(x.id||'')));for(const x of remote)mergeHq(x,(data.users||[]).find(v=>v.id===x.id)?.passwordHash||'');if(Array.isArray(data.users)){const before=data.users.length;data.users=data.users.filter(v=>!['safety','manager','executive','final'].includes(roleNorm(v.role))||ids.has(String(v.id||''))||String(v.id||'')===String(u?.id||''));if(data.users.length!==before)saveData()}try{window.dispatchEvent(new Event('enl-hq-users-synced'))}catch(e){}}catch(e){console.warn('HQ sync skipped',e)}finally{hqSyncing=false}}
   window.enlSyncHqUsers=syncHqUsers;
 
   function normalizePersonnel(list){const arr=Array.isArray(list)?list:[];return arr.filter(p=>{const suffix=` (${p.job_title||''})`;if(!String(p.name||'').endsWith(suffix))return true;const plain=String(p.name).slice(0,-suffix.length);return !arr.some(x=>x!==p&&x.site_id===p.site_id&&norm(x.name)===norm(plain)&&x.job_title===p.job_title)})}
