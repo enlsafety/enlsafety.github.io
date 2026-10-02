@@ -35,6 +35,7 @@ on:
       - 'ui-stability-v422.js'
       - 'auth-v411.js'
       - 'app-shell-v411.js'
+      - 'reader-experience-v424.js'
       - 'workflow-prevention-v429.js'
       - 'workflow-v412.js'
       - 'management-approval-v448.js'
@@ -88,6 +89,7 @@ on:
       - 'ui-stability-v422.js'
       - 'auth-v411.js'
       - 'app-shell-v411.js'
+      - 'reader-experience-v424.js'
       - 'workflow-prevention-v429.js'
       - 'workflow-v412.js'
       - 'management-approval-v448.js'
@@ -126,6 +128,7 @@ jobs:
           node --check field-incidents-v411.js
           node --check pwa-push-v418.js
           node --check app-shell-v411.js
+          node --check reader-experience-v424.js
           node --check workflow-prevention-v429.js
           node --check workflow-v412.js
           node --check management-approval-v448.js
