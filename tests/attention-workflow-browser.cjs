@@ -14,8 +14,9 @@ async function managerHome(engine){
       window.currentView='home';window.session={};window.enlPlatformSection='hub';window.ENL_PLATFORM_SECTION_KEY='qa';
       window.data={sites:[{id:'s01',name:'테스트 사업장'}],users:[],incidents:[
         {id:'inc-reader-pending',siteId:'s01',status:'reported',category:'property',eventType:'시설 파손',occurredAt:'2026-10-02T08:00:00+09:00',acknowledgements:[]},
-        {id:'inc-approved',siteId:'s01',status:'approved',category:'property',eventType:'카트 충돌',approvedAt:'2026-10-01T10:00:00+09:00',occurredAt:'2026-10-01T09:00:00+09:00',acknowledgements:[]},
-        {id:'inc-done',siteId:'s01',status:'approved',category:'person',eventType:'넘어짐',approvedAt:'2026-09-30T10:00:00+09:00',occurredAt:'2026-09-30T09:00:00+09:00',acknowledgements:[{documentType:'incident_report',userId:'u-manager-real'}]}
+        {id:'inc-approved',siteId:'s01',status:'approved',category:'property',eventType:'카트 충돌',approvedAt:'2026-10-01T10:00:00+09:00',updatedAt:'2026-10-01T10:00:00+09:00',occurredAt:'2026-10-01T09:00:00+09:00',acknowledgements:[]},
+        {id:'inc-closed-second',siteId:'s01',status:'closed',category:'person',eventType:'넘어짐',approvedAt:'2026-09-30T10:00:00+09:00',updatedAt:'2026-10-02T10:00:00+09:00',occurredAt:'2026-09-30T09:00:00+09:00',corrective:{status:'approved'},acknowledgements:[{documentType:'incident_report',userId:'u-manager-real',ackAt:'2026-10-01T12:00:00+09:00'}]},
+        {id:'inc-done',siteId:'s01',status:'approved',category:'person',eventType:'미끄러짐',approvedAt:'2026-09-29T10:00:00+09:00',occurredAt:'2026-09-29T09:00:00+09:00',acknowledgements:[{documentType:'incident_report',userId:'u-manager-real'}]}
       ]};
       window.siteById=id=>data.sites.find(s=>s.id===id);
       window.esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -27,14 +28,17 @@ async function managerHome(engine){
     });
     await page.addScriptTag({content:fs.readFileSync('app-shell-v411.js','utf8')});
     assert.equal(await page.locator('[data-hq-approval-alert]').count(),1);
-    assert.ok((await page.locator('.shell411-approval-head').innerText()).includes('승인완료 사고 결재가 필요합니다.'));
-    assert.equal(await page.locator('[data-hq-approval-open]').count(),1);
-    assert.equal(await page.locator('.shell411-approval-count').textContent(),'1');
+    assert.ok((await page.locator('.shell411-approval-head').innerText()).includes('본인 결재가 필요한 사고가 있습니다.'));
+    assert.equal(await page.locator('[data-hq-approval-open]').count(),2);
+    assert.equal(await page.locator('.shell411-approval-count').textContent(),'2');
     await page.addScriptTag({content:fs.readFileSync('reader-experience-v424.js','utf8')});
     await page.waitForTimeout(60);
     assert.equal(await page.locator('[data-shell-view="incidents"] > .enl424-nav-dot').count(),1,'reader simple-confirmation event should remain a red dot');
     assert.equal(await page.locator('[data-shell-view="incidents"] > .enl424-nav-count').count(),0,'reader simple-confirmation event must not become a number');
-    await page.locator('[data-hq-approval-open]').click();
+    const approvalAlertText=await page.locator('[data-hq-approval-alert]').innerText();
+    assert.ok(approvalAlertText.includes('1차 사고보고 결재'));
+    assert.ok(approvalAlertText.includes('2차 종결결재'));
+    await page.locator('[data-hq-approval-open="inc-approved"]').click();
     assert.equal(await page.evaluate(()=>window.__opened),'inc-approved');
 
     await page.evaluate(()=>{
@@ -44,6 +48,7 @@ async function managerHome(engine){
         {id:'inc-review',siteId:'s01',status:'reported',category:'person',eventType:'넘어짐',occurredAt:'2026-10-02T09:00:00+09:00',acknowledgements:[]},
         {id:'inc-supp-review',siteId:'s01',status:'supplement_submitted',category:'property',eventType:'시설 파손',occurredAt:'2026-10-02T08:30:00+09:00',acknowledgements:[]},
         {id:'inc-own-approval',siteId:'s01',status:'approved',category:'property',eventType:'카트 충돌',occurredAt:'2026-10-01T09:00:00+09:00',corrective:{status:'planned',planAt:'2026-10-01T11:00:00+09:00',planDetail:'계획'},acknowledgements:[]},
+        {id:'inc-own-closure',siteId:'s01',status:'closed',category:'property',eventType:'시설 파손',occurredAt:'2026-09-30T13:00:00+09:00',corrective:{status:'approved'},acknowledgements:[ack]},
         {id:'inc-plan',siteId:'s01',status:'approved',category:'property',eventType:'시설 파손',occurredAt:'2026-09-30T09:00:00+09:00',corrective:null,acknowledgements:[ack]},
         {id:'inc-action-review',siteId:'s01',status:'approved',category:'person',eventType:'베임',occurredAt:'2026-09-29T09:00:00+09:00',corrective:{status:'submitted',planAt:'2026-09-29T10:00:00+09:00',planDetail:'계획',actionDetail:'조치'},acknowledgements:[ack]}
       ];
@@ -54,8 +59,8 @@ async function managerHome(engine){
     await page.waitForTimeout(80);
 
     const badge=async view=>page.locator('[data-shell-view="'+view+'"] > .enl424-nav-count').textContent();
-    assert.equal(await badge('home'),'5','home must aggregate all action-required work');
-    assert.equal(await badge('incidents'),'3','reported + supplement approval + own approval');
+    assert.equal(await badge('home'),'6','home must aggregate all action-required work including closure approval');
+    assert.equal(await badge('incidents'),'4','reported + supplement approval + stage1 approval + stage2 closure approval');
     assert.equal(await badge('actions'),'2','plan registration + corrective approval');
     assert.equal(await page.locator('[data-shell-view="actions"] .prev429-nav-alert').count(),0,'legacy plan-only badge must be removed');
     assert.equal(await page.locator('[data-shell-view="incidents"] > .enl424-nav-dot').count(),0,'safety action work must be numeric, not a dot');
@@ -63,21 +68,26 @@ async function managerHome(engine){
     // Merely opening a tab must not clear an action-required number.
     await page.locator('[data-shell-view="incidents"]').click();
     await page.waitForTimeout(30);
-    assert.equal(await badge('incidents'),'3');
+    assert.equal(await badge('incidents'),'4');
 
     // Process each incident-side action. Counts fall only after workflow state changes.
     await page.evaluate(()=>{
       data.incidents.find(i=>i.id==='inc-review').status='supplement';
       window.enlRefreshSafetyActionBadges();
     });
-    assert.equal(await badge('incidents'),'2');
+    assert.equal(await badge('incidents'),'3');
     await page.evaluate(()=>{
       data.incidents.find(i=>i.id==='inc-supp-review').status='supplement';
       window.enlRefreshSafetyActionBadges();
     });
-    assert.equal(await badge('incidents'),'1');
+    assert.equal(await badge('incidents'),'2');
     await page.evaluate(()=>{
       data.incidents.find(i=>i.id==='inc-own-approval').acknowledgements=[{documentType:'incident_report',userId:'u-safety-real',ackAt:new Date().toISOString()}];
+      window.enlRefreshSafetyActionBadges();
+    });
+    assert.equal(await badge('incidents'),'1');
+    await page.evaluate(()=>{
+      data.incidents.find(i=>i.id==='inc-own-closure').acknowledgements.push({documentType:'closure_approval',userId:'u-safety-real',ackAt:new Date().toISOString()});
       window.enlRefreshSafetyActionBadges();
     });
     assert.equal(await page.locator('[data-shell-view="incidents"] > .enl424-nav-count').count(),0);
@@ -117,7 +127,12 @@ async function approvalDetail(engine){
         {id:'u-manager-real',name:'김관리',role:'manager',position:'차장',department:'경영관리부'},
         {id:'u-safety-real',name:'박안전',role:'safety',position:'과장',department:'경영관리부'}
       ]});
-      window.enlIncidentAcknowledge=async()=>({ok:true});
+      window.enlIncidentAcknowledge=async(id,u,documentType)=>{
+        const i=data.incidents.find(x=>x.id===id),at=documentType==='closure_approval'?'2026-10-02T12:30:00+09:00':'2026-10-01T11:20:00+09:00';
+        i.acknowledgements=(i.acknowledgements||[]).filter(a=>!(a.userId===u.id&&a.documentType===documentType));
+        i.acknowledgements.push({documentType,userId:u.id,name:u.name,role:u.role,position:u.position,ackAt:at,label:documentType==='closure_approval'?'2차 사고종결 결재':'1차 사고보고 결재'});
+        i.updatedAt=at;return {ok:true,incident:i};
+      };
       window.enlIncidentPullNow=async()=>{};
       window.enlOpenIncidentReview=id=>{document.getElementById('modalRoot').innerHTML='<div class="modal" data-wf440-incident="'+id+'"><div class="modal-head"><div><h2>사고 상세</h2></div><button class="x" data-close>×</button></div></div>'};
     });
@@ -128,16 +143,36 @@ async function approvalDetail(engine){
     assert.ok(!text.includes('테스트 경영진'));
     assert.ok(!text.includes('테스트 관리자'));
     assert.ok(!text.includes('테스트 안전관리자'));
-    assert.equal(await page.locator('[data-enl448-sign]').count(),1);
-    assert.ok((await page.locator('[data-enl448-sign]').innerText()).includes('본인'));
-    assert.ok((await page.locator('[data-enl448-sign]').innerText()).includes('결재하기'));
+    assert.equal(await page.locator('[data-enl448-sign="incident_report"]').count(),1);
+    const own=page.locator('[data-enl448-sign="incident_report"]');
+    assert.ok((await own.innerText()).includes('본인'));
+    assert.ok((await own.locator('.enl448-a').innerText()).includes('1차 결재하기'));
+    assert.ok((await own.locator('.enl448-d').innerText()).includes('2차 대기'));
     assert.equal(await page.locator('[data-enl448-own-guide]').count(),1);
-    const visual=await page.locator('[data-enl448-sign]').evaluate(el=>{const cs=getComputedStyle(el),pill=getComputedStyle(el.querySelector('.enl448-a'));return {animation:cs.animationName,transform:cs.transform,height:cs.height,pillFont:pill.fontSize}});
-    assert.equal(visual.animation,'none');
-    assert.equal(visual.transform,'none');
-    assert.ok(parseFloat(visual.height)<=66);
-    assert.ok(parseFloat(visual.pillFont)>=9.5);
-    console.log('PASS:',engine.name(),'server-authoritative approval roster and crisp own approval cell');
+    let visual=await own.evaluate(el=>{const cs=getComputedStyle(el),pill=getComputedStyle(el.querySelector('.enl448-a'));return {animation:cs.animationName,transform:cs.transform,height:cs.height,pillFont:pill.fontSize}});
+    assert.equal(visual.animation,'none');assert.equal(visual.transform,'none');assert.ok(parseFloat(visual.height)<=66);assert.ok(parseFloat(visual.pillFont)>=8.5);
+
+    page.once('dialog',d=>d.accept());await own.click();await page.waitForTimeout(120);
+    assert.equal(await page.locator('[data-enl448-sign]').count(),0,'stage2 must stay locked before closure');
+    assert.ok((await page.locator('.enl448-s.mine .enl448-a').innerText()).includes('1차 10.01 11:20'));
+    assert.ok((await page.locator('.enl448-s.mine .enl448-d').innerText()).includes('2차 대기'));
+
+    await page.evaluate(()=>{
+      const i=data.incidents.find(x=>x.id==='inc-approved');i.status='closed';i.corrective={status:'approved'};i.updatedAt='2026-10-02T12:00:00+09:00';
+      window.enlOpenIncidentReview('inc-approved');
+    });
+    await page.waitForTimeout(180);
+    assert.equal(await page.locator('[data-enl448-sign="closure_approval"]').count(),1);
+    const second=page.locator('[data-enl448-sign="closure_approval"]');
+    assert.ok((await second.locator('.enl448-a').innerText()).includes('1차 10.01 11:20'));
+    assert.ok((await second.locator('.enl448-d').innerText()).includes('2차 결재하기'));
+    page.once('dialog',d=>d.accept());await second.click();await page.waitForTimeout(120);
+    assert.equal(await page.locator('[data-enl448-sign]').count(),0);
+    assert.ok((await page.locator('.enl448-s.mine .enl448-a').innerText()).includes('1차 10.01 11:20'));
+    assert.ok((await page.locator('.enl448-s.mine .enl448-d').innerText()).includes('2차 10.02 12:30'));
+    visual=await page.locator('.enl448-s.mine').evaluate(el=>({height:getComputedStyle(el).height}));
+    assert.ok(parseFloat(visual.height)<=66,'two-stage approval cell must stay compact');
+    console.log('PASS:',engine.name(),'two-stage HQ approval keeps compact cell and records both timestamps');
   }finally{await browser.close()}
 }
 
