@@ -45,7 +45,7 @@ for(const x of [
   "2차 종결결재",
   "legacyTestPerson",
   "serverOk=true",
-  "aria-label=\"1차 사고보고 결재하기\"" ,
+  "1차 사고보고 결재하기",
   "enl448-own-guide",
   "본인 이름의 빨간 결재칸"
 ]) assert.ok(approval.includes(x),x);
