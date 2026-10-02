@@ -2,7 +2,7 @@
 (function(){
   'use strict';
 
-  const VERSION='4.4.42-prevention-copy1';
+  const VERSION='4.4.43-safety-action-counts1';
   const LEGACY_SENTINEL='후속 단계에서 안전관리자가 별도 수립';
   const MANAGER_POSITIONS=['현장소장','파트장','서무'];
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
@@ -211,10 +211,12 @@
   function preventionPlanMissing(u=currentUser?.()){if(!isSafety(u))return 0;return [...(data?.incidents||[])].filter(i=>reportAccepted(i)&&!historicalClosed(i)&&String(i.status||'')==='approved'&&!hasPlan(i.corrective)).length}
   function patchPreventionNav(u=currentUser?.()){
     const btn=document.querySelector('.shell411-nav [data-shell-view="actions"]');if(!btn||!isSafety(u))return;
-    const count=preventionPlanMissing(u),existing=btn.querySelector('.prev429-nav-alert');btn.classList.toggle('prev429-nav-attention',count>0);
-    const label=[...btn.childNodes].find(n=>n.nodeType===Node.TEXT_NODE);if(label&&text(label.textContent)!=='재발방지 관리')label.textContent='재발방지 관리';else if(!label&&!existing)btn.prepend('재발방지 관리');
-    if(count>0){const badge=existing||document.createElement('span');if(!existing){badge.className='prev429-nav-alert';btn.appendChild(badge)}if(badge.textContent!==String(count))badge.textContent=String(count);badge.setAttribute('aria-label',`재발방지계획 수립대기 ${count}건`)}
-    else if(existing)existing.remove();
+    // v4.4.43부터 안전관리자 액션 배지는 reader-experience에서 통합 계산한다.
+    // 여기서는 메뉴명만 유지하고, 이전 계획대기 전용 숫자/강조는 제거한다.
+    const existing=btn.querySelector('.prev429-nav-alert');if(existing)existing.remove();
+    btn.classList.remove('prev429-nav-attention');
+    const label=[...btn.childNodes].find(n=>n.nodeType===Node.TEXT_NODE);if(label&&text(label.textContent)!=='재발방지 관리')label.textContent='재발방지 관리';else if(!label)btn.prepend('재발방지 관리');
+    window.enlRefreshSafetyActionBadges?.();
   }
 
   function reportUiRewrite(root=document){
