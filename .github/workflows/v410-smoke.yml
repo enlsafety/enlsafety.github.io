@@ -309,6 +309,8 @@ jobs:
             'd.getMonth()+1',
           ]: assert x in industrial_js,x
 
+          reader_exp=Path('reader-experience-v424.js').read_text(encoding='utf-8')
+          for x in ['4.4.43-safety-action-counts1','enl424-nav-count','safetyActionCounts','incidentApproval','ownApproval','enlRefreshSafetyActionBadges','enl424-nav-dot']: assert x in reader_exp,x
           prevention=Path('workflow-prevention-v429.js').read_text(encoding='utf-8')
           for x in ['4.4.43-safety-action-counts1','preventionPlanMissing','enlRefreshSafetyActionBadges','재발방지조치 등록']: assert x in prevention,x
           for x in ['사고 접수완료','재발방지계획 등록','실제 실시한 재발방지조치','재발방지조치 확인완료']: assert x in prevention,x
