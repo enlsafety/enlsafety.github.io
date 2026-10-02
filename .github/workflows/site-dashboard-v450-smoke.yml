@@ -170,9 +170,9 @@ jobs:
           assert 'site-master-seed-v400.js?v=4.4.24-r1' in html
           dash=Path('site-dashboard-v450.js').read_text(encoding='utf-8')
           for x in ['4.4.33-map-lock1','data-map-lock','map-interactive','touch-action:pan-y','if(!interactive)return;e.preventDefault()']: assert x in dash,x
-          assert 'content="4.4.44-r1"' in html
-          assert meta['version']=='4.4.44' and meta['build']=='stable-4444-r1'
-          assert "const BUILD='4444-r1'" in index
+          assert 'content="4.4.45-r1"' in html
+          assert meta['version']=='4.4.45' and meta['build']=='stable-4445-r1'
+          assert "const BUILD='4445-r1'" in index
           print('OK: site profile and Korea distribution dashboard invariants preserved')
       - name: Dashboard behavior tests
         run: |
