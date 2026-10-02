@@ -32,12 +32,12 @@ assert.ok(shell.includes('즉시보고·보완 진행중'));
 assert.ok(shell.includes("window.enlRenderHqHome=renderSafetyHome"));
 for(const asset of [
   'field-ui-v411.js?v=4.4.42-r1&amp;fix=prevention-attention1',
-  'field-incidents-v411.js?v=4.4.42-r1&amp;fix=prevention-terminology1',
+  'field-incidents-v411.js?v=4.4.44-r1&amp;fix=mobile-prevention1',
   'app-shell-v411.js?v=4.4.38-r1&amp;fix=hq-attention1',
   'reader-ui-v414.js?v=4.4.37-r1&amp;fix=hq-dashboard1',
   'incident-flow-v440.js?v=4.4.39-r1&amp;fix=no-confirm-history1',
   'management-approval-v448.js?v=4.4.39-r1&amp;fix=crisp-sign1'
 ]) assert.ok(stable.includes(asset),asset);
-assert.equal(version.version,'4.4.43');
-assert.equal(version.build,'stable-4443-r1');
+assert.equal(version.version,'4.4.44');
+assert.equal(version.build,'stable-4444-r1');
 console.log('PASS: formal field copy, supplement highlight, finalized-only approval and unified HQ dashboard wiring');
