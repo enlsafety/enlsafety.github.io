@@ -75,6 +75,7 @@ async function loginAutoSelect(engine){
     await page.setContent('<!doctype html><html><head></head><body><div id="app"></div></body></html>');
     await page.evaluate(()=>{
       window.app=document.getElementById('app');
+      window.currentUser=()=>null;window.roleName=()=>'';window.renderLogin=()=>{};window.openUserModal=()=>{};window.openAdminPasswordReset=()=>{};
       window.session={};window.data={users:[],sites:[{id:'s01',name:'유일사업장'},{id:'s02',name:'중복사업장A'},{id:'s03',name:'중복사업장B'}]};
       window.saveSession=()=>{};window.saveData=()=>{};window.nowISO=()=>new Date().toISOString();
       window.sha256=async v=>'hash-'+v;window.userById=()=>null;
