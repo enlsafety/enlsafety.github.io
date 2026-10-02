@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.2.4 - reader nav alerts + instant own comment deletion */
 (function(){
   'use strict';
-  const VERSION='4.4.43-safety-action-counts1';
+  const VERSION='4.4.45-two-stage-approval1';
   const DELETE_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-comment-delete-v424';
   const WORKFLOW_API_FRAGMENT='/functions/v1/enl-workflow-v412';
   const CLIENT='incident-report-v2';
@@ -63,9 +63,18 @@
     dot(document.querySelector('[data-shell-view="incidents"]'),pending.length>0,'즉시보고·보완 진행 건이 있습니다');
     dot(document.querySelector('[data-lifecycle-closed]'),false);
   }
-  function safetyHasOwnApproval(i,u){
+  function safetyHasOwnApproval(i,u,type='incident_report'){
     const id=uid(u);if(!id)return false;
-    return (Array.isArray(i?.acknowledgements)?i.acknowledgements:[]).some(a=>String(a?.documentType||'incident_report')==='incident_report'&&String(a?.userId||'')===id);
+    return (Array.isArray(i?.acknowledgements)?i.acknowledgements:[]).some(a=>String(a?.documentType||'incident_report')===type&&String(a?.userId||'')===id);
+  }
+  function safetyOwnApprovalPending(i,u){
+    const status=String(i?.status||''),action=String(i?.corrective?.status||'');
+    if(status==='approved')return safetyHasOwnApproval(i,u,'incident_report')?0:1;
+    if(status==='closed'&&action==='approved'){
+      if(!safetyHasOwnApproval(i,u,'incident_report'))return 1;
+      if(!safetyHasOwnApproval(i,u,'closure_approval'))return 1;
+    }
+    return 0;
   }
   function safetyHasPlan(i){
     const c=i?.corrective||{};return !!String(c.planDetail||'').trim()||!!c.planAt;
@@ -73,10 +82,7 @@
   function safetyActionCounts(u){
     const arr=[...(data?.incidents||[])].filter(i=>!historicalClosed(i));
     const incidentApproval=arr.filter(i=>['reported','supplement_submitted'].includes(String(i.status||''))).length;
-    const ownApproval=arr.filter(i=>{
-      const status=String(i.status||''),action=String(i?.corrective?.status||'');
-      return (status==='approved'||(status==='closed'&&action==='approved'))&&!safetyHasOwnApproval(i,u);
-    }).length;
+    const ownApproval=arr.reduce((n,i)=>n+safetyOwnApprovalPending(i,u),0);
     const plan=arr.filter(i=>String(i.status||'')==='approved'&&!safetyHasPlan(i)&&String(i?.corrective?.status||'')!=='approved').length;
     const prevention=arr.filter(i=>String(i?.corrective?.status||'')==='submitted').length;
     return {incidentApproval,ownApproval,incident:incidentApproval+ownApproval,plan,prevention,actions:plan+prevention,total:incidentApproval+ownApproval+plan+prevention};

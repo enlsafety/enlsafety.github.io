@@ -4,7 +4,7 @@ import postgres from "npm:postgres@3.4.5";
 
 const ORIGIN="https://enlsafety.github.io";
 const APP="incident-report-v2";
-const VERSION="4.4.24-contract-status1";
+const VERSION="4.4.45-two-stage-approval1";
 const cors={"Access-Control-Allow-Origin":ORIGIN,"Access-Control-Allow-Headers":"content-type, x-client-info, apikey, authorization, x-enl-app","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:cors});
 const clean=(v:any)=>String(v??"").trim();
@@ -202,23 +202,27 @@ Deno.serve(async(req:Request)=>{
       if(actor.role==="field"&&!["현장소장","파트장","서무"].includes(clean(actor.position)))return json({ok:false,message:"forbidden"},403);
       const strong=await verifyActor(sql,body,true);if(!strong)return json({ok:false,message:"auth_proof_required"},403);actor=strong;
       const incidentId=clean(body.incidentId),documentType=clean(body.documentType)||"incident_report";if(!incidentId)return json({ok:false,message:"incident_required"},400);
-      if(!["incident_report","corrective_action"].includes(documentType))return json({ok:false,message:"invalid_document_type"},400);
+      if(!["incident_report","closure_approval","corrective_action"].includes(documentType))return json({ok:false,message:"invalid_document_type"},400);
       const rows=await sql`select incident_id,site_id,payload from public.enl_incident_shared where incident_id=${incidentId} limit 1`,row=rows[0];if(!row)return json({ok:false,message:"not_found"},404);
       const prev=parsePayload(row.payload);if(actor.role==="field"&&clean(row.site_id)!==actor.siteId)return json({ok:false,message:"forbidden"},403);
       if(documentType==="incident_report"){
-        if(!reportVisibleToReaders(prev))return json({ok:false,message:"not_available"},409);
-        if(!reportApproved(prev)&&!["safety","manager","executive"].includes(actor.role))return json({ok:false,message:"not_approved"},409);
+        const reportStatus=clean(prev?.status),actionStatus=clean(prev?.corrective?.status);
+        const reportAckAllowed=reportStatus==="approved"||(reportStatus==="closed"&&actionStatus==="approved");
+        if(!reportAckAllowed)return json({ok:false,message:"not_available"},409);
+      }
+      if(documentType==="closure_approval"){
+        if(!["safety","manager","executive"].includes(actor.role))return json({ok:false,message:"forbidden"},403);
+        const firstDone=(Array.isArray(prev.acknowledgements)?prev.acknowledgements:[]).some((x:any)=>clean(x.userId)===actor.id&&clean(x.documentType||"incident_report")==="incident_report");
+        if(!firstDone)return json({ok:false,message:"first_approval_required"},409);
+        if(!(clean(prev?.status)==="closed"&&clean(prev?.corrective?.status)==="approved"))return json({ok:false,message:"closure_not_available"},409);
       }
       if(documentType==="corrective_action"&&clean(prev?.corrective?.status)!=="approved")return json({ok:false,message:"action_not_approved"},409);
       const acknowledgements=Array.isArray(prev.acknowledgements)?prev.acknowledgements.filter((x:any)=>!(clean(x.userId)===actor.id&&clean(x.documentType)===documentType)):[];
-      const receipt={documentType,userId:actor.id,name:actor.name,role:actor.role,position:actor.position,siteId:actor.siteId,readAt:now,ackAt:now,label:documentType==="incident_report"?"관리자 확인결재(순차 독립)":"조치 확인기록(결재 아님)"};
+      const receipt={documentType,userId:actor.id,name:actor.name,role:actor.role,position:actor.position,siteId:actor.siteId,ackAt:now,label:documentType==="incident_report"?"1차 사고보고 결재":documentType==="closure_approval"?"2차 사고종결 결재":"재발방지조치 결재"};
       acknowledgements.push(receipt);
       const next={...prev,acknowledgements,updatedAt:now};
-      if(documentType==="incident_report"&&["manager","executive"].includes(actor.role)){
-        const legacy=Array.isArray(prev.readReceipts)?prev.readReceipts.filter((x:any)=>clean(x.userId)!==actor.id):[];legacy.push({userId:actor.id,name:actor.name,role:actor.role,position:actor.position,readAt:now});next.readReceipts=legacy;
-      }
       await sql`update public.enl_incident_shared set payload=${JSON.stringify(next)}::jsonb,updated_at=${now} where incident_id=${incidentId}`;
-      await writeAudit(sql,incidentId,clean(row.site_id),"acknowledge",actor,prev,next,now);
+      await writeAudit(sql,incidentId,clean(row.site_id),documentType==="incident_report"?"approval_stage1":documentType==="closure_approval"?"approval_stage2":"acknowledge",actor,prev,next,now);
       const responseIncident=actor.role==="manager"||actor.role==="executive"?readerIncident(next):next;
       return json({ok:true,receipt,incident:responseIncident});
     }
