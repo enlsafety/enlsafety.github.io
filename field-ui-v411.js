@@ -1,13 +1,17 @@
 /* E&L Accident Report App v4.1.5 - authoritative field/worker UI */
 (function(){
   'use strict';
-  const VERSION='4.4.37-field-copy1';
+  const VERSION='4.4.42-field-prevention-attention1';
   const isField=u=>!!u&&['field','worker'].includes(u.role);
   const siteName=u=>{try{return siteById?.(u?.siteId)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(u?.siteId))?.name||'소속 사업장'}catch(e){return '소속 사업장'}};
   const title=u=>u?.position||u?.jobTitle||(u?.role==='worker'?'일반근로자':'현장관리');
   const MANAGER_POSITIONS=['현장소장','파트장','서무'];
   const isManager=u=>String(u?.role||'')==='field'&&MANAGER_POSITIONS.includes(String(u?.position||u?.jobTitle||''));
-  const supplementCount=u=>{try{return !isManager(u)?0:(data?.incidents||[]).filter(i=>String(i?.siteId||'')===String(u.siteId||'')&&String(i?.status||'')==='supplement').length}catch(e){return 0}};
+  const sameSite=(i,u)=>String(i?.siteId||'')===String(u?.siteId||'');
+  const historicalClosed=i=>String(i?.recordMode||'')==='historical_transfer'||String(i?.historicalTransfer?.mode||'')==='historical_transfer'||(i?.historicalImport?.enabled===true&&i?.historicalImport?.erpApproved===true&&String(i?.historicalImport?.transferState||'')==='closed');
+  const supplementCount=u=>{try{return !isManager(u)?0:(data?.incidents||[]).filter(i=>sameSite(i,u)&&String(i?.status||'')==='supplement').length}catch(e){return 0}};
+  const preventionActionCount=u=>{try{return !isManager(u)?0:(data?.incidents||[]).filter(i=>{if(!sameSite(i,u)||historicalClosed(i)||String(i?.status||'')!=='approved')return false;const x=i?.corrective||{},s=String(x.status||''),hasPlan=!!String(x.planDetail||'').trim()||!!x.planAt;return hasPlan&&['planned','in_progress','rejected'].includes(s)}).length}catch(e){return 0}};
+  const attentionCounts=u=>{const supplement=supplementCount(u),prevention=preventionActionCount(u);return {supplement,prevention,total:supplement+prevention}};
   let inquiryRetry=0,inquiryTimer=null;
 
   function home(u=currentUser?.()){
@@ -41,13 +45,16 @@
   function renderHome(root,u){
     if(!root||!isField(u))return;
     ensureHomeAlertCss();
-    const pending=supplementCount(u),needsPush=pending>0&&((typeof Notification==='undefined')||Notification.permission!=='granted');
-    root.innerHTML=`<section class="field-six-home"><div class="field-six-head"><h2>${esc(siteName(u))}</h2><p>필요한 메뉴를 선택해 주세요.</p><span class="field-six-role">${esc(title(u))} · ${esc(u.name||'')}</span></div>${pending?`<div class="field-six-alert"><b>사고보고 보완요청 ${pending}건</b>${needsPush?'<button type="button" data-field-notification-setup>휴대폰 알림 켜기</button>':''}</div>`:''}<div class="field-six-grid"><button class="field-six-btn" data-field-task="accident_report"><span class="field-six-no">01</span><strong>사고 보고</strong><small>대인·대물 사고를 보고</small></button><button class="field-six-btn" data-field-task="accident_action"><span class="field-six-no">02</span><strong>사고 조치</strong><small>사고 후 조치내용 등록</small></button><button class="field-six-btn ${pending?'field-six-attention-btn':''}" data-field-task="records">${pending?`<span class="field-six-new" aria-label="보완요청 ${pending}건">${pending}</span>`:''}<span class="field-six-no">03</span><strong>사고 기록</strong><small>${pending?`보완요청 ${pending}건<br>확인·작성 필요`:'우리 현장<br>사고기록 확인'}</small></button><button class="field-six-btn" data-field-task="inquiry"><span class="field-six-no">04</span><strong>기타 문의</strong><small>안전관리자 문의 및 답변 확인</small></button></div></section>`;
+    const attention=attentionCounts(u),pending=attention.total,needsPush=pending>0&&((typeof Notification==='undefined')||Notification.permission!=='granted');
+    const alertLabel=[attention.supplement?`사고보고 보완요청 ${attention.supplement}건`:'',attention.prevention?`재발방지조치 작성·보완 ${attention.prevention}건`:''].filter(Boolean).join(' · ');
+    root.innerHTML=`<section class="field-six-home"><div class="field-six-head"><h2>${esc(siteName(u))}</h2><p>필요한 메뉴를 선택해 주세요.</p><span class="field-six-role">${esc(title(u))} · ${esc(u.name||'')}</span></div>${pending?`<div class="field-six-alert"><b>${esc(alertLabel)}</b>${needsPush?'<button type="button" data-field-notification-setup>휴대폰 알림 켜기</button>':''}</div>`:''}<div class="field-six-grid"><button class="field-six-btn" data-field-task="accident_report"><span class="field-six-no">01</span><strong>사고 보고</strong><small>대인·대물 사고를 보고</small></button><button class="field-six-btn" data-field-task="accident_action"><span class="field-six-no">02</span><strong>재발방지조치</strong><small>재발방지계획 이행내용 등록</small></button><button class="field-six-btn ${pending?'field-six-attention-btn':''}" data-field-task="records">${pending?`<span class="field-six-new" aria-label="확인·작성 필요 ${pending}건">${pending}</span>`:''}<span class="field-six-no">03</span><strong>사고 기록</strong><small>${pending?`확인·작성 필요 ${pending}건`:'우리 현장<br>사고기록 확인'}</small></button><button class="field-six-btn" data-field-task="inquiry"><span class="field-six-no">04</span><strong>기타 문의</strong><small>안전관리자 문의 및 답변 확인</small></button></div></section>`;
     root.querySelectorAll('[data-field-task]').forEach(b=>b.onclick=()=>go(b.dataset.fieldTask,u));
     root.querySelector('[data-field-notification-setup]')?.addEventListener('click',()=>{if(typeof window.enlOpenPwaNotificationSettings==='function')window.enlOpenPwaNotificationSettings();else document.getElementById('enlPwaTop418')?.click()});
   }
   window.enlRenderFieldHome=renderHome;
   window.enlFieldSupplementCount=supplementCount;
+  window.enlFieldPreventionActionCount=preventionActionCount;
+  window.enlFieldAttentionCount=u=>attentionCounts(u).total;
 
   function backBar(u){return `<div class="field-task-back"><button type="button" data-field-back>← 현장 홈으로</button><span>${esc(siteName(u))}</span></div>`}
   function bindBack(root,u){root?.querySelector('[data-field-back]')?.addEventListener('click',()=>home(u))}
