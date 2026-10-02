@@ -21,7 +21,7 @@ for(const x of [
 ]) assert.ok(shell.includes(x),x);
 
 for(const x of [
-  "4.4.42-prevention-copy1",
+  "4.4.43-safety-action-counts1",
   "prev429-nav-alert",
   "prev429-nav-attention",
   "preventionPlanMissing",
@@ -51,13 +51,13 @@ for(const asset of [
   'auth-v411.js?v=4.4.38-r1&amp;fix=hq-cache-prune1',
   'app-shell-v411.js?v=4.4.38-r1&amp;fix=hq-attention1',
   'workflow-v412.js?v=4.4.39-r1&amp;fix=comment-empty1',
-  'workflow-prevention-v429.js?v=4.4.42-r1&amp;fix=prevention-copy1',
+  'workflow-prevention-v429.js?v=4.4.43-r1&amp;fix=safety-action-counts1',
   'production-cleanup-v431.js?v=4.4.38-r1&amp;fix=test-hq-cleanup1',
   'management-approval-v448.js?v=4.4.39-r1&amp;fix=crisp-sign1'
 ]) assert.ok(stable.includes(asset),asset);
 
-assert.ok(stable.includes('content="4.4.42-r1"'));
-assert.ok(index.includes("const BUILD='4442-r1'"));
-assert.equal(version.version,'4.4.42');
-assert.equal(version.build,'stable-4442-r1');
+assert.ok(stable.includes('content="4.4.43-r1"'));
+assert.ok(index.includes("const BUILD='4443-r1'"));
+assert.equal(version.version,'4.4.43');
+assert.equal(version.build,'stable-4443-r1');
 console.log('PASS: recurrence-plan alert, HQ approval attention, optional opinion, own-sign highlight and stale test cleanup');
