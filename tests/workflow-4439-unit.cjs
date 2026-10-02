@@ -14,6 +14,8 @@ const version=JSON.parse(read('version.json'));
 for(const bad of ['ackIncident411','열람확인','열람 확인 저장','readReceipts','readerStatusHtml(']) assert.ok(!incidents.includes(bad),bad);
 for(const bad of ['addAckSection(','recordView(','viewHistory(','사고보고 확인 기록','재발방지조치 확인 기록','최초 조회기록','readReceipts']) assert.ok(!flow.includes(bad),bad);
 for(const bad of ['readReceipts','receiptFor(','열람 확인이 필요한 종결사고']) assert.ok(!reader.includes(bad),bad);
+for(const x of ['4.4.43-safety-action-counts1','enl424-nav-count','safetyActionCounts','incidentApproval','ownApproval','prevention','enlRefreshSafetyActionBadges']) assert.ok(reader.includes(x),x);
+assert.ok(reader.includes('enl424-nav-dot'),'simple confirmation red-dot behavior must remain');
 assert.ok(!stable.includes('reader-ack-ux-v423.js'));
 
 for(const x of ['4.4.39-statutory-record1','법정 사고기록','근로자 인적사항','재해 발생 일시','재해 발생 장소','재해 발생 원인 및 과정','재해 재발방지 계획']) assert.ok(official.includes(x),x);
@@ -31,15 +33,15 @@ assert.ok(!approval.includes('transform:scale('));
 
 for(const asset of [
   'incidents-v410.js?v=4.4.39-r1&amp;fix=no-read-confirm1',
-  'reader-experience-v424.js?v=4.4.39-r1&amp;fix=no-read-confirm1',
+  'reader-experience-v424.js?v=4.4.43-r1&amp;fix=safety-action-counts1',
   'workflow-v412.js?v=4.4.39-r1&amp;fix=comment-empty1',
   'official-records-v439.js?v=4.4.39-r1&amp;fix=statutory-record1',
   'incident-flow-v440.js?v=4.4.39-r1&amp;fix=no-confirm-history1',
   'management-approval-v448.js?v=4.4.39-r1&amp;fix=crisp-sign1'
 ]) assert.ok(stable.includes(asset),asset);
 
-assert.ok(stable.includes('content="4.4.42-r1"'));
-assert.ok(index.includes("const BUILD='4442-r1'"));
-assert.equal(version.version,'4.4.42');
-assert.equal(version.build,'stable-4442-r1');
+assert.ok(stable.includes('content="4.4.43-r1"'));
+assert.ok(index.includes("const BUILD='4443-r1'"));
+assert.equal(version.version,'4.4.43');
+assert.equal(version.build,'stable-4443-r1');
 console.log('PASS: approval-only UX, statutory record view, dash-only empty opinions and audit-button removal');

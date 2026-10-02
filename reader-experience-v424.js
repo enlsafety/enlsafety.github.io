@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.2.4 - reader nav alerts + instant own comment deletion */
 (function(){
   'use strict';
-  const VERSION='4.4.39-reader-no-read-confirm1';
+  const VERSION='4.4.43-safety-action-counts1';
   const DELETE_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-comment-delete-v424';
   const WORKFLOW_API_FRAGMENT='/functions/v1/enl-workflow-v412';
   const CLIENT='incident-report-v2';
@@ -21,9 +21,10 @@
     const s=document.createElement('style');s.id='reader424Css';s.textContent=`
       .shell411-nav button{position:relative}
       .enl424-nav-dot{position:absolute;top:5px;right:5px;width:9px;height:9px;border-radius:50%;background:#d93636;border:2px solid #fff;box-shadow:0 0 0 1px rgba(173,36,36,.12);pointer-events:none}
+      .enl424-nav-count{position:absolute;top:-8px;right:-7px;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:#c93434;color:#fff!important;border:2px solid #fff;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:950;line-height:1;box-shadow:0 3px 9px rgba(172,36,36,.28);pointer-events:none;z-index:2}
       .wf412-own-delete{background:#fff0f0!important;color:#9d3737!important;border:1px solid #e7b5b5!important}
       .wf412-own-delete:disabled{opacity:.55}
-      @media(max-width:560px){.enl424-nav-dot{top:4px;right:4px;width:9px;height:9px}.wf412-own-delete{width:auto!important}}
+      @media(max-width:560px){.enl424-nav-dot{top:4px;right:4px;width:9px;height:9px}.enl424-nav-count{top:-7px;right:-5px;min-width:21px;height:21px;font-size:9.5px}.wf412-own-delete{width:auto!important}}
     `;document.head.appendChild(s)
   }
 
@@ -32,6 +33,16 @@
     let d=btn.querySelector(':scope > .enl424-nav-dot');
     if(on&&!d){d=document.createElement('span');d.className='enl424-nav-dot';d.setAttribute('aria-label',label);d.title=label;btn.appendChild(d)}
     else if(!on&&d)d.remove();
+  }
+  function navCount(btn,n,label='처리가 필요한 업무가 있습니다'){
+    if(!btn)return;
+    const value=Math.max(0,Number(n)||0);
+    let b=btn.querySelector(':scope > .enl424-nav-count');
+    if(value>0){
+      if(!b){b=document.createElement('span');b.className='enl424-nav-count';btn.appendChild(b)}
+      const shown=value>99?'99+':String(value);if(b.textContent!==shown)b.textContent=shown;
+      const aria=`${label} ${value}건`;b.setAttribute('aria-label',aria);b.title=aria;
+    }else if(b)b.remove();
   }
 
   function activeButton(){
@@ -52,11 +63,34 @@
     dot(document.querySelector('[data-shell-view="incidents"]'),pending.length>0,'즉시보고·보완 진행 건이 있습니다');
     dot(document.querySelector('[data-lifecycle-closed]'),false);
   }
-  function safetyWorkDots(u){
-    const arr=[...(data?.incidents||[])],reported=arr.some(i=>!historicalClosed(i)&&['reported','supplement_submitted'].includes(String(i.status||''))),actions=arr.some(i=>!historicalClosed(i)&&String(i.corrective?.status||'')==='submitted');
-    dot(document.querySelector('[data-shell-view="home"]'),reported||actions,'검토가 필요한 새 업무가 있습니다');
-    dot(document.querySelector('[data-shell-view="incidents"]'),reported,'즉시보고 또는 보완검토 대기 사고가 있습니다');
-    dot(document.querySelector('[data-shell-view="actions"]'),actions,'검토대기 사고조치가 있습니다');
+  function safetyHasOwnApproval(i,u){
+    const id=uid(u);if(!id)return false;
+    return (Array.isArray(i?.acknowledgements)?i.acknowledgements:[]).some(a=>String(a?.documentType||'incident_report')==='incident_report'&&String(a?.userId||'')===id);
+  }
+  function safetyHasPlan(i){
+    const c=i?.corrective||{};return !!String(c.planDetail||'').trim()||!!c.planAt;
+  }
+  function safetyActionCounts(u){
+    const arr=[...(data?.incidents||[])].filter(i=>!historicalClosed(i));
+    const incidentApproval=arr.filter(i=>['reported','supplement_submitted'].includes(String(i.status||''))).length;
+    const ownApproval=arr.filter(i=>{
+      const status=String(i.status||''),action=String(i?.corrective?.status||'');
+      return (status==='approved'||(status==='closed'&&action==='approved'))&&!safetyHasOwnApproval(i,u);
+    }).length;
+    const plan=arr.filter(i=>String(i.status||'')==='approved'&&!safetyHasPlan(i)&&String(i?.corrective?.status||'')!=='approved').length;
+    const prevention=arr.filter(i=>String(i?.corrective?.status||'')==='submitted').length;
+    return {incidentApproval,ownApproval,incident:incidentApproval+ownApproval,plan,prevention,actions:plan+prevention,total:incidentApproval+ownApproval+plan+prevention};
+  }
+  function safetyActionBadges(u){
+    const counts=safetyActionCounts(u);
+    const home=document.querySelector('[data-shell-view="home"]'),incidents=document.querySelector('[data-shell-view="incidents"]'),actions=document.querySelector('[data-shell-view="actions"]');
+    // Old safety work indicators were dots. Action-required work is numeric now;
+    // opening a tab never clears these because counts are derived from workflow state.
+    dot(home,false);dot(incidents,false);dot(actions,false);
+    navCount(home,counts.total,'안전관리자 처리 필요');
+    navCount(incidents,counts.incident,'사고승인·보완승인·결재 처리 필요');
+    navCount(actions,counts.actions,'재발방지계획·재발방지조치 처리 필요');
+    return counts;
   }
 
   function inquirySeenKey(u){return INQUIRY_SEEN_PREFIX+uid(u)}
@@ -103,7 +137,7 @@
   function refreshNav(){
     const u=currentUser?.();if(!u)return;normalizeNavActive();
     if(isReader(u)){readerIncidentDots(u);refreshReaderInquiry(u,false)}
-    else if(roleNorm(u.role)==='safety')safetyWorkDots(u);
+    else if(roleNorm(u.role)==='safety')safetyActionBadges(u);
   }
   function schedule(){if(navQueued)return;navQueued=true;requestAnimationFrame(()=>{navQueued=false;refreshNav();decorateOwnComments()})}
 
@@ -133,6 +167,11 @@
   setInterval(()=>{const u=currentUser?.();if(u&&document.visibilityState!=='hidden'){refreshNav();decorateOwnComments()}},30000);
   window.addEventListener('pageshow',()=>setTimeout(schedule,80));
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')setTimeout(schedule,80)});
+  window.enlSafetyActionCounts=u=>safetyActionCounts(u||currentUser?.());
+  window.enlRefreshSafetyActionBadges=()=>{const u=currentUser?.();if(roleNorm(u?.role)==='safety')return safetyActionBadges(u);return null};
+  // Paint current badges immediately as well as on the queued observer cycle.
+  // This avoids a first-frame gap on WebKit/PWA where requestAnimationFrame can be deferred.
+  try{refreshNav()}catch(e){}
   schedule();
   window.ENL_READER_EXPERIENCE_VERSION=VERSION;
 })();

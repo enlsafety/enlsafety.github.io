@@ -33,7 +33,7 @@ jobs:
           html=Path('stable412.html').read_text(encoding='utf-8')
           lifecycle=Path('workflow-lifecycle-v413.js').read_text(encoding='utf-8')
           required=[
-            "const VERSION='4.4.42-prevention-copy1'",
+            "const VERSION='4.4.43-safety-action-counts1'",
             '5. 사고조치 내용',
             '재발방지계획 등록',
             '실제 실시한 재발방지조치',
@@ -45,13 +45,15 @@ jobs:
             "c.status='approved'",
             "save('in_progress')",
             "approve&&text(approve.textContent)!=='사고 접수완료'",
-            "prev429-nav-alert",
-            "prev429-nav-attention",
             "preventionPlanMissing",
+            "enlRefreshSafetyActionBadges",
+            "existing=btn.querySelector('.prev429-nav-alert')",
+            "btn.classList.remove('prev429-nav-attention')",
+            "window.enlRefreshSafetyActionBadges?.()",
           ]
           for x in required:
             assert x in js, x
-          assert 'workflow-prevention-v429.js?v=4.4.42-r1&amp;fix=prevention-copy1' in html
+          assert 'workflow-prevention-v429.js?v=4.4.43-r1&amp;fix=safety-action-counts1' in html
           assert html.index('sync-conflict-v428.js') < html.index('workflow-prevention-v429.js')
           assert "String(i.status)==='approved'&&String(i.corrective?.status)==='approved'" in lifecycle
           assert "i.status='closed'" in lifecycle

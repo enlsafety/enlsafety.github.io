@@ -49,7 +49,10 @@ jobs:
           html=Path('stable412.html').read_text(encoding='utf-8')
           for x in ["4.4.13-hq-email-edit1","window.renderShell=function(u)","if(modalBusy()||transientViewBusy())return root"]: assert x in stable,x
           for x in [
-            "4.4.39-reader-no-read-confirm1",
+            "4.4.43-safety-action-counts1",
+            "enl424-nav-count",
+            "safetyActionCounts",
+            "enlRefreshSafetyActionBadges",
             "enl-comment-delete-v424",
             "enl424-nav-dot",
             "내 의견 삭제",
@@ -80,7 +83,7 @@ jobs:
           assert "검토대기 단계 상세 열람은 긴급사고에 한해" not in ps
           assert "!['approved','closed'].includes(status)&&!urgent(i)" not in ps
           for x in ["4.4.32-startup-cache1","incidentId","stable412.html?push=1&incident=","PUSH_CONFIRM_API","ack_test_token"]: assert x in sw,x
-          assert 'reader-experience-v424.js?v=4.4.39-r1&amp;fix=no-read-confirm1' in html
+          assert 'reader-experience-v424.js?v=4.4.43-r1&amp;fix=safety-action-counts1' in html
           assert 'reader-ack-ux-v423.js' not in html
           assert 'readReceipts' not in rx and '열람 확인이 필요한 종결사고' not in rx
           assert 'push-session-v425.js?v=4.4.36-r1&amp;fix=subscription-repair1' in html
