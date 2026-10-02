@@ -103,8 +103,16 @@ async function managerHome(engine){
       window.enlRefreshSafetyActionBadges();
     });
     assert.equal(await page.locator('[data-shell-view="actions"] > .enl424-nav-count').count(),0);
+    assert.equal(await badge('home'),'1','closing an incident must create the stage2 closure-approval action');
+    assert.equal(await badge('incidents'),'1');
+    await page.evaluate(()=>{
+      const i=data.incidents.find(i=>i.id==='inc-action-review');
+      i.acknowledgements.push({documentType:'closure_approval',userId:'u-safety-real',ackAt:new Date().toISOString()});
+      window.enlRefreshSafetyActionBadges();
+    });
     assert.equal(await page.locator('[data-shell-view="home"] > .enl424-nav-count').count(),0);
-    console.log('PASS:',engine.name(),'reader dots preserved and safety action numbers clear only after processing');
+    assert.equal(await page.locator('[data-shell-view="incidents"] > .enl424-nav-count').count(),0);
+    console.log('PASS:',engine.name(),'reader dots preserved and safety action numbers transition into stage2 closure approval');
   }finally{await browser.close()}
 }
 
