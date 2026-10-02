@@ -132,8 +132,15 @@ async function approvalDetail(engine){
       ],incidents:[{id:'inc-approved',siteId:'s01',status:'approved',eventType:'사고',updatedAt:'2026-10-01T10:00:00+09:00',reporterName:'현장소장',createdAt:'2026-10-01T09:00:00+09:00',acknowledgements:[]}]};
       window.esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       window.enlIncidentApi=async()=>({users:[
+        {id:'u-safety-real',name:'박안전',role:'safety',position:'과장',department:'경영관리부'},
+        {id:'u-m1',name:'이관리',role:'manager',position:'과장',department:'경영관리부'},
         {id:'u-manager-real',name:'김관리',role:'manager',position:'차장',department:'경영관리부'},
-        {id:'u-safety-real',name:'박안전',role:'safety',position:'과장',department:'경영관리부'}
+        {id:'u-m2',name:'최관리',role:'manager',position:'부장',department:'경영관리부'},
+        {id:'u-m3',name:'정관리',role:'manager',position:'부장',department:'운영부'},
+        {id:'u-m4',name:'한관리',role:'manager',position:'이사',department:'운영부'},
+        {id:'u-m5',name:'윤관리',role:'manager',position:'상무',department:'경영관리부'},
+        {id:'u-e1',name:'임경영',role:'executive',position:'전무',department:'경영진'},
+        {id:'u-e2',name:'조경영',role:'executive',position:'사장',department:'경영진'}
       ]});
       window.enlIncidentAcknowledge=async(id,u,documentType)=>{
         const i=data.incidents.find(x=>x.id===id),at=documentType==='closure_approval'?'2026-10-02T12:30:00+09:00':'2026-10-01T11:20:00+09:00';
@@ -178,9 +185,15 @@ async function approvalDetail(engine){
     assert.equal(await page.locator('[data-enl448-sign]').count(),0);
     assert.ok((await page.locator('.enl448-s.mine .enl448-a').innerText()).includes('1차 10.01 11:20'));
     assert.ok((await page.locator('.enl448-s.mine .enl448-d').innerText()).includes('2차 10.02 12:30'));
-    visual=await page.locator('.enl448-s.mine').evaluate(el=>({height:getComputedStyle(el).height}));
+    visual=await page.locator('.enl448-s.mine').evaluate(el=>{
+      const a=el.querySelector('.enl448-a'),d=el.querySelector('.enl448-d'),grid=el.closest('.enl448-t');
+      return {height:getComputedStyle(el).height,aScroll:a.scrollWidth,aClient:a.clientWidth,dScroll:d.scrollWidth,dClient:d.clientWidth,gridHeight:grid.getBoundingClientRect().height};
+    });
     assert.ok(parseFloat(visual.height)<=66,'two-stage approval cell must stay compact');
-    console.log('PASS:',engine.name(),'two-stage HQ approval keeps compact cell and records both timestamps');
+    assert.ok(visual.aScroll<=visual.aClient+1,'stage1 timestamp must be readable without clipping');
+    assert.ok(visual.dScroll<=visual.dClient+1,'stage2 timestamp must be readable without clipping');
+    assert.ok(visual.gridHeight<=134,'nine-person mobile approval grid must stay within two compact rows');
+    console.log('PASS:',engine.name(),'two-stage HQ approval keeps compact 9-person layout and records both timestamps');
   }finally{await browser.close()}
 }
 
