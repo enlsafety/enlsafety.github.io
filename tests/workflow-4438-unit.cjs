@@ -22,9 +22,9 @@ for(const x of [
 
 for(const x of [
   "4.4.43-safety-action-counts1",
-  "prev429-nav-alert",
-  "prev429-nav-attention",
   "preventionPlanMissing",
+  "enlRefreshSafetyActionBadges",
+  "기존 계획대기 전용 숫자/강조는 제거",
   "재발방지 관리"
 ]) assert.ok(prevention.includes(x),x);
 
@@ -60,4 +60,4 @@ assert.ok(stable.includes('content="4.4.43-r1"'));
 assert.ok(index.includes("const BUILD='4443-r1'"));
 assert.equal(version.version,'4.4.43');
 assert.equal(version.build,'stable-4443-r1');
-console.log('PASS: recurrence-plan alert, HQ approval attention, optional opinion, own-sign highlight and stale test cleanup');
+console.log('PASS: unified safety action badge wiring, HQ approval attention, optional opinion, own-sign highlight and stale test cleanup');
