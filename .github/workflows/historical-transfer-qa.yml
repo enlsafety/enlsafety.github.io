@@ -96,11 +96,11 @@ jobs:
           assert "이관종결" in reader
           assert "과거사고 ERP 이관기록" in official and "과거사고 · ERP 기결재 · 이관종결" in official
           assert 'workflow-lifecycle-v413.js?v=4.4.14-r1&amp;fix=historical-transfer1' in stable
-          assert 'reader-experience-v424.js?v=4.4.39-r1&amp;fix=no-read-confirm1' in stable
+          assert 'reader-experience-v424.js?v=4.4.43-r1&amp;fix=safety-action-counts1' in stable
           assert 'reader-ui-v414.js?v=4.4.37-r1&amp;fix=hq-dashboard1' in stable
           assert 'official-records-v439.js?v=4.4.39-r1&amp;fix=statutory-record1' in stable
           assert 'site-contract-v451.js?v=4.4.24-r1' in stable
           assert 'historical-transfer-v449.js?v=4.4.29-r1&amp;fix=required1' in stable
-          assert 'content="4.4.42-r1"' in stable
-          assert version["version"]=="4.4.42" and version["build"]=="stable-4442-r1"
+          assert 'content="4.4.43-r1"' in stable
+          assert version["version"]=="4.4.43" and version["build"]=="stable-4443-r1"
           print('OK: historical ERP transfer-close flow invariants preserved')
