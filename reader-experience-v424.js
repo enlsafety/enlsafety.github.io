@@ -169,6 +169,9 @@
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')setTimeout(schedule,80)});
   window.enlSafetyActionCounts=u=>safetyActionCounts(u||currentUser?.());
   window.enlRefreshSafetyActionBadges=()=>{const u=currentUser?.();if(roleNorm(u?.role)==='safety')return safetyActionBadges(u);return null};
+  // Paint current badges immediately as well as on the queued observer cycle.
+  // This avoids a first-frame gap on WebKit/PWA where requestAnimationFrame can be deferred.
+  try{refreshNav()}catch(e){}
   schedule();
   window.ENL_READER_EXPERIENCE_VERSION=VERSION;
 })();
