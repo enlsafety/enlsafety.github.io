@@ -14,7 +14,7 @@ const version=JSON.parse(read('version.json'));
 for(const bad of ['ackIncident411','열람확인','열람 확인 저장','readReceipts','readerStatusHtml(']) assert.ok(!incidents.includes(bad),bad);
 for(const bad of ['addAckSection(','recordView(','viewHistory(','사고보고 확인 기록','재발방지조치 확인 기록','최초 조회기록','readReceipts']) assert.ok(!flow.includes(bad),bad);
 for(const bad of ['readReceipts','receiptFor(','열람 확인이 필요한 종결사고']) assert.ok(!reader.includes(bad),bad);
-for(const x of ['4.4.43-safety-action-counts1','enl424-nav-count','safetyActionCounts','incidentApproval','ownApproval','prevention','enlRefreshSafetyActionBadges']) assert.ok(reader.includes(x),x);
+for(const x of ['4.4.45-two-stage-approval1','enl424-nav-count','safetyActionCounts','safetyOwnApprovalPending','closure_approval','incidentApproval','ownApproval','prevention','enlRefreshSafetyActionBadges']) assert.ok(reader.includes(x),x);
 assert.ok(reader.includes('enl424-nav-dot'),'simple confirmation red-dot behavior must remain');
 assert.ok(!stable.includes('reader-ack-ux-v423.js'));
 
@@ -27,21 +27,21 @@ assert.ok(workflow.includes("4.4.39-comment-empty1"));
 assert.ok(workflow.includes("target.innerHTML=list.length?list.map(c=>commentHtml(c,safety)).join(''):'<div class=\"wf412-empty\">-</div>'"));
 assert.ok(!workflow.includes('의견을 불러오지 못했습니다.'));
 
-for(const x of ['4.4.39-crisp-sign1','font-size:10.5px','text-rendering:geometricPrecision','-webkit-font-smoothing:antialiased']) assert.ok(approval.includes(x),x);
+for(const x of ['4.4.45-two-stage-approval1','closure_approval','1차 사고보고 결재','2차 종결결재','text-rendering:geometricPrecision','-webkit-font-smoothing:antialiased']) assert.ok(approval.includes(x),x);
 assert.ok(!approval.includes('enl448OwnPulse'));
 assert.ok(!approval.includes('transform:scale('));
 
 for(const asset of [
   'incidents-v410.js?v=4.4.39-r1&amp;fix=no-read-confirm1',
-  'reader-experience-v424.js?v=4.4.43-r1&amp;fix=safety-action-counts1',
+  'reader-experience-v424.js?v=4.4.45-r1&amp;fix=two-stage-approval1',
   'workflow-v412.js?v=4.4.39-r1&amp;fix=comment-empty1',
   'official-records-v439.js?v=4.4.39-r1&amp;fix=statutory-record1',
   'incident-flow-v440.js?v=4.4.39-r1&amp;fix=no-confirm-history1',
-  'management-approval-v448.js?v=4.4.39-r1&amp;fix=crisp-sign1'
+  'management-approval-v448.js?v=4.4.45-r1&amp;fix=two-stage-approval1'
 ]) assert.ok(stable.includes(asset),asset);
 
-assert.ok(stable.includes('content="4.4.44-r1"'));
-assert.ok(index.includes("const BUILD='4444-r1'"));
-assert.equal(version.version,'4.4.44');
-assert.equal(version.build,'stable-4444-r1');
+assert.ok(stable.includes('content="4.4.45-r1"'));
+assert.ok(index.includes("const BUILD='4445-r1'"));
+assert.equal(version.version,'4.4.45');
+assert.equal(version.build,'stable-4445-r1');
 console.log('PASS: approval-only UX, statutory record view, dash-only empty opinions and audit-button removal');
