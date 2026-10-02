@@ -56,8 +56,8 @@ for(const asset of [
   'management-approval-v448.js?v=4.4.39-r1&amp;fix=crisp-sign1'
 ]) assert.ok(stable.includes(asset),asset);
 
-assert.ok(stable.includes('content="4.4.40-r1"'));
-assert.ok(index.includes("const BUILD='4440-r1'"));
-assert.equal(version.version,'4.4.40');
-assert.equal(version.build,'stable-4440-r1');
+assert.ok(stable.includes('content="4.4.41-r1"'));
+assert.ok(index.includes("const BUILD='4441-r1'"));
+assert.equal(version.version,'4.4.41');
+assert.equal(version.build,'stable-4441-r1');
 console.log('PASS: recurrence-plan alert, HQ approval attention, optional opinion, own-sign highlight and stale test cleanup');

@@ -6,6 +6,7 @@ on:
     paths:
       - 'index.html'
       - 'core.js'
+      - 'admin.js'
       - 'version.json'
       - 'stable412.html'
       - 'auth-v411.js'
@@ -42,12 +43,14 @@ on:
       - 'sw-v418.js'
       - 'manifest.webmanifest'
       - 'required-fields-v453.js'
+      - 'supabase/migrations/20261002084500_suppress_safety_completion_notifications.sql'
       - '.github/workflows/v410-smoke.yml'
   pull_request:
     branches: [main]
     paths:
       - 'index.html'
       - 'core.js'
+      - 'admin.js'
       - 'version.json'
       - 'stable412.html'
       - 'auth-v411.js'
@@ -84,6 +87,7 @@ on:
       - 'sw-v418.js'
       - 'manifest.webmanifest'
       - 'required-fields-v453.js'
+      - 'supabase/migrations/20261002084500_suppress_safety_completion_notifications.sql'
       - '.github/workflows/v410-smoke.yml'
   workflow_dispatch:
 
@@ -98,7 +102,7 @@ jobs:
 
       - name: JavaScript syntax
         run: |
-          for f in core.js auth-v411.js notification-profile-v441.js login-layout-v412.js incidents-v410.js incident-sync-v411.js report-v410.js field-incidents-v411.js app-shell-v411.js reader-ui-v414.js incident-stats-v426.js reader-experience-v424.js workflow-v412.js incident-flow-v440.js workflow-lifecycle-v413.js workflow-prevention-v429.js incident-review-v431.js production-cleanup-v431.js workflow-enhancements-v432.js site-admin-v415.js site-admin-hotfix-v433.js personnel-management-v434.js legal-review-v435.js industrial-report-v436.js closed-incident-reopen-v438.js official-records-v439.js management-approval-v448.js incident-excel-v421.js pwa-push-v418.js push-session-v425.js hq-notification-status-v437.js required-fields-v453.js sw-v418.js; do
+          for f in core.js admin.js auth-v411.js notification-profile-v441.js login-layout-v412.js incidents-v410.js incident-sync-v411.js report-v410.js field-incidents-v411.js app-shell-v411.js reader-ui-v414.js incident-stats-v426.js reader-experience-v424.js workflow-v412.js incident-flow-v440.js workflow-lifecycle-v413.js workflow-prevention-v429.js incident-review-v431.js production-cleanup-v431.js workflow-enhancements-v432.js site-admin-v415.js site-admin-hotfix-v433.js personnel-management-v434.js legal-review-v435.js industrial-report-v436.js closed-incident-reopen-v438.js official-records-v439.js management-approval-v448.js incident-excel-v421.js pwa-push-v418.js push-session-v425.js hq-notification-status-v437.js required-fields-v453.js sw-v418.js; do
             node --check "$f"
           done
 
@@ -111,16 +115,16 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-4440-r1',meta
+          assert meta.get('build')=='stable-4441-r1',meta
           assert meta.get('stableEntry')=='stable412.html',meta
-          assert meta.get('version')=='4.4.40' and meta.get('currentStableVersion')=='4.4.40',meta
+          assert meta.get('version')=='4.4.41' and meta.get('currentStableVersion')=='4.4.41',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='4440-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4440-r1',"/sw-v418.js?v=4.4.32-startup-cache1"]: assert x in index,x
+          for x in ["const BUILD='4441-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4441-r1',"/sw-v418.js?v=4.4.32-startup-cache1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.4.40-r1',
+            'enl-build" content="4.4.41-r1',
             'incident-sync-v411.js?v=4.4.34-r1&amp;fix=proof-reuse1',
             'workflow-prevention-v429.js?v=4.4.40-r1&amp;fix=prevention-autodraft1',
             'workflow-lifecycle-v413.js?v=4.4.14-r1&amp;fix=historical-transfer1',
@@ -144,6 +148,7 @@ jobs:
           for x in required: assert x in html,x
           assert 'session-refresh-v412.js?v=4.4.34-r1&amp;fix=proof-reuse1' in html
           assert 'core.js?v=4.4.35-r1&amp;fix=attachment-preview1' in html
+          assert 'admin.js?v=4.4.41-r1&amp;fix=modal-drag1' in html
           assert 'auth-v411.js?v=4.4.38-r1&amp;fix=hq-cache-prune1' in html
           assert 'login-layout-v412.js?v=4.2.7-r1&amp;fix=guide-removed1' in html
           assert 'workflow-v412.js?v=4.4.39-r1&amp;fix=comment-empty1' in html
@@ -217,6 +222,12 @@ jobs:
           assert "검토대기 단계 상세 열람은 긴급사고에 한해" not in ps
           assert "!['approved','closed'].includes(status)&&!urgent(i)" not in ps
           assert 'site-admin-v415.js?v=4.4.29-r1&amp;fix=required1' in html
+          admin_js=Path('admin.js').read_text(encoding='utf-8')
+          for x in ['pointerdown','pointerup','pointercancel','Math.hypot','backdropPress']: assert x in admin_js,x
+          assert ".modal-bg').onclick" not in admin_js
+          notification_policy=Path('supabase/migrations/20261002084500_suppress_safety_completion_notifications.sql').read_text(encoding='utf-8')
+          for x in ["incident_approved","action_approved","incident_closed","h.role = 'safety'","return;"]: assert x in notification_policy,x
+          for x in ["incident_new","incident_resubmitted","incident_supplement_submitted","action_submitted"]: assert x not in notification_policy,x
           profile=Path('notification-profile-v441.js').read_text(encoding='utf-8')
           for x in ['profile_get','profile_update','긴급사고는 앱 푸시·이메일 OFF 설정과 관계없이 강제 수신됩니다.','4.4.7-notification-profile2']: assert x in profile,x
           assert 'enl-email-v441' not in profile and 'emailFlush' not in profile
