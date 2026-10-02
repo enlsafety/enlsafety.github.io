@@ -2,7 +2,7 @@
 (function(){
   'use strict';
 
-  const VERSION='4.4.32-startup-defer1';
+  const VERSION='4.4.44-mobile-action-date1';
   const MANAGER_POSITIONS=['현장소장','파트장','서무'];
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   const txt=v=>String(v??'').trim();
@@ -21,6 +21,19 @@
   let lastSmartPull=0;
   let patchQueued=false;
   let dashboardBooted=false;
+
+  function ensureActionLayoutCss(){
+    if(document.getElementById('prev432ActionLayoutCss'))return;
+    const s=document.createElement('style');s.id='prev432ActionLayoutCss';s.textContent=`
+      #prev429FieldForm{min-width:0;max-width:100%}
+      #prev429FieldForm .prev432-completed-label{display:grid;min-width:0;width:100%;max-width:100%;box-sizing:border-box;overflow:hidden}
+      #prev429FieldForm #prev432CompletedDate{display:block;width:100%;min-width:0;max-width:100%;box-sizing:border-box}
+      @media(max-width:560px){
+        #prev429FieldForm .prev432-completed-label{grid-column:1/-1}
+        #prev429FieldForm #prev432CompletedDate{font-size:16px}
+      }
+    `;document.head.appendChild(s);
+  }
 
   function subjectOf(i){
     if(!i)return '미입력';
@@ -117,6 +130,7 @@
   }
 
   function patchFieldActionForm(){
+    ensureActionLayoutCss();
     const form=document.getElementById('prev429FieldForm');
     if(!form)return;
     const u=currentUser?.();
