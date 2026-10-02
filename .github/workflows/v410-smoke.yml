@@ -150,7 +150,7 @@ jobs:
           for x in required: assert x in html,x
           assert 'session-refresh-v412.js?v=4.4.34-r1&amp;fix=proof-reuse1' in html
           assert 'core.js?v=4.4.35-r1&amp;fix=attachment-preview1' in html
-          assert 'admin.js?v=4.4.42-r1&amp;fix=modal-drag1' in html
+          assert 'admin.js?v=4.4.41-r1&amp;fix=modal-drag1' in html
           assert 'auth-v411.js?v=4.4.38-r1&amp;fix=hq-cache-prune1' in html
           assert 'login-layout-v412.js?v=4.2.7-r1&amp;fix=guide-removed1' in html
           assert 'workflow-v412.js?v=4.4.39-r1&amp;fix=comment-empty1' in html
