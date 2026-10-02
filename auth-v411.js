@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.1.1 - authoritative authentication */
 (function(){
   'use strict';
-  const VERSION='4.4.38-hq-cache-prune1';
+  const VERSION='4.4.44-single-affiliation-auto1';
   const LOGIN_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-login-v411';
   const CLIENT='incident-report-v2';
   const MANAGER_POSITIONS=['현장소장','파트장','서무'];
@@ -50,7 +50,7 @@
     lookupOptions=Array.isArray(options)?options:[];const wrap=document.getElementById('loginAff411');if(!wrap)return;
     if(!lookupOptions.length){wrap.hidden=true;return}
     const siteIds=[...new Set(lookupOptions.filter(o=>o?.kind==='site'&&o?.siteId).map(o=>String(o.siteId)))];
-    const duplicateSiteName=siteIds.length>1;
+    const duplicateSiteName=lookupOptions.length>1||siteIds.length>1;
     wrap.hidden=false;wrap.innerHTML=`<details class="login411-aff${duplicateSiteName?' login411-aff-duplicate':''}" open><summary><span class="login411-summary-label">소속 선택</span><span class="login411-summary-arrow">⌄</span></summary>${duplicateSiteName?'<div class="login411-duplicate-warning" role="alert">동명이인이 있습니다. 본인 사업장을 꼭 확인해 선택해 주세요.</div>':''}<div class="login411-list">${lookupOptions.map((o,i)=>`<button type="button" class="login411-aff-btn" data-login411-aff="${i}"><span><b>${ex(o.affiliationLabel||'-')}</b><small>${ex(o.position||o.roleLabel||'')}${o.kind==='hq'?` · ${ex(o.roleLabel||roleName(o.role))}`:o.requiresPassword?' · 비밀번호 필요':''}</small></span><span>›</span></button>`).join('')}</div></details>`;
     wrap.querySelectorAll('[data-login411-aff]').forEach(b=>b.onclick=()=>choose(Number(b.dataset.login411Aff)));
     return duplicateSiteName;
@@ -60,7 +60,7 @@
     if(!name){status('이름을 입력하면 소속이 표시됩니다.');return}
     if(!force&&name.length<2){status('이름을 조금 더 입력해 주세요.');return}
     status('등록된 소속을 확인하고 있습니다…');
-    try{const r=await api({action:'lookup',name});if(seq!==lookupSeq)return;const opts=r.options||[];if(!opts.length){status('등록된 이름을 찾지 못했습니다.','err');return}const duplicateSiteName=renderOptions(opts);status(duplicateSiteName?'동명이인이 있습니다. 빨간 테두리 안에서 본인 사업장을 꼭 확인해 주세요.':'소속사업장을 선택해 주세요.',duplicateSiteName?'warn':'ok')}
+    try{const r=await api({action:'lookup',name});if(seq!==lookupSeq)return;const opts=r.options||[];if(!opts.length){status('등록된 이름을 찾지 못했습니다.','err');return}const duplicateSiteName=renderOptions(opts);if(!duplicateSiteName&&opts.length===1){status('소속을 자동으로 선택했습니다.','ok');await choose(0);return}status('동명이인이 있습니다. 빨간 테두리 안에서 본인 사업장을 꼭 확인해 주세요.','warn')}
     catch(e){if(seq===lookupSeq)status('소속 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.','err')}
   }
   function bindLogin(){const n=document.getElementById('loginName411');if(!n||n.dataset.bound==='1')return;n.dataset.bound='1';n.addEventListener('input',()=>{clearTimeout(lookupTimer);clearChoice();status('이름 확인 중…');lookupTimer=setTimeout(()=>lookup(false),350)});n.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();clearTimeout(lookupTimer);lookup(true)}})}
@@ -92,7 +92,7 @@
   function markAffiliationSelected(o){const details=document.querySelector('#loginAff411 details.login411-aff');if(!details||!o)return;const label=String(o.affiliationLabel||siteLabel(o.siteId)||'소속사업장');details.dataset.selectedLabel411=label;details.classList.add('login411-aff-selected');const summaryLabel=details.querySelector('.login411-summary-label');if(summaryLabel)summaryLabel.textContent=label;details.open=false}
   async function choose(index){const o=lookupOptions[index],name=document.getElementById('loginName411')?.value.trim()||'';if(!o||!name)return;selected=o;markAffiliationSelected(o);if(o.kind==='hq'||o.requiresPassword){renderPassword(o);return}await loginSite(o,'')}
   function focusPassword(){const input=document.getElementById('loginPassword411');if(!input)return;try{input.focus({preventScroll:false})}catch(e){try{input.focus()}catch(_){}}try{const n=input.value.length;input.setSelectionRange(n,n)}catch(e){}}
-  function renderPassword(o){const box=document.getElementById('loginPwWrap411');if(!box)return;status('비밀번호를 입력하세요.','ok');box.hidden=false;box.innerHTML=`<form id="loginPwForm411" class="login411-pw"><div class="login411-selected">${ex(o.affiliationLabel||'-')} · ${ex(o.position||o.roleLabel||'')}</div><label><span>비밀번호</span><input id="loginPassword411" type="password" inputmode="numeric" autocomplete="current-password" enterkeyhint="go" placeholder="${o.kind==='site'?'휴대폰 뒷 4자리':'비밀번호'}" required autofocus></label><button id="loginSubmit411" class="login411-submit" type="submit">로그인</button></form>`;document.getElementById('loginPwForm411').onsubmit=loginPassword;focusPassword();requestAnimationFrame(()=>{if(document.activeElement!==document.getElementById('loginPassword411'))focusPassword()})}
+  function renderPassword(o){const box=document.getElementById('loginPwWrap411');if(!box)return;status('비밀번호를 입력하세요.','ok');box.hidden=false;box.innerHTML=`<form id="loginPwForm411" class="login411-pw"><div class="login411-selected">${ex(o.affiliationLabel||'-')} · ${ex(o.position||o.roleLabel||'')}</div><label><span>비밀번호</span><input id="loginPassword411" type="password" inputmode="numeric" autocomplete="current-password" enterkeyhint="go" placeholder="${o.kind==='site'?'휴대폰 뒷 4자리':'비밀번호'}" required autofocus></label><button id="loginSubmit411" class="login411-submit" type="submit">로그인</button></form>`;document.getElementById('loginPwForm411').onsubmit=loginPassword;focusPassword();requestAnimationFrame(()=>{if(document.activeElement!==document.getElementById('loginPassword411'))focusPassword()});setTimeout(()=>{if(document.activeElement!==document.getElementById('loginPassword411'))focusPassword()},40)}
   function mergeHq(user,passwordHash=''){
     if(!user?.id||!user?.name)return null;if(!Array.isArray(data.users))data.users=[];
     const role=roleNorm(user.role);
