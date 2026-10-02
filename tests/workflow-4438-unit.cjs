@@ -24,7 +24,9 @@ for(const x of [
   "4.4.43-safety-action-counts1",
   "preventionPlanMissing",
   "enlRefreshSafetyActionBadges",
-  "기존 계획대기 전용 숫자/강조는 제거",
+  "existing=btn.querySelector('.prev429-nav-alert')",
+  "btn.classList.remove('prev429-nav-attention')",
+  "window.enlRefreshSafetyActionBadges?.()",
   "재발방지 관리"
 ]) assert.ok(prevention.includes(x),x);
 
