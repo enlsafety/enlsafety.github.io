@@ -45,9 +45,9 @@ jobs:
             "c.status='approved'",
             "save('in_progress')",
             "approve&&text(approve.textContent)!=='사고 접수완료'",
-            "prev429-nav-alert",
-            "prev429-nav-attention",
             "preventionPlanMissing",
+            "enlRefreshSafetyActionBadges",
+            "기존 계획대기 전용 숫자/강조는 제거",
           ]
           for x in required:
             assert x in js, x
