@@ -35,12 +35,15 @@ async function run(engine){
     await page.addScriptTag({content:fs.readFileSync('field-incidents-v411.js','utf8')});
 
     await page.evaluate(()=>window.enlRenderFieldHome(document.getElementById('view'),window.__u));
-    assert.equal(await page.locator('.field-six-new').textContent(),'1');
+    assert.equal(await page.locator('.field-six-new').textContent(),'2');
     const homeAlert=await page.locator('.field-six-alert').innerText();
     assert.ok(homeAlert.includes('사고보고 보완요청 1건'));
+    assert.ok(homeAlert.includes('재발방지조치 작성·보완 1건'));
     assert.ok(!homeAlert.includes('안전관리자가 보완을 요청'), 'home alert must not contain the removed helper sentence');
     assert.equal(await page.locator('.field-six-alert span').count(),0,'home alert helper span must be removed');
-    assert.ok((await page.locator('[data-field-task="records"]').innerText()).includes('보완요청 1건'));
+    assert.ok((await page.locator('[data-field-task="records"]').innerText()).includes('확인·작성 필요 2건'));
+    assert.ok((await page.locator('[data-field-task="accident_action"]').innerText()).includes('재발방지조치'));
+    assert.ok((await page.locator('[data-field-task="accident_action"]').innerText()).includes('재발방지계획 이행내용 등록'));
     if(await page.locator('[data-field-notification-setup]').count()){
       await page.locator('[data-field-notification-setup]').click();
       assert.equal(await page.evaluate(()=>window.__notify),true);
@@ -55,7 +58,9 @@ async function run(engine){
     assert.ok(!/요청했어|하면 돼|해야 해|등록했어|승인됐어|기록이야|완료했어|기다리면 돼/.test(supplementText));
     assert.ok((await page.locator('[data-field-group="supplement"]').innerText()).includes('보완자료 작성하기'));
     assert.ok((await page.locator('[data-field-group="approved"]').innerText()).includes('재발방지계획'));
-    assert.ok((await page.locator('[data-field-group="action"]').innerText()).includes('사고 조치 작성하기'));
+    assert.ok((await page.locator('[data-field-group="action"]').innerText()).includes('재발방지조치 작성하기'));
+    assert.ok((await page.locator('[data-field-group="action"]').innerText()).includes('재발방지조치 작성이 필요합니다'));
+    assert.ok(!(await page.locator('[data-field-group="action"]').innerText()).includes('사고 조치 작성하기'));
     assert.ok((await page.locator('[data-field-group="closed"]').innerText()).includes('종결이 완료되었습니다'));
     await page.locator('[data-field-supplement="inc-supp"]').click();
     assert.equal(await page.evaluate(()=>window.__supplement),'inc-supp');
@@ -63,8 +68,15 @@ async function run(engine){
     assert.equal(await page.evaluate(()=>window.__action),'inc-action');
 
     await page.evaluate(()=>{data.incidents.find(i=>i.id==='inc-supp').status='supplement_submitted';window.enlRenderFieldHome(document.getElementById('view'),window.__u)});
+    assert.equal(await page.locator('.field-six-new').textContent(),'1');
+    assert.ok((await page.locator('.field-six-alert').innerText()).includes('재발방지조치 작성·보완 1건'));
+    assert.equal(await page.evaluate(()=>window.enlFieldPreventionActionCount(window.__u)),1);
+    assert.equal(await page.evaluate(()=>window.enlFieldAttentionCount(window.__u)),1);
+
+    await page.evaluate(()=>{data.incidents.find(i=>i.id==='inc-action').corrective.status='submitted';window.enlRenderFieldHome(document.getElementById('view'),window.__u)});
     assert.equal(await page.locator('.field-six-new').count(),0);
-    console.log('PASS:',engine.name(),'field supplement badge, guided record groups and direct task buttons');
+    assert.equal(await page.evaluate(()=>window.enlFieldAttentionCount(window.__u)),0);
+    console.log('PASS:',engine.name(),'field supplement + prevention attention badge, guided record groups and prevention terminology');
   }finally{await browser.close()}
 }
 (async()=>{for(const engine of [chromium,webkit])await run(engine)})().catch(e=>{console.error(e);process.exit(1)});
