@@ -16,6 +16,7 @@ on:
       - 'required-fields-v453.js'
       - 'report-v410.js'
       - 'core.js'
+      - 'admin.js'
       - 'incidents-v410.js'
       - 'incident-flow-v440.js'
       - 'push-session-v425.js'
@@ -41,6 +42,7 @@ on:
       - 'tests/workflow-4438-unit.cjs'
       - 'tests/workflow-4439-unit.cjs'
       - 'tests/attention-workflow-browser.cjs'
+      - 'tests/modal-backdrop-drag-browser.cjs'
       - 'site-admin-v415.js'
       - 'tests/site-admin*'
       - 'edge-functions/enl-incident-sync/index.ts'
@@ -67,6 +69,7 @@ on:
       - 'required-fields-v453.js'
       - 'report-v410.js'
       - 'core.js'
+      - 'admin.js'
       - 'incidents-v410.js'
       - 'incident-flow-v440.js'
       - 'push-session-v425.js'
@@ -92,6 +95,7 @@ on:
       - 'tests/workflow-4438-unit.cjs'
       - 'tests/workflow-4439-unit.cjs'
       - 'tests/attention-workflow-browser.cjs'
+      - 'tests/modal-backdrop-drag-browser.cjs'
       - 'site-admin-v415.js'
       - 'tests/site-admin*'
       - 'edge-functions/enl-incident-sync/index.ts'
@@ -113,6 +117,7 @@ jobs:
         run: |
           node --check site-dashboard-v450.js
           node --check core.js
+          node --check admin.js
           node --check report-v410.js
           node --check incidents-v410.js
           node --check incident-flow-v440.js
@@ -186,6 +191,7 @@ jobs:
           node tests/attachment-preview-browser.cjs
           node tests/field-supplement-hub-browser.cjs
           node tests/attention-workflow-browser.cjs
+          node tests/modal-backdrop-drag-browser.cjs
           node tests/startup-cache-browser.cjs
           node tests/site-admin-browser.cjs
       - uses: actions/upload-artifact@v4
