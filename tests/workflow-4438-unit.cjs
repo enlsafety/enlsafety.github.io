@@ -47,10 +47,10 @@ assert.ok(approval.includes("list.map(function(x){return Object.assign({},local.
 assert.ok(!approval.includes("var m=new Map(localRoster().map"));
 
 for(const x of ["4.4.38-test-hq-cleanup1","테스트 경영진","테스트 관리자","테스트 안전관리자","acknowledgements","readReceipts"]) assert.ok(cleanup.includes(x),x);
-for(const x of ["4.4.38-hq-cache-prune1","remote=Array.isArray(r.users)?r.users:[]","ids.has(String(v.id||''))"]) assert.ok(auth.includes(x),x);
+for(const x of ["4.4.44-single-affiliation-auto1","remote=Array.isArray(r.users)?r.users:[]","ids.has(String(v.id||''))"]) assert.ok(auth.includes(x),x);
 
 for(const asset of [
-  'auth-v411.js?v=4.4.38-r1&amp;fix=hq-cache-prune1',
+  'auth-v411.js?v=4.4.44-r1&amp;fix=single-affiliation-auto1',
   'app-shell-v411.js?v=4.4.38-r1&amp;fix=hq-attention1',
   'workflow-v412.js?v=4.4.39-r1&amp;fix=comment-empty1',
   'workflow-prevention-v429.js?v=4.4.43-r1&amp;fix=safety-action-counts1',
@@ -58,8 +58,8 @@ for(const asset of [
   'management-approval-v448.js?v=4.4.39-r1&amp;fix=crisp-sign1'
 ]) assert.ok(stable.includes(asset),asset);
 
-assert.ok(stable.includes('content="4.4.43-r1"'));
-assert.ok(index.includes("const BUILD='4443-r1'"));
-assert.equal(version.version,'4.4.43');
-assert.equal(version.build,'stable-4443-r1');
+assert.ok(stable.includes('content="4.4.44-r1"'));
+assert.ok(index.includes("const BUILD='4444-r1'"));
+assert.equal(version.version,'4.4.44');
+assert.equal(version.build,'stable-4444-r1');
 console.log('PASS: unified safety action badge wiring, HQ approval attention, optional opinion, own-sign highlight and stale test cleanup');
