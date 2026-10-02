@@ -117,16 +117,16 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-4444-r1',meta
+          assert meta.get('build')=='stable-4445-r1',meta
           assert meta.get('stableEntry')=='stable412.html',meta
-          assert meta.get('version')=='4.4.44' and meta.get('currentStableVersion')=='4.4.44',meta
+          assert meta.get('version')=='4.4.45' and meta.get('currentStableVersion')=='4.4.45',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='4444-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4444-r1',"/sw-v418.js?v=4.4.32-startup-cache1"]: assert x in index,x
+          for x in ["const BUILD='4445-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4445-r1',"/sw-v418.js?v=4.4.32-startup-cache1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.4.44-r1',
+            'enl-build" content="4.4.45-r1',
             'incident-sync-v411.js?v=4.4.34-r1&amp;fix=proof-reuse1',
             'workflow-prevention-v429.js?v=4.4.43-r1&amp;fix=safety-action-counts1',
             'workflow-lifecycle-v413.js?v=4.4.14-r1&amp;fix=historical-transfer1',
@@ -142,9 +142,10 @@ jobs:
             'incidents-v410.js?v=4.4.39-r1&amp;fix=no-read-confirm1',
             'report-v410.js?v=4.4.35-r1&amp;fix=form-guidance1',
             'field-incidents-v411.js?v=4.4.44-r1&amp;fix=mobile-prevention1',
-            'app-shell-v411.js?v=4.4.38-r1&amp;fix=hq-attention1',
+            'app-shell-v411.js?v=4.4.45-r1&amp;fix=two-stage-approval1',
             'reader-ui-v414.js?v=4.4.37-r1&amp;fix=hq-dashboard1',
-            'reader-experience-v424.js?v=4.4.43-r1&amp;fix=safety-action-counts1',
+            'reader-experience-v424.js?v=4.4.45-r1&amp;fix=two-stage-approval1',
+            'management-approval-v448.js?v=4.4.45-r1&amp;fix=two-stage-approval1',
             'incident-flow-v440.js?v=4.4.39-r1&amp;fix=no-confirm-history1',
           ]
           for x in required: assert x in html,x
@@ -228,6 +229,8 @@ jobs:
           admin_js=Path('admin.js').read_text(encoding='utf-8')
           for x in ['pointerdown','pointerup','pointercancel','Math.hypot','backdropPress']: assert x in admin_js,x
           assert ".modal-bg').onclick" not in admin_js
+          edge_sync=Path('edge-functions/enl-incident-sync-v411/index.ts').read_text(encoding='utf-8')
+          for x in ['4.4.45-two-stage-approval1','closure_approval','first_approval_required','closure_not_available','approval_stage1','approval_stage2','1차 사고보고 결재','2차 사고종결 결재']: assert x in edge_sync,x
           notification_policy=Path('supabase/migrations/20261002084500_suppress_safety_completion_notifications.sql').read_text(encoding='utf-8')
           for x in ["incident_approved","action_approved","incident_closed","h.role = 'safety'","return;"]: assert x in notification_policy,x
           for x in ["incident_new","incident_resubmitted","incident_supplement_submitted","action_submitted"]: assert x not in notification_policy,x
@@ -310,7 +313,7 @@ jobs:
           ]: assert x in industrial_js,x
 
           reader_exp=Path('reader-experience-v424.js').read_text(encoding='utf-8')
-          for x in ['4.4.43-safety-action-counts1','enl424-nav-count','safetyActionCounts','incidentApproval','ownApproval','enlRefreshSafetyActionBadges','enl424-nav-dot']: assert x in reader_exp,x
+          for x in ['4.4.45-two-stage-approval1','enl424-nav-count','safetyActionCounts','safetyOwnApprovalPending','closure_approval','enlRefreshSafetyActionBadges','enl424-nav-dot']: assert x in reader_exp,x
           prevention=Path('workflow-prevention-v429.js').read_text(encoding='utf-8')
           for x in ['4.4.43-safety-action-counts1','preventionPlanMissing','enlRefreshSafetyActionBadges','재발방지조치 등록']: assert x in prevention,x
           for x in ['사고 접수완료','재발방지계획 등록','실제 실시한 재발방지조치','재발방지조치 확인완료']: assert x in prevention,x
@@ -324,10 +327,10 @@ jobs:
           for x in ['supplement_request','보완요청','supplement_submit','보완자료 제출','corrective_approve','재발방지조치 승인']: assert x in official,x
           assert '내용 확인기록' not in official
           approval=Path('management-approval-v448.js').read_text(encoding='utf-8')
-          for x in ["4.4.39-crisp-sign1","function signable(i)","st==='approved'||(st==='closed'&&act==='approved')",'aria-label="본인 결재하기"',"serverOk=true","font-size:10.5px","text-rendering:geometricPrecision"]: assert x in approval,x
+          for x in ["4.4.45-two-stage-approval1","function signable(i)","stageAction(i,u)","closure_approval","1차 사고보고 결재","2차 종결결재","data-enl448-sign=","serverOk=true","text-rendering:geometricPrecision"]: assert x in approval,x
           assert 'enl448OwnPulse' not in approval and 'transform:scale(' not in approval
           shell=Path('app-shell-v411.js').read_text(encoding='utf-8')
-          for x in ["4.4.38-hq-attention1","즉시보고·보완 진행중","enlRenderHqHome=renderSafetyHome","승인완료 사고 결재가 필요합니다.","결재하러 가기","재발방지계획 수립대기"]: assert x in shell,x
+          for x in ["4.4.45-two-stage-approval1","즉시보고·보완 진행중","enlRenderHqHome=renderSafetyHome","approvalPendingTasks","1차 사고보고 결재","2차 종결결재","결재하러 가기","재발방지계획 수립대기"]: assert x in shell,x
           assert 'window.ENL_DEPLOY_VERSION' in shell and '이앤엘 사고보고앱 v4.1.1' not in shell
           session_js=Path('session-refresh-v412.js').read_text(encoding='utf-8')
           for x in ['4.4.34-proof-reuse1','envelope(v,at,true)','envelope(v,at,false)','mergeLocalProof']: assert x in session_js,x
