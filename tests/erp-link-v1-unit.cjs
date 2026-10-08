@@ -51,3 +51,14 @@ test('No summary generated for non-final or historical records',()=>{
   assert.equal(m.summary({...closed,status:'approved'},'A 골프장'),'');
   assert.equal(m.summary({...closed,recordMode:'historical_transfer'},'A 골프장'),'');
 });
+test('Draft title identifies the case without injured name or medical details',()=>{
+  const title=m.title(closed,'테스트 골프장');
+  assert.equal(title,'[종결사고 보고] 테스트 골프장 | 2026-10-07 | inc-2026-101');
+  assert.ok(!title.includes(closed.injuredName));
+  assert.ok(!title.includes(closed.reportDetails.diagnosis));
+});
+test('Draft title cannot export nonfinal or historical cases and stays one line',()=>{
+  assert.equal(m.title({...closed,status:'reported'},'가상 현장'),'');
+  assert.equal(m.title({...closed,recordMode:'historical_transfer'},'가상 현장'),'');
+  assert.ok(!/[\r\n\t]/.test(m.title({...closed,id:'QA\nTEST'},'테스트\n현장')));
+});

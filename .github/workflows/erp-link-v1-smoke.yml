@@ -7,6 +7,7 @@ on:
       - 'sql/erp-link-schema-v1.sql'
       - 'tests/erp-link-v1-unit.cjs'
       - 'tests/erp-link-v1-edge.cjs'
+      - 'tests/erp-link-v1-gate.cjs'
       - '.github/workflows/erp-link-v1-smoke.yml'
       - 'stable412.html'
   workflow_dispatch:
@@ -28,3 +29,5 @@ jobs:
         run: node --test tests/erp-link-v1-unit.cjs
       - name: Edge function contract tests (mock database)
         run: node --test tests/erp-link-v1-edge.cjs
+      - name: Feature isolation (no network)
+        run: node --test tests/erp-link-v1-gate.cjs

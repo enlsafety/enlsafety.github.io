@@ -31,6 +31,13 @@
     return s;
   }
   function validStatus(value) { return STATUSES.includes(text(value)); }
+  function oneLine(value) { return text(value).replace(/[\x00-\x1f\x7f]/g, ' ').replace(/\s+/g, ' '); }
+  function title(incident, siteLabel) {
+    if (!finalized(incident)) return '';
+    return '[종결사고 보고] ' + (oneLine(siteLabel) || oneLine(incident.siteId) || '-')
+      + ' | ' + (oneLine(incident.occurredAt).slice(0, 10) || '-')
+      + ' | ' + oneLine(incident.id);
+  }
   function summary(incident, siteLabel) {
     if (!incident || !finalized(incident)) return '';
     var location = text(siteLabel) || text(incident.siteId) || '-';
@@ -48,5 +55,5 @@
     ].join('\n');
   }
   return Object.freeze({ STATUSES: STATUSES, historical: historical, finalized: finalized,
-    canUse: canUse, documentNumber: documentNumber, validStatus: validStatus, summary: summary });
+    canUse: canUse, documentNumber: documentNumber, validStatus: validStatus, title: title, summary: summary });
 });
