@@ -6,6 +6,7 @@ on:
       - 'edge-functions/enl-erp-link-v1/**'
       - 'sql/erp-link-schema-v1.sql'
       - 'tests/erp-link-v1-unit.cjs'
+      - 'tests/erp-link-v1-edge.cjs'
       - '.github/workflows/erp-link-v1-smoke.yml'
       - 'stable412.html'
   workflow_dispatch:
@@ -25,3 +26,5 @@ jobs:
           node --check erp-link-v1.js
       - name: Unit tests
         run: node --test tests/erp-link-v1-unit.cjs
+      - name: Edge function contract tests (mock database)
+        run: node --test tests/erp-link-v1-edge.cjs
