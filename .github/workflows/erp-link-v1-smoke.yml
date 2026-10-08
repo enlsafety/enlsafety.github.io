@@ -1,0 +1,27 @@
+name: ERP handoff v1 checks
+on:
+  pull_request:
+    paths:
+      - 'erp-link-*'
+      - 'edge-functions/enl-erp-link-v1/**'
+      - 'sql/erp-link-schema-v1.sql'
+      - 'tests/erp-link-v1-unit.cjs'
+      - '.github/workflows/erp-link-v1-smoke.yml'
+      - 'stable412.html'
+  workflow_dispatch:
+jobs:
+  erp-link-unit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check
+        run: |
+          node --check erp-link-model-v1.js
+          node --check erp-link-v1.js
+      - name: Unit tests
+        run: node --test tests/erp-link-v1-unit.cjs
