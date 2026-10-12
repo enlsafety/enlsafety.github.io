@@ -58,6 +58,8 @@ jobs:
         run: |
           node tests/historical-bulk-ui-browser.cjs
           node tests/historical-bulk-simple-auto-browser.cjs
+          node tests/historical-bulk-upload-stop-browser.cjs
+          node tests/historical-bulk-ocr-reuse-browser.cjs
           node tests/historical-bulk-document-browser.cjs
           node tests/historical-bulk-general-entry-browser.cjs
           node tests/historical-bulk-startup-browser.cjs
