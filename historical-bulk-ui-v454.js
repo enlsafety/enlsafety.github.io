@@ -120,10 +120,10 @@ function bind(){const node=root();if(!node)return;const on=(selector,fn)=>node.q
  if(waiting)node.querySelectorAll('button:not([data-b-stop]),input:not(#b-files),select,textarea').forEach(x=>x.disabled=true);
 }
 function render(){if(!open||!root())return;if(!user()||clean(user().id||user().personnelId)!==ownerId){open=false;forget();return}style();const c=selected?cands().find(x=>x.id===selected):null;root().innerHTML=c?detailMarkup(c):listMarkup();bind()}
-async function run(work){if(waiting)return;waiting=true;failure='';message='';const snapshot=selected?collect():null;render();try{await work()}catch(e){failure=errorText(e)}finally{waiting=false;task='';render();if(snapshot&&dirty&&snapshot.candidateId===selected){root()?.querySelectorAll('[data-b-field]').forEach(el=>{if(Object.prototype.hasOwnProperty.call(snapshot.values,el.dataset.bField))el.value=snapshot.values[el.dataset.bField]});const reason=root()?.querySelector('#b-reason');if(reason)reason.value=snapshot.reason;const resolve=root()?.querySelector('#b-resolve');if(resolve)resolve.checked=snapshot.resolveIssues}}}
+async function run(work){if(waiting)return;waiting=true;failure='';message='';const snapshot=selected?collect():null;render();try{await work()}catch(e){failure=errorText(e)}finally{const wasLoading=task==='load';waiting=false;task='';render();if(wasLoading&&quickPending.length&&!advanced)queueQuickFiles([]);if(snapshot&&dirty&&snapshot.candidateId===selected){root()?.querySelectorAll('[data-b-field]').forEach(el=>{if(Object.prototype.hasOwnProperty.call(snapshot.values,el.dataset.bField))el.value=snapshot.values[el.dataset.bField]});const reason=root()?.querySelector('#b-reason');if(reason)reason.value=snapshot.reason;const resolve=root()?.querySelector('#b-resolve');if(resolve)resolve.checked=snapshot.resolveIssues}}}
 async function getBatch(next=id){const out=await call('get',{batchId:next});id=next;state=out.batch;files=out.files||[];history=out.history||[];incidents=out.incidents||[];const summary=recent.find(x=>x.id===id);if(summary)summary.count=cands().length;remember()}
 async function recentBatches(){const out=await call('list');recent=out.batches||[]}
-async function load(){await run(async()=>{const opts=await call('options');sites=opts.sites||[];await recentBatches();if(id){try{await getBatch()}catch(e){id='';remember();throw e}}})}
+async function load(){await run(async()=>{task='load';const opts=await call('options');sites=opts.sites||[];await recentBatches();if(id){try{await getBatch()}catch(e){id='';remember();throw e}}})}
 
 async function prepareQuickBatch(){
  if(!quickConsent){
@@ -146,7 +146,7 @@ async function autoCommitStrict(){
  let ok=0,reviewed=0,failed=0;const failures=[];
  task='commit';
  for(const item of selectedReady){
-  if(stopRequested||quickPending.length)break;
+  if(stopRequested)break;
   message='ERP 기결재 근거를 확인한 정상 사고를 자동등록 중이야. '+(ok+reviewed+failed+1)+' / '+selectedReady.length;render();
   try{
    const c=cands().find(x=>x.id===item.id);
@@ -160,7 +160,7 @@ async function autoCommitStrict(){
  return {ok,reviewed,failed,failures};
 }
 function queueQuickFiles(next){
- const fresh=[...next].filter(f=>f&&f.size>0);if(!fresh.length)return;
+ const fresh=[...next].filter(f=>f&&f.size>0);if(!fresh.length&&!quickPending.length)return;
  quickPending.push(...fresh);
  if(waiting){message='추가 파일 '+quickPending.length+'개가 대기 중이야.';render();return}
  run(async()=>{
