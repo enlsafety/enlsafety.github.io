@@ -43,7 +43,7 @@ async function run(engine){
   assert.ok((await page.locator('h2').first().innerText()).includes('과거사고 자동분석'));
   await page.locator('#b-confirm').check();
   await page.locator('[data-b-new]').click();
-  await page.waitForSelector('#b-files');
+  await page.waitForSelector('#b-files',{state:'attached'});
   await page.locator('#b-files').setInputFiles({name:'historical.csv',mimeType:'text/csv',buffer:Buffer.from(fixture,'utf8')});
   await page.waitForFunction(()=>window.__sv.files.length===1);
   assert.equal(await page.evaluate(()=>window.__sv.files[0].method),'text');
