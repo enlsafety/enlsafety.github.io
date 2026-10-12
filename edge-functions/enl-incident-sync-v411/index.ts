@@ -117,7 +117,7 @@ function readerIncident(i:any){
 function publicSummary(i:any){
   const d=i?.reportDetails||{},hist=isHistoricalTransfer(i),hm=historicalMeta(i),c=i?.corrective||{},actionApproved=clean(c.status)==="approved",names=[i?.injuredName,i?.reporterName,i?.approvedBy,c?.ownerName,c?.submittedBy,c?.reviewedBy],place=redact(d.place||i?.place||"",names),work=redact(d.workAction||"",names),how=redact(d.incidentHow||"",names),type=redact(i?.eventType||"사고",names);
   let overview=[place?`${place}에서`:"",work?`${work} 중`:"",how].filter(Boolean).join(" ");
-  if(!overview)overview=isBulkImported(i)?`${type} 관련 ERP 기결재 과거사고 이관자료입니다.`:hist?`${type} 관련 과거사고 이관자료입니다.`:`${type} 관련 사고가 발생하여 안전관리자가 검토·승인하였습니다.`;
+  if(!overview)overview=legacyUnverified(i)?`${type} 관련 과거사고 이관자료이며 기존 결재근거는 확인되지 않았습니다.`:isBulkImported(i)?`${type} 관련 ERP 기결재 과거사고 이관자료입니다.`:hist?`${type} 관련 과거사고 이관자료입니다.`:`${type} 관련 사고가 발생하여 안전관리자가 검토·승인하였습니다.`;
   if(hist){
     const ev=hm.existingActionEvidence==="confirmed"?"확인됨":hm.existingActionEvidence==="partial"?"일부 확인":"확인자료 없음";
     const follow=hm.followType==="site_check"?"현장 확인 필요":hm.followType==="improvement"?"신규 개선조치 필요":"추가조치 없음";
