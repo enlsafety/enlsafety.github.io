@@ -1,6 +1,9 @@
 -- Add ERP-unverifiable historical accident registration without declaring prior approval.
 -- Preserve existing verified imports and all other incident/approval protections.
--- Only the bulk lifecycle function changes; no production accident rows are mutated.
+-- Existing batch rows remain untouched. New batches acknowledge historical source material,
+-- not an imaginary ERP approval for pre-ERP/unverifiable records.
+alter table private.enl_historical_batches add column if not exists historical_material_confirmed_at timestamptz;
+alter table private.enl_historical_batches alter column erp_confirmed_at drop not null;
 create or replace function private.enl_bulk_lifecycle_guard()
 returns trigger language plpgsql set search_path = '' as $body$
 declare
