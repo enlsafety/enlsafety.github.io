@@ -59,7 +59,9 @@ async function run(engine){
   await page.locator('#b-reason').fill('원본 사고경위서에 기재된 부위를 대조하고 표현을 정정함');
   page.once('dialog',async d=>await d.accept());
   await page.locator('[data-b-commit]').click();
-  await page.waitForFunction(()=>window.__sv.batch.candidates[0].state==='success');
+  await page.waitForFunction(()=>window.__sv.batch.candidates[0].state==='success'||!!document.querySelector('.error454'),null,{timeout:9000});
+  const debug=await page.evaluate(()=>({status:window.__sv.batch.candidates[0].state,errors:document.querySelector('.error454')?.textContent||'',issues:window.__sv.batch.candidates[0].validation||[],calls:window.__sv.calls}));
+  assert.equal(debug.status,'success',JSON.stringify(debug));
   assert.equal(await page.evaluate(()=>window.__sv.batch.candidates[0].values.incidentHow),'낫에 왼쪽 검지 베임');
   assert.equal(await page.evaluate(()=>window.__sv.batch.candidates[0].incidentId),'qa-record');
   assert.equal(await page.locator('.count454 b').first().textContent(),'1');
