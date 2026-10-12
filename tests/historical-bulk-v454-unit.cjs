@@ -32,7 +32,7 @@ assert.ok(core.validate(uncertain[0],sites).some(x=>x.code==='missing'));
 const migration=read('supabase/migrations/20261012102000_historical_bulk_private_storage.sql');
 for(const token of ['create schema if not exists private','revoke all on schema private','enl_historical_batches','enl_historical_files','enl_historical_import_audit','storage.buckets',"false,12582912"])assert.ok(migration.includes(token),token);
 const server=read('edge-functions/enl-historical-bulk-v454/index.ts');
-for(const x of ['private.enl_historical_batches','public.enl_incident_shared','final_confirmation_required','revision_conflict','batch_limit_250_incidents','source_upload_failed','auth_safety_required','set_config('])assert.ok(server.includes(x),x);
+for(const x of ['private.enl_historical_batches','public.enl_incident_shared','final_confirmation_required','manual_review_required','revision_conflict','batch_limit_250_incidents','source_upload_failed','auth_safety_required','set_config('])assert.ok(server.includes(x),x);
 assert.ok(!server.includes('historical_bulk_qa.'),'must not use prior QA schema');
 assert.ok(server.includes("const ORIGIN='https://enlsafety.github.io'"));
 const page=read('stable412.html');
