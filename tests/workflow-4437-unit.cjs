@@ -38,6 +38,6 @@ for(const asset of [
   'incident-flow-v440.js?v=4.4.39-r1&amp;fix=no-confirm-history1',
   'management-approval-v448.js?v=4.4.39-r1&amp;fix=crisp-sign1'
 ]) assert.ok(stable.includes(asset),asset);
-assert.equal(version.version,'4.5.4');
-assert.equal(version.build,'stable-454-r2');
+assert.equal(version.version,'4.5.5');
+assert.equal(version.build,'stable-455-r1');
 console.log('PASS: formal field copy, supplement highlight, finalized-only approval and unified HQ dashboard wiring');
