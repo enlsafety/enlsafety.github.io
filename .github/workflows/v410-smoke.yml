@@ -122,7 +122,7 @@ jobs:
           assert meta.get('version')=='4.5.5' and meta.get('currentStableVersion')=='4.5.5',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='455-r2'",'beforeinstallprompt','stable412.html?entry=root&build=455-r2',"/sw-v418.js?v=4.5.5-bulkcancel2"]: assert x in index,x
+          for x in ["const BUILD='455-r2'",'beforeinstallprompt','stable412.html?entry=root&build=455-r2',"/sw-v418.js?v=4.5.5-uploadfix1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
@@ -238,7 +238,7 @@ jobs:
           sw=Path('sw-v418.js').read_text(encoding='utf-8')
           assert 'data-pm434-hq-edit' in hq and 'data-pm434-hq-pw' in hq
           assert 'PUSH_CONFIRM_API' in sw and "action:'ack_test_token'" in sw and "action:'confirm',title:'확인'" in sw
-          for x in ["4.5.5-bulkcancel2","PRECACHE","fetchWithTimeout","cache.match(req)","stable412.html?offline=1"]: assert x in sw,x
+          for x in ["4.5.5-uploadfix1","PRECACHE","fetchWithTimeout","cache.match(req)","stable412.html?offline=1"]: assert x in sw,x
           assert "status==='confirmed'" in hq and '수신 확인' in hq
           assert html.index('personnel-management-v434.js') < html.index('hq-notification-status-v437.js')
 
