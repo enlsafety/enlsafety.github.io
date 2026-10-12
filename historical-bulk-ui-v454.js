@@ -190,6 +190,29 @@ function bind(){const node=root();if(!node)return;const on=(selector,fn)=>node.q
   });
  });
  const drop=node.querySelector('#b-drop'),file=node.querySelector('#b-files');if(drop&&file){drop.onclick=()=>file.click();drop.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();file.click()}};file.onchange=e=>{const list=[...e.target.files];file.value='';if(advanced){stopRequested=false;run(()=>upload(list))}else queueQuickFiles(list)};drop.ondragover=e=>{e.preventDefault();if(!waiting)drop.classList.add('over')};drop.ondragleave=e=>{e.preventDefault();drop.classList.remove('over')};drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');if(advanced){if(!waiting){stopRequested=false;run(()=>upload([...e.dataTransfer.files]))}}else queueQuickFiles([...e.dataTransfer.files])}}
+ const legacyChoice=node.querySelector('#b-legacy-mode');
+ if(legacyChoice){
+  const applyLegacy=()=>{
+   const chosen=!!legacyChoice.value,details=node.querySelector('#b-legacy-extra');
+   if(details)details.hidden=!chosen;
+   for(const field of ['erpRef','erpDate','erpStatus']){
+    const el=node.querySelector('[data-b-field="'+field+'"]');
+    if(!el||el.dataset.legacyLocked==='1')continue;
+    if(chosen){
+     if(el.dataset.oldErpValue===undefined)el.dataset.oldErpValue=el.value;
+     el.value='';el.disabled=true;
+    }else{
+     if(el.dataset.oldErpValue!==undefined){el.value=el.dataset.oldErpValue;delete el.dataset.oldErpValue;}
+     el.disabled=false;
+    }
+   }
+  };
+  legacyChoice.onchange=()=>{applyLegacy();dirty=true;};
+  if(legacyChoice.value)applyLegacy();
+ }
+ const legacyReason=node.querySelector('#b-legacy-reason'),legacyConfirm=node.querySelector('#b-legacy-confirm');
+ if(legacyReason)legacyReason.addEventListener('input',()=>dirty=true);
+ if(legacyConfirm)legacyConfirm.addEventListener('change',()=>dirty=true);
  const siteSelect=node.querySelector('[data-b-field="siteId"]');if(siteSelect)siteSelect.onchange=()=>{const site=sites.find(s=>(s.site_id||s.id)===siteSelect.value),name=node.querySelector('[data-b-field="siteName"]');if(name)name.value=site?.site_name||site?.name||'';dirty=true};
  const attach=node.querySelector('#b-attach');if(attach)attach.onchange=e=>{const list=[...e.target.files],target=selected;attach.value='';if(!leaveDetail())return;dirty=false;stopRequested=false;run(()=>upload(list,target))};
  node.querySelectorAll('[data-b-field],#b-reason,#b-resolve').forEach(el=>el.addEventListener('input',()=>dirty=true));node.querySelectorAll('[data-b-filter]').forEach(el=>el.onchange=()=>{filters[el.dataset.bFilter]=el.value;render()});on('[data-b-filter-clear]',()=>{filters={query:'',status:'',category:'',site:'',from:'',to:''};render()});
