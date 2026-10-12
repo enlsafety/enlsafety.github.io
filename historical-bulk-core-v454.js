@@ -152,8 +152,7 @@ function parseUnits(file){
    continue;
   }
   lines(unit.text,location);
-  if(currentMethod==='ocr')recoverOcrForm(unit);
-  lastKey='';
+  if(currentMethod==='ocr'){recoverOcrForm(unit);lastKey='';}
  }
  finish();
  if(!segments.length)segments.push({...emptySegment(file.id),issues:[{code:'unstructured',message:'사고 단위와 항목을 식별하지 못했습니다. 원문을 확인하고 사고별 필수항목을 보완해 주세요.'}]});
