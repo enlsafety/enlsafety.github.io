@@ -68,7 +68,12 @@ async function run(engine){
   const calls=await page.evaluate(()=>window.__sv.calls);
   for(const act of ['options','list','create','upload','get','analyze','save','commit'])assert.ok(calls.includes(act),act);
   await page.locator('[data-b-export]').click();
-  await page.locator('[data-b-back]').click();
+  // Switching accounts clears private import drafts and source references.
+  await page.evaluate(()=>{
+    window.__u={id:'other-safety',name:'다른 안전관리자',role:'safety',passwordHash:'other-test'};
+    window.renderShell(window.__u);
+  });
+  assert.equal(await page.locator('.bulk454').count(),0,'previous-user import must not remain visible');
   await page.waitForSelector('[data-bulk-v454]');
   // Non-safety users must not receive the import UI entry.
   await page.evaluate(()=>{window.__u={id:'qa-field',name:'현장소장',role:'field'};window.renderShell(window.__u)});
