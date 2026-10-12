@@ -1,0 +1,31 @@
+'use strict';
+const assert=require('node:assert/strict');
+const Core=require('../historical-bulk-core-v454.js');
+const sites=[{site_id:'s1',site_name:'QA 골프장'}];
+const keys=['사업장명','사고일','사고구분','사고유형','사고정도','사고장소','당시작업','사고경위','당시조치','파손물품','파손내용','ERP문서번호','ERP결재일','ERP결재상태'];
+const base=['QA 골프장','2025-05-10','대물','충돌','경미','관리동','장비운반','운반 중 기물 충돌','작업 중단','장비','장비 파손','','',''];
+const create=values=>Core.analyze([{id:'qa-source',method:'text',units:[{location:'가상자료',rows:[keys,values]}]}],sites)[0];
+for(const mode of ['pre_erp','pre_employment']){
+ const c=create(base);
+ assert.ok(Core.validate(c,sites).some(x=>x.code==='erp'));
+ Object.assign(c.values,{legacyApprovalMode:mode,legacyApprovalReason:'ERP 도입 또는 입사 전 결재자료를 현재 조회할 수 없어 번호와 승인근거를 확인할 수 없음.',legacyApprovalConfirmed:'confirmed'});
+ assert.ok(Core.validate(c,sites).some(x=>x.code==='legacy_audit'));
+ for(const field of ['legacyApprovalMode','legacyApprovalReason','legacyApprovalConfirmed'])c.corrections.push({field,actorId:'qa-safety',reason:'원본 대조',at:'2026-10-12T00:00:00Z'});
+ assert.equal(Core.validate(c,sites).length,0);
+ const p=Core.makeIncident(c,'batch',{id:'qa-safety'},'2026-10-12T00:00:00Z','incident');
+ assert.equal(p.status,'reported');assert.equal(p.approvedAt,null);
+ assert.equal(p.externalInitialApproval.state,'unverifiable');
+ assert.equal(p.externalInitialApproval.documentNo,null);
+ assert.equal(p.externalInitialApproval.basis,mode);
+ assert.equal(p.reportWorkflow.initialApprovalSource,'HISTORICAL_UNVERIFIABLE');
+ assert.equal(p.officialRecord.approval,undefined);
+ assert.equal(Core.valuesFromIncident(p,{}).legacyApprovalMode,mode);
+ c.values.erpStatus='결재완료';
+ assert.ok(Core.validate(c,sites).some(x=>x.code==='legacy_conflict'));
+}
+const known=create([...base.slice(0,11),'ERP-001','2025-05-12','결재완료']);
+assert.equal(known.state,'ready');
+const v=Core.makeIncident(known,'batch',{id:'qa-safety'},'2026-10-12T00:00:00Z','incident');
+assert.equal(v.externalInitialApproval.state,'verified');
+assert.equal(v.status,'approved');
+console.log('PASS historical ERP-unverifiable manual exception, no fabricated approvals, and prior verified flow');
