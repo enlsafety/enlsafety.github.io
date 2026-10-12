@@ -14,6 +14,7 @@ const roleNorm=(v:any)=>clean(v)==="final"?"manager":clean(v);
 const parsePayload=(v:any)=>{if(v&&typeof v==="object")return v;if(typeof v==="string"){try{return JSON.parse(v)}catch{return null}}return null};
 function isBulkImported(i:any){return !!(clean(i?.historicalOrigin?.batchId)&&clean(i?.historicalOrigin?.candidateId)&&["verified","unverifiable"].includes(i?.externalInitialApproval?.state))}
 function bulkInactive(i:any){return isBulkImported(i)&&i?.bulkInvalidation?.active===true}
+function legacyUnverified(i:any){return isBulkImported(i)&&i.externalInitialApproval?.state==='unverifiable'}
 const versionOf=(v:any)=>{const n=Number(v);return Number.isFinite(n)&&n>=0?Math.trunc(n):0;};
 function actorFrom(body:any){const a=body?.actor||{};return {id:clean(a.id),name:clean(a.name)||"사용자",role:roleNorm(a.role||body?.role),position:clean(a.position),siteId:clean(a.siteId||body?.siteId)};}
 async function verifyActor(sql:any,body:any,strong=false){
