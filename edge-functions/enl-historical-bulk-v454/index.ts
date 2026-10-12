@@ -10,9 +10,9 @@ const uuid=(v:any)=>/^[0-9a-f-]{36}$/i.test(clean(v));
 const hash=async(bytes:Uint8Array)=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(v=>v.toString(16).padStart(2,'0')).join('');
 const store=()=>createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!).storage.from(BUCKET);
 function fail(message:string){throw Error(message)}
-async function actor(sql:any,b:any){const rows=await sql`select user_id,name,role,active,password_hash from private.enl_hq_users where user_id=${clean(b.actor?.id)} limit 1`;const u=rows[0];if(!u||!u.active||u.role!=='safety'||!clean(u.password_hash)||clean(b.actorPasswordHash)!==u.password_hash)fail('auth_safety_required');return {id:u.user_id,name:u.name,role:u.role};}
+async function actor(sql:any,b:any){const rows=await sql`select user_id,name,role,active,password_hash from public.enl_hq_users where user_id=${clean(b.actor?.id)} limit 1`;const u=rows[0];if(!u||!u.active||u.role!=='safety'||!clean(u.password_hash)||clean(b.actorPasswordHash)!==u.password_hash)fail('auth_safety_required');return {id:u.user_id,name:u.name,role:u.role};}
 async function batch(sql:any,id:string,ownerId=''){const r=await sql`select * from private.enl_historical_batches where id=${id}`;if(!r[0])fail('batch_not_found');if(ownerId&&r[0].owner_id!==ownerId)fail('batch_owner_required');return r[0]}
-const sites=async(sql:any)=>await sql`select site_id,site_name,active,start_date,contract_end_date from private.enl_site_master order by site_name`;
+const sites=async(sql:any)=>await sql`select site_id,site_name,active,start_date,contract_end_date from public.enl_site_master order by site_name`;
 const audit=async(t:any,a:any,bat:string,action:string,detail:any)=>t`insert into private.enl_historical_import_audit(batch_id,actor_id,action,detail) values(${bat},${a.id},${action},${t.json(detail)}::jsonb)`;
 async function withBatch(sql:any,id:string,fn:any,ownerId=''){return sql.begin(async(t:any)=>{await t`select pg_advisory_xact_lock(hashtextextended(${id},0))`;const row=await batch(t,id,ownerId);return fn(t,row)})}
 Deno.serve(async(req:Request)=>{
@@ -60,15 +60,15 @@ Deno.serve(async(req:Request)=>{
     if(c.revision!==b.revision)fail('revision_conflict');const ss=await sites(t);c.validation=Core.validate(c,ss);
     const site=ss.find((s:any)=>s.site_id===c.values.siteId);if(site&&((site.start_date&&c.values.occurredDate<site.start_date)||(site.contract_end_date&&c.values.occurredDate>site.contract_end_date)))c.validation.push({code:'contract',message:'발생일이 사업장 계약기간 밖입니다. 사업장 및 발생일을 재확인해 주세요.'});
     if(!c.sources.length)fail('source_required');const fs=await t`select file_id,hash from private.enl_historical_files where batch_id=${b.batchId}`;if(c.sources.some((id:string)=>!fs.some((f:any)=>f.file_id===id)))fail('source_missing');
-    const all=await t`select incident_id,payload from private.enl_incident_shared where site_id=${c.values.siteId} or payload->'externalInitialApproval'->>'documentNo'=${c.values.erpRef||'--none--'} or payload->'historicalOrigin'->>'recordNo'=${c.values.recordNo||'--none--'}`;
+    const all=await t`select incident_id,payload from public.enl_incident_shared where site_id=${c.values.siteId} or payload->'externalInitialApproval'->>'documentNo'=${c.values.erpRef||'--none--'} or payload->'historicalOrigin'->>'recordNo'=${c.values.recordNo||'--none--'}`;
     const dup=all.filter((x:any)=>{const p=x.payload,v=c.values;return(v.recordNo&&(p.historicalOrigin?.recordNo===v.recordNo||x.incident_id===v.recordNo))||(v.erpRef&&[p.externalInitialApproval?.documentNo,p.historicalImport?.erpApprovalRef,p.historicalTransfer?.erpReference].includes(v.erpRef))||(p.siteId===v.siteId&&String(p.occurredDate||p.occurredAt).slice(0,10)===v.occurredDate&&(Core.norm(p.summary)===Core.norm(v.incidentHow)||Core.norm(p.reportDetails?.injuryDetail||p.reportDetails?.damageDetail)===Core.norm(v.injuryDetail||v.damageDetail)))||(p.historicalOrigin?.sourceFileIds?.some((id:string)=>c.sources.includes(id))&&p.historicalOrigin?.candidateId===c.id);});
     if(dup.length)c.validation.push({code:'duplicate',message:'기존 사고와 사고번호·ERP 문서번호·발생일/피해내용 또는 원본이 일치합니다. 등록을 보류합니다.',incidentIds:dup.map((x:any)=>x.incident_id)});
     if(c.validation.length){c.state='review';await t`update private.enl_historical_batches set candidates=${t.json(cs)}::jsonb,updated_at=now() where id=${b.batchId}`;return c;}
     const at=new Date().toISOString(),id=crypto.randomUUID(),incident=Core.makeIncident(c,b.batchId,a,at,id);
     await t`select set_config('enl.bulk_actor',${JSON.stringify(a)},true)`;
     await t`select set_config('enl.actor',${JSON.stringify({id:a.id,role:'safety'})},true)`;
-    const saved=await t`insert into private.enl_incident_shared(incident_id,site_id,payload,created_at,updated_at) values(${id},${incident.siteId},${t.json(incident)}::jsonb,${at},${at}) returning payload`;
-    await t`insert into private.enl_incident_audit(incident_id,site_id,action,editor_id,editor_name,editor_role,editor_position,changed_at,before_payload,after_payload) values(${id},${incident.siteId},'external_erp_initial_approval_verified',${a.id},${a.name},'safety','',${at},null,${t.json(saved[0].payload)}::jsonb)`;
+    const saved=await t`insert into public.enl_incident_shared(incident_id,site_id,payload,created_at,updated_at) values(${id},${incident.siteId},${t.json(incident)}::jsonb,${at},${at}) returning payload`;
+    await t`insert into public.enl_incident_audit(incident_id,site_id,action,editor_id,editor_name,editor_role,editor_position,changed_at,before_payload,after_payload) values(${id},${incident.siteId},'external_erp_initial_approval_verified',${a.id},${a.name},'safety','',${at},null,${t.json(saved[0].payload)}::jsonb)`;
     c.state='success';c.incidentId=id;c.registeredAt=at;c.error=null;c.revision++;await t`update private.enl_historical_batches set candidates=${t.json(cs)}::jsonb,updated_at=now() where id=${b.batchId}`;await audit(t,a,b.batchId,'registered',{candidateId:c.id,incidentId:id});return c;
    });return json({ok:true,candidate:out});
   }
