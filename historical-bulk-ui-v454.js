@@ -157,7 +157,13 @@ function detailMarkup(c){const val=activeValues(c),labels=core.labels||{},all=co
  else out+='<div class="row454"><button class="main454" data-b-update>수정·보완 저장</button><button class="warn454" data-b-void '+(locked?'disabled':'')+'>잘못 등록한 사고 무효처리</button></div><div class="panel454"><h3>후속자료·증빙 추가</h3><p>이 사고에 연결할 원본을 선택해 줘. 첨부한 자료는 자동 재분석하지 않으며 확인된 내용은 위 항목에 보완해.</p><input id="b-attach" type="file" multiple aria-label="등록 사고 후속증빙 첨부" accept=".pdf,.xlsx,.xls,.csv,.docx,.hwpx,.jpg,.jpeg,.png,.webp"></div>';
  out+='</div>'+progressMarkup()+historyMarkup(c);return shell(out)}
 function leaveDetail(){return !dirty||confirm('저장하지 않은 입력내용이 있어. 저장하지 않고 이동할까?')}
-function bind(){const node=root();if(!node)return;const on=(selector,fn)=>node.querySelector(selector)?.addEventListener('click',fn);on('[data-b-advanced]',()=>{if(waiting||!leaveDetail())return;advanced=!advanced;render()});
+function bind(){const node=root();if(!node)return;const on=(selector,fn)=>node.querySelector(selector)?.addEventListener('click',fn);on('[data-b-advanced]',()=>{if(waiting||!leaveDetail())return;advanced=!advanced;render()});node.querySelectorAll('[data-b-jump]').forEach(b=>b.addEventListener('click',()=>{
+  const key=b.dataset.bJump;
+  const el=key==='legacyApprovalMode'?node.querySelector('#b-legacy-mode'):node.querySelector('[data-b-field="'+key+'"]');
+  if(!el)return;
+  const details=el.closest('details');if(details)details.open=true;
+  el.scrollIntoView({block:'center',behavior:'smooth'});el.focus({preventScroll:true});
+ }));
  on('[data-b-back]',()=>{if(waiting||!leaveDetail())return;open=false;selected='';dirty=false;currentView='report';renderShell(user())});on('[data-b-list]',()=>{if(waiting||!leaveDetail())return;selected='';dirty=false;render()});
  on('[data-b-quick-retry]',()=>run(async()=>{if(!id||!files.length)throw Error('저장된 파일이 없어. 먼저 파일을 올려 줘.');if(!quickConsent){if(!confirm('과거사고 원본자료를 확인했어? ERP 결재 증빙이 확실한 사고만 자동등록하고, ERP 확인불가 건은 안전관리자 검토로 남길까?'))return;quickConsent=true;}task='analyze';message='기존 저장 파일을 분석 중이야.';render();await call('analyze',{batchId:id});await getBatch();const result=await autoCommitStrict();await recentBatches();message='기존 파일 자동처리 완료 · 등록 '+result.ok+'건 · 검토 대기 '+cands().filter(c=>!registered(c)&&c.state!=='excluded').length+'건.';failure=result.failures.join('\n')}));
  on('[data-b-new]',()=>{const confirmed=!!node.querySelector('#b-confirm')?.checked;run(async()=>{if(!confirmed)throw Error('ERP 기결재 자료라는 사실을 확인해야 해.');const newId=crypto.randomUUID();await call('create',{batchId:newId,historicalConfirmed:true});id=newId;selected='';queue=[];filters={query:'',status:'',category:'',site:'',from:'',to:''};await getBatch();await recentBatches();message='배치를 만들었어. 파일을 올려 줘.'})});
