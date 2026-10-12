@@ -64,6 +64,13 @@
   function workflow(i){
     if(!i)return {};
     i.reportWorkflow=i.reportWorkflow&&typeof i.reportWorkflow==='object'?i.reportWorkflow:{};
+    if(i?.historicalOrigin?.batchId&&i?.externalInitialApproval?.state==='verified'){
+      const s=String(i.status||'');i.reportWorkflow.initialApprovalSource='ERP';
+      i.reportWorkflow.phase=s==='closed'?'closed':s==='approved'?'report_approved':s;
+      // Historical migration is not a late immediate report; do not fabricate SLA or internal approvals.
+      delete i.reportWorkflow.immediateDelayMinutes;delete i.reportWorkflow.internalSla;
+      return i.reportWorkflow;
+    }
     if(!i.reportWorkflow.immediateReportedAt)i.reportWorkflow.immediateReportedAt=i.registeredAt||i.createdAt||now();
     if(!i.reportWorkflow.internalSla)i.reportWorkflow.internalSla='사고 인지 후 30분 이내 또는 현장 이탈 전 즉시보고';
     const occurred=Date.parse(i.occurredAt||''),created=Date.parse(i.reportWorkflow.immediateReportedAt||'');
