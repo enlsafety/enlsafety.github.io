@@ -95,7 +95,7 @@
       ['사업장',site(i.siteId)],['근로자 인적사항',worker||'-'],['재해 발생 일시',occurrenceText(i)],['재해 발생 장소',d.place||'-'],
       ['재해 발생 원인 및 과정',[cause,process].filter(Boolean).join('\n')||'-'],['재해 재발방지 계획',c.planDetail||d.preventionPlan||'-']
     ];
-    if(isBulkImported(i))rows.push(['최초 사고보고 결재',`ERP 기결재 / ${i.externalInitialApproval.documentNo||'확인자료 참조'} / ${i.externalInitialApproval.approvalDate||'결재일 미기재'}`]);
+    if(isBulkImported(i))rows.push(i.externalInitialApproval?.state==='unverifiable'?['기존 결재 확인상태',`미검증 · ${i.externalInitialApproval.basis==='pre_erp'?'ERP 도입 전':'입사 전 결재자료 조회 불가'} / ${i.externalInitialApproval.reason||''}`]:['최초 사고보고 결재',`ERP 기결재 / ${i.externalInitialApproval.documentNo||'확인자료 참조'} / ${i.externalInitialApproval.approvalDate||'결재일 미기재'}`]);
     const w=window.open('','_blank','noopener,noreferrer,width=900,height=900');if(!w)return alert('팝업이 차단되어 PDF 출력창을 열지 못했습니다.');
     const title='사고기록_'+String(i.id||'').replace(/[^a-zA-Z0-9가-힣_-]/g,'_');
     w.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${esc(title)}</title><style>
