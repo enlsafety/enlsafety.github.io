@@ -59,7 +59,12 @@ async function validateCandidate(t:any,c:any,ss:any,excludeId=''){
  }
  const fs=await t`select file_id from private.enl_historical_files where batch_id=${c.batchId}`;
  if(!c.sources?.length||c.sources.some((id:string)=>!fs.some((f:any)=>f.file_id===id)))issues.push({code:'source',message:'등록할 사고의 비공개 원본 연결이 없습니다.'});
- const all=await t`select incident_id,payload from public.enl_incident_shared where incident_id<>${excludeId} and coalesce(payload->'bulkInvalidation'->>'active','false')<>'true' and (site_id=${c.values.siteId} or payload->'historicalOrigin'->>'recordNo'=${c.values.recordNo||'--none--'})`;
+ // OCR and unstructured files often have no matched site yet. Missing identifiers
+ // mean 'needs manual review', not an undefined postgres.js bind that fails the batch.
+ // Search for duplicates only against known site/record identifiers.
+ const siteId=clean(c.values?.siteId),recordNo=clean(c.values?.recordNo);
+ if(!siteId&&!recordNo)return issues;
+ const all=await t`select incident_id,payload from public.enl_incident_shared where incident_id<>${excludeId} and coalesce(payload->'bulkInvalidation'->>'active','false')<>'true' and ((${siteId}<>'' and site_id=${siteId}) or (${recordNo}<>'' and payload->'historicalOrigin'->>'recordNo'=${recordNo}))`;
  const dup=all.filter((x:any)=>{
   const p=x.payload,v=c.values;
   if(v.recordNo&&(p.historicalOrigin?.recordNo===v.recordNo||x.incident_id===v.recordNo))return true;
