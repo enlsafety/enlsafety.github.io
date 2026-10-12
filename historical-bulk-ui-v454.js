@@ -111,11 +111,13 @@ function bind(){
  const container=root();if(!container)return;
  container.querySelector('[data-b-back]')?.addEventListener('click',()=>{open=false;selected='';currentView='report';renderShell(user())});
  container.querySelector('[data-b-list]')?.addEventListener('click',()=>{selected='';render()});
- container.querySelector('[data-b-new]')?.addEventListener('click',()=>run(async()=>{
-  if(!root().querySelector('#b-confirm')?.checked)throw Error('ERP 기결재 자료라는 사실을 확인해야 해.');
+ container.querySelector('[data-b-new]')?.addEventListener('click',()=>{
+  const confirmed=!!root().querySelector('#b-confirm')?.checked;
+  run(async()=>{
+  if(!confirmed)throw Error('ERP 기결재 자료라는 사실을 확인해야 해.');
   id=crypto.randomUUID();await call('create',{batchId:id,erpConfirmed:true});await getBatch();message='배치를 만들었어. 파일을 올려줘.';
- }));
- container.querySelector('[data-b-history]')?.addEventListener('click',()=>run(async()=>{const val=clean(root().querySelector('#b-history')?.value);if(!val)throw Error('이전 작업을 선택해 줘.');id=val;await getBatch()}));
+ });});
+ container.querySelector('[data-b-history]')?.addEventListener('click',()=>{const val=clean(root().querySelector('#b-history')?.value);run(async()=>{if(!val)throw Error('이전 작업을 선택해 줘.');id=val;await getBatch()})});
  container.querySelector('[data-b-analyze]')?.addEventListener('click',()=>run(async()=>{await call('analyze',{batchId:id});await getBatch();message='사고별 자동분석 완료. 각 사고를 검토해 줘.'}));
  container.querySelector('[data-b-export]')?.addEventListener('click',exportCsv);
  container.querySelector('[data-b-commit-ready]')?.addEventListener('click',()=>run(bulkCommit));
