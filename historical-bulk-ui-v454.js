@@ -241,9 +241,53 @@ function queueQuickFiles(next){
  });
 }
 
-async function upload(list,candidateId='',resume=false,deferAnalysis=false){if(!id)throw Error('분석 배치를 먼저 만들어 줘.');if(!resume&&!list.length)return;if(!resume){queue=list.map(file=>({file,status:'pending',message:''}));uploadTarget=candidateId}task='upload';stopRequested=false;
- for(const item of queue){if(stopRequested)break;if(!['pending','error'].includes(item.status))continue;try{item.status='extracting';item.message='원본을 읽고 있어.';message='파일별 추출·저장 중이야. 완료된 파일은 서버에 보관돼.';render();const extracted=await extract.read(item.file,v=>{item.message=v;render()});const existing=files.find(f=>(f.file_id||f.hash)===extracted.id);const target=cands().find(c=>c.id===candidateId);if(existing&&(!candidateId||(target?.sources||[]).includes(existing.file_id))){item.status='skipped';item.message='동일 내용의 파일이 이미 연결돼 있어.';render();continue}item.status='uploading';item.message='비공개 원본 저장';render();await call('upload',{batchId:id,file:extracted,...(candidateId?{candidateId}: {})});await getBatch();item.status='saved';item.message='';}catch(e){item.status='error';item.message=errorText(e);try{await call('file_error',{batchId:id,name:item.file.name,message:item.message})}catch(_){}}render()}
- await getBatch();const saved=queue.filter(x=>x.status==='saved').length,failed=queue.filter(x=>x.status==='error').length,skipped=queue.filter(x=>x.status==='skipped').length;message=(stopRequested?'중단했어. ':'')+'저장 '+saved+'개 · 중복 건너뜀 '+skipped+'개 · 실패 '+failed+'개.'+(candidateId?' 사고에 증빙을 연결했어. 필요한 항목을 보완해 줘.':' 저장된 파일은 “사고별 자동분석”으로 처리해 줘.');if(failed)failure='실패한 파일의 사유를 확인해 줘. 다른 파일은 정상 저장됐어.';if(!candidateId&&saved&&!stopRequested&&!deferAnalysis&&!cands().some(c=>registered(c)||c.state==='excluded'||c.corrections?.length)){message='저장 '+saved+'개 · 중복 건너뜀 '+skipped+'개 · 사고별 자동분석 중이야.';render();await call('analyze',{batchId:id});await getBatch();message='자동분석 완료 · 파일 저장 '+saved+'개 · 중복 건너뜀 '+skipped+'개 · 파일 실패 '+failed+'개. 결과를 확인하고 정상 건을 일괄등록해 줘.'}}
+async function upload(list,candidateId='',resume=false,deferAnalysis=false){
+ if(!id)throw Error('분석 배치를 먼저 만들어 줘.');
+ if(!resume&&!list.length)return;
+ if(!resume){queue=list.map(file=>({file,status:'pending',message:''}));uploadTarget=candidateId}
+ task='upload';
+ for(const item of queue){
+  if(stopRequested)break;
+  if(!['pending','error'].includes(item.status))continue;
+  const ctl=new AbortController();activeFileController=ctl;
+  try{
+   item.status='extracting';item.message='파일 중복 확인 중';message='원본을 확인하는 중이야. 중단하면 현재 판독·전송도 취소돼.';render();
+   // Hash first: do not spend many minutes OCR-ing an already stored photo/PDF.
+   const digest=await extract.fingerprint(item.file,ctl.signal);
+   if(ctl.signal.aborted||stopRequested){item.status='pending';break;}
+   const existing=files.find(f=>(f.file_id||f.hash)===digest.hash),target=cands().find(c=>c.id===candidateId);
+   if(existing&&(!candidateId||(target?.sources||[]).includes(existing.file_id))){
+    item.status='skipped';item.message='같은 원본이 이미 저장돼 있어.';render();continue;
+   }
+   item.message='원문 추출 중';render();
+   const extracted=await extract.read(item.file,v=>{item.message=v;paintProgress()},{signal:ctl.signal});
+   if(ctl.signal.aborted||stopRequested){item.status='pending';break;}
+   item.status='uploading';item.message='서버로 전송 중';render();
+   await call('upload',{batchId:id,file:extracted,...(candidateId?{candidateId}:{})},{signal:ctl.signal});
+   if(ctl.signal.aborted||stopRequested){item.status='pending';item.message='서버 저장 여부 확인 필요';break;}
+   // The server is authoritative. Avoid a slow full batch download per file;
+   // refresh once per group, and always reconcile after cancellation.
+   if(!existing)files.push({file_id:extracted.id,hash:extracted.hash,name:extracted.name,size:extracted.size,method:extracted.method});
+   item.status='saved';item.message='';
+  }catch(e){
+   if(stopRequested||ctl.signal.aborted){item.status='pending';item.message='중단됨 · 저장 여부 확인 후 재개할 수 있어.';break;}
+   item.status='error';item.message=errorText(e);
+   try{await call('file_error',{batchId:id,name:item.file.name,message:item.message})}catch(_){}
+  }finally{if(activeFileController===ctl)activeFileController=null;render();}
+ }
+ // Canceled HTTP uploads can finish on the server despite client abort.
+ // Re-read server state so resuming by fingerprint remains safe.
+ await getBatch();
+ const saved=queue.filter(x=>x.status==='saved').length,failed=queue.filter(x=>x.status==='error').length,skipped=queue.filter(x=>x.status==='skipped').length;
+ message=(stopRequested?'중단 완료 · ':'')+'저장 '+saved+'개 · 중복 건너뜀 '+skipped+'개 · 실패 '+failed+'개.';
+ if(stopRequested){message+=' 남은 파일은 이어하기로 처리해 줘.';return;}
+ if(failed)failure='실패한 파일의 사유를 확인해 줘. 다른 파일은 정상 저장됐어.';
+ if(!candidateId&&saved&&!deferAnalysis&&!cands().some(c=>registered(c)||c.state==='excluded'||c.corrections?.length)){
+  task='analyze';message='원본을 저장했어. 사고별 자동분석 중이야.';render();
+  await call('analyze',{batchId:id});await getBatch();
+  message='분석 완료 · 파일 저장 '+saved+'개 · 중복 건너뜀 '+skipped+'개 · 실패 '+failed+'개.';
+ }
+}
 function collect(){const node=root(),values={};node?.querySelectorAll('[data-b-field]').forEach(x=>values[x.dataset.bField]=clean(x.value));return {candidateId:selected,reason:clean(node?.querySelector('#b-reason')?.value),resolveIssues:!!node?.querySelector('#b-resolve')?.checked,values}}
 async function save(x){if(!x.reason)throw Error('수정·확인 근거를 작성해 줘.');const c=cands().find(c=>c.id===x.candidateId);if(!c)throw Error('사고를 찾지 못했어.');const out=await call('save',{batchId:id,candidateId:c.id,revision:c.revision,values:x.values,reason:x.reason,resolveIssues:x.resolveIssues});await getBatch();dirty=false;return out.candidate||cands().find(y=>y.id===c.id)}
 async function mutate(action,x,notice){if(!x.reason)throw Error('수정·처리 사유를 입력해 줘.');const c=cands().find(c=>c.id===x.candidateId);if(!c)throw Error('사고를 찾지 못했어.');const payload={batchId:id,candidateId:c.id,revision:c.revision,reason:x.reason};if(registered(c))payload.incidentVersion=c.incidentVersion;if(action==='update_incident')payload.values=x.values;await call(action,payload);await getBatch();dirty=false;message=notice;if(registered(c))try{await window.enlIncidentPullNow?.()}catch(_){message+=' 일반 사고목록은 새로고침하면 최신 상태가 반영돼.'}}
