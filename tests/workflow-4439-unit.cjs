@@ -40,8 +40,8 @@ for(const asset of [
   'management-approval-v448.js?v=4.4.39-r1&amp;fix=crisp-sign1'
 ]) assert.ok(stable.includes(asset),asset);
 
-assert.ok(stable.includes('content="4.5.4-r2"'));
-assert.ok(index.includes("const BUILD='454-r2'"));
-assert.equal(version.version,'4.5.4');
-assert.equal(version.build,'stable-454-r2');
+assert.ok(stable.includes('content="4.5.5-r1"'));
+assert.ok(index.includes("const BUILD='455-r1'"));
+assert.equal(version.version,'4.5.5');
+assert.equal(version.build,'stable-455-r1');
 console.log('PASS: approval-only UX, statutory record view, dash-only empty opinions and audit-button removal');
