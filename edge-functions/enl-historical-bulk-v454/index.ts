@@ -25,6 +25,7 @@ Deno.serve(async(req:Request)=>{
   if(b.action==='options')return json({ok:true,sites:await sites(sql),method:'local-structured-extraction-and-ocr',paidAI:false});
   if(b.action==='list'){const rows=await sql`select id,created_at,updated_at,candidates,file_errors from private.enl_historical_batches where owner_id=${a.id} order by updated_at desc limit 30`;return json({ok:true,batches:rows})}
   if(!uuid(b.batchId))fail('invalid_batch_id');
+  if(b.action!=='create')await batch(sql,b.batchId,a.id); // All reads/writes are owner-scoped.
   if(b.action==='create'){if(b.erpConfirmed!==true)fail('erp_confirmation_required');await sql`insert into private.enl_historical_batches(id,owner_id,erp_confirmed_at) values(${b.batchId},${a.id},now()) on conflict(id) do nothing`;return json({ok:true,batch:await batch(sql,b.batchId,a.id)})}
   if(b.action==='get'){const row=await batch(sql,b.batchId,a.id),files=await sql`select file_id,name,hash,method,units,size from private.enl_historical_files where batch_id=${b.batchId}`;return json({ok:true,batch:row,files})}
   if(b.action==='file_error'){await withBatch(sql,b.batchId,async(t:any,r:any)=>{const errors=[...r.file_errors.filter((e:any)=>e.name!==clean(b.name)),{name:clean(b.name).slice(0,160),message:clean(b.message).slice(0,300)}];await t`update private.enl_historical_batches set file_errors=${t.json(errors)}::jsonb,updated_at=now() where id=${b.batchId}`;});return json({ok:true})}
