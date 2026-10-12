@@ -16,7 +16,7 @@ const clean=(v:any)=>String(v??"").trim();
 const roleNorm=(v:any)=>clean(v)==="final"?"manager":clean(v);
 const parsePayload=(v:any)=>{if(v&&typeof v==="object")return v;if(typeof v==="string"){try{return JSON.parse(v)}catch{return null}}return null};
 
-function isBulkImported(i:any){return !!(clean(i?.historicalOrigin?.batchId)&&clean(i?.historicalOrigin?.candidateId)&&i?.externalInitialApproval?.state==="verified")}
+function isBulkImported(i:any){return !!(clean(i?.historicalOrigin?.batchId)&&clean(i?.historicalOrigin?.candidateId)&&["verified","unverifiable"].includes(i?.externalInitialApproval?.state))}
 
 function actorFrom(body:any){
   const a=body?.actor||{};
