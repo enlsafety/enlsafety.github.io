@@ -29,7 +29,7 @@ async function run(engine){
     if(x.action==='analyze'){db.batch.candidates=window.ENLHistoricalBulk.analyze(db.files,db.sites);return ok({candidates:db.batch.candidates})}
     if(x.action==='save'){const c=db.batch.candidates.find(c=>c.id===x.candidateId);if(c.revision!==x.revision)return new Response(JSON.stringify({ok:false,message:'revision_conflict'}),{status:409});
      c.values={...c.values,...x.values};c.corrections.push({field:'review',reason:x.reason});c.revision++;c.validation=window.ENLHistoricalBulk.validate(c,db.sites);return ok({candidate:c})}
-    if(x.action==='commit'){const c=db.batch.candidates.find(c=>c.id===x.candidateId);assert.equal(x.finalConfirmed,true);c.validation=window.ENLHistoricalBulk.validate(c,db.sites);if(!c.validation.length){c.state='success';c.incidentId='qa-record';c.revision++};return ok({candidate:c})}
+    if(x.action==='commit'){const c=db.batch.candidates.find(c=>c.id===x.candidateId);if(x.finalConfirmed!==true)throw Error('missing_final_confirmation');c.validation=window.ENLHistoricalBulk.validate(c,db.sites);if(!c.validation.length){c.state='success';c.incidentId='qa-record';c.revision++};return ok({candidate:c})}
     if(x.action==='file_error'){db.batch.file_errors.push({name:x.name,message:x.message});return ok({})}
     if(x.action==='sign')return ok({url:'about:blank'});
     return new Response(JSON.stringify({ok:false,message:'invalid_action'}),{status:400});
