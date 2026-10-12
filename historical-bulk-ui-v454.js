@@ -75,7 +75,7 @@ function recordMarkup(c){const v=c.values||{},is=issues(c),estimate=core.money(v
 function safeAutoCandidate(c){
  // This is a conservative, explainable rule—not AI certainty. The server performs
  // authoritative verification, duplicate checks and an atomic INSERT at commit time.
- if(!quickConsent||!ready(c)||c.state!=='ready'||(c.corrections||[]).length||(c.issues||[]).length||(c.resolvedCodes||[]).length)return false;
+ if(!quickConsent||core.isLegacy(c.values)||!ready(c)||c.state!=='ready'||(c.corrections||[]).length||(c.issues||[]).length||(c.resolvedCodes||[]).length)return false;
  const v=c.values||{},approved=['승인','승인완료','결재완료','approved'].includes(core.norm(v.erpStatus));
  if(!approved||(!clean(v.erpRef)&&!clean(v.erpDate))||!clean(v.siteId))return false;
  const refs=c.sources||[];
