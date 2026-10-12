@@ -96,21 +96,21 @@ function parseUnits(file){
    // A future \"조치방안\" belongs to follow-up, not the immediate action.
    const planAt=rows.findIndex(x=>/조치\s*(?:방안|계획)/.test(x));
    if(planAt>=0&&!segment.evidence.followupNote?.some(e=>e.method==='text')){
-    const lines=[];
+    const lines=[],positions=[];
     for(let i=planAt;i<Math.min(rows.length,planAt+4);i++){
      if(i>planAt&&/^\s*(?:위와\s*같이|보고자|주식회사|작성일)/.test(rows[i]))break;
      const content=rows[i].replace(/^\s*조치\s*(?:방안|계획)\s*[:：|｜]?\s*/,'').trim();
-     if(content)lines.push(content);
+     if(content){lines.push(content);positions.push(i);}
     }
     // A scanned label can appear after its first sentence because of
     // table cell reading order. Preserve that nearby sentence only when it
     // clearly describes prevention/work-method measures.
     const before=rows[planAt-1]||'';
-    if(/주의|예방|적재|규격|재발|조치|개선/.test(before)&&!/피해\s*정도|발생\s*경위/.test(before))lines.unshift(before);
+    if(/주의|예방|적재|규격|재발|조치|개선/.test(before)&&!/피해\s*정도|발생\s*경위/.test(before)){lines.unshift(before);positions.unshift(planAt-1);}
     if(lines.join(' ').length>=10){
      const cleanPlan=lines.join('\n');
      segment.values.followupNote=cleanPlan;
-     segment.evidence.followupNote=lines.map((quote,n)=>({fileId:file.id,location:at(n===0&&lines[0]===before?planAt-1:planAt),quote,method:'ocr'}));
+     segment.evidence.followupNote=lines.map((quote,n)=>({fileId:file.id,location:at(positions[n]),quote,method:'ocr'}));
     }
    }
    if(!segment.values.workAction){
