@@ -95,8 +95,11 @@ Deno.serve(async(req:Request)=>{
   if(b.action==='list'){const rows=await sql`select id,created_at,updated_at,jsonb_array_length(candidates) as count from private.enl_historical_batches where owner_id=${a.id} order by updated_at desc limit 100`;return json({ok:true,batches:rows})}
   if(!uuid(b.batchId))fail('invalid_batch_id');
   if(b.action==='create'){
-   if(b.erpConfirmed!==true)fail('erp_confirmation_required');
-   await sql`insert into private.enl_historical_batches(id,owner_id,erp_confirmed_at) values(${b.batchId},${a.id},now()) on conflict(id) do nothing`;
+   if(b.erpConfirmed!==true&&b.historicalConfirmed!==true)fail('historical_material_confirmation_required');
+   if(b.historicalConfirmed===true)
+    await sql`insert into private.enl_historical_batches(id,owner_id,historical_material_confirmed_at) values(${b.batchId},${a.id},now()) on conflict(id) do nothing`;
+   else
+    await sql`insert into private.enl_historical_batches(id,owner_id,erp_confirmed_at) values(${b.batchId},${a.id},now()) on conflict(id) do nothing`;
    return json({ok:true,batch:await batch(sql,b.batchId,a.id)});
   }
   await batch(sql,b.batchId,a.id);owned=true;
