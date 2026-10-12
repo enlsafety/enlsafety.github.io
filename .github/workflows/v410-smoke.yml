@@ -117,16 +117,16 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-454-r2',meta
+          assert meta.get('build')=='stable-455-r1',meta
           assert meta.get('stableEntry')=='stable412.html',meta
-          assert meta.get('version')=='4.5.4' and meta.get('currentStableVersion')=='4.5.4',meta
+          assert meta.get('version')=='4.5.5' and meta.get('currentStableVersion')=='4.5.5',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='454-r2'",'beforeinstallprompt','stable412.html?entry=root&build=454-r2',"/sw-v418.js?v=4.5.4-bulk-lifecycle2"]: assert x in index,x
+          for x in ["const BUILD='455-r1'",'beforeinstallprompt','stable412.html?entry=root&build=455-r1',"/sw-v418.js?v=4.5.5-simpleauto1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.5.4-r2',
+            'enl-build" content="4.5.5-r1',
             'incident-sync-v411.js?v=4.4.34-r1&amp;fix=proof-reuse1',
             'workflow-prevention-v429.js?v=4.4.43-r1&amp;fix=safety-action-counts1',
             'workflow-lifecycle-v413.js?v=4.4.14-r1&amp;fix=historical-transfer1',
@@ -238,7 +238,7 @@ jobs:
           sw=Path('sw-v418.js').read_text(encoding='utf-8')
           assert 'data-pm434-hq-edit' in hq and 'data-pm434-hq-pw' in hq
           assert 'PUSH_CONFIRM_API' in sw and "action:'ack_test_token'" in sw and "action:'confirm',title:'확인'" in sw
-          for x in ["4.5.4-bulk-lifecycle2","PRECACHE","fetchWithTimeout","cache.match(req)","stable412.html?offline=1"]: assert x in sw,x
+          for x in ["4.5.5-simpleauto1","PRECACHE","fetchWithTimeout","cache.match(req)","stable412.html?offline=1"]: assert x in sw,x
           assert "status==='confirmed'" in hq and '수신 확인' in hq
           assert html.index('personnel-management-v434.js') < html.index('hq-notification-status-v437.js')
 
