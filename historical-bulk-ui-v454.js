@@ -137,8 +137,8 @@ function detailMarkup(c){const val=activeValues(c),labels=core.labels||{},all=co
 function leaveDetail(){return !dirty||confirm('저장하지 않은 입력내용이 있어. 저장하지 않고 이동할까?')}
 function bind(){const node=root();if(!node)return;const on=(selector,fn)=>node.querySelector(selector)?.addEventListener('click',fn);on('[data-b-advanced]',()=>{if(waiting||!leaveDetail())return;advanced=!advanced;render()});
  on('[data-b-back]',()=>{if(waiting||!leaveDetail())return;open=false;selected='';dirty=false;currentView='report';renderShell(user())});on('[data-b-list]',()=>{if(waiting||!leaveDetail())return;selected='';dirty=false;render()});
- on('[data-b-quick-retry]',()=>run(async()=>{if(!id||!files.length)throw Error('저장된 파일이 없어. 먼저 파일을 올려 줘.');if(!quickConsent){if(!confirm('ERP 최초결재가 완료된 과거사고 자료야. 결재근거와 필수항목이 명확한 사고만 자동등록하고 나머지는 검토 대기로 남길까?'))return;quickConsent=true;}task='analyze';message='기존 저장 파일을 분석 중이야.';render();await call('analyze',{batchId:id});await getBatch();const result=await autoCommitStrict();await recentBatches();message='기존 파일 자동처리 완료 · 등록 '+result.ok+'건 · 검토 대기 '+cands().filter(c=>!registered(c)&&c.state!=='excluded').length+'건.';failure=result.failures.join('\n')}));
- on('[data-b-new]',()=>{const confirmed=!!node.querySelector('#b-confirm')?.checked;run(async()=>{if(!confirmed)throw Error('ERP 기결재 자료라는 사실을 확인해야 해.');const newId=crypto.randomUUID();await call('create',{batchId:newId,erpConfirmed:true});id=newId;selected='';queue=[];filters={query:'',status:'',category:'',site:'',from:'',to:''};await getBatch();await recentBatches();message='배치를 만들었어. 파일을 올려 줘.'})});
+ on('[data-b-quick-retry]',()=>run(async()=>{if(!id||!files.length)throw Error('저장된 파일이 없어. 먼저 파일을 올려 줘.');if(!quickConsent){if(!confirm('과거사고 원본자료를 확인했어? ERP 결재 증빙이 확실한 사고만 자동등록하고, ERP 확인불가 건은 안전관리자 검토로 남길까?'))return;quickConsent=true;}task='analyze';message='기존 저장 파일을 분석 중이야.';render();await call('analyze',{batchId:id});await getBatch();const result=await autoCommitStrict();await recentBatches();message='기존 파일 자동처리 완료 · 등록 '+result.ok+'건 · 검토 대기 '+cands().filter(c=>!registered(c)&&c.state!=='excluded').length+'건.';failure=result.failures.join('\n')}));
+ on('[data-b-new]',()=>{const confirmed=!!node.querySelector('#b-confirm')?.checked;run(async()=>{if(!confirmed)throw Error('ERP 기결재 자료라는 사실을 확인해야 해.');const newId=crypto.randomUUID();await call('create',{batchId:newId,historicalConfirmed:true});id=newId;selected='';queue=[];filters={query:'',status:'',category:'',site:'',from:'',to:''};await getBatch();await recentBatches();message='배치를 만들었어. 파일을 올려 줘.'})});
  on('[data-b-history]',()=>{const next=clean(node.querySelector('#b-history')?.value);run(async()=>{if(!next)throw Error('이전 작업을 선택해 줘.');await getBatch(next);selected='';queue=[];message='저장된 작업을 불러왔어. 미저장 파일이 있으면 다시 선택해 줘.'})});on('[data-b-refresh]',()=>run(async()=>{await getBatch();message='서버의 최신 상태를 불러왔어.'}));
  on('[data-b-analyze]',()=>run(async()=>{if(cands().length&&!confirm('다시 분석하면 등록 전 후보의 검토·수정내용이 새 추출 결과로 바뀔 수 있어. 다시 분석할까?'))return;message='저장된 자료를 사고별로 분석하고 있어.';render();await call('analyze',{batchId:id,resetConfirmed:cands().length>0});await getBatch();message='분석 완료. 등록 준비 건은 목록을 확인한 뒤 한 번에 등록할 수 있어.'}));on('[data-b-export]',exportCsv);on('[data-b-commit-ready]',()=>run(bulkCommit));
  node.querySelectorAll('[data-b-edit]').forEach(b=>b.onclick=()=>{if(waiting)return;selected=b.dataset.bEdit;dirty=false;render()});node.querySelectorAll('[data-b-detail]').forEach(b=>b.onclick=()=>run(()=>openDetail(b.dataset.bDetail)));
@@ -175,7 +175,7 @@ async function load(){await run(async()=>{task='load';const opts=await call('opt
 
 async function prepareQuickBatch(){
  if(!quickConsent){
-  if(!confirm('이 자료들이 ERP 최초 사고보고 결재가 완료된 과거사고 자료임을 확인해. 원문에 결재근거와 필수사항이 명확한 정상 사고만 자동으로 공식 등록하고, 불확실한 건은 검토 대기로 보류할까?'))return false;
+  if(!confirm('이 파일들이 과거 사고기록 자료임을 확인해. ERP 결재가 확인된 정상 사고만 자동등록하고, ERP 자료 확인불가 건은 별도 사유를 입력해 수동 검토하도록 할까?'))return false;
   quickConsent=true;
  }
  // Never overwrite reviewed work or reanalyze a batch that already registered
@@ -183,7 +183,7 @@ async function prepareQuickBatch(){
  const stale=cands().some(c=>registered(c)||c.state==='excluded'||(c.corrections||[]).length);
  if(!id||stale||files.length>=50){
   const newId=crypto.randomUUID();
-  await call('create',{batchId:newId,erpConfirmed:true});
+  await call('create',{batchId:newId,historicalConfirmed:true});
   id=newId;selected='';queue=[];filters={query:'',status:'',category:'',site:'',from:'',to:''};
   await getBatch();await recentBatches();
  }
