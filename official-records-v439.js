@@ -51,7 +51,7 @@
     return m[v]||v||'기록';
   }
   function officialBox(i){
-    const a=i.externalInitialApproval||{},erpInfo=isBulkImported(i)?`<div class="official439-note">ERP 기결재 · 앱 신규 최초결재 제외<br>ERP 문서번호: ${esc(a.documentNo||'확인자료 참조')} · 결재일: ${esc(a.approvalDate||'원문 미기재')}</div>`:'';
+    const a=i.externalInitialApproval||{},erpInfo=isBulkImported(i)?a.state==='unverifiable'?`<div class="official439-note">과거사고 자료 이관 · 기존 결재 확인 불가<br>사유: ${esc(a.basis==='pre_erp'?'ERP 도입 전 사고':a.basis==='pre_employment'?'입사 전 결재 이력 조회 불가':'확인 필요')} · ${esc(a.reason||'사유 미기재')}<br>과거 승인은 검증되지 않았으며, 신규 안전관리자 검토 이력과 구분해 기록합니다.</div>`:`<div class="official439-note">ERP 기결재 · 앱 신규 최초결재 제외<br>ERP 문서번호: ${esc(a.documentNo||'확인자료 참조')} · 결재일: ${esc(a.approvalDate||'원문 미기재')}</div>`:'';
     if(historical(i)){
       const h=i.historicalImport||{};
       return `<section class="official439-box"><h3>과거사고 ERP 이관기록${window.ENLContracts?.badge(i.siteId)||''}</h3>${window.ENLContracts?.incidentDetail(i)||''}<div class="official439-grid">
