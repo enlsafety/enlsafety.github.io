@@ -58,7 +58,7 @@ function parseUnits(file){
    if(k){
     if(['siteName','occurredDate'].includes(k)&&segment.values[k]!==undefined&&norm(segment.values[k])!==norm(value(k,raw))&&segment.values.incidentHow)finish();
     add(k,raw,`${location} · ${n+1}줄`);lastKey=k;
-   }else if(lastKey&&['incidentHow','cause','immediateAction','workAction','injuryDetail','damageDetail','doctorOpinion','followupNote'].includes(lastKey)&&text(line)&&!(currentMethod==='ocr'&&['damageDetail','injuryDetail'].includes(lastKey))){
+   }else if(lastKey&&['incidentHow','cause','immediateAction','workAction','injuryDetail','damageDetail','doctorOpinion','followupNote'].includes(lastKey)&&text(line)&&!(currentMethod==='ocr'&&['damageDetail','injuryDetail','followupNote'].includes(lastKey))){
     segment.values[lastKey]+='\n'+text(line);segment.evidence[lastKey].push({fileId:file.id,location:`${location} · ${n+1}줄`,quote:text(line),method:currentMethod});
    }else lastKey='';
   }
@@ -95,14 +95,23 @@ function parseUnits(file){
    }
    // A future \"조치방안\" belongs to follow-up, not the immediate action.
    const planAt=rows.findIndex(x=>/조치\s*(?:방안|계획)/.test(x));
-   if(planAt>=0&&!segment.values.followupNote){
-    const lines=[];
+   if(planAt>=0&&!segment.evidence.followupNote?.some(e=>e.method==='text')){
+    const lines=[],positions=[];
     for(let i=planAt;i<Math.min(rows.length,planAt+4);i++){
      if(i>planAt&&/^\s*(?:위와\s*같이|보고자|주식회사|작성일)/.test(rows[i]))break;
      const content=rows[i].replace(/^\s*조치\s*(?:방안|계획)\s*[:：|｜]?\s*/,'').trim();
-     if(content)lines.push(content);
+     if(content){lines.push(content);positions.push(i);}
     }
-    if(lines.join(' ').length>=10)push('followupNote',lines.join('\n'),planAt);
+    // A scanned label can appear after its first sentence because of
+    // table cell reading order. Preserve that nearby sentence only when it
+    // clearly describes prevention/work-method measures.
+    const before=rows[planAt-1]||'';
+    if(/주의|예방|적재|규격|재발|조치|개선/.test(before)&&!/피해\s*정도|발생\s*경위/.test(before)){lines.unshift(before);positions.unshift(planAt-1);}
+    if(lines.join(' ').length>=10){
+     const cleanPlan=lines.join('\n');
+     segment.values.followupNote=cleanPlan;
+     segment.evidence.followupNote=lines.map((quote,n)=>({fileId:file.id,location:at(positions[n]),quote,method:'ocr'}));
+    }
    }
    if(!segment.values.workAction){
     const i=rows.findIndex(x=>/수거하여|수거\s*작업|예초\s*작업|방제\s*작업|청소\s*작업|관리동으로\s*복귀/.test(x));
@@ -218,7 +227,7 @@ function analyze(files,sites){
 function money(v){if(missing(v))return null;const s=text(v).replace(/^(?:₩|KRW)\s*/i,'').replace(/\s*원$/,'').replace(/\s/g,'');if(!/^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d{1,2})?$/.test(s))return NaN;const n=Number(s.replace(/,/g,''));return Number.isFinite(n)&&n<=Number.MAX_SAFE_INTEGER?n:NaN;}
 function validate(c,sites,today=seoulToday()){
  const v=c.values||{},issues=(c.issues||[]).filter(i=>!(c.resolvedCodes||[]).includes(i.code)),add=(field,message,code='missing')=>issues.push({field,code,message});
- for(const k of ['siteId','occurredDate','eventType','severity','place','workAction','incidentHow','immediateAction'])if(missing(v[k]))add(k,`${labels[k]||'사업장'}을 원본에서 확인해 주세요.`);
+ for(const k of ['eventType','place','workAction','incidentHow','immediateAction'])if(missing(v[k]))add(k,`${labels[k]||'사업장'}을 원본에서 확인해 주세요.`);
  if(!sites.some(s=>(s.site_id||s.id)===v.siteId))add('siteId','사업장 명칭을 실제 사업장 목록에서 확정해 주세요.','site');
  if(!date(v.occurredDate)||date(v.occurredDate)>today)add('occurredDate','실제 발생일을 확인해 주세요. 미래 날짜는 등록할 수 없습니다.','date');
  if(!missing(v.occurredTime)&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(v.occurredTime))add('occurredTime','발생시간은 HH:mm 또는 미상이어야 합니다.','time');
