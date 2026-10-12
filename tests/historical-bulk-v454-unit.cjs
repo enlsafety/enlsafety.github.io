@@ -19,7 +19,7 @@ assert.equal(record.reportWorkflow.initialApprovalSource,'ERP');
 assert.equal(record.externalInitialApproval.state,'verified');
 assert.equal(record.historicalOrigin.sourceFileIds.length,1);
 assert.equal(record.reporterId,'','do not impersonate old reporter');
-const noERP={...first};noERP[12]='';noERP[13]='미확인';
+const noERP=[...first];noERP[12]='';noERP[13]='미확인';
 const invalid=core.analyze([file('file2',[fields,noERP])],sites)[0];
 assert.ok(core.validate(invalid,sites).some(x=>x.code==='erp'),'missing ERP approval evidence must block');
 const combined=core.analyze([file('file1',[fields,first]),file('file3',[fields,first])],sites);
