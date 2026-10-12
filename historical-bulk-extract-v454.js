@@ -50,11 +50,17 @@ async function zipUnits(bytes,ext){
   const xml=await archive.file(name).async('string');
   const doc=new DOMParser().parseFromString(xml,'application/xml');
   if(doc.getElementsByTagName('parsererror').length)throw Error('문서 본문 XML 파싱 실패');
-  const paragraphs=[...doc.getElementsByTagName('*')].filter(x=>x.localName==='p');
-  const lines=paragraphs.map(p=>[...p.getElementsByTagName('*')]
-   .filter(x=>x.localName==='t').map(x=>x.textContent).join('')).filter(trim);
-  if(!lines.length)throw Error('문서에서 판독 가능한 글자를 찾지 못했어.');
-  units.push({location:name,text:lines.join('\n')});
+  const elements=[...doc.getElementsByTagName('*')];
+  const fromText=node=>[...node.getElementsByTagName('*')].filter(x=>x.localName==='t').map(x=>x.textContent).join(' ');
+  const tables=elements.filter(x=>x.localName==='tbl');
+  tables.forEach((table,i)=>{
+   const rows=[...table.children].filter(x=>x.localName==='tr').map(tr=>[...tr.children].filter(x=>x.localName==='tc').map(cell=>trim(fromText(cell))));
+   if(rows.length&&rows.some(row=>row.some(trim)))units.push({location:name+' 표 '+(i+1),rows});
+  });
+  const inTable=p=>{for(let a=p.parentElement;a;a=a.parentElement)if(a.localName==='tbl')return true;return false};
+  const lines=elements.filter(x=>x.localName==='p'&&!inTable(x)).map(p=>trim(fromText(p))).filter(trim);
+  if(lines.length)units.push({location:name+' 본문',text:lines.join('\n')});
+  if(!tables.length&&!lines.length)throw Error('문서에서 판독 가능한 글자를 찾지 못했어.');
  }
  return {method:'text',units};
 }
