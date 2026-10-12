@@ -62,6 +62,17 @@ async function run(engine){
     assert.ok((await page.locator('[data-field-group="action"]').innerText()).includes('재발방지조치 작성이 필요합니다'));
     assert.ok(!(await page.locator('[data-field-group="action"]').innerText()).includes('사고 조치 작성하기'));
     assert.ok((await page.locator('[data-field-group="closed"]').innerText()).includes('종결이 완료되었습니다'));
+    // Regression: same-site manager must be able to correct a pending report
+    // before safety approval, without opening approved/closed records for editing.
+    const pendingEdit=page.locator('[data-field-group="waiting"] [data-field-edit="inc-review"]');
+    assert.equal(await pendingEdit.count(),1,'manager needs an accessible edit button on pending incident');
+    assert.equal((await pendingEdit.innerText()).trim(),'보고 회수 후 수정');
+    assert.equal(await page.locator('[data-field-group="approved"] [data-field-edit]').count(),0);
+    assert.equal(await page.locator('[data-field-group="closed"] [data-field-edit]').count(),0);
+    assert.equal(await page.locator('[data-field-group="supplement"] [data-field-edit]').count(),0);
+    await pendingEdit.click();
+    assert.equal(await page.evaluate(()=>window.__edited),'inc-review','manager edit button must open original report form');
+
     await page.locator('[data-field-supplement="inc-supp"]').click();
     assert.equal(await page.evaluate(()=>window.__supplement),'inc-supp');
     await page.locator('[data-field-action="inc-action"]').click();
