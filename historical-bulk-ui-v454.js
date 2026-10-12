@@ -343,7 +343,14 @@ async function upload(list,candidateId='',resume=false,deferAnalysis=false){
   message='분석 완료 · 파일 저장 '+saved+'개 · 중복 건너뜀 '+skipped+'개 · 실패 '+failed+'개.';
  }
 }
-function collect(){const node=root(),values={};node?.querySelectorAll('[data-b-field]').forEach(x=>values[x.dataset.bField]=clean(x.value));return {candidateId:selected,reason:clean(node?.querySelector('#b-reason')?.value),resolveIssues:!!node?.querySelector('#b-resolve')?.checked,values}}
+function collect(){
+ const node=root(),values={};node?.querySelectorAll('[data-b-field]').forEach(x=>values[x.dataset.bField]=clean(x.value));
+ const mode=node?.querySelector('#b-legacy-mode')?.value||'',legacyReason=clean(node?.querySelector('#b-legacy-reason')?.value);
+ values.legacyApprovalMode=mode;values.legacyApprovalReason=mode?legacyReason:'';values.legacyApprovalConfirmed=mode&&node?.querySelector('#b-legacy-confirm')?.checked?'confirmed':'';
+ if(mode){values.erpStatus='';values.erpRef='';values.erpDate='';}
+ const reason=clean(node?.querySelector('#b-reason')?.value)||(mode&&legacyReason.length>=10?legacyReason:'');
+ return {candidateId:selected,reason,resolveIssues:!!node?.querySelector('#b-resolve')?.checked,values};
+}
 async function save(x){if(!x.reason)throw Error('수정·확인 근거를 작성해 줘.');const c=cands().find(c=>c.id===x.candidateId);if(!c)throw Error('사고를 찾지 못했어.');const out=await call('save',{batchId:id,candidateId:c.id,revision:c.revision,values:x.values,reason:x.reason,resolveIssues:x.resolveIssues});await getBatch();dirty=false;return out.candidate||cands().find(y=>y.id===c.id)}
 async function mutate(action,x,notice){if(!x.reason)throw Error('수정·처리 사유를 입력해 줘.');const c=cands().find(c=>c.id===x.candidateId);if(!c)throw Error('사고를 찾지 못했어.');const payload={batchId:id,candidateId:c.id,revision:c.revision,reason:x.reason};if(registered(c))payload.incidentVersion=c.incidentVersion;if(action==='update_incident')payload.values=x.values;await call(action,payload);await getBatch();dirty=false;message=notice;if(registered(c))try{await window.enlIncidentPullNow?.()}catch(_){message+=' 일반 사고목록은 새로고침하면 최신 상태가 반영돼.'}}
 async function bulkCommit(){const pending=cands().filter(ready);if(!pending.length)throw Error('등록할 준비가 된 사고가 없어. 검토사항을 보완해 줘.');if(!confirm('정상 '+pending.length+'건의 사고 내용과 ERP 최초결재 근거를 확인했어? 한 번에 등록할까? 검토 필요·제외 건은 보류돼.'))return;task='commit';stopRequested=false;let ok=0,blocked=0,failed=0;const errors=[];
