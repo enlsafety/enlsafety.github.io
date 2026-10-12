@@ -134,7 +134,7 @@ function detailMarkup(c){const val=activeValues(c),labels=core.labels||{},all=co
  if(Number.isFinite(estimateMoney))out+='<div class="notice454" data-b-estimate="1"><b>견적서에서 확인된 예상 수리비 '+esc(estimateMoney.toLocaleString('ko-KR'))+'원</b> · 실제 지급 여부는 확인되지 않았어.</div>';
  if(c.summaryMeta?.kind==='ocr_evidence_summary')out+='<p class="muted454" data-b-summary-note="1">사고경위는 OCR 문구를 근거로 요약한 문장이야. 원본의 장소와 사고내용을 대조하고, 미확인 당시조치·사고정도·ERP 결재 사항은 별도로 확인해 줘.</p>';
  if(!isRegistered)out+='<h3>확인·보완 '+is.length+'건</h3>'+(is.map(x=>'<div class="issue454">'+esc(x.message)+'</div>').join('')||'<div class="notice454">필수항목과 근거가 충족돼. 결과를 확인하고 바로 등록할 수 있어.</div>');if(candError(c))out+='<div class="error454">'+esc(errorText(candError(c)))+'</div>';
- const allKeys=['siteId',...Object.keys(all).filter(k=>k!=='siteId')];
+ const allKeys=['siteId',...Object.keys(all).filter(k=>k!=='siteId'&&!['legacyApprovalMode','legacyApprovalReason','legacyApprovalConfirmed'].includes(k))];
  const buildField=k=>k==='siteId'?'<label>사업장<select'+attrs('siteId')+'><option value="">선택</option>'+opts+'</select></label>':input(k);
  // In the default simple mode, surface only the most useful fields and current
  // missing/conflicting fields. Advanced mode still shows the unchanged full form.
