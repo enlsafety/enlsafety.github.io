@@ -9,7 +9,7 @@ const hash=async(bytes:Uint8Array)=>[...new Uint8Array(await crypto.subtle.diges
 const store=()=>createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false}}).storage.from(BUCKET);
 function fail(message:string):never{throw Error(message)}
 const isRegistered=(c:any)=>!!c.incidentId;
-const isBulk=(p:any)=>!!(p?.historicalOrigin?.batchId&&p?.historicalOrigin?.candidateId&&p?.externalInitialApproval?.state==='verified');
+const isBulk=(p:any)=>!!(p?.historicalOrigin?.batchId&&p?.historicalOrigin?.candidateId&&['verified','unverifiable'].includes(p?.externalInitialApproval?.state));
 const progressed=(p:any)=>p.status==='closed'||!!p.closedAt||!!p.corrective&&Object.keys(p.corrective).length>0||(p.acknowledgements||[]).length>0||!!(p.officialRecord?.review||p.officialRecord?.approval||p.officialRecord?.finalApproval);
 const lateFields=new Set(['cost','medicalCost','repairCost','damageAmount','diagnosis','doctorOpinion','followupNote','injuryDetail','damageDetail','medicalCostDetail','repairCostDetail']);
 const immutableFields=new Set(['siteId','siteName','recordNo','erpRef','erpDate','erpStatus']);
@@ -95,8 +95,11 @@ Deno.serve(async(req:Request)=>{
   if(b.action==='list'){const rows=await sql`select id,created_at,updated_at,jsonb_array_length(candidates) as count from private.enl_historical_batches where owner_id=${a.id} order by updated_at desc limit 100`;return json({ok:true,batches:rows})}
   if(!uuid(b.batchId))fail('invalid_batch_id');
   if(b.action==='create'){
-   if(b.erpConfirmed!==true)fail('erp_confirmation_required');
-   await sql`insert into private.enl_historical_batches(id,owner_id,erp_confirmed_at) values(${b.batchId},${a.id},now()) on conflict(id) do nothing`;
+   if(b.erpConfirmed!==true&&b.historicalConfirmed!==true)fail('historical_material_confirmation_required');
+   if(b.historicalConfirmed===true)
+    await sql`insert into private.enl_historical_batches(id,owner_id,historical_material_confirmed_at) values(${b.batchId},${a.id},now()) on conflict(id) do nothing`;
+   else
+    await sql`insert into private.enl_historical_batches(id,owner_id,erp_confirmed_at) values(${b.batchId},${a.id},now()) on conflict(id) do nothing`;
    return json({ok:true,batch:await batch(sql,b.batchId,a.id)});
   }
   await batch(sql,b.batchId,a.id);owned=true;
@@ -201,8 +204,9 @@ Deno.serve(async(req:Request)=>{
     const c=candidate(r,b);if(isRegistered(c))return c;revision(c,b);if(c.state==='excluded')fail('candidate_excluded');c.batchId=b.batchId;
     c.validation=await validateCandidate(t,c,await sites(t));
     if(c.validation.length){c.state='review';await persist(t,b.batchId,r.candidates);return c;}
+    if(Core.isLegacy(c.values)&&b.legacyExceptionConfirmed!==true)fail('legacy_exception_confirmation_required');
     // finalConfirmed records one batch-level review; manual_review_required only for unresolved issues.
-    c.corrections.push({field:'review',reason:'분석 요약 및 ERP 기결재 근거 최종 확인',actorId:a.id,at:new Date().toISOString()});
+    c.corrections.push({field:'review',reason:Core.isLegacy(c.values)?'과거 사고보고 원본 확인 · ERP 결재번호 확인불가 예외 · 최초결재 미검증으로 등록':'분석 요약 및 ERP 기결재 근거 최종 확인',actorId:a.id,at:new Date().toISOString()});
     const at=new Date().toISOString(),id=crypto.randomUUID(),p=Core.makeIncident(c,b.batchId,a,at,id);await setActor(t,a);
     const saved=await t`insert into public.enl_incident_shared(incident_id,site_id,payload,created_at,updated_at) values(${id},${p.siteId},${t.json(p)}::jsonb,${at},${at}) returning payload`;
     await t`insert into public.enl_incident_audit(incident_id,site_id,action,editor_id,editor_name,editor_role,editor_position,changed_at,before_payload,after_payload) values(${id},${p.siteId},'create',${a.id},${a.name},'safety','',${at},null,${t.json(saved[0].payload)}::jsonb)`;
@@ -212,7 +216,7 @@ Deno.serve(async(req:Request)=>{
   }
   fail('invalid_action');
  }catch(e:any){
-  const m=clean(e?.message),known=/^(auth_|invalid_|batch_|erp_|file_|source_|candidate_|incident_revision_|revision_|correction_|reviewed_|unsupported_|final_)/.test(m);
+  const m=clean(e?.message),known=/^(auth_|invalid_|batch_|erp_|file_|source_|candidate_|incident_revision_|revision_|correction_|reviewed_|unsupported_|final_|legacy_)/.test(m);
   // Never write an error state until both authentication and batch ownership have succeeded.
   if(a&&owned&&b?.action==='commit'&&!['revision_conflict','candidate_excluded'].includes(m))try{await withBatch(sql,b.batchId,a.id,async(t:any,r:any)=>{const c=r.candidates.find((x:any)=>x.id===b.candidateId);if(c&&!isRegistered(c)&&c.state!=='excluded'){c.state='failed';c.error=known?m:'등록 트랜잭션 실패. 저장상태를 다시 확인한 뒤 재시도해 주세요.';await persist(t,b.batchId,r.candidates);}})}catch{}
   console.error('historical_bulk_failure',{action:['options','list','create','get','upload','sign','analyze','save','commit','update_incident','void_incident','restore_incident','exclude','restore_candidate'].includes(b?.action)?b.action:'unknown',code:known?m:'database_or_service_failure',sqlState:/^[0-9A-Z]{5}$/.test(e?.code||'')?e.code:undefined,errorType:e?.name});

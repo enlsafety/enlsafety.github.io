@@ -16,7 +16,7 @@ const clean=(v:any)=>String(v??"").trim();
 const roleNorm=(v:any)=>clean(v)==="final"?"manager":clean(v);
 const parsePayload=(v:any)=>{if(v&&typeof v==="object")return v;if(typeof v==="string"){try{return JSON.parse(v)}catch{return null}}return null};
 
-function isBulkImported(i:any){return !!(clean(i?.historicalOrigin?.batchId)&&clean(i?.historicalOrigin?.candidateId)&&i?.externalInitialApproval?.state==="verified")}
+function isBulkImported(i:any){return !!(clean(i?.historicalOrigin?.batchId)&&clean(i?.historicalOrigin?.candidateId)&&["verified","unverifiable"].includes(i?.externalInitialApproval?.state))}
 
 function actorFrom(body:any){
   const a=body?.actor||{};
@@ -123,7 +123,7 @@ Deno.serve(async(req:Request)=>{
       const snapshot=parsePayload(target.snapshot);
       if(!Array.isArray(snapshot))return json({ok:false,message:"invalid_backup"},409);
       if(snapshot.some((r:any)=>isBulkImported(parsePayload(r?.payload))))return json({ok:false,message:"bulk_records_prevent_full_restore"},409);
-      const existingBulk=await sql`select incident_id from public.enl_incident_shared where coalesce(payload->'historicalOrigin'->>'batchId','')<>'' and coalesce(payload->'historicalOrigin'->>'candidateId','')<>'' and payload->'externalInitialApproval'->>'state'='verified' limit 1`;
+      const existingBulk=await sql`select incident_id from public.enl_incident_shared where coalesce(payload->'historicalOrigin'->>'batchId','')<>'' and coalesce(payload->'historicalOrigin'->>'candidateId','')<>'' and payload->'externalInitialApproval'->>'state' in ('verified','unverifiable') limit 1`;
       if(existingBulk.length)return json({ok:false,message:"bulk_records_prevent_full_restore"},409);
       const pre=await createBackup(sql,actor,`복원 전 자동백업: ${id} / ${reason}`);
       const beforeRows=await snapshotRows(sql);
@@ -133,7 +133,7 @@ Deno.serve(async(req:Request)=>{
       await sql.begin(async(tx:any)=>{
         // Recheck under a table lock so a concurrent import cannot be deleted by restore.
         await tx`lock table public.enl_incident_shared in share row exclusive mode`;
-        const bulk=await tx`select incident_id from public.enl_incident_shared where coalesce(payload->'historicalOrigin'->>'batchId','')<>'' and coalesce(payload->'historicalOrigin'->>'candidateId','')<>'' and payload->'externalInitialApproval'->>'state'='verified' limit 1`;
+        const bulk=await tx`select incident_id from public.enl_incident_shared where coalesce(payload->'historicalOrigin'->>'batchId','')<>'' and coalesce(payload->'historicalOrigin'->>'candidateId','')<>'' and payload->'externalInitialApproval'->>'state' in ('verified','unverifiable') limit 1`;
         if(bulk.length)throw Error("bulk_records_prevent_full_restore");
         await tx`delete from public.enl_incident_shared`;
         for(const r of snapshot){

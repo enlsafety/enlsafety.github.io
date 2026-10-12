@@ -28,7 +28,7 @@ async function run(engine,width){
     if(req.action==='options')return success({sites:db.sites});
     if(req.action==='list')return success({batches:[...db.batches.values()].map(x=>({id:x.id,created_at:x.created_at,count:x.candidates.length})).reverse()});
     if(req.action==='create'){
-     if(req.erpConfirmed!==true)return failure('erp_confirmation_required');
+     if(req.erpConfirmed!==true&&req.historicalConfirmed!==true)return failure('historical_material_confirmation_required');
      db.batches.set(req.batchId,{id:req.batchId,created_at:'2026-10-12T00:00:00Z',candidates:[],file_errors:[],files:[]});
      return success({batch:db.batches.get(req.batchId)});
     }

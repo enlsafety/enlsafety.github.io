@@ -12,8 +12,9 @@ function rejectWrite(message:string,status=409,detail?:string):never{throw Objec
 const norm=(v:any)=>clean(v).replace(/\s+/g,"").toLocaleLowerCase("ko-KR");
 const roleNorm=(v:any)=>clean(v)==="final"?"manager":clean(v);
 const parsePayload=(v:any)=>{if(v&&typeof v==="object")return v;if(typeof v==="string"){try{return JSON.parse(v)}catch{return null}}return null};
-function isBulkImported(i:any){return !!(clean(i?.historicalOrigin?.batchId)&&clean(i?.historicalOrigin?.candidateId)&&i?.externalInitialApproval?.state==="verified")}
+function isBulkImported(i:any){return !!(clean(i?.historicalOrigin?.batchId)&&clean(i?.historicalOrigin?.candidateId)&&["verified","unverifiable"].includes(i?.externalInitialApproval?.state))}
 function bulkInactive(i:any){return isBulkImported(i)&&i?.bulkInvalidation?.active===true}
+function legacyUnverified(i:any){return isBulkImported(i)&&i.externalInitialApproval?.state==='unverifiable'}
 const versionOf=(v:any)=>{const n=Number(v);return Number.isFinite(n)&&n>=0?Math.trunc(n):0;};
 function actorFrom(body:any){const a=body?.actor||{};return {id:clean(a.id),name:clean(a.name)||"사용자",role:roleNorm(a.role||body?.role),position:clean(a.position),siteId:clean(a.siteId||body?.siteId)};}
 async function verifyActor(sql:any,body:any,strong=false){
@@ -116,7 +117,7 @@ function readerIncident(i:any){
 function publicSummary(i:any){
   const d=i?.reportDetails||{},hist=isHistoricalTransfer(i),hm=historicalMeta(i),c=i?.corrective||{},actionApproved=clean(c.status)==="approved",names=[i?.injuredName,i?.reporterName,i?.approvedBy,c?.ownerName,c?.submittedBy,c?.reviewedBy],place=redact(d.place||i?.place||"",names),work=redact(d.workAction||"",names),how=redact(d.incidentHow||"",names),type=redact(i?.eventType||"사고",names);
   let overview=[place?`${place}에서`:"",work?`${work} 중`:"",how].filter(Boolean).join(" ");
-  if(!overview)overview=isBulkImported(i)?`${type} 관련 ERP 기결재 과거사고 이관자료입니다.`:hist?`${type} 관련 과거사고 이관자료입니다.`:`${type} 관련 사고가 발생하여 안전관리자가 검토·승인하였습니다.`;
+  if(!overview)overview=legacyUnverified(i)?`${type} 관련 과거사고 이관자료이며 기존 결재근거는 확인되지 않았습니다.`:isBulkImported(i)?`${type} 관련 ERP 기결재 과거사고 이관자료입니다.`:hist?`${type} 관련 과거사고 이관자료입니다.`:`${type} 관련 사고가 발생하여 안전관리자가 검토·승인하였습니다.`;
   if(hist){
     const ev=hm.existingActionEvidence==="confirmed"?"확인됨":hm.existingActionEvidence==="partial"?"일부 확인":"확인자료 없음";
     const follow=hm.followType==="site_check"?"현장 확인 필요":hm.followType==="improvement"?"신규 개선조치 필요":"추가조치 없음";
@@ -181,7 +182,7 @@ Deno.serve(async(req:Request)=>{
       const verified=await verifyActor(sql,body,true);
       if(!verified)return json({ok:false,message:"auth_proof_required"},403);
       const sites=await sql`select site_id,site_name,site_type,region,address,regular_count,daily_count,total_count,manager_name,part_name,clerk_name,active,start_date,to_jsonb(enl_site_master)->>'contract_end_date' as contract_end_date,to_jsonb(enl_site_master)->>'contract_period' as contract_period from public.enl_site_master order by site_name`;
-      const metrics=await sql`select site_id as "siteId",payload->>'occurredAt' as "occurredAt",payload->>'status' as status,payload->>'category' as category,payload->>'priority' as priority,payload->>'severity' as severity,payload->'potentialMajor' as "potentialMajor",payload->>'recordMode' as "recordMode",payload->'historicalTransfer'->>'mode' as "transferMode",payload->'historicalImport'->'enabled' as "historicalEnabled" from public.enl_incident_shared where not (coalesce(payload->'bulkInvalidation'->>'active','false')='true' and coalesce(payload->'historicalOrigin'->>'batchId','')<>'' and coalesce(payload->'historicalOrigin'->>'candidateId','')<>'' and coalesce(payload->'externalInitialApproval'->>'state','')='verified')`;
+      const metrics=await sql`select site_id as "siteId",payload->>'occurredAt' as "occurredAt",payload->>'status' as status,payload->>'category' as category,payload->>'priority' as priority,payload->>'severity' as severity,payload->'potentialMajor' as "potentialMajor",payload->>'recordMode' as "recordMode",payload->'historicalTransfer'->>'mode' as "transferMode",payload->'historicalImport'->'enabled' as "historicalEnabled" from public.enl_incident_shared where not (coalesce(payload->'bulkInvalidation'->>'active','false')='true' and coalesce(payload->'historicalOrigin'->>'batchId','')<>'' and coalesce(payload->'historicalOrigin'->>'candidateId','')<>'' and coalesce(payload->'externalInitialApproval'->>'state','') in ('verified','unverifiable'))`;
       return json({ok:true,sites,metrics:metrics.map((i:any)=>({...i,historicalTransfer:{mode:i.transferMode},historicalImport:{enabled:i.historicalEnabled===true}}))});
     }
 
@@ -250,7 +251,11 @@ Deno.serve(async(req:Request)=>{
         if(bulkInactive(prev)){ignored++;continue;} // A stale client may still hold a now-invalidated incident.
         if(!prev&&isBulkImported(raw0))rejectWrite("bulk_registration_requires_import_api",409);
         if(prev&&isBulkImported(prev)){
-          if(!["approved","closed"].includes(clean(raw0.status))||clean(raw0.approvedAt)!==clean(prev.approvedAt)||clean(raw0.approvedBy)!==clean(prev.approvedBy))rejectWrite("bulk_initial_approval_locked",409);
+          if(legacyUnverified(prev)){
+            const status=clean(raw0.status);
+            if(!["reported","supplement","supplement_submitted","rejected","approved","closed"].includes(status))rejectWrite("bulk_legacy_workflow_invalid",409);
+            if(actor.role!=="safety"&&(clean(raw0.approvedAt)!==clean(prev.approvedAt)||clean(raw0.approvedBy)!==clean(prev.approvedBy)||(!["approved","closed"].includes(clean(prev.status))&&["approved","closed"].includes(status))))rejectWrite("bulk_legacy_approval_proof_required",409);
+          }else if(!["approved","closed"].includes(clean(raw0.status))||clean(raw0.approvedAt)!==clean(prev.approvedAt)||clean(raw0.approvedBy)!==clean(prev.approvedBy))rejectWrite("bulk_initial_approval_locked",409);
           if(prev.corrective&&!raw0.corrective)rejectWrite("bulk_followup_preservation_required",409);
           if(!isBulkImported(raw0)||["historicalOrigin","externalInitialApproval","bulkInvalidation"].some(k=>JSON.stringify(canonicalValue(prev[k]??null))!==JSON.stringify(canonicalValue(raw0[k]??null))))rejectWrite("bulk_record_scope_locked",409);
         }

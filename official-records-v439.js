@@ -18,7 +18,7 @@
   const incident=id=>(data?.incidents||[]).find(x=>String(x.id)===String(id));
   const fmt=v=>{if(!v)return '-';try{return new Date(v).toLocaleString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})}catch(e){return String(v)}};
   const site=id=>{try{return siteById?.(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}};
-  const isBulkImported=i=>!!(i?.historicalOrigin?.batchId&&i?.historicalOrigin?.candidateId&&i?.externalInitialApproval?.state==='verified');
+  const isBulkImported=i=>!!(i?.historicalOrigin?.batchId&&i?.historicalOrigin?.candidateId&&['verified','unverifiable'].includes(i?.externalInitialApproval?.state));
   const occurrenceText=i=>isBulkImported(i)&&i.occurrenceTimeKnown===false?String(i.occurredDate||i.occurredAt||'').slice(0,10)+' · 시간 미확인':fmt(i.occurredAt);
   const historical=i=>!!i&&i?.historicalImport?.enabled===true&&i?.historicalImport?.erpApproved===true&&i?.historicalImport?.workflowExempt===true&&String(i?.historicalImport?.transferState||'')==='closed';
   const actionState=v=>v==='confirmed'?'확인됨':v==='partial'?'일부 확인':v==='not_available'?'확인자료 없음':'미기재';
@@ -51,7 +51,7 @@
     return m[v]||v||'기록';
   }
   function officialBox(i){
-    const a=i.externalInitialApproval||{},erpInfo=isBulkImported(i)?`<div class="official439-note">ERP 기결재 · 앱 신규 최초결재 제외<br>ERP 문서번호: ${esc(a.documentNo||'확인자료 참조')} · 결재일: ${esc(a.approvalDate||'원문 미기재')}</div>`:'';
+    const a=i.externalInitialApproval||{},erpInfo=isBulkImported(i)?a.state==='unverifiable'?`<div class="official439-note">과거사고 자료 이관 · 기존 결재 확인 불가<br>사유: ${esc(a.basis==='pre_erp'?'ERP 도입 전 사고':a.basis==='pre_employment'?'입사 전 결재 이력 조회 불가':'확인 필요')} · ${esc(a.reason||'사유 미기재')}<br>과거 승인은 검증되지 않았으며, 신규 안전관리자 검토 이력과 구분해 기록합니다.</div>`:`<div class="official439-note">ERP 기결재 · 앱 신규 최초결재 제외<br>ERP 문서번호: ${esc(a.documentNo||'확인자료 참조')} · 결재일: ${esc(a.approvalDate||'원문 미기재')}</div>`:'';
     if(historical(i)){
       const h=i.historicalImport||{};
       return `<section class="official439-box"><h3>과거사고 ERP 이관기록${window.ENLContracts?.badge(i.siteId)||''}</h3>${window.ENLContracts?.incidentDetail(i)||''}<div class="official439-grid">
@@ -95,7 +95,7 @@
       ['사업장',site(i.siteId)],['근로자 인적사항',worker||'-'],['재해 발생 일시',occurrenceText(i)],['재해 발생 장소',d.place||'-'],
       ['재해 발생 원인 및 과정',[cause,process].filter(Boolean).join('\n')||'-'],['재해 재발방지 계획',c.planDetail||d.preventionPlan||'-']
     ];
-    if(isBulkImported(i))rows.push(['최초 사고보고 결재',`ERP 기결재 / ${i.externalInitialApproval.documentNo||'확인자료 참조'} / ${i.externalInitialApproval.approvalDate||'결재일 미기재'}`]);
+    if(isBulkImported(i))rows.push(i.externalInitialApproval?.state==='unverifiable'?['기존 결재 확인상태',`미검증 · ${i.externalInitialApproval.basis==='pre_erp'?'ERP 도입 전':'입사 전 결재자료 조회 불가'} / ${i.externalInitialApproval.reason||''}`]:['최초 사고보고 결재',`ERP 기결재 / ${i.externalInitialApproval.documentNo||'확인자료 참조'} / ${i.externalInitialApproval.approvalDate||'결재일 미기재'}`]);
     const w=window.open('','_blank','noopener,noreferrer,width=900,height=900');if(!w)return alert('팝업이 차단되어 PDF 출력창을 열지 못했습니다.');
     const title='사고기록_'+String(i.id||'').replace(/[^a-zA-Z0-9가-힣_-]/g,'_');
     w.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${esc(title)}</title><style>
