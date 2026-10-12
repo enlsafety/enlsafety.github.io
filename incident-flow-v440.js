@@ -65,7 +65,7 @@
     if(!i)return {};
     i.reportWorkflow=i.reportWorkflow&&typeof i.reportWorkflow==='object'?i.reportWorkflow:{};
     if(i?.historicalOrigin?.batchId&&['verified','unverifiable'].includes(i?.externalInitialApproval?.state)){
-      const s=String(i.status||'');i.reportWorkflow.initialApprovalSource='ERP';
+      const s=String(i.status||''),unverified=i.externalInitialApproval.state==='unverifiable';i.reportWorkflow.initialApprovalSource=unverified?'HISTORICAL_UNVERIFIABLE':'ERP';
       i.reportWorkflow.phase=s==='closed'?'closed':s==='approved'?'report_approved':s;
       // Historical migration is not a late immediate report; do not fabricate SLA or internal approvals.
       delete i.reportWorkflow.immediateDelayMinutes;delete i.reportWorkflow.internalSla;
