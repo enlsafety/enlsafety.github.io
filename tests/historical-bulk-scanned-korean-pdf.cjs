@@ -42,7 +42,13 @@ assert.equal(v.category,'property','damaged cart curtain is a property accident'
 assert.equal(v.eventType,'훼손');
 assert.equal(v.title,'카트 풍우막 훼손');
 assert.ok(v.place.includes('카트로'),'OCR mistakes must remain visible for review');
-assert.ok(v.incidentHow.includes('16시 40분경'));
+assert.ok(v.incidentHow.includes('16:40경'));
+assert.ok(v.incidentHow.includes('수거해 관리동으로 복귀하던 중'));
+assert.ok(v.incidentHow.includes('다른 카트와 교차'));
+assert.ok(v.incidentHow.includes('나뭇가지'));
+assert.ok(v.incidentHow.length<190,'automatic incident narrative should be a concise report sentence');
+assert.equal(c.summaryMeta?.kind,'ocr_evidence_summary');
+assert.ok(c.evidence.incidentHow.some(x=>x.quote.includes('발생경위')),'narrative evidence must preserve actual source lines');
 assert.ok(v.workAction.includes('수거하여'));
 assert.ok(v.damagedItem.includes('풍우막'));
 assert.ok(v.damageDetail.includes('파손'));
@@ -63,6 +69,22 @@ for(const key of ['siteName','occurredDate','incidentHow','damageDetail','repair
 }
 assert.ok(c.evidence.repairCost.some(e=>String(e.location).includes('2페이지')));
 assert.ok(c.evidence.incidentHow.some(e=>String(e.location).includes('1페이지')));
+// Deliberately garble the scanned narrative: readable short causal line
+// plus corrupt paragraph fragments must still yield clean report prose.
+const garbled={...file,id:'synthetic-noisy-2',units:[{...file.units[0],text:file.units[0].text
+ .replace('R7홀에서 가지를 수거하여','07훌에서 URINE 수거하여')
+ .replace('R9홀 카트로에 정차 중인 카트','ROE 카트로에 정차중이던 카트')
+ .replace('적재함의 가지로','적재함에서 삐져나온 LIRIK')
+ .replace('카트 풍우막이 찢어짐.','카트 품우막이 HOI.')
+ .replace('적재물(나뭇가지)','적재물(나못가지)')},...file.units.slice(1)]};
+const noisy=Core.analyze([garbled],sites)[0];
+assert.ok(noisy.values.incidentHow.includes('16:40경'));
+assert.ok(noisy.values.incidentHow.includes('나뭇가지'));
+assert.ok(noisy.values.incidentHow.includes('적재함 밖으로 돌출된'));
+assert.ok(!/URINE|ROE|LIRIK|HOI/.test(noisy.values.incidentHow));
+assert.ok(noisy.evidence.incidentHow.some(e=>/URINE|LIRIK/.test(e.quote)),'bad OCR retained for source comparison');
+assert.equal(noisy.values.repairCost,'135,700');
+assert.equal(noisy.state,'review','OCR must not bypass verification');
 const noQuote=Core.analyze([{...file,units:[file.units[0],file.units[2]]}],sites)[0];
 assert.ok(Core.missing(noQuote.values.repairCost),'no amount should be fabricated without quote');
 assert.equal(noQuote.values.category,'property');

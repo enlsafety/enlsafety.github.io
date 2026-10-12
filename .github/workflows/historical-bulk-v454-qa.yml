@@ -46,6 +46,7 @@ jobs:
           node tests/historical-bulk-v454-unit.cjs
           node tests/historical-bulk-core-extended.cjs
           node tests/historical-bulk-scanned-korean-pdf.cjs
+          node --check tests/historical-bulk-summary-quote-browser.cjs
           node tests/historical-bulk-analyze-unresolved-site.cjs
           node tests/historical-bulk-workflow-edge.cjs
           node tests/historical-bulk-sync-cache.cjs
@@ -59,6 +60,7 @@ jobs:
         run: |
           node tests/historical-bulk-ui-browser.cjs
           node tests/historical-bulk-simple-auto-browser.cjs
+          node tests/historical-bulk-summary-quote-browser.cjs
           node tests/historical-bulk-upload-stop-browser.cjs
           node tests/historical-bulk-ocr-reuse-browser.cjs
           node tests/historical-bulk-document-browser.cjs

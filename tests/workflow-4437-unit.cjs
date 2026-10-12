@@ -39,5 +39,5 @@ for(const asset of [
   'management-approval-v448.js?v=4.4.39-r1&amp;fix=crisp-sign1'
 ]) assert.ok(stable.includes(asset),asset);
 assert.equal(version.version,'4.5.5');
-assert.equal(version.build,'stable-455-r3');
+assert.equal(version.build,'stable-455-r4');
 console.log('PASS: formal field copy, supplement highlight, finalized-only approval and unified HQ dashboard wiring');
