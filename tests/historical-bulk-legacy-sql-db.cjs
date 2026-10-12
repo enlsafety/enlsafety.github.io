@@ -17,3 +17,20 @@ const {PGlite}=require('@electric-sql/pglite'),Core=require('../historical-bulk-
  const record=Core.makeIncident(c,batch,actor,'2026-10-12T00:00:00Z','qa-incident');
  const transaction=fn=>db.transaction(async tx=>{await tx.query("select set_config('enl.actor',$1,true)",[JSON.stringify(actor)]);await tx.query("select set_config('enl.bulk_actor',$1,true)",[JSON.stringify(actor)]);return fn(tx)});
  await transaction(tx=>tx.query('insert into public.enl_incident_shared values($1,$2,$3::jsonb)',[record.id,record.siteId,JSON.stringify(record)]));
+ const inserted=await db.query('select payload from public.enl_incident_shared where incident_id=$1',[record.id]);
+ assert.equal(inserted.rows[0].payload.status,'reported');
+ assert.equal(inserted.rows[0].payload.externalInitialApproval.state,'unverifiable');
+ async function rejected(fn){let m='';try{await transaction(fn)}catch(e){m=e.message};assert.ok(m,'operation must fail');return m}
+ const falseApproved={...record,id:'forged',status:'approved',externalInitialApproval:{...record.externalInitialApproval,state:'verified'}};
+ assert.match(await rejected(tx=>tx.query('insert into public.enl_incident_shared values($1,$2,$3::jsonb)',[falseApproved.id,falseApproved.siteId,JSON.stringify(falseApproved)])),/bulk_verified_import_required/);
+ const noProof=structuredClone(record);noProof.status='approved';noProof.approvedAt='2026-10-12T01:00:00Z';noProof.approvedBy='imposter';noProof.officialRecord.approval={id:'imposter'};
+ assert.match(await rejected(tx=>tx.query('update public.enl_incident_shared set payload=$1::jsonb where incident_id=$2',[JSON.stringify(noProof),record.id])),/bulk_legacy_approval_proof_required/);
+ assert.match(await rejected(tx=>tx.query('delete from public.enl_incident_shared where incident_id=$1',[record.id])),/bulk_physical_delete_forbidden/);
+ const approved=structuredClone(record);approved.status='approved';approved.approvedAt='2026-10-12T01:00:00Z';approved.approvedBy='QA safety';approved.officialRecord.approval={id:'qa-safety',at:approved.approvedAt};
+ await transaction(tx=>tx.query('update public.enl_incident_shared set payload=$1::jsonb where incident_id=$2',[JSON.stringify(approved),record.id]));
+ const result=await db.query('select payload from public.enl_incident_shared where incident_id=$1',[record.id]);
+ assert.equal(result.rows[0].payload.approvedAt,approved.approvedAt);
+ assert.equal(result.rows[0].payload.externalInitialApproval.state,'unverifiable');
+ await db.close();
+ console.log('PASS: PostgreSQL legacy source confirmation, no false approval, safe deletion, genuine safety review');
+})().catch(e=>{console.error(e);process.exit(1)});
