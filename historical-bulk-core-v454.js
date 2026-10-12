@@ -3,9 +3,9 @@
 'use strict';
 const text=v=>String(v??'').trim(),norm=v=>text(v).replace(/\s+/g,'').toLowerCase();
 const fields={
- siteName:['사업장','사업장명','현장명'],occurredDate:['발생일','사고일','발생날짜','사고발생일','발생일자','사고발생일자'],occurredTime:['발생시간','사고시간'],category:['사고구분','대인대물'],eventType:['사고유형','재해유형'],severity:['사고정도','중대성','부상정도','피해정도'],place:['사고장소','발생장소'],workAction:['당시작업','작업내용','사고직전작업'],incidentHow:['사고경위','발생내용','사고내용','사고발생경위'],cause:['사고원인','확인된원인'],name:['피해자','피해직원','작업자','성명','피해직원명'],job:['직종','업무'],injuryDetail:['부상내용','인적피해'],damagedItem:['파손물품','파손시설','피해물품','파손물품/시설'],damageDetail:['파손내용','물적피해'],
+ siteName:['사업장','사업장명','현장명'],occurredDate:['발생일','사고일','발생날짜','사고발생일','발생일자','사고발생일자','사고일자'],occurredTime:['발생시간','사고시간'],category:['사고구분','대인대물'],eventType:['사고유형','재해유형'],severity:['사고정도','중대성','부상정도','피해정도'],place:['사고장소','발생장소'],workAction:['당시작업','작업내용','사고직전작업'],incidentHow:['사고경위','발생내용','사고내용','사고발생경위'],cause:['사고원인','확인된원인'],name:['피해자','피해직원','작업자','성명','피해직원명'],job:['직종','업무'],injuryDetail:['부상내용','인적피해'],damagedItem:['파손물품','파손시설','피해물품','파손물품/시설'],damageDetail:['파손내용','물적피해'],
  cost:['피해비용','비용'],medicalCost:['진료비','병원비','치료비'],repairCost:['복구비용','수리비','수리비용','복구예상비용'],damageAmount:['피해금액','총피해금액'],medicalCostDetail:['진료비상세내역','진료비상세'],repairCostDetail:['견적/비용상세내역','견적비용상세내역','복구비용상세'],
- immediateAction:['당시조치','즉시조치','초기대응','사고직후조치'],erpRef:['ERP문서번호','결재문서번호'],erpDate:['ERP결재일','결재일'],erpStatus:['ERP결재상태','결재상태'],recordNo:['사고번호','사고관리번호'],originalReporter:['원보고자','보고자'],diagnosis:['진단명','진단결과'],doctorOpinion:['의사소견','치료/의사소견','치료기간'],leaveEstimate:['휴업예상','휴업정도'],followupNote:['후속자료','사후보완내용'],title:['사고명','제목']
+ immediateAction:['당시조치','즉시조치','초기대응','사고직후조치'],erpRef:['ERP문서번호','결재문서번호'],erpDate:['ERP결재일','결재일'],erpStatus:['ERP결재상태','결재상태'],recordNo:['사고번호','사고관리번호'],originalReporter:['원보고자','보고자'],diagnosis:['진단명','진단결과'],doctorOpinion:['의사소견','치료/의사소견','치료기간'],leaveEstimate:['휴업예상','휴업정도'],followupNote:['후속자료','사후보완내용','조치방안','조치계획'],title:['사고명','제목']
 };
 const labels=Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,v[0]]));
 const aliasNorm=v=>norm(v).replace(/[：:*＊]+$/g,'');
@@ -26,7 +26,14 @@ function parseUnits(file){
  const segments=[];let segment=emptySegment(file.id),currentMethod=file.method||'text',lastKey='';
  const finish=()=>{if(Object.keys(segment.values).length){segments.push(segment);segment=emptySegment(file.id);}lastKey='';};
  const add=(k,raw,loc)=>{
-  if(!text(raw))return;const ev={fileId:file.id,location:loc,quote:text(raw),method:currentMethod},v=value(k,raw);
+  if(!text(raw))return;
+  // "피해정도" can be a description (e.g. a broken cart curtain), not a
+  // minor/moderate/major grade. Preserve the original OCR quotation.
+  if(k==='severity'&&currentMethod==='ocr'&&!['minor','moderate','major'].includes(value(k,raw))){
+   if(/파손|훼손|찢어|파열|수리|손상/.test(raw))k='damageDetail';
+   else if(/부상|골절|열상|타박|출혈|화상|치료/.test(raw))k='injuryDetail';
+  }
+  const ev={fileId:file.id,location:loc,quote:text(raw),method:currentMethod},v=value(k,raw);
   if(segment.values[k]!==undefined&&norm(segment.values[k])!==norm(v)){
    if(['erpRef','recordNo'].includes(k)||['siteName','occurredDate'].includes(k)&&segment.values.incidentHow){finish();}
    else segment.issues.push({field:k,code:'conflict',message:`${labels[k]} 값이 문서에서 서로 다릅니다.`,evidence:[...(segment.evidence[k]||[]),ev]});
@@ -44,14 +51,78 @@ function parseUnits(file){
    }
    const m=line.match(/^\s*([^:：\t]{1,35})\s*[:：\t]\s*(.*)$/);let k=m&&aliases.get(aliasNorm(m[1])),raw=m?.[2];
    if(!k){const separated=line.match(/^\s*(.+?)\s{2,}(.+)$/);if(separated){k=aliases.get(aliasNorm(separated[1]));raw=separated[2];}}
+   if(!k&&currentMethod==='ocr'){
+    const bar=line.match(/^\s*([^:：|｜]{2,15})\s*[|｜]\s*(.*)$/);
+    if(bar){k=aliases.get(aliasNorm(bar[1]));raw=bar[2];}
+   }
    if(k){
     if(['siteName','occurredDate'].includes(k)&&segment.values[k]!==undefined&&norm(segment.values[k])!==norm(value(k,raw))&&segment.values.incidentHow)finish();
     add(k,raw,`${location} · ${n+1}줄`);lastKey=k;
-   }else if(lastKey&&['incidentHow','cause','immediateAction','workAction','injuryDetail','damageDetail','doctorOpinion','followupNote'].includes(lastKey)&&text(line)){
+   }else if(lastKey&&['incidentHow','cause','immediateAction','workAction','injuryDetail','damageDetail','doctorOpinion','followupNote'].includes(lastKey)&&text(line)&&!(currentMethod==='ocr'&&['damageDetail','injuryDetail'].includes(lastKey))){
     segment.values[lastKey]+='\n'+text(line);segment.evidence[lastKey].push({fileId:file.id,location:`${location} · ${n+1}줄`,quote:text(line),method:currentMethod});
    }else lastKey='';
   }
  };
+ const recoverOcrForm=unit=>{
+  const rows=text(unit.text).split(/\r?\n/).map(text),at=i=>(text(unit.location)||'OCR')+' · '+(i+1)+'줄';
+  const push=(k,v,i)=>{if(text(v))add(k,v,at(i));};
+  const form=rows.some(x=>/사고\s*경위\s*서|사고\s*일자|사고\s*장소|사고\s*내용|발생\s*경위/.test(x));
+  const quote=rows.some(x=>/견\s*적\s*서|합계\s*금액/.test(x));
+  if(form){
+   const first=rows.findIndex(x=>/(?:\d{1,2}월\s*\d{1,2}일|\d{4}[./-]\d{1,2}[./-]\d{1,2}).{0,20}\d{1,2}\s*시\s*\d{1,2}\s*분/.test(x)&&!/보고일자|견적/.test(x));
+   if(first>=0){
+    const parts=[];
+    for(let i=first;i<Math.min(rows.length,first+6);i++){
+     if(i>first&&/^\s*(?:피해\s*정도|조치\s*방안|조치\s*계획|위와\s*같이|보고자)/.test(rows[i]))break;
+     const v=rows[i].replace(/\s*발생\s*경위\s*/,' ').trim();
+     if(v)parts.push(v);
+    }
+    if(parts.join(' ').length>=24&&!segment.values.incidentHow)push('incidentHow',parts.join('\n'),first);
+    const time=rows[first].match(/(오전|오후)?\s*(\d{1,2})\s*시\s*(\d{1,2})\s*분/);
+    if(time){let h=Number(time[2]);if(time[1]&&h>=1&&h<=12)h=h%12+(time[1]==='오후'?12:0);
+     if(h<24&&Number(time[3])<60)push('occurredTime',String(h).padStart(2,'0')+':'+time[3].padStart(2,'0'),first);}
+   }
+   const titleAt=rows.findIndex(x=>x.length>=4&&x.length<=34&&!/피해\s*정도|견적|합계|번호/.test(x)&&/파손|훼손|충돌|추락|낙상|넘어짐|끼임|베임|전도|화재/.test(x));
+   if(titleAt>=0){
+    if(!segment.values.title)push('title',rows[titleAt],titleAt);
+    const kind=rows[titleAt].match(/파손|훼손|충돌|추락|낙상|넘어짐|끼임|베임|전도|화재/);
+    if(kind&&!segment.values.eventType)push('eventType',kind[0],titleAt);
+   }
+   const damage=text(segment.values.damageDetail),item=damage.match(/^(.{2,45}?)\s*(?:파손|훼손|손상|찢어짐|파열)/);
+   if(item&&!segment.values.damagedItem){
+    const i=rows.findIndex(x=>/피해\s*정도/.test(x));
+    push('damagedItem',item[1].replace(/\s*\(.*$/,'').trim(),Math.max(0,i));
+   }
+   // A future \"조치방안\" belongs to follow-up, not the immediate action.
+   const planAt=rows.findIndex(x=>/조치\s*(?:방안|계획)/.test(x));
+   if(planAt>=0&&!segment.values.followupNote){
+    const lines=[];
+    for(let i=planAt;i<Math.min(rows.length,planAt+4);i++){
+     if(i>planAt&&/^\s*(?:위와\s*같이|보고자|주식회사|작성일)/.test(rows[i]))break;
+     const content=rows[i].replace(/^\s*조치\s*(?:방안|계획)\s*[:：|｜]?\s*/,'').trim();
+     if(content)lines.push(content);
+    }
+    if(lines.join(' ').length>=10)push('followupNote',lines.join('\n'),planAt);
+   }
+   if(!segment.values.workAction){
+    const i=rows.findIndex(x=>/수거하여|수거\s*작업|예초\s*작업|방제\s*작업|청소\s*작업|관리동으로\s*복귀/.test(x));
+    if(i>=0){
+     const m=rows[i].match(/(?:[^\s,]{0,15}\s*)?(?:수거하여|수거\s*작업|예초\s*작업|방제\s*작업|청소\s*작업|관리동으로\s*복귀)[^\n,.]{0,28}/);
+     if(m)push('workAction',m[0].trim(),i);
+    }
+   }
+  }
+  if(quote){
+   // \"합계금액\" is a quoted repair cost. It is not proof of payment.
+   const i=rows.findIndex(x=>/합계\s*금액/.test(x));
+   if(i>=0&&!segment.values.repairCost){
+    const prices=[...rows.slice(i,i+2).join(' ').matchAll(/(?:\d{1,3}(?:,\d{3})+|\d{4,10})(?:\.\d{1,2})?/g)]
+      .map(x=>x[0]).filter(v=>Number.isFinite(money(v))&&money(v)>0);
+    if(prices.length)push('repairCost',prices[prices.length-1],i);
+   }
+  }
+ };
+
  for(const unit of file.units||[]){
   if(!unit||typeof unit!=='object')continue;
   currentMethod=unit.method||file.method||'text';const location=text(unit.location)||'본문';
@@ -72,6 +143,8 @@ function parseUnits(file){
    continue;
   }
   lines(unit.text,location);
+  if(currentMethod==='ocr')recoverOcrForm(unit);
+  lastKey='';
  }
  finish();
  if(!segments.length)segments.push({...emptySegment(file.id),issues:[{code:'unstructured',message:'사고 단위와 항목을 식별하지 못했습니다. 원문을 확인하고 사고별 필수항목을 보완해 주세요.'}]});
@@ -112,7 +185,27 @@ function analyze(files,sites){
   grouped.push(s);
  }
  return grouped.map((s,n)=>{
-  const matches=sites.filter(x=>norm(x.site_name||x.name)===norm(s.values.siteName));if(matches.length===1)s.values.siteId=matches[0].site_id||matches[0].id;
+  let matches=sites.filter(x=>norm(x.site_name||x.name)===norm(s.values.siteName));
+   if(!matches.length){
+    const refs=files.filter(f=>s.sources.includes(f.id)),hits=[];
+    for(const f of refs)for(const u of f.units||[]){
+     if(!u.text||(u.method||f.method)!=='ocr')continue;
+     for(const site of sites){
+      const name=norm(site.site_name||site.name);
+      if(name.length<4)continue;
+      const line=text(u.text).split(/\r?\n/).find(x=>norm(x).includes(name));
+      if(line)hits.push({site,line,fileId:f.id,location:u.location||'OCR'});
+     }
+    }
+    const ids=[...new Set(hits.map(x=>x.site.site_id||x.site.id))];
+    if(ids.length===1){
+     const hit=hits.find(x=>(x.site.site_id||x.site.id)===ids[0]);
+     s.values.siteName=hit.site.site_name||hit.site.name;
+     s.evidence.siteName=[...(s.evidence.siteName||[]),{fileId:hit.fileId,location:hit.location,quote:hit.line,method:'ocr'}];
+     matches=[hit.site];
+    }
+   }
+   if(matches.length===1)s.values.siteId=matches[0].site_id||matches[0].id;
   const hasPerson=presentDamage(s.values.injuryDetail),hasProperty=presentDamage(s.values.damageDetail)||presentDamage(s.values.damagedItem);
   if(hasPerson&&hasProperty){
    s.values.category='mixed';s.evidence.category=[...(s.evidence.category||[]),...(s.evidence.injuryDetail||[]),...(s.evidence.damageDetail||s.evidence.damagedItem||[])];
