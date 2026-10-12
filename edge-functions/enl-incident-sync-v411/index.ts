@@ -251,7 +251,11 @@ Deno.serve(async(req:Request)=>{
         if(bulkInactive(prev)){ignored++;continue;} // A stale client may still hold a now-invalidated incident.
         if(!prev&&isBulkImported(raw0))rejectWrite("bulk_registration_requires_import_api",409);
         if(prev&&isBulkImported(prev)){
-          if(!["approved","closed"].includes(clean(raw0.status))||clean(raw0.approvedAt)!==clean(prev.approvedAt)||clean(raw0.approvedBy)!==clean(prev.approvedBy))rejectWrite("bulk_initial_approval_locked",409);
+          if(legacyUnverified(prev)){
+            const status=clean(raw0.status);
+            if(!["reported","supplement","supplement_submitted","rejected","approved","closed"].includes(status))rejectWrite("bulk_legacy_workflow_invalid",409);
+            if(actor.role!=="safety"&&(clean(raw0.approvedAt)!==clean(prev.approvedAt)||clean(raw0.approvedBy)!==clean(prev.approvedBy)||(!["approved","closed"].includes(clean(prev.status))&&["approved","closed"].includes(status))))rejectWrite("bulk_legacy_approval_proof_required",409);
+          }else if(!["approved","closed"].includes(clean(raw0.status))||clean(raw0.approvedAt)!==clean(prev.approvedAt)||clean(raw0.approvedBy)!==clean(prev.approvedBy))rejectWrite("bulk_initial_approval_locked",409);
           if(prev.corrective&&!raw0.corrective)rejectWrite("bulk_followup_preservation_required",409);
           if(!isBulkImported(raw0)||["historicalOrigin","externalInitialApproval","bulkInvalidation"].some(k=>JSON.stringify(canonicalValue(prev[k]??null))!==JSON.stringify(canonicalValue(raw0[k]??null))))rejectWrite("bulk_record_scope_locked",409);
         }
