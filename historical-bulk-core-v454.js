@@ -121,6 +121,37 @@ function parseUnits(file){
     }
    }
   }
+  if(form){
+   // Source-grounded summary. Only assert a mechanism when independent OCR
+   // clues establish the activity, involved objects and damage.
+   const all=rows.join(' ');
+   const causeLine=rows.findIndex(x=>/카트/.test(x)&&/교차/.test(x)&&/적재함|적재물/.test(x)&&/풍우막|품우막|풍우커튼|풍우커텐/.test(x));
+   if(causeLine>=0&&/적재함|적재물/.test(all)&&/훼손|파손|손상|찢어/.test(all)){
+    const branch=/나뭇가지|나못가지|나무가지|나무가치|나못가치/.test(all);
+    const protruding=/삐져나온|튀어나온|돌출|적재함\s*밖/.test(all);
+    const returning=/복귀하|복귀\s*중|관리동으로\s*복귀/.test(all);
+    const collecting=/수거|수집/.test(all);
+    const parked=/정차\s*중|정차중/.test(all);
+    const torn=/찢어|찟어|찢어진/.test(all);
+    const day=date(segment.values.occurredDate),clock=text(segment.values.occurredTime);
+    const when=[day,/^\d{2}:\d{2}$/.test(clock)?clock+'경':''].filter(Boolean).join(' ');
+    const place=text(segment.values.place);
+    // Garbled place names like "89흘" must not become an invented hole number.
+    const location=/^(?:R\d{1,2}|\d{1,2})\s*홀\s*카트로$/i.test(place)?place+'에서':'카트로에서';
+    const load=branch?'나뭇가지':'적재물';
+    const work=returning&&collecting?(branch?'나뭇가지를 수거해 관리동으로 복귀하던 중':'적재물을 수거하고 복귀하던 중'):'카트 이동 중';
+    const crossing=parked?'정차 중인 다른 카트와 교차하는 과정에서':'다른 카트와 교차하는 과정에서';
+    const mechanism=protruding?'적재함 밖으로 돌출된 '+load+'가':'적재함에 실린 '+load+'가';
+    const loss=torn?'카트 풍우막을 찢어 훼손함.':'카트 풍우막을 훼손함.';
+    segment.values.incidentHow=[when,work,location,crossing,mechanism,loss].filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
+    // Audit evidence must quote the scanned source, NEVER the rewritten text.
+    const start=rows.findIndex(x=>/\d{1,2}\s*월\s*\d{1,2}\s*일.*\d{1,2}\s*시\s*\d{1,2}\s*분/.test(x));
+    const indices=[causeLine,...(start>=0?Array.from({length:Math.min(4,rows.length-start)},(_,j)=>start+j):[])];
+    const damageLine=rows.findIndex(x=>/피해\s*정도/.test(x));if(damageLine>=0)indices.push(damageLine);
+    segment.evidence.incidentHow=[...new Set(indices)].filter(i=>i>=0&&i<rows.length&&rows[i]).map(i=>({fileId:file.id,location:at(i),quote:rows[i],method:'ocr'}));
+    segment.summaryMeta={kind:'ocr_evidence_summary',sourcePage:unit.location,reviewRequired:true};
+   }
+  }
   if(quote){
    // \"합계금액\" is a quoted repair cost. It is not proof of payment.
    const i=rows.findIndex(x=>/합계\s*금액/.test(x));
