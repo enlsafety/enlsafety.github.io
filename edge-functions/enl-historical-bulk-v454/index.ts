@@ -49,7 +49,8 @@ Deno.serve(async(req:Request)=>{
   }
   if(b.action==='save'){
    const out=await withBatch(sql,b.batchId,async(t:any,r:any)=>{const cs=r.candidates,c=cs.find((c:any)=>c.id===b.candidateId);if(!c||c.state==='success')fail('candidate_locked');if(c.revision!==b.revision)fail('revision_conflict');if(!clean(b.reason))fail('correction_reason_required');const allowed=new Set([...Object.keys(Core.fields),'siteId']);const before=structuredClone(c.values);for(const [k,v] of Object.entries(b.values||{})){if(!allowed.has(k)||typeof v!=='string'||v.length>6000)fail('invalid_field');if(c.values[k]!==v){c.corrections.push({field:k,before:c.values[k]??null,after:v,reason:clean(b.reason).slice(0,500),actorId:a.id,at:new Date().toISOString()});c.values[k]=v;}}
-    if(b.resolveIssues===true){c.resolvedCodes=[...new Set((c.issues||[]).map((x:any)=>x.code))];c.corrections.push({field:'review',reason:clean(b.reason),actorId:a.id,at:new Date().toISOString()});}
+    if(b.resolveIssues===true){c.resolvedCodes=[...new Set((c.issues||[]).map((x:any)=>x.code))];}
+     c.corrections.push({field:'review',reason:clean(b.reason).slice(0,500),actorId:a.id,at:new Date().toISOString(),resolvedWarnings:b.resolveIssues===true});
     c.revision++;c.state='review';c.error=null;c.validation=Core.validate(c,await sites(t));await t`update private.enl_historical_batches set candidates=${t.json(cs)}::jsonb,updated_at=now() where id=${b.batchId}`;await audit(t,a,b.batchId,'review',{candidateId:c.id,before,after:c.values,reason:clean(b.reason)});return c;});return json({ok:true,candidate:out});
   }
   if(b.action==='commit'){
@@ -58,7 +59,7 @@ Deno.serve(async(req:Request)=>{
     // Serialize importer batches against each other. Never upsert an incident.
     await t`select pg_advisory_xact_lock(hashtextextended('enl-historical-bulk-registration',0))`;
     const cs=r.candidates,c=cs.find((c:any)=>c.id===b.candidateId);if(!c)fail('candidate_not_found');if(c.state==='success')return c;
-    if(c.revision!==b.revision)fail('revision_conflict');const ss=await sites(t);c.validation=Core.validate(c,ss);
+    if(c.revision!==b.revision)fail('revision_conflict');if(!(c.corrections||[]).some((x:any)=>x.field==='review'&&x.actorId===a.id&&clean(x.reason)))fail('manual_review_required');const ss=await sites(t);c.validation=Core.validate(c,ss);
     const site=ss.find((s:any)=>s.site_id===c.values.siteId);if(site&&((site.start_date&&c.values.occurredDate<site.start_date)||(site.contract_end_date&&c.values.occurredDate>site.contract_end_date)))c.validation.push({code:'contract',message:'발생일이 사업장 계약기간 밖입니다. 사업장 및 발생일을 재확인해 주세요.'});
     if(!c.sources.length)fail('source_required');const fs=await t`select file_id,hash from private.enl_historical_files where batch_id=${b.batchId}`;if(c.sources.some((id:string)=>!fs.some((f:any)=>f.file_id===id)))fail('source_missing');
     const all=await t`select incident_id,payload from public.enl_incident_shared where site_id=${c.values.siteId} or payload->'externalInitialApproval'->>'documentNo'=${c.values.erpRef||'--none--'} or payload->'historicalOrigin'->>'recordNo'=${c.values.recordNo||'--none--'}`;
