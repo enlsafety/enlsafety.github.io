@@ -87,6 +87,21 @@ async function run(engine,width){
   await page.waitForFunction(()=>window.__sv.batches.size===2&&[...window.__sv.batches.values()][1].candidates.some(c=>c.state==='success')&&!document.querySelector('.bulk454[aria-busy="true"]'),null,{timeout:20000});
   assert.equal(await page.evaluate(()=>window.__sv.calls.filter(x=>x.action==='create').length),2);
   assert.equal(await page.evaluate(()=>window.__sv.calls.filter(x=>x.action==='commit').length),2);
+  const legacyId='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  await page.evaluate(id=>{
+   const db=window.__sv,original=[...db.batches.values()][0];
+   db.batches.set(id,{id,created_at:'2026-10-12T03:10:00Z',candidates:[],file_errors:[],files:[original.files.find(f=>f.name==='needs-check.csv')]});
+   window.enlStartHistoricalBulk454(window.__u);
+  },legacyId);
+  await page.waitForFunction(id=>!!document.querySelector('#b-history option[value="'+id+'"]'),legacyId);
+  await page.locator('details > summary').filter({hasText:'이전 작업 불러오기'}).click();
+  await page.locator('#b-history').selectOption(legacyId);
+  await page.locator('[data-b-history]').click();
+  await page.waitForSelector('[data-b-quick-retry]:not([disabled])');
+  await page.locator('[data-b-quick-retry]').click();
+  await page.waitForFunction(id=>window.__sv.batches.get(id)?.candidates.length===1&&!document.querySelector('.bulk454[aria-busy="true"]'),legacyId);
+  assert.equal(await page.locator('[data-b-count="review"] b').innerText(),'1','older saved files can resume without another upload');
+  assert.equal(await page.evaluate(()=>window.__sv.calls.filter(x=>x.action==='commit').length),2,'missing ERP proof in saved documents is never auto-registered');
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),'no horizontal overflow');
   assert.deepEqual(errors,[],'no browser JS errors');
   console.log('PASS',engine.name(),width,'single consent, rapid drop grouping, automatically proven registration, exception queue, advanced screen and next batch');
