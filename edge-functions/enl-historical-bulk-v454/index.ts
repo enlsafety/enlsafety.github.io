@@ -60,7 +60,13 @@ Deno.serve(async(req:Request)=>{
     await t`select pg_advisory_xact_lock(hashtextextended('enl-historical-bulk-registration',0))`;
     const cs=r.candidates,c=cs.find((c:any)=>c.id===b.candidateId);if(!c)fail('candidate_not_found');if(c.state==='success')return c;
     if(c.revision!==b.revision)fail('revision_conflict');if(!(c.corrections||[]).some((x:any)=>x.field==='review'&&x.actorId===a.id&&clean(x.reason)))fail('manual_review_required');const ss=await sites(t);c.validation=Core.validate(c,ss);
-    const site=ss.find((s:any)=>s.site_id===c.values.siteId);if(site&&((site.start_date&&c.values.occurredDate<site.start_date)||(site.contract_end_date&&c.values.occurredDate>site.contract_end_date)))c.validation.push({code:'contract',message:'발생일이 사업장 계약기간 밖입니다. 사업장 및 발생일을 재확인해 주세요.'});
+    const site=ss.find((s:any)=>s.site_id===c.values.siteId);
+    if(site){
+      const start=clean(site.start_date),end=clean(site.contract_end_date);
+      const from=/^\d{4}-\d{2}$/.test(start)?start+'-01':start.slice(0,10);
+      const until=/^\d{4}-\d{2}$/.test(end)?end+'-31':end.slice(0,10);
+      if((from&&c.values.occurredDate<from)||(until&&c.values.occurredDate>until))c.validation.push({code:'contract',message:'발생일이 사업장 계약기간 밖입니다. 사업장 및 발생일을 재확인해 주세요.'});
+    }
     if(!c.sources.length)fail('source_required');const fs=await t`select file_id,hash from private.enl_historical_files where batch_id=${b.batchId}`;if(c.sources.some((id:string)=>!fs.some((f:any)=>f.file_id===id)))fail('source_missing');
     const all=await t`select incident_id,payload from public.enl_incident_shared where site_id=${c.values.siteId} or payload->'externalInitialApproval'->>'documentNo'=${c.values.erpRef||'--none--'} or payload->'historicalOrigin'->>'recordNo'=${c.values.recordNo||'--none--'}`;
     const dup=all.filter((x:any)=>{const p=x.payload,v=c.values;return(v.recordNo&&(p.historicalOrigin?.recordNo===v.recordNo||x.incident_id===v.recordNo))||(v.erpRef&&[p.externalInitialApproval?.documentNo,p.historicalImport?.erpApprovalRef,p.historicalTransfer?.erpReference].includes(v.erpRef))||(p.siteId===v.siteId&&String(p.occurredDate||p.occurredAt).slice(0,10)===v.occurredDate&&(Core.norm(p.summary)===Core.norm(v.incidentHow)||Core.norm(p.reportDetails?.injuryDetail||p.reportDetails?.damageDetail)===Core.norm(v.injuryDetail||v.damageDetail)))||(p.historicalOrigin?.sourceFileIds?.some((id:string)=>c.sources.includes(id))&&p.historicalOrigin?.candidateId===c.id);});
