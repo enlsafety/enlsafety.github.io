@@ -155,7 +155,7 @@ async function run(work){
  finally{waiting=false;render()}
 }
 async function getBatch(){const out=await call('get',{batchId:id});state=out.batch;files=out.files||[]}
-async function load(){await run(async()=>{const out=await call('list');recent=out.batches||[];if(id)await getBatch()})}
+async function load(){await run(async()=>{const opts=await call('options');sites=opts.sites||[];const out=await call('list');recent=out.batches||[];if(id)await getBatch()})}
 async function upload(list){
  if(!id)throw Error('분석 배치를 먼저 만들어 줘.');
  if(!list.length)return;
