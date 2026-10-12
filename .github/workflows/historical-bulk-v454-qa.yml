@@ -58,3 +58,4 @@ jobs:
           node tests/historical-bulk-ui-browser.cjs
           node tests/historical-bulk-document-browser.cjs
           node tests/historical-bulk-general-entry-browser.cjs
+          node tests/historical-bulk-startup-browser.cjs
