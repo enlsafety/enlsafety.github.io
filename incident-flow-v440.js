@@ -70,7 +70,7 @@
     if(Number.isFinite(occurred)&&Number.isFinite(created)&&created>=occurred&&!Number.isFinite(Number(i.reportWorkflow.immediateDelayMinutes)))i.reportWorkflow.immediateDelayMinutes=Math.round((created-occurred)/60000);
     const st=String(i.status||'');
     i.reportWorkflow.phase=st==='reported'?'immediate_review':st==='supplement'?'supplement_waiting':st==='supplement_submitted'?'supplement_review':st==='approved'?'report_approved':st==='closed'?'closed':st;
-    if(['approved','closed'].includes(st)&&!i.reportWorkflow.finalApprovedAt){
+    if(['approved','closed'].includes(st)&&i?.externalInitialApproval?.state!=='verified'&&!i.reportWorkflow.finalApprovedAt){
       i.reportWorkflow.finalApprovedAt=i.approvedAt||now();i.reportWorkflow.finalApprovedBy=i.approvedBy||'안전관리자';
     }
     return i.reportWorkflow;
