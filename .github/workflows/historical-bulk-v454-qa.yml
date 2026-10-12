@@ -45,6 +45,7 @@ jobs:
           node --check tests/historical-bulk-ui-browser.cjs
           node tests/historical-bulk-v454-unit.cjs
           node tests/historical-bulk-core-extended.cjs
+          node tests/historical-bulk-legacy-erp-exception.cjs
           node tests/historical-bulk-scanned-korean-pdf.cjs
           node --check tests/historical-bulk-summary-quote-browser.cjs
           node tests/historical-bulk-analyze-unresolved-site.cjs
