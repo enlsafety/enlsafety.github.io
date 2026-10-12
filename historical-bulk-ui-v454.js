@@ -149,6 +149,7 @@ function detailMarkup(c){const val=activeValues(c),labels=core.labels||{},all=co
  const prominent=advanced?allKeys:allKeys.filter(k=>focus.has(k)),extra=advanced?[]:allKeys.filter(k=>!focus.has(k));
  out+='<div class="grid454">'+prominent.map(buildField).join('')+'</div>';
  if(extra.length)out+='<details class="panel454"><summary>그 밖의 사고정보 '+extra.length+'개 펼치기</summary><div class="grid454">'+extra.map(buildField).join('')+'</div></details>';
+ out+=legacyApprovalMarkup(c,val,is,isRegistered);
  const ev=Object.entries(c.evidence||{}).flatMap(([key,arr])=>(arr||[]).map(e=>'<div><b>'+esc(labels[key]||key)+' · '+esc(e.location)+'</b><div>'+esc(e.quote)+'</div></div>')).join('<hr>');out+='<details class="panel454"><summary>원본 추출 근거 보기</summary><div class="evidence454">'+(ev||'자동 근거를 찾지 못했어. 원본을 직접 대조해 줘.')+'</div></details><label>확인·수정·처리 사유<textarea id="b-reason" placeholder="대조한 원본과 변경 이유를 기록해 줘."></textarea></label>';
  if(!isRegistered&&!inactive)out+='<label class="check454"><input id="b-resolve" type="checkbox">OCR·충돌·불명확 항목을 원본과 직접 대조했어.</label><div class="row454"><button data-b-save>검토 내용 저장</button><button class="main454" data-b-commit>이 사고 등록</button><button class="warn454" data-b-exclude>후보 제외</button></div>';
  else if(c.state==='excluded')out+='<div class="row454"><button data-b-restore-candidate>후보 복구</button></div>';
