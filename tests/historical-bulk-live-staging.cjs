@@ -51,6 +51,10 @@ let manifest = args.has('--resume-workflow') || args.has('--resume-registration'
   batchIds: [], incidentIds: [], storagePaths: [], checks: [], phase: 'initial', cleaned: false
 };
 ensure(manifest?.runId === session.runId, 'Resume manifest does not match the session');
+if (manifest.failure) {
+  manifest.previousFailures = [...(manifest.previousFailures || []), { at: manifest.failedAt, message: manifest.failure }];
+  delete manifest.failure; delete manifest.failedAt;
+}
 const checkpoint = () => fs.writeFileSync(MANIFEST_FILE, JSON.stringify(manifest, null, 2) + '\n', { mode: 0o600 });
 const pass = label => {
   manifest.checks.push({ name: label, status: 'pass', at: new Date().toISOString() });
@@ -231,6 +235,8 @@ async function mainTests() {
 async function registrationTests() {
   const batchId = manifest.mainBatchId;
   ensure(batchId, 'No registration checkpoint available');
+  manifest.bulkVersion = ok(await api('options'), 'Confirm current staging importer version').version;
+  manifest.phase = 'registration'; checkpoint();
   const cs = (await get(batchId)).batch.candidates;
   const a = byRecord(cs, 'PERSON'), b = byRecord(cs, 'PROPERTY'), person = values('PERSON');
   const countBefore = await metricsCount();
@@ -297,6 +303,9 @@ async function registrationTests() {
 async function workflowTests() {
   const batchId = manifest.workflowBatchId, id = manifest.workflowCandidateId;
   ensure(batchId && id, 'No workflow checkpoint available');
+  manifest.bulkVersion = ok(await api('options'), 'Confirm current staging importer version').version;
+  manifest.syncVersion = ok(await invoke(SYNC, 'health'), 'Confirm current staging sync version').version;
+  checkpoint();
   const refreshed = async () => current(batchId, id);
   const push = async (transform, who = 'safety') => {
     const { p } = await refreshed(), next = structuredClone(p);
@@ -334,11 +343,14 @@ async function workflowTests() {
   ensure(final.p.approvedAt === null && !final.p.officialRecord.approval && final.p.externalInitialApproval.state === 'verified', 'Followup closure does not fabricate first approval');
   const ack = ok(await invoke(SYNC, 'acknowledge', { incidentId: final.p.id, documentType: 'corrective_action' }, 'manager'), 'Manager signs followup approval');
   ensure(ack.receipt.documentType === 'corrective_action', 'Corrective approval is not blocked by ERP first-approval exemption');
+  denied(await invoke(SYNC, 'push', { incidents: [{ ...final.p, summary: '불허 본사 사고수정' }] }, 'manager'), 'forbidden', 'Followup signature must not grant general manager write access', 403);
   denied(await invoke(SYNC, 'acknowledge', { incidentId: final.p.id, documentType: 'incident_report' }, 'manager'), 'external_initial_approval_no_duplicate_signature', 'ERP first signature still blocked after closure', 409);
   denied(await invoke(COMPLIANCE, 'delete_incident', { incidentId: final.p.id, reason: '합성 삭제 방지 검증' }), 'bulk_delete_requires_invalidation', 'Compliance API cannot physically delete bulk import', 409);
   pass('Safety review/request/resubmit/close and manager followup approval, first-approval and physical-delete guards');
+  delete manifest.failure; delete manifest.failedAt;
+  manifest.uniquePassedChecks = [...new Set(manifest.checks.filter(x => x.status === 'pass').map(x => x.name))].length;
   manifest.phase = 'completed'; manifest.completedAt = new Date().toISOString(); checkpoint();
-  console.log(`DONE ${manifest.checks.filter(x => x.status === 'pass').length} passed; ${manifest.checks.filter(x => x.status === 'not-tested').length} not tested. Synthetic fixtures remain for manifest-scoped cleanup.`);
+  console.log(`DONE ${manifest.uniquePassedChecks} unique checks passed; ${manifest.checks.filter(x => x.status === 'not-tested').length} not tested. Synthetic fixtures remain for manifest-scoped cleanup.`);
 }
 (async () => {
   checkpoint();

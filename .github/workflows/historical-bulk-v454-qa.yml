@@ -8,6 +8,7 @@ on:
       - 'edge-functions/enl-incident-sync-v411/**'
       - 'edge-functions/enl-incident-compliance-v439/**'
       - 'supabase/migrations/*historical_bulk*.sql'
+      - 'supabase/migrations/*corrective_ack_guard.sql'
       - 'stable412.html'
       - 'tests/historical-bulk-*.cjs'
       - '.github/workflows/historical-bulk-v454-qa.yml'
@@ -19,6 +20,7 @@ on:
       - 'edge-functions/enl-incident-sync-v411/**'
       - 'edge-functions/enl-incident-compliance-v439/**'
       - 'supabase/migrations/*historical_bulk*.sql'
+      - 'supabase/migrations/*corrective_ack_guard.sql'
       - 'stable412.html'
       - 'tests/historical-bulk-*.cjs'
       - '.github/workflows/historical-bulk-v454-qa.yml'
@@ -47,8 +49,10 @@ jobs:
           node tests/historical-bulk-sync-cache.cjs
       - name: Install isolated browser QA
         run: |
-          npm install --no-save --package-lock=false playwright@1.51.1 jszip@3.10.1
+          npm install --no-save --package-lock=false playwright@1.51.1 jszip@3.10.1 @electric-sql/pglite@0.3.10
           npx playwright install --with-deps chromium webkit
+      - name: Database role, corrective acknowledgement and initial approval guards
+        run: node tests/historical-bulk-corrective-ack-db.cjs
       - name: iPhone WebKit and desktop Chromium user flow
         run: |
           node tests/historical-bulk-ui-browser.cjs

@@ -7,6 +7,8 @@ const bulk=()=>({id:'qa-bulk',siteId:'qa-site',category:'person',status:'approve
 const ordinary=()=>({...bulk(),id:'qa-normal',historicalOrigin:undefined,externalInitialApproval:undefined,approvedAt:'2026-01-01T00:00:00Z',reporterId:'original'});
 function harness(file){
  let handler,transaction=false,txActor=null;const syncMode=file.includes('enl-incident-sync-v411');const state={transactions:0,rollbacks:0,records:[bulk(),ordinary()],queries:[],writes:[],snapshot:[],raceBulk:false};
+ const payloadParameter=value=>{if(!syncMode)return JSON.parse(value);assert.equal(value?.jsonParameter,true,'JSONB object must use sql.json, not a pre-stringified parameter');const payload=JSON.parse(JSON.stringify(value.value));assert.equal(typeof payload,'object');return payload};
+ const preserveBulkOrigin=(before,after)=>{if(!before?.historicalOrigin?.batchId)return;assert.deepEqual(after.historicalOrigin,before.historicalOrigin,'BEFORE lifecycle guard must receive intact origin');assert.deepEqual(after.externalInitialApproval,before.externalInitialApproval,'BEFORE lifecycle guard must receive intact ERP approval')};
  const sql=async(parts,...args)=>{
   const q=parts.join('?').replace(/\s+/g,' ').trim();state.queries.push(q);
   if(q.startsWith("select set_config('enl.actor'")){assert.equal(transaction,true);txActor=JSON.parse(args[0]);assert.ok(['safety','field'].includes(txActor.role));return []}
@@ -25,15 +27,15 @@ function harness(file){
    return records.map(i=>({incident_id:i.id,site_id:i.siteId,payload:clone(i),created_at:i.createdAt,updated_at:i.updatedAt}));
   }
   if(q.startsWith('insert into public.enl_incident_shared')){
-   const p=JSON.parse(args[2]),idx=state.records.findIndex(i=>i.id===args[0]);
+   const p=payloadParameter(args[2]),idx=state.records.findIndex(i=>i.id===args[0]);
    if(syncMode){assert.equal(idx,-1,'existing records must use UPDATE to avoid bulk registration INSERT guard');assert.equal(transaction,true,'incident write requires transaction');assert.ok(txActor?.id,'verified actor is transaction local');assert.equal(p._syncBaseVersion,Number(state.records[idx]?._syncVersion||0));p._syncVersion=p._syncBaseVersion+1;delete p._syncBaseVersion;}
    if(idx>=0)state.records[idx]=p;else state.records.push(p);state.writes.push(q);return [{payload:clone(p)}];
   }
-  if(q.startsWith('update public.enl_incident_shared')){const push=q.includes('set site_id='),p=JSON.parse(args[push?1:0]),idx=state.records.findIndex(i=>i.id===args[push?3:2]);if(syncMode){assert.equal(transaction,true);assert.ok(txActor?.id);assert.equal(p._syncBaseVersion,Number(state.records[idx]?._syncVersion||0));if(!push)assert.match(p._syncMutationId,/^ack:/);p._syncVersion=p._syncBaseVersion+1;delete p._syncBaseVersion;}state.records[idx]=p;state.writes.push(q);return [{payload:clone(p)}];}
+  if(q.startsWith('update public.enl_incident_shared')){const push=q.includes('set site_id='),p=payloadParameter(args[push?1:0]),idx=state.records.findIndex(i=>i.id===args[push?3:2]);if(syncMode){preserveBulkOrigin(state.records[idx],p);assert.equal(transaction,true);assert.ok(txActor?.id);assert.equal(p._syncBaseVersion,Number(state.records[idx]?._syncVersion||0));if(!push)assert.match(p._syncMutationId,/^ack:/);p._syncVersion=p._syncBaseVersion+1;delete p._syncBaseVersion;}state.records[idx]=p;state.writes.push(q);return [{payload:clone(p)}];}
   if(q.startsWith('delete from public.enl_incident_shared')){state.writes.push(q);state.records=q.includes('where')?state.records.filter(i=>i.id!==args[0]):[];return [];}
-  if(q.startsWith('insert into public.enl_incident_audit')||q.startsWith('insert into public.enl_incident_backups')){state.writes.push(q);return [];}
+  if(q.startsWith('insert into public.enl_incident_audit')||q.startsWith('insert into public.enl_incident_backups')){if(syncMode)for(const p of args.slice(8))if(p!==null)payloadParameter(p);state.writes.push(q);return [];}
   throw Error('Unexpected isolated SQL: '+q);
- };sql.end=async()=>{};sql.begin=async fn=>{const before=clone(state.records),writes=state.writes.length;assert.equal(transaction,false);transaction=true;txActor=null;state.transactions++;try{return await fn(sql)}catch(e){state.records=before;state.writes.length=writes;state.rollbacks++;throw e}finally{transaction=false;txActor=null}};
+ };sql.json=value=>({jsonParameter:true,value});sql.end=async()=>{};sql.begin=async fn=>{const before=clone(state.records),writes=state.writes.length;assert.equal(transaction,false);transaction=true;txActor=null;state.transactions++;try{return await fn(sql)}catch(e){state.records=before;state.writes.length=writes;state.rollbacks++;throw e}finally{transaction=false;txActor=null}};
  const context={Deno:{serve:f=>handler=f,env:{get:()=> 'isolated-db'}},postgres:()=>sql,Request,Response,TextEncoder,crypto,structuredClone,console};vm.createContext(context);
  vm.runInContext(fs.readFileSync('site-contract-v451.js','utf8'),context);
  vm.runInContext(stripTypeScriptTypes(fs.readFileSync(file,'utf8').replace(/^import .*;\n/gm,'')),context);

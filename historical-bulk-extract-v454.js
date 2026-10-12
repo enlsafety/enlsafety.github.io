@@ -124,8 +124,8 @@ async function read(file,progress){
  if(type==='csv')extraction={method:'text',units:[{location:'CSV',rows:csvRows(decode(bytes))}]};
  else if(['xlsx','xls'].includes(type)){
   await library('xlsx',()=>!!window.XLSX?.read);
-  const work=window.XLSX.read(bytes,{type:'array',cellDates:true});
-  for(const name of work.SheetNames)for(const [key,cell] of Object.entries(work.Sheets[name])){if(!key.startsWith('!')&&cell?.t==='d'){cell.z='yyyy-mm-dd';delete cell.w;}}
+  const work=window.XLSX.read(bytes,{type:'array',cellDates:true,cellNF:true});
+  for(const name of work.SheetNames)for(const [key,cell] of Object.entries(work.Sheets[name])){if(!key.startsWith('!')&&cell?.t==='d'){const format=String(cell.z||'').replace(/"[^"]*"/g,'');cell.z=/[hs]/i.test(format)&&!/[yd]/i.test(format)?'hh:mm':'yyyy-mm-dd';delete cell.w;}}
   extraction={method:'text',units:work.SheetNames.map(name=>({
    location:name,method:'text',rows:window.XLSX.utils.sheet_to_json(work.Sheets[name],{header:1,raw:false,defval:'',dateNF:'yyyy-mm-dd'})
   }))};

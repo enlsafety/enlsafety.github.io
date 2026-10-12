@@ -4,7 +4,7 @@ import postgres from "npm:postgres@3.4.5";
 
 const ORIGIN="https://enlsafety.github.io";
 const APP="incident-report-v2";
-const VERSION="4.5.4-bulk-lifecycle2";
+const VERSION="4.5.4-bulk-lifecycle3";
 const cors={"Access-Control-Allow-Origin":ORIGIN,"Access-Control-Allow-Headers":"content-type, x-client-info, apikey, authorization, x-enl-app","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:cors});
 const clean=(v:any)=>String(v??"").trim();
@@ -48,7 +48,7 @@ function attachmentDiff(prev:any,next:any){
   return {added:[...bm].filter(([k])=>!am.has(k)).map(([,v])=>v),removed:[...am].filter(([k])=>!bm.has(k)).map(([,v])=>v)};
 }
 async function writeAudit(sql:any,id:string,siteId:string,action:string,actor:any,before:any,after:any,at:string){
-  await sql`insert into public.enl_incident_audit(incident_id,site_id,action,editor_id,editor_name,editor_role,editor_position,changed_at,before_payload,after_payload) values(${id},${siteId},${action},${actor.id},${actor.name},${actor.role},${actor.position},${at},${before?JSON.stringify(before):null}::jsonb,${after?JSON.stringify(after):null}::jsonb)`;
+  await sql`insert into public.enl_incident_audit(incident_id,site_id,action,editor_id,editor_name,editor_role,editor_position,changed_at,before_payload,after_payload) values(${id},${siteId},${action},${actor.id},${actor.name},${actor.role},${actor.position},${at},${before?sql.json(before):null}::jsonb,${after?sql.json(after):null}::jsonb)`;
 }
 function semanticAction(prev:any,next:any,requestedStatus:string,prevReportHash:string,nextReportHash:string){
   if(!prev)return "create";
@@ -222,7 +222,7 @@ Deno.serve(async(req:Request)=>{
       const receipt={documentType,userId:actor.id,name:actor.name,role:actor.role,position:actor.position,siteId:actor.siteId,ackAt:now,label:documentType==="incident_report"?"본사 결재":"재발방지조치 결재"};
       acknowledgements.push(receipt);
       const next={...prev,acknowledgements,updatedAt:now,_syncBaseVersion:versionOf(prev?._syncVersion),_syncMutationId:`ack:${actor.id}:${incidentId}:${crypto.randomUUID()}`};
-      const saved=await sql`update public.enl_incident_shared set payload=${JSON.stringify(next)}::jsonb,updated_at=${now} where incident_id=${incidentId} returning payload`;
+      const saved=await sql`update public.enl_incident_shared set payload=${sql.json(next)}::jsonb,updated_at=${now} where incident_id=${incidentId} returning payload`;
       const after=parsePayload(saved[0]?.payload)||next;
       await writeAudit(sql,incidentId,clean(row.site_id),"acknowledge",actor,prev,after,now);
       const responseIncident=actor.role==="manager"||actor.role==="executive"?readerIncident(after):after;
@@ -332,9 +332,11 @@ Deno.serve(async(req:Request)=>{
         else if(!clean(next._syncMutationId))next._syncMutationId=`edge:${actor.id||"user"}:${id}:${crypto.randomUUID()}`;
         if(versionOf(next._syncBaseVersion)!==versionOf(prev?._syncVersion))rejectWrite("enl_sync_conflict_version");
         next.lastModifiedBy=actor.name;next.lastModifiedRole=actor.role;next.lastModifiedPosition=actor.position||(actor.role==="worker"?"일반근로자":"");next.lastModifiedAt=now;next.updatedAt=now;
+        // Pass the object to the JSON serializer; a pre-stringified value can reach
+        // BEFORE triggers as a JSON string before the legacy normalizer runs.
         const saved=prev
-          ?await sql`update public.enl_incident_shared set site_id=${siteId},payload=${JSON.stringify(next)}::jsonb,updated_at=${now} where incident_id=${id} returning payload`
-          :await sql`insert into public.enl_incident_shared(incident_id,site_id,payload,created_at,updated_at) values(${id},${siteId},${JSON.stringify(next)}::jsonb,${now},${now}) returning payload`;
+          ?await sql`update public.enl_incident_shared set site_id=${siteId},payload=${sql.json(next)}::jsonb,updated_at=${now} where incident_id=${id} returning payload`
+          :await sql`insert into public.enl_incident_shared(incident_id,site_id,payload,created_at,updated_at) values(${id},${siteId},${sql.json(next)}::jsonb,${now},${now}) returning payload`;
         const after=parsePayload(saved[0]?.payload)||next;
         const actionName=semanticAction(prev,after,requestedStatus,prevReportHash,nextReportHash);
         await writeAudit(sql,id,siteId,actionName,actor,prev,after,now);

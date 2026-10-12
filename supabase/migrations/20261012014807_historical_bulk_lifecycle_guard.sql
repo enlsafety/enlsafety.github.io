@@ -1,5 +1,7 @@
 -- Scope corrections and logical invalidation to records created by this importer.
 -- Existing manual transfers, ordinary incidents and workflow authorizations are retained.
+create schema if not exists private;
+revoke all on schema private from public, anon, authenticated;
 create or replace function private.enl_bulk_lifecycle_guard()
 returns trigger language plpgsql set search_path = '' as $body$
 declare
@@ -35,6 +37,12 @@ begin
    or p->'historicalOrigin'->>'batchId' is distinct from q->'historicalOrigin'->>'batchId'
    or p->'historicalOrigin'->>'candidateId' is distinct from q->'historicalOrigin'->>'candidateId' then
   raise exception 'bulk_origin_immutable' using errcode='42501';
+ end if;
+ if coalesce(q->>'status','') not in ('approved','closed')
+   or p->'approvedAt' is distinct from q->'approvedAt'
+   or p->'approvedBy' is distinct from q->'approvedBy'
+   or p->'officialRecord'->'approval' is distinct from q->'officialRecord'->'approval' then
+  raise exception 'bulk_initial_approval_immutable' using errcode='42501';
  end if;
  if coalesce(p->'bulkInvalidation'->>'active','false')='true' and not authorized then
   raise exception 'bulk_voided_read_only' using errcode='42501';
