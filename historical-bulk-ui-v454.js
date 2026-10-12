@@ -192,7 +192,8 @@ async function bulkCommit(){
 function exportCsv(){
  if(!state)return;const head=['사고번호','사업장','발생일','사고유형','대인대물','상태','검토사유','등록ID'];
  const rows=[head,...cands().map(c=>[c.values?.recordNo,c.values?.siteName,c.values?.occurredDate,c.values?.eventType,c.values?.category,c.state,issues(c).map(i=>i.message).join('; '),c.incidentId])];
- const value='\ufeff'+rows.map(r=>r.map(x=>'"'+String(x||'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
+ const safeCell=x=>{const raw=String(x??'');const safe=/^\s*[=+\-@\t\r]/.test(raw)?"'"+raw:raw;return '"'+safe.replace(/"/g,'""')+'"'};
+ const value='\ufeff'+rows.map(r=>r.map(safeCell).join(',')).join('\r\n');
  const url=URL.createObjectURL(new Blob([value],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');
  a.href=url;a.download='과거사고_검토결과_'+new Date().toISOString().slice(0,10)+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),3000);
 }
