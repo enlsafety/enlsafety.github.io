@@ -12,7 +12,7 @@ const store=()=>createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABAS
 function fail(message:string){throw Error(message)}
 async function actor(sql:any,b:any){const rows=await sql`select user_id,name,role,active,password_hash from public.enl_hq_users where user_id=${clean(b.actor?.id)} limit 1`;const u=rows[0];if(!u||!u.active||u.role!=='safety'||!clean(u.password_hash)||clean(b.actorPasswordHash)!==u.password_hash)fail('auth_safety_required');return {id:u.user_id,name:u.name,role:u.role};}
 async function batch(sql:any,id:string,ownerId=''){const r=await sql`select * from private.enl_historical_batches where id=${id}`;if(!r[0])fail('batch_not_found');if(ownerId&&r[0].owner_id!==ownerId)fail('batch_owner_required');return r[0]}
-const sites=async(sql:any)=>await sql`select site_id,site_name,active,start_date,contract_end_date from public.enl_site_master order by site_name`;
+const sites=async(sql:any)=>await sql`select site_id,site_name,active,start_date,contract_period from public.enl_site_master order by site_name`;
 const audit=async(t:any,a:any,bat:string,action:string,detail:any)=>t`insert into private.enl_historical_import_audit(batch_id,actor_id,action,detail) values(${bat},${a.id},${action},${t.json(detail)}::jsonb)`;
 async function withBatch(sql:any,id:string,fn:any,ownerId=''){return sql.begin(async(t:any)=>{await t`select pg_advisory_xact_lock(hashtextextended(${id},0))`;const row=await batch(t,id,ownerId);return fn(t,row)})}
 Deno.serve(async(req:Request)=>{
@@ -62,9 +62,14 @@ Deno.serve(async(req:Request)=>{
     if(c.revision!==b.revision)fail('revision_conflict');if(!(c.corrections||[]).some((x:any)=>x.field==='review'&&x.actorId===a.id&&clean(x.reason)))fail('manual_review_required');const ss=await sites(t);c.validation=Core.validate(c,ss);
     const site=ss.find((s:any)=>s.site_id===c.values.siteId);
     if(site){
-      const start=clean(site.start_date),end=clean(site.contract_end_date);
-      const from=/^\d{4}-\d{2}$/.test(start)?start+'-01':start.slice(0,10);
-      const until=/^\d{4}-\d{2}$/.test(end)?end+'-31':end.slice(0,10);
+      // The site master has start_date and free-text contract_period, not contract_end_date.
+      // Apply date bounds only when an unambiguous ISO-style date can be extracted.
+      const start=clean(site.start_date);
+      const period=clean(site.contract_period);
+      const endMatch=period.match(/(?:~|〜|∼|부터|to)\s*(\d{4}[-./]\d{1,2}[-./]\d{1,2})\s*$/i);
+      const normalizeDate=(v:string)=>Core.date(v)||'';
+      const from=normalizeDate(start)||(/^\d{4}-\d{2}$/.test(start)?start+'-01':'');
+      const until=endMatch?normalizeDate(endMatch[1]):'';
       if((from&&c.values.occurredDate<from)||(until&&c.values.occurredDate>until))c.validation.push({code:'contract',message:'발생일이 사업장 계약기간 밖입니다. 사업장 및 발생일을 재확인해 주세요.'});
     }
     if(!c.sources.length)fail('source_required');const fs=await t`select file_id,hash from private.enl_historical_files where batch_id=${b.batchId}`;if(c.sources.some((id:string)=>!fs.some((f:any)=>f.file_id===id)))fail('source_missing');
