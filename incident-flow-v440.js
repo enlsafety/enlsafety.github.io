@@ -64,13 +64,20 @@
   function workflow(i){
     if(!i)return {};
     i.reportWorkflow=i.reportWorkflow&&typeof i.reportWorkflow==='object'?i.reportWorkflow:{};
+    if(i?.historicalOrigin?.batchId&&i?.externalInitialApproval?.state==='verified'){
+      const s=String(i.status||'');i.reportWorkflow.initialApprovalSource='ERP';
+      i.reportWorkflow.phase=s==='closed'?'closed':s==='approved'?'report_approved':s;
+      // Historical migration is not a late immediate report; do not fabricate SLA or internal approvals.
+      delete i.reportWorkflow.immediateDelayMinutes;delete i.reportWorkflow.internalSla;
+      return i.reportWorkflow;
+    }
     if(!i.reportWorkflow.immediateReportedAt)i.reportWorkflow.immediateReportedAt=i.registeredAt||i.createdAt||now();
     if(!i.reportWorkflow.internalSla)i.reportWorkflow.internalSla='사고 인지 후 30분 이내 또는 현장 이탈 전 즉시보고';
     const occurred=Date.parse(i.occurredAt||''),created=Date.parse(i.reportWorkflow.immediateReportedAt||'');
     if(Number.isFinite(occurred)&&Number.isFinite(created)&&created>=occurred&&!Number.isFinite(Number(i.reportWorkflow.immediateDelayMinutes)))i.reportWorkflow.immediateDelayMinutes=Math.round((created-occurred)/60000);
     const st=String(i.status||'');
     i.reportWorkflow.phase=st==='reported'?'immediate_review':st==='supplement'?'supplement_waiting':st==='supplement_submitted'?'supplement_review':st==='approved'?'report_approved':st==='closed'?'closed':st;
-    if(['approved','closed'].includes(st)&&!i.reportWorkflow.finalApprovedAt){
+    if(['approved','closed'].includes(st)&&i?.externalInitialApproval?.state!=='verified'&&!i.reportWorkflow.finalApprovedAt){
       i.reportWorkflow.finalApprovedAt=i.approvedAt||now();i.reportWorkflow.finalApprovedBy=i.approvedBy||'안전관리자';
     }
     return i.reportWorkflow;

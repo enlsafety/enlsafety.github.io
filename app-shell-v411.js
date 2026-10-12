@@ -11,7 +11,7 @@
   const qsum=i=>typeof window.enlIncidentQuickSummary==='function'?window.enlIncidentQuickSummary(i):{when:fmt(i.occurredAt),site:siteName(i.siteId),headline:i.eventType||'사고',circumstance:String(i.summary||'').slice(0,90)};
   const userId=u=>String(u?.id||u?.personnelId||u?.username||'');
   const hasIncidentApproval=(i,u)=>{const id=userId(u);return !!id&&(Array.isArray(i?.acknowledgements)?i.acknowledgements:[]).some(a=>String(a?.documentType||'incident_report')==='incident_report'&&String(a?.userId||'')===id)};
-  const approvalEligible=i=>!isHistorical(i)&&(String(i?.status||'')==='approved'||(String(i?.status||'')==='closed'&&String(i?.corrective?.status||'')==='approved'));
+  const approvalEligible=i=>!isHistorical(i)&&i?.externalInitialApproval?.state!=='verified'&&(String(i?.status||'')==='approved'||(String(i?.status||'')==='closed'&&String(i?.corrective?.status||'')==='approved'));
   function approvalPendingIncidents(u){if(!['manager','executive'].includes(roleNorm(u?.role)))return [];return dashboardIncidents(u).filter(i=>approvalEligible(i)&&!hasIncidentApproval(i,u)).sort((a,b)=>new Date(b.approvedAt||b.updatedAt||b.occurredAt||0)-new Date(a.approvedAt||a.updatedAt||a.occurredAt||0))}
   let safetyListFilter={status:'',siteId:'',actionStatus:'',actionMissing:false,title:'전체 사고목록'};
 
