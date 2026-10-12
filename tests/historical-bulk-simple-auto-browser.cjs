@@ -72,6 +72,11 @@ async function run(engine,width){
   assert.equal(first.candidates.find(c=>c.values.recordNo==='OLD-QA-200').state,'review');
   assert.equal(await page.evaluate(()=>window.__sv.calls.filter(x=>x.action==='analyze').length),1,'deferred analysis merges queued files');
   assert.equal(await page.evaluate(()=>window.__sv.calls.filter(x=>x.action==='commit').length),1,'only document-supported ERP approval may auto-register');
+  await page.locator('.simple-records454 [data-b-edit]').click();
+  assert.equal(await page.locator('[data-b-field="siteId"]').isVisible(),true,'review shows essential fields first');
+  assert.equal(await page.locator('[data-b-field="erpStatus"]').isVisible(),true,'missing ERP proof is surfaced');
+  assert.equal(await page.locator('summary').filter({hasText:'그 밖의 사고정보'}).count(),1,'nonessential fields are collapsed');
+  await page.locator('[data-b-list]').click();
   await page.locator('[data-b-advanced]').click();
   assert.equal(await page.locator('#b-confirm').count(),1,'advanced manual workflow preserved');
   await page.locator('[data-b-advanced]').click();
