@@ -9,7 +9,7 @@ const clean=v=>String(v==null?'':v).trim();
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const user=()=>{try{const u=currentUser?.();return u&&String(u.role)==='safety'?u:null}catch(_){return null}};
 const endpoint=()=>window.ENL_HIST_BULK_API||((location.hostname==='enlsafety.github.io')?PROD:STAGE);
-let open=false,waiting=false,id='',state=null,sites=[],files=[],recent=[],selected='',message='',failure='';
+let open=false,waiting=false,id='',state=null,sites=[],files=[],recent=[],selected='',message='',failure='',ownerId='';
 function proof(u){
  let p=clean(u.passwordHash),s;
  try{s=typeof session!=='undefined'?session?.manager:null}catch(_){}
@@ -199,6 +199,7 @@ function exportCsv(){
 function start(u=user()){
  if(!u||String(u.role)!=='safety')return alert('안전관리자 계정에서만 사용할 수 있어.');
  if(!core||!extract)return alert('일괄분석 모듈이 준비되지 않았어. 새로고침해 줘.');
+ if(ownerId!==clean(u.id||u.personnelId)){id='';state=null;files=[];sites=[];recent=[];}ownerId=clean(u.id||u.personnelId);
  open=true;selected='';message='';failure='';currentView='report';renderShell(u);load();
 }
 function addCard(node,u){
@@ -211,7 +212,7 @@ function addCard(node,u){
 }
 const old=window.renderUnifiedReport;
 if(typeof old==='function'){
- const wrapper=function(node,u){if(open&&u?.role==='safety')return render();const result=old.apply(this,arguments);setTimeout(()=>addCard(node,u),0);return result};
+ const wrapper=function(node,u){if(open&&u?.role==='safety'&&clean(u.id||u.personnelId)===ownerId)return render();if(open){open=false;id='';state=null;files=[];recent=[];selected='';ownerId='';}const result=old.apply(this,arguments);setTimeout(()=>addCard(node,u),0);return result};
  window.renderUnifiedReport=wrapper;try{renderUnifiedReport=wrapper}catch(_){}
 }
 window.enlStartHistoricalBulk454=start;
