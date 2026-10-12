@@ -65,7 +65,7 @@ async function run(engine,width){
   await page.waitForFunction(()=>window.__sv.batches.size===1&&[...window.__sv.batches.values()][0].candidates.length===2&&document.querySelector('[data-b-count="success"] b')?.textContent==='1'&&!document.querySelector('.bulk454[aria-busy="true"]'),null,{timeout:20000});
   assert.equal(await page.locator('[data-b-count="review"] b').innerText(),'1');
   assert.equal(await page.locator('[data-b-count="failed"] b').innerText(),'0');
-  assert.equal(await page.locator('[data-b-edit]').count(),1,'only exceptions remain in the active list');
+  assert.equal(await page.locator('.simple-records454 [data-b-edit]').count(),1,'only exceptions are shown in the active review list');
   const first=await page.evaluate(()=>[...window.__sv.batches.values()][0]);
   assert.equal(first.files.length,2,'two rapid uploads remain in the same batch');
   assert.equal(first.candidates.find(c=>c.values.recordNo==='OLD-QA-100').state,'success');
