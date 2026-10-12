@@ -8,13 +8,13 @@ const sites=[{site_id:'s1',site_name:'해솔골프장'},{site_id:'s2',site_name:
 const file={id:'synthetic-pdf-1',name:'스캔 경위서.pdf',method:'ocr',units:[
  {location:'1페이지',method:'ocr',confidence:85,text:[
   '사고경위서',
-  '보고자        성             191           보고일자       2026.01.26',
+  '보고자        성             191           보고일자       2025.07.14',
   '이앤엘 해솔골프장',
   '카트 풍우막 훼손',
-  '사고일자                          2026.01.26',
+  '사고일자                          2025.07.14',
   '사고장소                          89흘 카트로',
   '카트 교차 중 적재물(나뭇가지)에 의한 카트 풍우막 훼손',
-  '1월 26일 16시 40분경 R7홀에서 가지를 수거하여 관리동으로 복귀하',
+  '7월 14일 16시 40분경 R7홀에서 가지를 수거하여 관리동으로 복귀하',
   '던 중 R9홀 카트로에 정차 중인 카트와 교차 시 적재함의 가지로',
   '발생경위 카트 풍우막이 찢어짐.',
   '피해정도                  캐디 카트 풍우막 파손 (견적서 첨부)',
@@ -25,9 +25,9 @@ const file={id:'synthetic-pdf-1',name:'스캔 경위서.pdf',method:'ocr',units:
  ].join('\n')},
  {location:'2페이지',method:'ocr',confidence:70,text:[
   '견 적 서',
-  '2026년 1월 27일',
+  '2025년 7월 15일',
   '이앤엘 귀하',
-  '합계금액 구만육천이백오십원 (W 96,250 )',
+  '합계금액 십삼만오천칠백원 (W 135,700 )',
   '(공급가액+세액)'
  ].join('\n')},
  {location:'3페이지',method:'ocr',confidence:40,text:'## eeeee\n바ㅂ = ='},
@@ -36,7 +36,7 @@ const candidates=Core.analyze([file],sites);
 assert.equal(candidates.length,1,'multiple scanned pages must form one accident, not 3 ghost records');
 const c=candidates[0],v=c.values;
 assert.equal(v.siteId,'s1','unique site-master name in an unlabeled OCR row is matched');
-assert.equal(v.occurredDate,'2026-01-26','accident date, not quote date');
+assert.equal(v.occurredDate,'2025-07-14','accident date, not quote date');
 assert.equal(v.occurredTime,'16:40');
 assert.equal(v.category,'property','damaged cart curtain is a property accident');
 assert.equal(v.eventType,'훼손');
@@ -46,7 +46,7 @@ assert.ok(v.incidentHow.includes('16시 40분경'));
 assert.ok(v.workAction.includes('수거하여'));
 assert.ok(v.damagedItem.includes('풍우막'));
 assert.ok(v.damageDetail.includes('파손'));
-assert.equal(v.repairCost,'96,250','quote grand total extracted as prospective repair cost');
+assert.equal(v.repairCost,'135,700','quote grand total extracted as prospective repair cost');
 assert.ok(v.followupNote.includes('적재함 규격'));
 assert.ok(v.followupNote.includes('구매를 진행하여 지급 예정'));
 assert.ok(!v.followupNote.includes('사고경위서를 제출합니다'),'footer must not contaminate mitigation plan');
