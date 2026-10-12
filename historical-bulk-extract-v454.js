@@ -17,7 +17,7 @@ async function library(kind,ready){
   s.onerror=()=>reject(Error(kind+' 라이브러리 다운로드 실패'));
   document.head.appendChild(s);
  });
- await loaded[kind];
+ try{await loaded[kind]}catch(e){delete loaded[kind];throw e}
 }
 const trim=x=>String(x==null?'':x).trim();
 function decode(bytes){
