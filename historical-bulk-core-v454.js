@@ -5,13 +5,15 @@ const text=v=>String(v??'').trim(),norm=v=>text(v).replace(/\s+/g,'').toLowerCas
 const fields={
  siteName:['사업장','사업장명','현장명'],occurredDate:['발생일','사고일','발생날짜','사고발생일','발생일자','사고발생일자','사고일자'],occurredTime:['발생시간','사고시간'],category:['사고구분','대인대물'],eventType:['사고유형','재해유형'],severity:['사고정도','중대성','부상정도','피해정도'],place:['사고장소','발생장소'],workAction:['당시작업','작업내용','사고직전작업'],incidentHow:['사고경위','발생내용','사고내용','사고발생경위'],cause:['사고원인','확인된원인'],name:['피해자','피해직원','작업자','성명','피해직원명'],job:['직종','업무'],injuryDetail:['부상내용','인적피해'],damagedItem:['파손물품','파손시설','피해물품','파손물품/시설'],damageDetail:['파손내용','물적피해'],
  cost:['피해비용','비용'],medicalCost:['진료비','병원비','치료비'],repairCost:['복구비용','수리비','수리비용','복구예상비용'],damageAmount:['피해금액','총피해금액'],medicalCostDetail:['진료비상세내역','진료비상세'],repairCostDetail:['견적/비용상세내역','견적비용상세내역','복구비용상세'],
- immediateAction:['당시조치','즉시조치','초기대응','사고직후조치'],erpRef:['ERP문서번호','결재문서번호'],erpDate:['ERP결재일','결재일'],erpStatus:['ERP결재상태','결재상태'],recordNo:['사고번호','사고관리번호'],originalReporter:['원보고자','보고자'],diagnosis:['진단명','진단결과'],doctorOpinion:['의사소견','치료/의사소견','치료기간'],leaveEstimate:['휴업예상','휴업정도'],followupNote:['후속자료','사후보완내용','조치방안','조치계획'],title:['사고명','제목']
+ immediateAction:['당시조치','즉시조치','초기대응','사고직후조치'],erpRef:['ERP문서번호','결재문서번호'],erpDate:['ERP결재일','결재일'],erpStatus:['ERP결재상태','결재상태'],recordNo:['사고번호','사고관리번호'],originalReporter:['원보고자','보고자'],diagnosis:['진단명','진단결과'],doctorOpinion:['의사소견','치료/의사소견','치료기간'],leaveEstimate:['휴업예상','휴업정도'],followupNote:['후속자료','사후보완내용','조치방안','조치계획'],title:['사고명','제목'],legacyApprovalMode:['ERP 확인불가 구분'],legacyApprovalReason:['ERP 확인불가 사유'],legacyApprovalConfirmed:['과거사고 원본 확인']
 };
 const labels=Object.fromEntries(Object.entries(fields).map(([k,v])=>[k,v[0]]));
 const aliasNorm=v=>norm(v).replace(/[：:*＊]+$/g,'');
 const aliases=new Map(Object.entries(fields).flatMap(([k,v])=>v.map(a=>[aliasNorm(a),k])));
 const missing=v=>!text(v)||/^(미상|미확인|확인중|알수없음|unknown|n\/a|-)$/i.test(norm(v));
 const presentDamage=v=>!missing(v)&&!['없음','해당없음','무','없다','0'].includes(norm(v));
+const legacyModes=Object.freeze({pre_erp:'ERP 도입 이전 사고',pre_employment:'입사 전 결재·문서번호 조회 불가'});
+const isLegacy=v=>!!legacyModes[text(v?.legacyApprovalMode)];
 const seoulToday=()=>new Date(Date.now()+9*60*60*1000).toISOString().slice(0,10);
 function date(v){const m=text(v).match(/^(\d{4})[-./년\s]+(\d{1,2})[-./월\s]+(\d{1,2})(?:일)?\.?$/);if(!m)return '';const s=`${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`,d=new Date(s);return Number.isFinite(d.getTime())&&d.toISOString().slice(0,10)===s?s:'';}
 function value(k,v){
@@ -265,8 +267,18 @@ function validate(c,sites,today=seoulToday()){
  if(!['minor','moderate','major'].includes(v.severity))add('severity','사고정도(경미/보통/중대)를 원문 또는 확인 근거로 입력해 주세요.','severity');
  for(const k of v.category==='person'?['name','injuryDetail']:v.category==='property'?['damagedItem','damageDetail']:[])if(missing(v[k]))add(k,`${labels[k]} 확인이 필요합니다.`);
  for(const k of ['cost','medicalCost','repairCost','damageAmount'])if(!missing(v[k])&&!Number.isFinite(money(v[k])))add(k,`${labels[k]}는 확인된 0 이상의 숫자 또는 미확인으로 표시해 주세요.`,'cost');
- if(!['승인','승인완료','결재완료','approved'].includes(norm(v.erpStatus)))add('erpStatus','ERP 최초 보고의 최종 결재 완료 근거가 필요합니다.','erp');
- if(missing(v.erpRef)&&missing(v.erpDate))add('erpRef','ERP 문서번호 또는 결재일을 확인해 주세요.','erp');
+ if(text(v.legacyApprovalMode)){
+  if(!isLegacy(v))add('legacyApprovalMode','ERP 확인불가 구분을 올바르게 선택해 주세요.','legacy_mode');
+  if(text(v.legacyApprovalReason).length<10||text(v.legacyApprovalReason).length>500)add('legacyApprovalReason','ERP 문서번호를 확인할 수 없는 구체적인 사유를 10~500자로 기록해 주세요.','legacy_reason');
+  if(v.legacyApprovalConfirmed!=='confirmed')add('legacyApprovalConfirmed','과거 사고보고 원본을 확인했다는 사실을 체크해 주세요.','legacy_confirm');
+  const proof=(field)=>c.corrections?.some(e=>e.field===field&&text(e.actorId)&&text(e.reason));
+  for(const field of ['legacyApprovalMode','legacyApprovalReason','legacyApprovalConfirmed'])if(!proof(field))add(field,'안전관리자가 직접 선택·확인하고 저장한 이력이 필요합니다.','legacy_audit');
+  if(!missing(v.erpRef)||!missing(v.erpDate)||!missing(v.erpStatus))add('legacyApprovalMode','ERP 결재확인 불가와 ERP 승인완료 정보가 함께 있을 수 없습니다. 결재정보를 먼저 확인해 주세요.','legacy_conflict');
+ }else{
+  if(!['승인','승인완료','결재완료','approved'].includes(norm(v.erpStatus)))add('erpStatus','ERP 최초 보고의 최종 결재 완료 근거가 필요합니다.','erp');
+  if(missing(v.erpRef)&&missing(v.erpDate))add('erpRef','ERP 문서번호 또는 결재일을 확인해 주세요.','erp');
+ }
+
  if(!missing(v.erpDate)&&(!date(v.erpDate)||date(v.erpDate)>today))add('erpDate','ERP 결재일을 확인해 주세요.','date');
  if(date(v.erpDate)&&date(v.occurredDate)&&date(v.erpDate)<date(v.occurredDate))add('erpDate','ERP 결재일이 사고발생일보다 빠릅니다. 원문 날짜와 문서 연결을 확인해 주세요.','date');
  if(!Array.isArray(c.sources)||!c.sources.length)add('sources','비공개 원본자료 연결이 필요합니다.','evidence');
@@ -283,7 +295,20 @@ function details(v){
 }
 function incidentFields(v){const time=missing(v.occurredTime)?null:v.occurredTime,day=date(v.occurredDate)||v.occurredDate;return {siteId:v.siteId,category:v.category,eventType:v.eventType,severity:v.severity,occurredAt:time?`${day}T${time}:00+09:00`:day,occurredDate:day,occurrenceTimeKnown:time!==null,occurredTime:time,summary:v.incidentHow,immediateAction:v.immediateAction,injuredName:presentDamage(v.injuryDetail)?v.name||'':'',job:v.job||'',leaveEstimate:v.leaveEstimate||'unknown'};}
 function makeIncident(c,batchId,actor,at,id){
- const v=c.values;return {id,...incidentFields(v),potentialMajor:false,priority:v.severity==='major'?'urgent':v.category==='person'||v.severity==='moderate'?'important':'normal',status:'approved',corrective:null,approvedAt:null,approvedBy:'',closedAt:null,reporterId:'',reporterName:v.originalReporter||'',createdAt:at,registeredAt:at,updatedAt:at,acknowledgements:[],photos:[],reportDetails:details(v),historicalOrigin:{version:1,type:'bulk_ai_import',batchId,candidateId:c.id,recordNo:v.recordNo||'',sourceFileIds:[...c.sources]},externalInitialApproval:{source:'ERP',state:'verified',documentNo:v.erpRef||null,approvalDate:missing(v.erpDate)?null:date(v.erpDate),verifiedBy:actor.id,verifiedAt:at},officialRecord:{externalInitialApprovalVerification:{action:'external_erp_initial_approval_verified',actorId:actor.id,at,source:'ERP',documentNo:v.erpRef||null,approvalDate:missing(v.erpDate)?null:date(v.erpDate)}},reportWorkflow:{phase:'report_approved',initialApprovalSource:'ERP'},_syncBaseVersion:0,_syncMutationId:`bulk:${batchId}:${c.id}`};
+ const v=c.values,legacy=isLegacy(v);
+ const external=legacy
+  ?{source:'HISTORICAL_ARCHIVE',state:'unverifiable',basis:v.legacyApprovalMode,reason:text(v.legacyApprovalReason),documentNo:null,approvalDate:null,recordedBy:actor.id,recordedAt:at}
+  :{source:'ERP',state:'verified',documentNo:v.erpRef||null,approvalDate:missing(v.erpDate)?null:date(v.erpDate),verifiedBy:actor.id,verifiedAt:at};
+ const official=legacy
+  ?{historicalApprovalException:{action:'historical_source_unverifiable_registered',actorId:actor.id,at,basis:v.legacyApprovalMode,reason:text(v.legacyApprovalReason),status:'not_verified'}}
+  :{externalInitialApprovalVerification:{action:'external_erp_initial_approval_verified',actorId:actor.id,at,source:'ERP',documentNo:v.erpRef||null,approvalDate:missing(v.erpDate)?null:date(v.erpDate)}};
+ return {id,...incidentFields(v),potentialMajor:false,priority:v.severity==='major'?'urgent':v.category==='person'||v.severity==='moderate'?'important':'normal',
+  status:legacy?'reported':'approved',corrective:null,approvedAt:null,approvedBy:'',closedAt:null,
+  reporterId:'',reporterName:v.originalReporter||'',createdAt:at,registeredAt:at,updatedAt:at,acknowledgements:[],photos:[],reportDetails:details(v),
+  historicalOrigin:{version:1,type:'bulk_ai_import',batchId,candidateId:c.id,recordNo:v.recordNo||'',sourceFileIds:[...c.sources]},
+  externalInitialApproval:external,officialRecord:official,
+  reportWorkflow:legacy?{phase:'historical_pending_review',initialApprovalSource:'HISTORICAL_UNVERIFIABLE'}:{phase:'report_approved',initialApprovalSource:'ERP'},
+  _syncBaseVersion:0,_syncMutationId:`bulk:${batchId}:${c.id}`};
 }
 function valuesFromIncident(existing,originalValues={}){
  const d=existing.reportDetails||{},v={...originalValues},assign=(k,x)=>{if(x!==undefined&&x!==null)v[k]=String(x);};
@@ -293,6 +318,11 @@ function valuesFromIncident(existing,originalValues={}){
  assign('incidentHow',d.incidentHow??existing.summary);assign('immediateAction',existing.immediateAction);
  assign('name',existing.category==='property'?(d.workerName||d.injuredName||existing.injuredName):(d.injuredName??existing.injuredName));
  assign('cause',d.environmentCause);assign('originalReporter',existing.reporterName);
+ if(existing.externalInitialApproval?.state==='unverifiable'){
+  assign('legacyApprovalMode',existing.externalInitialApproval.basis);
+  assign('legacyApprovalReason',existing.externalInitialApproval.reason);
+  assign('legacyApprovalConfirmed','confirmed');
+ }
  for(const k of ['place','workAction','injuryDetail','damagedItem','damageDetail','diagnosis','doctorOpinion','medicalCost','repairCost','damageAmount','medicalCostDetail','repairCostDetail','followupNote']){
   if(Object.prototype.hasOwnProperty.call(d,k))v[k]=d[k]===null?'':String(d[k]);
  }
@@ -308,5 +338,5 @@ function patchIncident(existing,values,actor,at){
  result.reporterName=v.originalReporter||'';
  return result;
 }
-return {fields,labels,text,norm,missing,date,money,parseUnits,sameIncidentIdentity,analyze,validate,makeIncident,valuesFromIncident,patchIncident};
+return {fields,labels,text,norm,missing,date,money,legacyModes,isLegacy,parseUnits,sameIncidentIdentity,analyze,validate,makeIncident,valuesFromIncident,patchIncident};
 });
