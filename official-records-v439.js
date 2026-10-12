@@ -18,6 +18,8 @@
   const incident=id=>(data?.incidents||[]).find(x=>String(x.id)===String(id));
   const fmt=v=>{if(!v)return '-';try{return new Date(v).toLocaleString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})}catch(e){return String(v)}};
   const site=id=>{try{return siteById?.(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}};
+  const isBulkImported=i=>!!(i?.historicalOrigin?.batchId&&i?.historicalOrigin?.candidateId&&i?.externalInitialApproval?.state==='verified');
+  const occurrenceText=i=>isBulkImported(i)&&i.occurrenceTimeKnown===false?String(i.occurredDate||i.occurredAt||'').slice(0,10)+' · 시간 미확인':fmt(i.occurredAt);
   const historical=i=>!!i&&i?.historicalImport?.enabled===true&&i?.historicalImport?.erpApproved===true&&i?.historicalImport?.workflowExempt===true&&String(i?.historicalImport?.transferState||'')==='closed';
   const actionState=v=>v==='confirmed'?'확인됨':v==='partial'?'일부 확인':v==='not_available'?'확인자료 없음':'미기재';
   const followState=v=>v==='field_check'?'현장 확인 필요':v==='new_improvement'?'신규 개선조치 필요':'추가조치 없음';
@@ -49,6 +51,7 @@
     return m[v]||v||'기록';
   }
   function officialBox(i){
+    const a=i.externalInitialApproval||{},erpInfo=isBulkImported(i)?`<div class="official439-note">ERP 기결재 · 앱 신규 최초결재 제외<br>ERP 문서번호: ${esc(a.documentNo||'확인자료 참조')} · 결재일: ${esc(a.approvalDate||'원문 미기재')}</div>`:'';
     if(historical(i)){
       const h=i.historicalImport||{};
       return `<section class="official439-box"><h3>과거사고 ERP 이관기록${window.ENLContracts?.badge(i.siteId)||''}</h3>${window.ENLContracts?.incidentDetail(i)||''}<div class="official439-grid">
@@ -67,10 +70,10 @@
     const cause=[c.rootCause||'',d.environmentCause||'',d.behaviorCause||''].filter(Boolean).join(' / ');
     const process=[d.workAction||'',d.incidentHow||i.summary||''].filter(Boolean).join(' → ');
     const plan=c.planDetail||d.preventionPlan||'-';
-    return `<section class="official439-box"><h3>법정 사고기록</h3><div class="official439-grid">
+    return `${erpInfo}<section class="official439-box"><h3>법정 사고기록</h3><div class="official439-grid">
       <div><b>사업장</b><span>${esc(site(i.siteId))}</span></div>
       <div><b>근로자 인적사항</b><span>${esc(worker||'-')}</span></div>
-      <div><b>재해 발생 일시</b><span>${esc(fmt(i.occurredAt))}</span></div>
+      <div><b>재해 발생 일시</b><span>${esc(occurrenceText(i))}</span></div>
       <div><b>재해 발생 장소</b><span>${esc(d.place||'-')}</span></div>
       <div><b>재해 발생 원인 및 과정</b><span>${esc([cause,process].filter(Boolean).join('\n')||'-')}</span></div>
       <div><b>재해 재발방지 계획</b><span>${esc(plan)}</span></div>
@@ -86,12 +89,13 @@
     const cause=[c.rootCause||'',d.environmentCause||'',d.behaviorCause||''].filter(Boolean).join(' / ');
     const process=[d.workAction||'',d.incidentHow||i.summary||''].filter(Boolean).join(' → ');
     const rows=isHist?[
-      ['사업장',site(i.siteId)],['근로자 인적사항',worker||'-'],['재해 발생 일시',fmt(i.occurredAt)],['재해 발생 장소',d.place||'-'],
+      ['사업장',site(i.siteId)],['근로자 인적사항',worker||'-'],['재해 발생 일시',occurrenceText(i)],['재해 발생 장소',d.place||'-'],
       ['재해 발생 원인 및 과정',[cause,process].filter(Boolean).join('\n')||'-'],['재해 재발방지 계획',h.existingActionNote||h.additionalActionNote||'과거 ERP 자료 기준 별도 확인']
     ]:[
-      ['사업장',site(i.siteId)],['근로자 인적사항',worker||'-'],['재해 발생 일시',fmt(i.occurredAt)],['재해 발생 장소',d.place||'-'],
+      ['사업장',site(i.siteId)],['근로자 인적사항',worker||'-'],['재해 발생 일시',occurrenceText(i)],['재해 발생 장소',d.place||'-'],
       ['재해 발생 원인 및 과정',[cause,process].filter(Boolean).join('\n')||'-'],['재해 재발방지 계획',c.planDetail||d.preventionPlan||'-']
     ];
+    if(isBulkImported(i))rows.push(['최초 사고보고 결재',`ERP 기결재 / ${i.externalInitialApproval.documentNo||'확인자료 참조'} / ${i.externalInitialApproval.approvalDate||'결재일 미기재'}`]);
     const w=window.open('','_blank','noopener,noreferrer,width=900,height=900');if(!w)return alert('팝업이 차단되어 PDF 출력창을 열지 못했습니다.');
     const title='사고기록_'+String(i.id||'').replace(/[^a-zA-Z0-9가-힣_-]/g,'_');
     w.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${esc(title)}</title><style>
@@ -109,6 +113,7 @@
     if(!i){const id=modal.querySelector('[data-lifecycle-final]')?.getAttribute('data-lifecycle-final');if(id)i=incident(id)}
     if(!i)return;
     currentIncidentId=i.id;
+    if(isBulkImported(i)){const del=modal.querySelector('#deleteInc'),edit=modal.querySelector('#editInc');if(del&&del.textContent!=='이관 무효처리 관리')del.textContent='이관 무효처리 관리';if(edit&&edit.textContent!=='이관정보 수정')edit.textContent='이관정보 수정';}
     if(!modal.querySelector('[data-official439-box]')){
       const wrap=document.createElement('div');wrap.dataset.official439Box='1';wrap.innerHTML=officialBox(i);
       const actions=modal.querySelector('.modal-actions')||modal.lastElementChild;
@@ -122,6 +127,7 @@
 
   async function officialDelete(i){
     const u=current();if(!isSafety(u))return;
+    if(isBulkImported(i)){try{closeModal()}catch(e){}if(typeof window.enlOpenHistoricalCandidate454==='function')return window.enlOpenHistoricalCandidate454(i.historicalOrigin.batchId,i.historicalOrigin.candidateId);return alert('자동이관 관리 화면에서 무효처리 또는 복구할 수 있습니다.');}
     const reason=prompt('삭제 사유를 입력해 주세요.\n승인·종결 사고 삭제에는 사유 입력이 필요합니다.','오등록 자료 삭제');
     if(reason===null)return;if(String(reason).trim().length<2)return alert('삭제 사유를 2자 이상 입력해 주세요.');
     const stronger=historical(i)?'ERP 기결재 과거사고 이관종결 기록입니다. 삭제 전 자동 백업과 내부 변경기록이 보존됩니다. 계속할까요?':['approved','closed'].includes(String(i.status||''))?'승인 완료된 공식 사고기록입니다. 삭제 전 자동 백업과 내부 변경기록이 보존됩니다. 계속할까요?':'이 사고기록을 삭제할까요?';
@@ -162,7 +168,7 @@
         <div class="official439-backups">${rows.map(b=>`<div class="official439-backup"><b>${esc(fmt(b.created_at))}</b><div>${esc(b.reason||'백업')} · ${Number(b.incident_count||0)}건 · ${esc(b.created_by_name||'-')}</div><div class="official439-backup-actions"><button data-official439-export="${esc(b.backup_id)}">JSON 내보내기</button><button data-official439-restore="${esc(b.backup_id)}">이 백업으로 복원</button></div></div>`).join('')||'<div class="empty">백업이 없습니다.</div>'}</div>`);
       document.getElementById('official439BackupNow').onclick=async()=>{const reason=prompt('백업 사유를 입력해 주세요.','정기 수동 백업');if(reason===null)return;try{const r=await api('backup_create',{reason});alert('백업을 생성했습니다. '+r.incidentCount+'건');render()}catch(e){alert('백업 생성에 실패했습니다.')}};
       document.querySelectorAll('[data-official439-export]').forEach(b=>b.onclick=async()=>{try{const r=await api('backup_export',{backupId:b.dataset.official439Export});const blob=new Blob([JSON.stringify(r.backup,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ENL_사고기록백업_'+String(r.backup.created_at||'').slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}catch(e){alert('백업 내보내기에 실패했습니다.')}});
-      document.querySelectorAll('[data-official439-restore]').forEach(b=>b.onclick=async()=>{const reason=prompt('복원 사유를 입력해 주세요.');if(reason===null||String(reason).trim().length<2)return alert('복원 사유를 2자 이상 입력해 주세요.');if(!confirm('현재 전체 사고기록을 선택한 백업 시점으로 복원합니다.\n현재 상태는 자동백업된 뒤 복원됩니다. 계속할까요?'))return;try{const r=await api('backup_restore',{backupId:b.dataset.official439Restore,reason:String(reason).trim()},60000);await window.enlIncidentPullNow?.();closeModal();renderShell(current());alert('복원 완료: '+r.incidentCount+'건 · 복원 전 자동백업 '+r.preRestoreBackupId)}catch(e){alert('복원에 실패했습니다.')}})
+      document.querySelectorAll('[data-official439-restore]').forEach(b=>b.onclick=async()=>{const reason=prompt('복원 사유를 입력해 주세요.');if(reason===null||String(reason).trim().length<2)return alert('복원 사유를 2자 이상 입력해 주세요.');if(!confirm('현재 전체 사고기록을 선택한 백업 시점으로 복원합니다.\n현재 상태는 자동백업된 뒤 복원됩니다. 계속할까요?'))return;try{const r=await api('backup_restore',{backupId:b.dataset.official439Restore,reason:String(reason).trim()},60000);await window.enlIncidentPullNow?.();closeModal();renderShell(current());alert('복원 완료: '+r.incidentCount+'건 · 복원 전 자동백업 '+r.preRestoreBackupId)}catch(e){alert(e?.message==='bulk_records_prevent_full_restore'?'자동이관 사고를 보호하기 위해 전체 백업 복원이 제한됩니다. 자동이관 화면에서 건별 수정·무효처리·복구해 주세요.':'복원에 실패했습니다.')}})
     }
     render();
   }

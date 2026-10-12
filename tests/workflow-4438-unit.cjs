@@ -58,8 +58,8 @@ for(const asset of [
   'management-approval-v448.js?v=4.4.39-r1&amp;fix=crisp-sign1'
 ]) assert.ok(stable.includes(asset),asset);
 
-assert.ok(stable.includes('content="4.4.44-r1"'));
-assert.ok(index.includes("const BUILD='4444-r1'"));
-assert.equal(version.version,'4.4.44');
-assert.equal(version.build,'stable-4444-r1');
+assert.ok(stable.includes('content="4.5.4-r1"'));
+assert.ok(index.includes("const BUILD='454-r1'"));
+assert.equal(version.version,'4.5.4');
+assert.equal(version.build,'stable-454-r1');
 console.log('PASS: unified safety action badge wiring, HQ approval attention, optional opinion, own-sign highlight and stale test cleanup');

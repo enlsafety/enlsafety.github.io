@@ -2,13 +2,15 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),{stripTypeScriptTypes}=require('node:module');
 let handler,records=new Map(),master={site_id:'s34',active:false,start_date:'2026-03',contract_end_date:'2026-04'},writes=0;
 const sql=async(parts,...args)=>{const q=parts.join('?');
+ if(q.includes("set_config('enl.actor'"))return [];
  if(q.includes('from public.enl_hq_users'))return [{user_id:'qa',name:'QA',role:'safety',active:true,password_hash:'test'}];
  if(q.includes('from public.enl_incident_shared'))return records.has(args[0])?[{payload:records.get(args[0]),site_id:'s34'}]:[];
  if(q.includes('from public.enl_site_master'))return [master];
+ if(q.startsWith('update public.enl_incident_shared')){const p=JSON.parse(args[1]);records.set(args[3],p);writes++;return [{payload:p}]}
  if(q.startsWith('insert into public.enl_incident_shared')){const p=JSON.parse(args[2]);records.set(args[0],p);writes++;return [{payload:p}]}
  if(q.startsWith('insert into public.enl_incident_audit'))return [];
  throw Error('Unexpected SQL '+q);
-};sql.end=async()=>{};
+};sql.end=async()=>{};sql.begin=fn=>fn(sql);
 const ctx={Deno:{serve:f=>handler=f,env:{get:()=> 'isolated'}},postgres:()=>sql,Request,Response,TextEncoder,crypto,structuredClone,console};vm.createContext(ctx);vm.runInContext(fs.readFileSync('site-contract-v451.js','utf8'),ctx);vm.runInContext(stripTypeScriptTypes(fs.readFileSync('edge-functions/enl-incident-sync-v411/index.ts','utf8').replace(/^import .*;\n/gm,'')),ctx);
 const make=(id,date)=>({id,siteId:'s34',occurredAt:date+'T00:00:00+09:00',status:'closed',recordMode:'historical_transfer',historicalTransfer:{mode:'historical_transfer',erpApproved:true,occurredDate:date},historicalImport:{enabled:true,erpApproved:true,workflowExempt:true,transferState:'closed'},photos:[]});
 async function invoke(i){const r=await handler(new Request('https://isolated.test',{method:'POST',headers:{'content-type':'application/json','x-enl-app':'incident-report-v2',origin:'https://enlsafety.github.io'},body:JSON.stringify({action:'push',actor:{id:'qa',role:'safety'},actorPasswordHash:'test',incidents:[i]})}));return {status:r.status,body:await r.json()}}

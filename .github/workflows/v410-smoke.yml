@@ -117,16 +117,16 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-4444-r1',meta
+          assert meta.get('build')=='stable-454-r1',meta
           assert meta.get('stableEntry')=='stable412.html',meta
-          assert meta.get('version')=='4.4.44' and meta.get('currentStableVersion')=='4.4.44',meta
+          assert meta.get('version')=='4.5.4' and meta.get('currentStableVersion')=='4.5.4',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='4444-r1'",'beforeinstallprompt','stable412.html?entry=root&build=4444-r1',"/sw-v418.js?v=4.4.32-startup-cache1"]: assert x in index,x
+          for x in ["const BUILD='454-r1'",'beforeinstallprompt','stable412.html?entry=root&build=454-r1',"/sw-v418.js?v=4.5.4-bulk-lifecycle1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.4.44-r1',
+            'enl-build" content="4.5.4-r1',
             'incident-sync-v411.js?v=4.4.34-r1&amp;fix=proof-reuse1',
             'workflow-prevention-v429.js?v=4.4.43-r1&amp;fix=safety-action-counts1',
             'workflow-lifecycle-v413.js?v=4.4.14-r1&amp;fix=historical-transfer1',
@@ -137,10 +137,10 @@ jobs:
             'personnel-management-v434.js?v=4.4.12-r1&amp;fix=hq-rank-align1',
             'legal-review-v435.js?v=4.1.2-r35&amp;fix=legal-simplify1',
             'industrial-report-v436.js?v=4.4.29-r1&amp;fix=deadline-confirmation3-required1',
-            'closed-incident-reopen-v438.js?v=4.4.14-r1&amp;fix=historical-transfer1',
-            'official-records-v439.js?v=4.4.39-r1&amp;fix=statutory-record1',
-            'incidents-v410.js?v=4.4.39-r1&amp;fix=no-read-confirm1',
-            'report-v410.js?v=4.4.35-r1&amp;fix=form-guidance1',
+            'closed-incident-reopen-v438.js?v=4.5.4-lifecycle1',
+            'official-records-v439.js?v=4.5.4-lifecycle1',
+            'incidents-v410.js?v=4.5.4-lifecycle1',
+            'report-v410.js?v=4.5.4-lifecycle1',
             'field-incidents-v411.js?v=4.4.44-r1&amp;fix=mobile-prevention1',
             'app-shell-v411.js?v=4.4.38-r1&amp;fix=hq-attention1',
             'reader-ui-v414.js?v=4.4.37-r1&amp;fix=hq-dashboard1',
@@ -238,7 +238,7 @@ jobs:
           sw=Path('sw-v418.js').read_text(encoding='utf-8')
           assert 'data-pm434-hq-edit' in hq and 'data-pm434-hq-pw' in hq
           assert 'PUSH_CONFIRM_API' in sw and "action:'ack_test_token'" in sw and "action:'confirm',title:'확인'" in sw
-          for x in ["4.4.32-startup-cache1","PRECACHE","fetchWithTimeout","cache.match(req)","stable412.html?offline=1"]: assert x in sw,x
+          for x in ["4.5.4-bulk-lifecycle1","PRECACHE","fetchWithTimeout","cache.match(req)","stable412.html?offline=1"]: assert x in sw,x
           assert "status==='confirmed'" in hq and '수신 확인' in hq
           assert html.index('personnel-management-v434.js') < html.index('hq-notification-status-v437.js')
 

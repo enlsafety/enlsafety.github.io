@@ -32,16 +32,16 @@ assert.ok(!approval.includes('enl448OwnPulse'));
 assert.ok(!approval.includes('transform:scale('));
 
 for(const asset of [
-  'incidents-v410.js?v=4.4.39-r1&amp;fix=no-read-confirm1',
+  'incidents-v410.js?v=4.5.4-lifecycle1',
   'reader-experience-v424.js?v=4.4.43-r1&amp;fix=safety-action-counts1',
   'workflow-v412.js?v=4.4.39-r1&amp;fix=comment-empty1',
-  'official-records-v439.js?v=4.4.39-r1&amp;fix=statutory-record1',
+  'official-records-v439.js?v=4.5.4-lifecycle1',
   'incident-flow-v440.js?v=4.4.39-r1&amp;fix=no-confirm-history1',
   'management-approval-v448.js?v=4.4.39-r1&amp;fix=crisp-sign1'
 ]) assert.ok(stable.includes(asset),asset);
 
-assert.ok(stable.includes('content="4.4.44-r1"'));
-assert.ok(index.includes("const BUILD='4444-r1'"));
-assert.equal(version.version,'4.4.44');
-assert.equal(version.build,'stable-4444-r1');
+assert.ok(stable.includes('content="4.5.4-r1"'));
+assert.ok(index.includes("const BUILD='454-r1'"));
+assert.equal(version.version,'4.5.4');
+assert.equal(version.build,'stable-454-r1');
 console.log('PASS: approval-only UX, statutory record view, dash-only empty opinions and audit-button removal');

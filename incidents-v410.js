@@ -7,6 +7,7 @@
   const position=u=>String(u?.position||u?.jobTitle||'').trim();
   const roleOf=u=>String(u?.role||'')==='final'?'manager':String(u?.role||'');
   const isHqReader=u=>['manager','executive'].includes(roleOf(u));
+  const isBulkImported=i=>!!(i?.historicalOrigin?.batchId&&i?.historicalOrigin?.candidateId&&i?.externalInitialApproval?.state==='verified');
   const isHistorical=i=>!!i&&(String(i.recordMode||'')==='historical_transfer'||String(i?.historicalTransfer?.mode||'')==='historical_transfer'||(i?.historicalImport?.enabled===true&&i?.historicalImport?.erpApproved===true&&i?.historicalImport?.workflowExempt===true&&String(i?.historicalImport?.transferState||'')==='closed'));
   const isSiteUser=u=>!!u&&['field','worker'].includes(u.role);
   const isSiteManager=u=>isSiteUser(u)&&MANAGER_POSITIONS.includes(position(u));
@@ -24,11 +25,11 @@
   const cut=(v,n=76)=>{const s=String(v||'').replace(/\s+/g,' ').trim();return s.length>n?s.slice(0,n-1)+'…':s};
   const won=v=>{const n=Number(v||0);return Number.isFinite(n)&&n>0?`${n.toLocaleString('ko-KR')}원`:''};
 
-  function canEditIncident(i,u){if(!i||!u||isHistorical(i))return false;if(roleOf(u)==='safety')return true;if(!sameSite(i,u)||!['reported','rejected'].includes(i.status))return false;if(isSiteManager(u))return true;return u.role==='worker'&&isAuthor(i,u)}
+  function canEditIncident(i,u){if(!i||!u||isHistorical(i)||isBulkImported(i))return false;if(roleOf(u)==='safety')return true;if(!sameSite(i,u)||!['reported','rejected'].includes(i.status))return false;if(isSiteManager(u))return true;return u.role==='worker'&&isAuthor(i,u)}
   function canViewOriginal(i,u){if(!i||!u)return false;const r=roleOf(u);if(r==='safety')return true;if(['manager','executive'].includes(r))return ['reported','supplement','supplement_submitted','approved','closed'].includes(i.status);return sameSite(i,u)&&isSiteManager(u)}
 
   function quickSummary(i){
-    const d=i?.reportDetails||{},person=i?.category==='person',place=d.place||'',h=i?.historicalTransfer||{},when=isHistorical(i)&&h.occurredDate?(h.occurredDate+(h.occurredTimeKnown&&h.occurredTime?' '+h.occurredTime:' · 시간 미확인')):(i?.occurredAt?fmt(i.occurredAt):'-');
+    const d=i?.reportDetails||{},person=i?.category==='person',place=d.place||'',h=i?.historicalTransfer||{},when=isBulkImported(i)&&i.occurrenceTimeKnown===false?(String(i.occurredDate||i.occurredAt||'').slice(0,10)+' · 시간 미확인'):isHistorical(i)&&h.occurredDate?(h.occurredDate+(h.occurredTimeKnown&&h.occurredTime?' '+h.occurredTime:' · 시간 미확인')):(i?.occurredAt?fmt(i.occurredAt):'-');
     let impact='',headline='';
     if(person){impact=cut(d.injuryDetail||i?.injuredName||'부상내용 미입력',54);headline=`${i?.eventType||'대인사고'} · ${impact}`}
     else{const item=d.damagedItem||'파손 물품',cost=won(d.repairCost);impact=cut(d.damageDetail||item,54);headline=`${i?.eventType||'대물사고'} · ${item}${cost?' · '+cost:''}`}
@@ -138,6 +139,7 @@
 
   function openEditIncidentModalFn(i,u){
     const viewer=u||currentUser();if(!i||!viewer)return;
+    if(isBulkImported(i)){if(roleOf(viewer)!=='safety')return alert('수정 권한이 없습니다.');if(typeof window.enlOpenHistoricalCandidate454==='function')return window.enlOpenHistoricalCandidate454(i.historicalOrigin.batchId,i.historicalOrigin.candidateId);return alert('자동이관 관리 화면을 새로고침한 뒤 다시 열어 주세요.');}
     if(historicalClosed(i)&&roleOf(viewer)==='safety'&&typeof window.enlEditHistoricalTransfer449==='function')return window.enlEditHistoricalTransfer449(i,viewer);
     if(roleOf(viewer)!=='safety'&&typeof window.enlEditIncidentInReportForm==='function')return window.enlEditIncidentInReportForm(i,viewer);
     if(!canEditIncident(i,viewer))return alert('수정 권한이 없습니다.');

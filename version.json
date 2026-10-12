@@ -1,9 +1,9 @@
 {
-  "version": "4.4.44",
-  "build": "stable-4444-r1",
+  "version": "4.5.4",
+  "build": "stable-454-r1",
   "autoUpdate": false,
   "loginAutoUpdate": false,
   "stableEntry": "stable412.html",
-  "currentStableVersion": "4.4.44",
-  "updatedAt": "2026-10-02T06:45:00.000Z"
+  "currentStableVersion": "4.5.4",
+  "updatedAt": "2026-10-12T02:00:00.000Z"
 }

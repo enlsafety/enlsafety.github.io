@@ -5,6 +5,8 @@ on:
     paths:
       - 'historical-bulk-*.js'
       - 'edge-functions/enl-historical-bulk-v454/**'
+      - 'edge-functions/enl-incident-sync-v411/**'
+      - 'edge-functions/enl-incident-compliance-v439/**'
       - 'supabase/migrations/*historical_bulk*.sql'
       - 'stable412.html'
       - 'tests/historical-bulk-*.cjs'
@@ -14,6 +16,8 @@ on:
     paths:
       - 'historical-bulk-*.js'
       - 'edge-functions/enl-historical-bulk-v454/**'
+      - 'edge-functions/enl-incident-sync-v411/**'
+      - 'edge-functions/enl-incident-compliance-v439/**'
       - 'supabase/migrations/*historical_bulk*.sql'
       - 'stable412.html'
       - 'tests/historical-bulk-*.cjs'
@@ -29,7 +33,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
       - name: JavaScript syntax and deterministic import core
         run: |
           node --check historical-bulk-core-v454.js
@@ -38,9 +42,15 @@ jobs:
           node --check tests/historical-bulk-v454-unit.cjs
           node --check tests/historical-bulk-ui-browser.cjs
           node tests/historical-bulk-v454-unit.cjs
+          node tests/historical-bulk-core-extended.cjs
+          node tests/historical-bulk-workflow-edge.cjs
+          node tests/historical-bulk-sync-cache.cjs
       - name: Install isolated browser QA
         run: |
-          npm install --no-save --package-lock=false playwright@1.51.1
+          npm install --no-save --package-lock=false playwright@1.51.1 jszip@3.10.1
           npx playwright install --with-deps chromium webkit
       - name: iPhone WebKit and desktop Chromium user flow
-        run: node tests/historical-bulk-ui-browser.cjs
+        run: |
+          node tests/historical-bulk-ui-browser.cjs
+          node tests/historical-bulk-document-browser.cjs
+          node tests/historical-bulk-general-entry-browser.cjs

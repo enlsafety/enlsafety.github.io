@@ -9,6 +9,7 @@
   const incident=id=>(data?.incidents||[]).find(x=>String(x.id)===String(id));
   const now=()=>typeof nowISO==='function'?nowISO():new Date().toISOString();
   const isSafety=u=>roleNorm(u?.role)==='safety';
+  const isBulkImported=i=>!!(i?.historicalOrigin?.batchId&&i?.historicalOrigin?.candidateId&&i?.externalInitialApproval?.state==='verified');
   const historicalClosed=i=>!!i&&i?.historicalImport?.enabled===true&&i?.historicalImport?.erpApproved===true&&i?.historicalImport?.workflowExempt===true&&String(i?.historicalImport?.transferState||'')==='closed'&&String(i?.status||'')==='closed';
 
   function remember(id){
@@ -35,7 +36,7 @@
   }
 
   async function reopenToApproved(i,u){
-    if(!i||!isSafety(u)||String(i.status)!=='closed'||historicalClosed(i))return;
+    if(!i||!isSafety(u)||String(i.status)!=='closed'||historicalClosed(i)||isBulkImported(i))return;
     const ok=confirm('이 종결 사고를 “사고보고 승인” 단계로 되돌릴까요?\n\n재발방지계획·현장 조치내용·조치 증빙(종결사진/PDF)·조치 승인정보는 제거됩니다.\n사고보고 내용과 기존 사고보고 승인자/승인시간은 유지됩니다.');
     if(!ok)return;
     const reason=prompt('되돌리기 사유를 입력해 주세요.','재발방지조치·종결자료 오입력 정정');
@@ -71,7 +72,7 @@
     const u=current();if(!isSafety(u))return;
     const modal=document.querySelector('#modalRoot .modal');if(!modal)return;
     const i=inferIncident();if(!i)return;
-    if(String(i.status)==='closed'&&!historicalClosed(i)){
+    if(String(i.status)==='closed'&&!historicalClosed(i)&&!isBulkImported(i)){
       const actions=modal.querySelector('.modal-actions');
       if(actions&&!actions.querySelector('[data-enl438-reopen]')){
         const b=document.createElement('button');
@@ -109,7 +110,8 @@
       e.preventDefault();e.stopImmediatePropagation();
       try{closeModal()}catch(_){}
       setTimeout(()=>{
-        if(historicalClosed(i)&&typeof window.enlEditHistoricalTransfer449==='function')window.enlEditHistoricalTransfer449(i,u);
+        if(isBulkImported(i)){if(typeof window.enlOpenHistoricalCandidate454==='function')window.enlOpenHistoricalCandidate454(i.historicalOrigin.batchId,i.historicalOrigin.candidateId);else alert('자동이관 관리 화면을 새로고침한 뒤 다시 열어 주세요.');}
+        else if(historicalClosed(i)&&typeof window.enlEditHistoricalTransfer449==='function')window.enlEditHistoricalTransfer449(i,u);
         else if(typeof window.enlEditIncidentInReportForm==='function')window.enlEditIncidentInReportForm(i,u);
         else alert('사고정보 수정 화면을 불러오지 못했습니다.');
       },0);
