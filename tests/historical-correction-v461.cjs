@@ -60,7 +60,10 @@ const {chromium,webkit}=require('playwright');
     for(const engine of [chromium,webkit]){
       const browser=await engine.launch(),page=await browser.newPage({viewport:{width:390,height:850}});
       try{
-        await page.setContent('<html><head></head><body><div id="modalRoot"></div></body></html>');
+        // Browser crypto.randomUUID requires a trustworthy HTTPS origin.
+        await page.route('https://enl-history-qa.test/**',route=>route.fulfill({contentType:'text/html',body:'<!doctype html><html><head></head><body><div id="modalRoot"></div></body></html>'}));
+        await page.goto('https://enl-history-qa.test/');
+        assert.equal(await page.evaluate(()=>window.isSecureContext),true);
         await page.exposeFunction('qaIncidentAPI',async body=>{
           const result=await who('safety',body);
           if(result.status!==200)throw Error(result.body.message);
@@ -91,7 +94,7 @@ const {chromium,webkit}=require('playwright');
         await page.locator('#historical461EditForm button[type=submit]').click();
         await page.waitForTimeout(1200);
         const diagnosis=await page.evaluate(()=>({alerts:window.qaAlerts,err:document.querySelector('#historical461EditError')?.textContent,formPresent:!!document.querySelector('#historical461EditForm'),buttonDisabled:document.querySelector('#historical461EditForm button[type=submit]')?.disabled}));
-        if(!diagnosis.alerts.length)throw Error('historical browser save blocked: '+JSON.stringify({engine:engine.name(),...diagnosis}));
+        if(!diagnosis.alerts.length)throw Error('historical browser save blocked: '+JSON.stringify({engine:engine.name(),...diagnosis,secureContext:await page.evaluate(()=>window.isSecureContext),url:page.url()}));
         checks++;
         assert.match(await page.evaluate(()=>qaAlerts[0]),/서버|정정|저장/);checks++;
         i=await page.evaluate(()=>data.incidents[0]);
