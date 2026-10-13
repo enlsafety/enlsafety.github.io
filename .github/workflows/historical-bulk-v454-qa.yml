@@ -67,6 +67,7 @@ jobs:
           node tests/historical-bulk-summary-quote-browser.cjs
           node tests/historical-bulk-upload-stop-browser.cjs
           node tests/historical-bulk-ocr-reuse-browser.cjs
+          node tests/historical-bulk-hybrid-pdf-browser.cjs
           node tests/historical-bulk-document-browser.cjs
           node tests/historical-bulk-general-entry-browser.cjs
           node tests/historical-bulk-startup-browser.cjs
