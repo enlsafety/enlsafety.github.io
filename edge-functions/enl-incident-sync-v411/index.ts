@@ -66,6 +66,40 @@ function semanticAction(prev:any,next:any,requestedStatus:string,prevReportHash:
   if(a!==b&&b==="approved")return "corrective_approve";
   return "update";
 }
+const isManualArchive=(i:any)=>clean(i?.recordMode)==="historical_manual"&&clean(i?.historicalTransfer?.mode)==="historical_manual";
+const manualExtraFields=["medicalCost","repairCost","damageAmount","medicalCostDetail","repairCostDetail","diagnosis","doctorOpinion"];
+function manualArchiveIntegrity(prev:any,next:any,actor:any){
+ if(!isManualArchive(next))rejectWrite("manual_archive_scope_locked",409);
+ if(!prev){
+  if(actor.role!=="safety"||clean(next.status)!=="approved"||clean(next.approvedBy)!==actor.name||!clean(next.approvedAt)||next.corrective||next.historicalImport?.workflowExempt!==false)
+   rejectWrite("manual_archive_safety_approval_required",403);
+  if(next.historicalImport?.erpApproved===true||next.historicalTransfer?.erpApproved===true)
+   rejectWrite("manual_archive_erp_not_verified",409);
+  return;
+ }
+ if(!isManualArchive(prev)||clean(prev.approvedAt)!==clean(next.approvedAt)||clean(prev.approvedBy)!==clean(next.approvedBy))
+  rejectWrite("manual_archive_initial_approval_locked",409);
+ const comparable=structuredClone(next);
+ const previousDetails=prev.reportDetails||{},incomingDetails=next.reportDetails||{};
+ comparable.reportDetails={...incomingDetails};
+ for(const key of manualExtraFields){
+  const old=previousDetails[key],fresh=incomingDetails[key];
+  if(JSON.stringify(canonicalValue(old??null))===JSON.stringify(canonicalValue(fresh??null)))continue;
+  if(old!==null&&old!==undefined&&clean(old)!=="")rejectWrite("manual_archive_existing_supplement_locked",409);
+  if(key.toLowerCase().includes("cost")||key==="damageAmount"){
+   if(!/^(?:0|[1-9]\\d{0,11})(?:\\.\\d{1,2})?$/.test(clean(fresh)))
+    rejectWrite("manual_archive_cost_invalid",409);
+  }else if(clean(fresh).length>1000)rejectWrite("manual_archive_supplement_invalid",409);
+  comparable.reportDetails[key]=old;
+ }
+ if(JSON.stringify(canonicalValue(reportForHash(prev)))!==JSON.stringify(canonicalValue(reportForHash(comparable))))
+  rejectWrite("manual_archive_report_locked",409);
+ if(actor.role!=="safety"){
+  const cs=clean(next?.corrective?.status);
+  if(["approved"].includes(cs)||clean(next.status)==="closed"||(!["approved","closed"].includes(clean(prev.status))))
+   rejectWrite("manual_archive_safety_close_only",403);
+ }
+}
 function isHistoricalTransfer(i:any){
   if(!i||typeof i!=="object")return false;
   const h=i.historicalImport&&typeof i.historicalImport==="object"?i.historicalImport:{};
@@ -262,6 +296,7 @@ Deno.serve(async(req:Request)=>{
         if(actor.role==="worker"&&prev&&!isMine(prev,actor)){ignored++;continue;}
         if(prev&&isHistoricalTransfer(prev)&&actor.role!=="safety")rejectWrite("historical_transfer_locked",403);
         if(prev&&isHistoricalTransfer(prev)&&!incomingHistorical)rejectWrite("historical_transfer_locked",409);
+        if(isManualArchive(raw0)||isManualArchive(prev))manualArchiveIntegrity(prev,raw0,actor);
         let next={...raw0,id,siteId};
         const contract=(globalThis as any).ENLContracts;
         const occurrenceDate=(i:any)=>{if(clean(i?.historicalTransfer?.occurredDate))return clean(i.historicalTransfer.occurredDate);const d=new Date(i?.occurredAt||"");return Number.isFinite(d.getTime())?new Date(d.getTime()+9*60*60*1000).toISOString().slice(0,10):""};
@@ -280,7 +315,7 @@ Deno.serve(async(req:Request)=>{
         if(prev&&["approved","closed"].includes(clean(prev.status))&&prevReportHash!==candidateHash){
           if(isBulkImported(prev))rejectWrite("bulk_update_requires_import_api",409);
           if(actor.role!=="safety")rejectWrite("approved_record_locked",409);
-          next.status="reported";
+          if(!isManualArchive(prev))next.status="reported";
         }
         next=normalizeLifecycle(prev,next,actor,now);
         const official:any=structuredClone(prev?.officialRecord||next?.officialRecord||{});
