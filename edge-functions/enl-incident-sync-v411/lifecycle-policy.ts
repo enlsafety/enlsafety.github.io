@@ -4,6 +4,14 @@ const canonical = (v:any):any => Array.isArray(v) ? v.map(canonical) : v && type
 const equal = (a:any,b:any) => JSON.stringify(canonical(a ?? null)) === JSON.stringify(canonical(b ?? null));
 const fail = (message:string,status=409):never => {throw Object.assign(new Error(message),{httpStatus:status});};
 const accepted = (i:any) => ['approved','closed'].includes(text(i?.status));
+export function isHistoricalEditable(i:any) {
+  if(!i||i.bulkInvalidation?.active===true)return false;
+  return ['historical_manual','historical_transfer'].includes(text(i.recordMode))
+    ||text(i?.historicalTransfer?.mode)==='historical_transfer'
+    ||i.historicalImport?.enabled===true
+    ||!!(text(i.historicalOrigin?.batchId)&&text(i.historicalOrigin?.candidateId)
+      &&['verified','unverifiable'].includes(text(i.externalInitialApproval?.state)));
+}
 const costKeys = ['medicalCost','repairCost','damageAmount'];
 const planKeys = ['rootCause','causeStatus','planDetail','ownerName','dueDate','planBy','planById','planAt','planUpdatedBy','planUpdatedAt'];
 const managedKeys = ['officialRecord','acknowledgements','readReceipts','historicalOrigin','externalInitialApproval','bulkInvalidation','recordMode','historicalImport','historicalTransfer'];
@@ -93,15 +101,45 @@ export function validateLifecycle(prev:any,next:any,actor:any,now:string){
 }
 export function correctedIncident(prev:any,changes:any,reason:string,actor:any,now:string){
   if(actor.role!=='safety')fail('forbidden',403);
-  if(prev.status!=='closed')fail('closed_incident_required');
+  const historical=isHistoricalEditable(prev);
+  if(prev.status!=='closed'&&!(historical&&prev.status==='approved'))fail('closed_incident_required');
   if(!text(reason)||text(reason).length>2000)fail('revision_reason_required',400);
-  const allowed=new Set(['summary','occurredAt','eventType','category','injuredName','injuredAge','injuredGender','injuredPart','injuryType','leaveEstimate','immediateAction','reportDetails','photos','corrective']);
+  const allowed=new Set(['summary','occurredAt','eventType','category','injuredName','injuredAge','injuredGender','injuredPart','injuryType','leaveEstimate','immediateAction','reportDetails','photos','corrective',...(historical?['historicalImport']:[])]);
   const correctiveAllowed=new Set(['rootCause','causeStatus','planDetail','ownerName','dueDate','actionDetail','actionDate','actionOwner','additionalNotes','afterPhotos']);
+  const historicalDetails=new Set(['place','workAction','incidentHow','environmentCause','behaviorCause','injuredName','workerName','job','injuryDetail','diagnosis','doctorOpinion','medicalCost','medicalCostDetail','repairCost','repairCostDetail','damagedItem','damageDetail','specialNote']);
+  const historicalMeta=new Set(['originalReporterName','erpApprovalRef','erpApprovalDate','existingActionNote','additionalActionNote','existingActionStatus']);
   const next=structuredClone(prev),diff:any[]=[];
   if(!changes||typeof changes!=='object'||Array.isArray(changes))fail('invalid_changes',400);
   for(const [key,value] of Object.entries(changes)){
     if(!allowed.has(key))fail('revision_field_forbidden',400);
-    if(key==='corrective'){
+
+    if(key==='historicalImport'){
+      if(!historical||!prev.historicalImport||!value||typeof value!=='object'||Array.isArray(value))fail('revision_field_forbidden',400);
+      for(const [k,v] of Object.entries(value)){
+        if(!historicalMeta.has(k))fail('revision_field_forbidden',400);
+        if(k==='existingActionStatus'&&!['confirmed','partial','not_available'].includes(text(v)))fail('revision_field_forbidden',400);
+        if(k==='erpApprovalDate'&&text(v)!==''&&!/^\d{4}-\d{2}-\d{2}$/.test(text(v)))fail('revision_field_forbidden',400);
+        if(text(v).length>4000)fail('revision_field_forbidden',400);
+        if(!equal(prev.historicalImport[k],v)){
+          next.historicalImport={...next.historicalImport,[k]:v};
+          diff.push({field:'historicalImport.'+k,before:prev.historicalImport[k]??null,after:v});
+          const mirror:any={originalReporterName:'originalReporterName',erpApprovalRef:'erpReference',erpApprovalDate:'erpApprovalDate',existingActionNote:'existingActionSummary'};
+          if(mirror[k]&&next.historicalTransfer)next.historicalTransfer={...next.historicalTransfer,[mirror[k]]:v};
+        }
+      }
+    }else if(key==='reportDetails'&&historical){
+      if(!value||typeof value!=='object'||Array.isArray(value))fail('invalid_changes',400);
+      const updated={...(prev.reportDetails||{})};
+      for(const [k,v] of Object.entries(value)){
+        if(equal(prev.reportDetails?.[k],v))continue;
+        if(!historicalDetails.has(k))fail('revision_field_forbidden',400);
+        updated[k]=v;
+      }
+      if(!equal(prev.reportDetails,updated)){
+        diff.push({field:'reportDetails',before:prev.reportDetails??null,after:updated});
+        next.reportDetails=updated;
+      }
+    }else if(key==='corrective'){
       if(!prev.corrective||!value||typeof value!=='object'||Array.isArray(value))fail('invalid_corrective_revision',400);
       for(const [k,v] of Object.entries(value)){if(!correctiveAllowed.has(k))fail('revision_field_forbidden',400);if(!equal(prev.corrective[k],v)){diff.push({field:'corrective.'+k,before:prev.corrective[k]??null,after:v});next.corrective[k]=v;}}
     }else if(!equal(prev[key],value)){diff.push({field:key,before:prev[key]??null,after:value});next[key]=value;}

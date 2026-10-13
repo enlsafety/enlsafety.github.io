@@ -9,6 +9,10 @@
   const isHqReader=u=>['manager','executive'].includes(roleOf(u));
   const isBulkImported=i=>!!(i?.historicalOrigin?.batchId&&i?.historicalOrigin?.candidateId&&i?.externalInitialApproval?.state==='verified');
   const isHistorical=i=>!!i&&(String(i.recordMode||'')==='historical_transfer'||String(i?.historicalTransfer?.mode||'')==='historical_transfer'||(i?.historicalImport?.enabled===true&&i?.historicalImport?.erpApproved===true&&i?.historicalImport?.workflowExempt===true&&String(i?.historicalImport?.transferState||'')==='closed'));
+  const historicalEditable=i=>!!i&&!i.bulkInvalidation?.active&&['approved','closed'].includes(String(i.status||''))&&(
+    ['historical_manual','historical_transfer'].includes(String(i.recordMode||''))||
+    i.historicalImport?.enabled===true||
+    !!(i.historicalOrigin?.batchId&&i.historicalOrigin?.candidateId&&['verified','unverifiable'].includes(String(i.externalInitialApproval?.state||''))));
   const isSiteUser=u=>!!u&&['field','worker'].includes(u.role);
   const isSiteManager=u=>isSiteUser(u)&&MANAGER_POSITIONS.includes(position(u));
   const sameSite=(i,u)=>!!i&&!!u&&String(i.siteId||'')===String(u.siteId||'');
@@ -109,7 +113,7 @@
     if(!i)return alert('해당 사고자료를 찾지 못했습니다. 최신 사고현황을 다시 불러와 주세요.');
     if(!canViewOriginal(i,viewer))return alert('사고보고서 원본 조회 권한이 없습니다.');
     if(typeof openModal!=='function')return alert('사고 검토 화면을 불러오지 못했습니다.');
-    const safety=roleOf(viewer)==='safety',hqReader=isHqReader(viewer),d=i.reportDetails||{},person=i.category==='person',historical=historicalClosed(i),hist=i.historicalImport||{},pendingSensitive=hqReader&&person;
+    const safety=roleOf(viewer)==='safety',hqReader=isHqReader(viewer),d=i.reportDetails||{},person=i.category==='person',historical=historicalClosed(i),historicEdit=historicalEditable(i),hist=i.historicalImport||{},pendingSensitive=hqReader&&person;
     const attachments=typeof window.enlAttachmentGalleryHtml==='function'?window.enlAttachmentGalleryHtml(i.photos||[]):'';
     const damageRows=person
       ? `<div class="inc411-kv"><b>부상 내용</b><span>${esc(d.injuryDetail||'-')}</span></div>${pendingSensitive?'':`<div class="inc411-kv"><b>진단명</b><span>${esc(d.diagnosis||'-')}</span></div><div class="inc411-kv"><b>치료/의사소견</b><span>${esc(d.doctorOpinion||'-')}</span></div>${Number(d.medicalCost||0)>0?`<div class="inc411-kv"><b>진료비</b><span>${esc(won(d.medicalCost))}</span></div>`:''}`}`
@@ -121,8 +125,14 @@
       <section class="inc411-section"><h3>피해 상황</h3><div class="inc411-section-body">${damageRows}</div></section>
       <section class="inc411-section"><h3>사고 경위 · 원인 · 조치</h3><div class="inc411-section-body"><div class="inc411-kv"><b>사고 직전 작업</b><span>${esc(d.workAction||'-')}</span></div><div class="inc411-kv"><b>발생 과정</b><span>${esc(d.incidentHow||i.summary||'-')}</span></div><div class="inc411-kv"><b>당시 조치</b><span>${esc(i.immediateAction||'-')}</span></div><div class="inc411-kv"><b>환경적 요인</b><span>${esc(d.environmentCause||'-')}</span></div><div class="inc411-kv"><b>행동적 요인</b><span>${esc(d.behaviorCause||'-')}</span></div>${historical?'':`<div class="inc411-kv"><b>재발방지대책</b><span>${esc(d.preventionPlan||'-')}</span></div><div class="inc411-kv"><b>특이사항</b><span>${esc(d.specialNote||'-')}</span></div>`}</div></section>
       ${attachments?`<section class="inc411-section"><h3>첨부 사진 · PDF</h3><div class="inc411-section-body">${attachments}</div></section>`:''}
-      ${safety?(historical?`<div class="modal-actions"><button class="btn-blue" id="editInc">이관정보 수정</button><button class="btn-red" id="deleteInc">삭제</button></div>`:`<div class="inc411-priority-box"><label><span>관리등급 최종 설정</span><select id="priorityEdit411"><option value="normal" ${i.priority==='normal'?'selected':''}>일반</option><option value="important" ${i.priority==='important'?'selected':''}>중요</option><option value="urgent" ${i.priority==='urgent'?'selected':''}>긴급</option></select></label><small>최초 등록 시 자동 추천되며, 안전관리자가 사고의 실제 중요도를 검토해 최종 등급을 직접 변경할 수 있습니다.</small></div><label class="lbl"><span>안전관리자 검토의견 / 반려사유</span><textarea id="safetyNoteEdit" rows="3">${esc(i.safetyNote||i.rejectionNote||'')}</textarea></label><div class="modal-actions"><button class="btn-gray" id="saveNote">검토·등급 저장</button>${i.status==='reported'?'<button class="btn-reject" id="rejectInc">반려</button><button class="btn-blue" id="approveInc">사고 승인</button>':''}${i.status!=='closed'?'<button class="btn-green" id="closeInc">종결</button>':''}<button class="btn-red" id="editInc">사고정보 수정</button><button class="btn-red" id="deleteInc">삭제</button></div>`):''}`);
+      ${safety?(historicEdit?`<div class="modal-actions"><button class="btn-blue" id="editInc">이관정보 수정</button><button class="btn-gray" id="historicRevisionInc">정정이력 조회</button>${historical?'<button class="btn-red" id="deleteInc">삭제</button>':''}</div>`:`<div class="inc411-priority-box"><label><span>관리등급 최종 설정</span><select id="priorityEdit411"><option value="normal" ${i.priority==='normal'?'selected':''}>일반</option><option value="important" ${i.priority==='important'?'selected':''}>중요</option><option value="urgent" ${i.priority==='urgent'?'selected':''}>긴급</option></select></label><small>최초 등록 시 자동 추천되며, 안전관리자가 사고의 실제 중요도를 검토해 최종 등급을 직접 변경할 수 있습니다.</small></div><label class="lbl"><span>안전관리자 검토의견 / 반려사유</span><textarea id="safetyNoteEdit" rows="3">${esc(i.safetyNote||i.rejectionNote||'')}</textarea></label><div class="modal-actions"><button class="btn-gray" id="saveNote">검토·등급 저장</button>${i.status==='reported'?'<button class="btn-reject" id="rejectInc">반려</button><button class="btn-blue" id="approveInc">사고 승인</button>':''}${i.status!=='closed'?'<button class="btn-green" id="closeInc">종결</button>':''}<button class="btn-red" id="editInc">사고정보 수정</button><button class="btn-red" id="deleteInc">삭제</button></div>`):''}`);
     bindModalAttachments(i);
+    if(historicEdit){
+      document.getElementById('editInc')?.addEventListener('click',()=>window.enlOpenHistoricalCorrection?.(i,viewer));
+      document.getElementById('historicRevisionInc')?.addEventListener('click',()=>window.enlShowHistoricalCorrectionHistory?.(i));
+      if(historical)window.enlMountHistoricalFollowups?.(document.getElementById('modalRoot'),i,viewer);
+      return;
+    }
     if(historical){window.enlMountHistoricalFollowups?.(document.getElementById('modalRoot'),i,viewer);return;}
     if(hqReader)return;
     if(!safety)return;
@@ -139,7 +149,11 @@
 
   function openEditIncidentModalFn(i,u){
     const viewer=u||currentUser();if(!i||!viewer)return;
-    if(isBulkImported(i)){if(roleOf(viewer)!=='safety')return alert('수정 권한이 없습니다.');if(typeof window.enlOpenHistoricalCandidate454==='function')return window.enlOpenHistoricalCandidate454(i.historicalOrigin.batchId,i.historicalOrigin.candidateId);return alert('자동이관 관리 화면을 새로고침한 뒤 다시 열어 주세요.');}
+    if(historicalEditable(i)){
+      if(roleOf(viewer)!=='safety')return alert('수정 권한이 없습니다.');
+      return typeof window.enlOpenHistoricalCorrection==='function'?window.enlOpenHistoricalCorrection(i,viewer):alert('과거사고 이관수정 화면을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.');
+    }
+    if(isBulkImported(i)){return alert('승인된 과거사고만 수정할 수 있습니다.');}
     if(historicalClosed(i)&&roleOf(viewer)==='safety'&&typeof window.enlEditHistoricalTransfer449==='function')return window.enlEditHistoricalTransfer449(i,viewer);
     if(roleOf(viewer)!=='safety'&&typeof window.enlEditIncidentInReportForm==='function')return window.enlEditIncidentInReportForm(i,viewer);
     if(!canEditIncident(i,viewer))return alert('수정 권한이 없습니다.');

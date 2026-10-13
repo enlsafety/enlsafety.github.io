@@ -1,5 +1,5 @@
 import "./site-contract-v451.js";
-import { validateLifecycle, correctedIncident } from "./lifecycle-policy.ts";
+import { validateLifecycle, correctedIncident, isHistoricalEditable } from "./lifecycle-policy.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import postgres from "npm:postgres@3.4.5";
 
@@ -37,6 +37,31 @@ async function verifyActor(sql:any,body:any,strong=false){
 }
 const enc=new TextEncoder();
 async function sha256Hex(v:string){const b=await crypto.subtle.digest("SHA-256",enc.encode(v));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
+/** Eight-minute, record-version-bound reauthentication; the password is never retained. */
+async function historicalTicketKey(){
+  const secret=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
+  if(!secret)rejectWrite('historical_reauth_unavailable',503);
+  return crypto.subtle.importKey('raw',enc.encode('enl-history-edit-v1:'+secret),{name:'HMAC',hash:'SHA-256'},false,['sign','verify']);
+}
+async function issueHistoricalTicket(actorId:string,incidentId:string,version:number){
+  const expiresAt=Date.now()+8*60*1000;
+  const payload=encodeURIComponent(JSON.stringify({v:1,actorId,incidentId,version,expiresAt,nonce:crypto.randomUUID()}));
+  const key=await historicalTicketKey();
+  const mac=new Uint8Array(await crypto.subtle.sign('HMAC',key,enc.encode(payload)));
+  return {ticket:payload+'.'+Array.from(mac,x=>x.toString(16).padStart(2,'0')).join(''),expiresAt};
+}
+async function verifyHistoricalTicket(raw:any,actorId:string,incidentId:string,version:number){
+  const token=clean(raw),dot=token.lastIndexOf('.');
+  if(dot<1||dot>1800||!/^[a-f0-9]{64}$/i.test(token.slice(dot+1)))return false;
+  const payload=token.slice(0,dot),hex=token.slice(dot+1);
+  try{
+    const data=JSON.parse(decodeURIComponent(payload));
+    if(data.v!==1||data.actorId!==actorId||data.incidentId!==incidentId||data.version!==version||!Number.isSafeInteger(data.expiresAt)||data.expiresAt<Date.now()||data.expiresAt>Date.now()+8*60*1000||typeof data.nonce!=='string')return false;
+    const signature=Uint8Array.from(hex.match(/.{2}/g)!,v=>parseInt(v,16));
+    return crypto.subtle.verify('HMAC',await historicalTicketKey(),signature,enc.encode(payload));
+  }catch(_){return false}
+}
+
 function canonicalValue(v:any):any{if(Array.isArray(v))return v.map(canonicalValue);if(v&&typeof v==="object"){const o:any={};for(const k of Object.keys(v).sort())o[k]=canonicalValue(v[k]);return o;}return v}
 function reportForHash(i:any){if(!i||typeof i!=="object")return {};const x=structuredClone(i);for(const k of ["status","priority","prioritySource","prioritySetBy","prioritySetAt","legalReview","safetyNote","approvedBy","approvedAt","rejectedBy","rejectedAt","rejectionNote","closedAt","corrective","readReceipts","acknowledgements","reportWorkflow","reviewHistory","lifecycleHistory","officialRecord","updatedAt","lastModifiedBy","lastModifiedRole","lastModifiedPosition","lastModifiedAt","resubmittedBy","resubmittedById","resubmittedAt","reopenedBy","reopenedAt","reopenReason","_syncBaseVersion","_syncVersion","_syncMutationId"])delete x[k];return canonicalValue(x)}
 async function reportHash(i:any){return sha256Hex(JSON.stringify(reportForHash(i)))}
@@ -242,7 +267,7 @@ Deno.serve(async(req:Request)=>{
 
     if(action==="acknowledge"||action==="approval_roster")return json({ok:false,message:"approval_retired_read_only"},410);
 
-    if(["view","revision_list","correct_closed","erp_record","export_snapshot","export_completed"].includes(action)){
+    if(["view","revision_list","historical_reauth","correct_closed","erp_record","export_snapshot","export_completed"].includes(action)){
       const incidentId=clean(body.incidentId);if(!incidentId)return json({ok:false,message:"incident_required"},400);
       return await sql.begin(async(sql:any)=>{
         await sql`select set_config('enl.actor',${JSON.stringify({id:actor.id,role:actor.role})},true)`;
@@ -261,8 +286,18 @@ Deno.serve(async(req:Request)=>{
           for(const r of revisions){if(actor.role!=="safety")r.changes=r.changes.map((d:any)=>d.field==='reportDetails'?{field:d.field,before:readerIncident({...r.before_payload,reportDetails:d.before})?.reportDetails,after:readerIncident({...r.after_payload,reportDetails:d.after})?.reportDetails}:d.field==='summary'?{...d,before:readerMedicalText(d.before,r.before_payload?.reportDetails),after:readerMedicalText(d.after,r.after_payload?.reportDetails)}:d);delete r.before_payload;delete r.after_payload;}
           return json({ok:true,revisions});
         }
+        if(action==="historical_reauth"){
+          if(actor.role!=="safety")return json({ok:false,message:"forbidden"},403);
+          if(!isHistoricalEditable(prev)||!["approved","closed"].includes(clean(prev.status)))return json({ok:false,message:"historical_correction_unavailable"},409);
+          const rawPassword=body.reauthPassword;
+          if(typeof rawPassword!=="string"||rawPassword.length<1||rawPassword.length>256)return json({ok:false,message:"historical_password_required"},400);
+          const credential=await sql`select password_hash from public.enl_hq_users where user_id=${actor.id} and role='safety' and active=true limit 1`;
+          if(!credential.length||!clean(credential[0].password_hash)||await sha256Hex(rawPassword)!==clean(credential[0].password_hash))return json({ok:false,message:"historical_password_invalid"},403);
+          const permit=await issueHistoricalTicket(actor.id,incidentId,versionOf(prev._syncVersion));
+          return json({ok:true,verified:true,incident:prev,reauthTicket:permit.ticket,expiresAt:permit.expiresAt});
+        }
         if(actor.role!=="safety")return json({ok:false,message:"forbidden"},403);
-        if(prev.status!=="closed")return json({ok:false,message:"closed_incident_required"},409);
+        if(prev.status!=="closed"&&!(action==="correct_closed"&&isHistoricalEditable(prev)&&prev.status==="approved"))return json({ok:false,message:"closed_incident_required"},409);
         const mutationId=clean(body.mutationId);if(!mutationId||mutationId.length>160)return json({ok:false,message:"mutation_id_required"},400);
         const requestHash=await sha256Hex(JSON.stringify(canonicalValue({action,incidentId,expectedVersion:body.expectedVersion,changes:body.changes,reason:body.reason,record:body.record,snapshotId:body.snapshotId,fileHash:body.fileHash,filename:body.filename})));
         const duplicate=await sql`select action,editor_id,details from public.enl_incident_operations where incident_id=${incidentId} and mutation_id=${mutationId}`;
@@ -275,6 +310,7 @@ Deno.serve(async(req:Request)=>{
           return json({ok:true,duplicate:true,incident:prev});
         }
         if(body.expectedVersion===undefined||versionOf(body.expectedVersion)!==versionOf(prev._syncVersion))return json({ok:false,message:"enl_sync_conflict_version"},409);
+        if(action==="correct_closed"&&isHistoricalEditable(prev)&&!await verifyHistoricalTicket(body.reauthTicket,actor.id,incidentId,versionOf(prev._syncVersion)))return json({ok:false,message:"historical_reauth_required"},403);
         if(action==="export_completed"){
           const source=await sql`select revision,details,editor_id from public.enl_incident_operations where incident_id=${incidentId} and mutation_id=${clean(body.snapshotId)} and action='export_snapshot'`;
           if(!source.length||source[0].editor_id!==actor.id||source[0].details?.version!==versionOf(prev._syncVersion)||source[0].details?.hash!==await finalHash(prev)||source[0].revision!==versionOf(prev.officialRecord?.revisionNumber)||! /^[a-f0-9]{64}$/i.test(clean(body.fileHash))||!clean(body.filename).endsWith('.xlsx'))return json({ok:false,message:"export_snapshot_required"},409);
