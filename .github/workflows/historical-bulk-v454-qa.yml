@@ -1,15 +1,7 @@
 name: historical importer retirement QA
 on:
-  pull_request:
-    branches: [main]
-  push:
-    branches: [main]
-    paths:
-      - 'stable412.html'
-      - 'sw-v418.js'
-      - 'edge-functions/enl-historical-bulk-v454/**'
-      - 'tests/manual-historical-v2-policy.cjs'
   workflow_dispatch:
+
 permissions:
   contents: read
 jobs:

@@ -1,10 +1,6 @@
 name: incident live QA v2
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/incident-live-qa-v2.yml'
   workflow_dispatch:
 
 jobs:

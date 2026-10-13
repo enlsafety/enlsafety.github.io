@@ -55,7 +55,7 @@
   async function api(action,extra={},timeout=12000){
     const ctl=typeof AbortController!=='undefined'?new AbortController():null,timer=ctl?setTimeout(()=>ctl.abort(),timeout):null;
     try{
-      const res=await rawFetch(PUSH_API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify({action,...extra}),signal:ctl?.signal,cache:'no-store'});
+      const res=await rawFetch(PUSH_API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify({action,...extra,...window.enlIncidentAuthProof?.()}),signal:ctl?.signal,cache:'no-store'});
       const data=await res.json().catch(()=>({}));if(!res.ok||data?.ok===false){const e=new Error(data?.message||`http_${res.status}`);e.status=res.status;throw e}return data;
     }finally{if(timer)clearTimeout(timer)}
   }

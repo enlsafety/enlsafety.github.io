@@ -3,6 +3,8 @@
   'use strict';
   const API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-incident-sync-v411';
   const CLIENT='incident-report-v2';
+  let committing=false;
+  const authoritative=new Map();
   let applyingRemote=false,syncing=false,pending=false,serverReady=false,dirty=false;
   let syncTimer=null;
   const deferredDeletedIds=new Set();
@@ -11,7 +13,8 @@
   const baseSaveData=saveData;
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
 
-  function signature(arr){return JSON.stringify((arr||[]).map(i=>[i.id,i.updatedAt||'',i.status||'',i.priority||'',i.corrective?.status||'',i.supplement?.status||'',i.reporterId||'',(i.readReceipts||[]).map(r=>`${r.userId}:${r.readAt}`).sort().join('|'),(i.acknowledgements||[]).map(r=>`${r.documentType}:${r.userId}:${r.ackAt||r.readAt}`).sort().join('|')]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))))}
+  function signature(items){return JSON.stringify((items||[]).map(i=>[String(i.id),i]).sort((a,b)=>a[0].localeCompare(b[0])))}
+
   function actor(){const u=currentUser();return u?{id:u.id||u.personnelId||u.username||'',name:u.name||'',role:roleNorm(u.role),position:u.position||u.jobTitle||'',siteId:u.siteId||''}:null}
   function authProof(){
     let u=null;try{u=currentUser?.()||null}catch(e){}
@@ -50,6 +53,7 @@
   }
 
   function persistRemote(next){
+    for(const i of next||[])authoritative.set(String(i.id),structuredClone(i));
     data.incidents=[...(next||[])].sort((x,y)=>new Date(y.occurredAt||0)-new Date(x.occurredAt||0));
     applyingRemote=true;try{baseSaveData()}finally{applyingRemote=false}
     lastIds=new Set(data.incidents.map(x=>x.id));lastSig=signature(data.incidents);dirty=false;
@@ -66,19 +70,33 @@
   function replaceFromServer(remote){
     const a=actor();if(!a)return false;
     const next=scopedRemote(remote,a);
+    for(const i of next)authoritative.set(String(i.id),structuredClone(i));
     const before=signature(data.incidents||[]),after=signature(next);
     if(before!==after){persistRemote(next);return true}
     lastIds=new Set(next.map(x=>x.id));lastSig=after;dirty=false;return false;
   }
 
+  const retryWrites=new Map();
+  function contentSignature(i){const x=structuredClone(i||{});for(const k of ['_pendingCommitId','_syncBaseVersion','_syncVersion','_syncMutationId','updatedAt','lastModifiedAt','lastModifiedBy','lastModifiedRole','lastModifiedPosition'])delete x[k];return JSON.stringify(x)}
   async function push(deletedIds=[]){
-    const a=actor();if(!a||!serverReady)return;
-    if(['manager','executive'].includes(a.role))return;
-    let incidents=[...(data.incidents||[])];
-    if(a.role==='field')incidents=incidents.filter(i=>String(i.siteId||'')===String(a.siteId||''));
-    if(a.role==='worker')incidents=incidents.filter(i=>String(i.siteId||'')===String(a.siteId||'')&&!i.workerPublicOnly);
-    const deletions=a.role==='safety'?deletedIds:[];
-    await call({action:'push',actor:a,role:a.role,siteId:a.siteId,incidents,deletedIds:deletions});
+    const a=actor();if(!a||!serverReady||['manager','executive'].includes(a.role))return;
+    if(deletedIds.length)throw new Error('delete_requires_compliance_api');
+    const incidents=[];
+    for(const local of data.incidents||[]){
+      if(['field','worker'].includes(a.role)&&String(local.siteId)!==String(a.siteId)||local.workerPublicOnly)continue;
+      const id=String(local.id),before=authoritative.get(id),signature=contentSignature(local);
+      if(before&&signature===contentSignature(before))continue;
+      const candidate=structuredClone(local),prior=retryWrites.get(id),base=Number(before?._syncVersion||0);
+      const mutation=prior&&prior.signature===signature&&prior.base===base?prior.mutation:crypto.randomUUID();retryWrites.set(id,{signature,base,mutation});
+      candidate._syncBaseVersion=base;candidate._syncMutationId=mutation;delete candidate._pendingCommitId;incidents.push(candidate);
+    }
+    if(!incidents.length)return;
+    const result=await call({action:'push',actor:a,incidents,deletedIds:[]});
+    for(const saved of result.incidents||[]){
+      const id=String(saved.id),sent=retryWrites.get(id),local=data.incidents.find(x=>String(x.id)===id);
+      if(local&&sent&&contentSignature(local)===sent.signature){acceptSaved(saved);retryWrites.delete(id);}
+      else{authoritative.set(id,structuredClone(saved));if(local)local._syncVersion=saved._syncVersion;dirty=true;}
+    }
   }
 
   function uiWriteBusy(){
@@ -100,6 +118,37 @@
     return changed;
   }
 
+  function acceptSaved(i){
+    const otherDirty=dirty&&(data.incidents||[]).some(x=>String(x.id)!==String(i.id)&&JSON.stringify(x)!==JSON.stringify(authoritative.get(String(x.id))));
+    authoritative.set(String(i.id),structuredClone(i));
+    const idx=(data.incidents||[]).findIndex(x=>String(x.id)===String(i.id));
+    if(idx<0)data.incidents.unshift(i);else data.incidents[idx]=i;
+    applyingRemote=true;try{baseSaveData()}finally{applyingRemote=false}
+    lastIds=new Set(data.incidents.map(x=>x.id));lastSig=signature(data.incidents);dirty=otherDirty;
+    if(dirty)scheduleSync(500);
+    window.dispatchEvent(new CustomEvent('enl-incident-saved',{detail:i}));
+    return i;
+  }
+  async function commitIncident(i){
+    if(committing)throw new Error('save_in_progress');
+    committing=true;
+    const a=actor(),id=String(i.id),candidate=structuredClone(i);
+    candidate._syncBaseVersion=Number(i._syncVersion||0);
+    candidate._syncMutationId=i._pendingCommitId||(i._pendingCommitId=crypto.randomUUID());
+    delete candidate._pendingCommitId;
+    try{
+      const start=Date.now();while(syncing){if(Date.now()-start>12000)throw new Error('sync_busy');await new Promise(r=>setTimeout(r,50));}
+      const result=await call({action:'push',actor:a,incidents:[candidate],deletedIds:[]},20000);
+      const saved=result.incidents?.find(x=>String(x.id)===id);if(!saved)throw new Error('save_not_confirmed');
+      delete i._pendingCommitId;return acceptSaved(saved);
+    }catch(error){
+      const original=authoritative.get(id);if(original){const idx=data.incidents.findIndex(x=>String(x.id)===id);if(idx>=0)data.incidents[idx]=structuredClone(original);}
+      throw error;
+    }finally{committing=false;}
+  }
+  window.enlCommitIncident=commitIncident;window.enlAcceptSavedIncident=acceptSaved;
+  window.enlCommitOrNotify=async i=>{try{await commitIncident(i);return true}catch(e){alert(String(e.message).includes('conflict')?'다른 사용자가 먼저 수정했습니다. 최신 자료를 다시 확인한 뒤 제출해 주세요.':'서버 저장을 확인하지 못했습니다. 입력한 내용은 화면에 남아 있습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.');return false}};
+
   async function acknowledge(incidentId,u=currentUser(),documentType='incident_report'){
     const a=u?{id:u.id||u.personnelId||u.username||'',name:u.name||'',role:roleNorm(u.role),position:u.position||u.jobTitle||'',siteId:u.siteId||''}:actor();
     if(!a||!['field','safety','manager','executive'].includes(a.role))throw new Error('forbidden');
@@ -118,7 +167,7 @@
     const a=actor();if(!a)return;
     (deletedIds||[]).forEach(id=>{if(id)deferredDeletedIds.add(id)});
     if(syncTimer){clearTimeout(syncTimer);syncTimer=null}
-    if(syncing){pending=true;return}
+    if(syncing||committing){pending=true;return}
     syncing=true;
     const queuedDeletes=[...deferredDeletedIds];deferredDeletedIds.clear();
     let failed=false;
@@ -128,11 +177,11 @@
         if(['manager','executive'].includes(a.role)){dirty=false;return}
         // A local save may have happened while the first pull was in flight.
         // Preserve and flush it instead of clearing dirty and losing the edit.
-        if(dirty||queuedDeletes.length){await push(queuedDeletes);dirty=false;await pull(true)}
+        if(dirty||queuedDeletes.length){await push(queuedDeletes);dirty=(data.incidents||[]).some(i=>contentSignature(i)!==contentSignature(authoritative.get(String(i.id))));await pull(true)}
         return;
       }
       if(['manager','executive'].includes(a.role)){dirty=false;await pull(true);return}
-      if(dirty||queuedDeletes.length){await push(queuedDeletes);dirty=false;await pull(true)}
+      if(dirty||queuedDeletes.length){await push(queuedDeletes);dirty=(data.incidents||[]).some(i=>contentSignature(i)!==contentSignature(authoritative.get(String(i.id))));await pull(true)}
       else await pull(true);
     }catch(e){failed=true;queuedDeletes.forEach(id=>deferredDeletedIds.add(id));console.warn('incident sync skipped',e)}
     finally{
@@ -151,7 +200,7 @@
     if(changed&&currentUser())scheduleSync(250,deleted);
   };
 
-  window.enlIncidentApi=call;
+  window.enlIncidentApi=call;window.enlIncidentAuthProof=authProof;
   window.enlIncidentSyncNow=()=>syncNow([]);
   window.enlIncidentPullNow=()=>pull(true);
   window.enlIncidentAcknowledge=acknowledge;

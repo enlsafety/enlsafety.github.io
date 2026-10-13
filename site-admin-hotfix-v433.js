@@ -12,7 +12,7 @@
     const ctl=typeof AbortController!=='undefined'?new AbortController():null;
     const timer=ctl?setTimeout(()=>ctl.abort(),timeout):null;
     try{
-      const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify(body||{}),signal:ctl?.signal,cache:'no-store'});
+      const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify({...body,...window.enlIncidentAuthProof?.()}),signal:ctl?.signal,cache:'no-store'});
       const j=await r.json().catch(()=>({}));
       if(!r.ok||j?.ok===false){const e=new Error(j?.message||`http_${r.status}`);e.status=r.status;throw e}
       return j;

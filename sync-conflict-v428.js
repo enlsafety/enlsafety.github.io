@@ -24,6 +24,7 @@
     }
   }
   absorb(data?.incidents||[]);
+  window.addEventListener('enl-incident-saved',e=>absorb([e.detail]));
 
   const previousSave=window.saveData;
   if(typeof previousSave==='function'){

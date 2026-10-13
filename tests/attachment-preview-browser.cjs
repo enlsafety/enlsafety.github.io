@@ -54,8 +54,8 @@ const {chromium}=require('playwright'),fs=require('node:fs'),assert=require('nod
     assert.ok(!reviewText.includes('민감의사소견'),'pending HQ reader must not see doctor opinion before final approval');
     await page.evaluate(()=>{data.incidents[0].status='approved';window.enlOpenIncidentReview('inc-sensitive',false,{id:'hq1',name:'본사관리자',role:'manager'})});
     reviewText=await page.locator('#modalRoot').innerText();
-    assert.ok(reviewText.includes('민감진단명'),'approved HQ reader should see the finalized diagnosis');
-    assert.ok(reviewText.includes('민감의사소견'),'approved HQ reader should see the finalized doctor opinion');
+    assert.ok(!reviewText.includes('민감진단명'),'approved HQ reader medical diagnosis remains restricted');
+    assert.ok(!reviewText.includes('민감의사소견'),'approved HQ reader medical opinion remains restricted');
     console.log('PASS: previews stay ephemeral, originals open, and pending HQ read-only view masks medical details');
   }finally{await browser.close()}
 })().catch(e=>{console.error(e);process.exit(1)});

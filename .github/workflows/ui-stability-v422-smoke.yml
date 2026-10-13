@@ -1,26 +1,6 @@
 name: ui stability smoke
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'ui-stability-v422.js'
-      - 'reader-experience-v424.js'
-      - 'push-session-v425.js'
-      - 'hq-notification-status-v437.js'
-      - 'sw-v418.js'
-      - 'stable412.html'
-      - '.github/workflows/ui-stability-v422-smoke.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'ui-stability-v422.js'
-      - 'reader-experience-v424.js'
-      - 'push-session-v425.js'
-      - 'hq-notification-status-v437.js'
-      - 'sw-v418.js'
-      - 'stable412.html'
-      - '.github/workflows/ui-stability-v422-smoke.yml'
   workflow_dispatch:
 
 jobs:

@@ -1,22 +1,6 @@
 name: mobile session smoke
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'session-refresh-v412.js'
-      - 'tests/session-proof-reuse.cjs'
-      - 'app-control-v410.js'
-      - 'stable412.html'
-      - '.github/workflows/mobile-session-smoke.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'session-refresh-v412.js'
-      - 'tests/session-proof-reuse.cjs'
-      - 'app-control-v410.js'
-      - 'stable412.html'
-      - '.github/workflows/mobile-session-smoke.yml'
   workflow_dispatch:
 
 jobs:

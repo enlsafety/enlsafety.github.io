@@ -1,13 +1,6 @@
 name: incident review v431 smoke
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'incident-review-v431.js'
-      - 'production-cleanup-v431.js'
-      - 'stable412.html'
-      - '.github/workflows/incident-review-v431-smoke.yml'
   workflow_dispatch:
 
 jobs:

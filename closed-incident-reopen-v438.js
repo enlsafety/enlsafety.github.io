@@ -1,129 +1,28 @@
-/* E&L Accident Report App v4.3.8 - closed incident edit/reopen controls */
+/* Closed corrections never erase approval, closure or ERP evidence. */
 (function(){
-  'use strict';
-  const VERSION='4.3.8-closed-reopen1';
-  let currentIncidentId='';
-
-  const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
-  const current=()=>{try{return window.currentUser?.()||null}catch(e){return null}};
-  const incident=id=>(data?.incidents||[]).find(x=>String(x.id)===String(id));
-  const now=()=>typeof nowISO==='function'?nowISO():new Date().toISOString();
-  const isSafety=u=>roleNorm(u?.role)==='safety';
-  const isBulkImported=i=>!!(i?.historicalOrigin?.batchId&&i?.historicalOrigin?.candidateId&&i?.externalInitialApproval?.state==='verified');
-  const historicalClosed=i=>!!i&&i?.historicalImport?.enabled===true&&i?.historicalImport?.erpApproved===true&&i?.historicalImport?.workflowExempt===true&&String(i?.historicalImport?.transferState||'')==='closed'&&String(i?.status||'')==='closed';
-
-  function remember(id){
-    if(id)currentIncidentId=String(id);
-    return currentIncidentId;
-  }
-
-  function inferIncident(){
-    const final=document.querySelector('#modalRoot [data-lifecycle-final]');
-    const id=final?.getAttribute('data-lifecycle-final')||currentIncidentId;
-    return id?incident(id):null;
-  }
-
-  function css(){
-    if(document.getElementById('enl438Css'))return;
-    const s=document.createElement('style');s.id='enl438Css';s.textContent=`
-      .enl438-reopen{background:#fff8e7!important;color:#805719!important;border:1px solid #dfbf7d!important}
-      .enl438-note{margin:10px 0 0;padding:10px 11px;border:1px solid #ead6ab;border-radius:10px;background:#fffaf0;color:#70531f;font-size:12px;line-height:1.55}
-    `;document.head.appendChild(s);
-  }
-
-  async function syncNow(){
-    try{if(typeof window.enlIncidentSyncNow==='function')await window.enlIncidentSyncNow()}catch(e){console.warn('[closed-reopen] sync deferred',e)}
-  }
-
-  async function reopenToApproved(i,u){
-    if(!i||!isSafety(u)||String(i.status)!=='closed'||historicalClosed(i)||isBulkImported(i))return;
-    const ok=confirm('이 종결 사고를 “사고보고 승인” 단계로 되돌릴까요?\n\n재발방지계획·현장 조치내용·조치 증빙(종결사진/PDF)·조치 승인정보는 제거됩니다.\n사고보고 내용과 기존 사고보고 승인자/승인시간은 유지됩니다.');
-    if(!ok)return;
-    const reason=prompt('되돌리기 사유를 입력해 주세요.','재발방지조치·종결자료 오입력 정정');
-    if(reason===null)return;
-    const ts=now(),previousClosedAt=i.closedAt||null,previousCorrectiveStatus=String(i.corrective?.status||'');
-    i.lifecycleHistory=Array.isArray(i.lifecycleHistory)?i.lifecycleHistory:[];
-    i.lifecycleHistory.push({
-      action:'closed_rollback_to_report_approved',
-      by:u.name||'안전관리자',
-      byId:u.id||u.personnelId||'',
-      at:ts,
-      note:String(reason||'종결 취소'),
-      previousClosedAt,
-      previousCorrectiveStatus
-    });
-    i.status='approved';
-    i.closedAt=null;
-    i.corrective=null;
-    i.updatedAt=ts;
-    i.reopenedBy=u.name||'안전관리자';
-    i.reopenedAt=ts;
-    i.reopenReason=String(reason||'종결 취소');
-    try{actionPhotos=[]}catch(e){}
-    saveData();
-    try{closeModal()}catch(e){}
-    try{renderShell(u)}catch(e){}
-    await syncNow();
-    alert('종결을 취소하고 사고보고 승인 단계로 되돌렸습니다.\n재발방지계획부터 다시 진행할 수 있습니다.');
-  }
-
-  function decorate(){
-    css();
-    const u=current();if(!isSafety(u))return;
-    const modal=document.querySelector('#modalRoot .modal');if(!modal)return;
-    const i=inferIncident();if(!i)return;
-    if(String(i.status)==='closed'&&!historicalClosed(i)&&!isBulkImported(i)){
-      const actions=modal.querySelector('.modal-actions');
-      if(actions&&!actions.querySelector('[data-enl438-reopen]')){
-        const b=document.createElement('button');
-        b.type='button';b.dataset.enl438Reopen='1';b.className='btn-gray enl438-reopen';
-        b.textContent='종결 취소 · 사고승인 단계로';
-        b.onclick=ev=>{ev.preventDefault();ev.stopPropagation();reopenToApproved(i,u)};
-        const edit=actions.querySelector('#editInc');actions.insertBefore(b,edit||actions.firstChild);
-        if(!modal.querySelector('[data-enl438-note]')){
-          const n=document.createElement('div');n.dataset.enl438Note='1';n.className='enl438-note';
-          n.textContent='재발방지조치나 종결 증빙을 잘못 입력한 경우, 사고보고 승인정보는 유지한 채 후속조치만 초기화할 수 있습니다.';
-          actions.insertAdjacentElement('beforebegin',n);
-        }
-      }
-    }
-  }
-
-  function wrapOpen(name){
-    const base=window[name];if(typeof base!=='function'||base.__enl438Wrapped)return;
-    const wrapped=function(id){
-      remember(id);const out=base.apply(this,arguments);
-      setTimeout(decorate,0);setTimeout(decorate,80);
-      return out;
-    };
-    wrapped.__enl438Wrapped=true;window[name]=wrapped;
-  }
-
-  wrapOpen('enlOpenIncidentReview');
-  wrapOpen('openIncidentModal');
-
-  document.addEventListener('click',e=>{
-    const edit=e.target?.closest?.('#editInc');
-    if(edit){
-      const u=current();if(!isSafety(u))return;
-      const i=inferIncident();if(!i)return;
-      e.preventDefault();e.stopImmediatePropagation();
-      try{closeModal()}catch(_){}
-      setTimeout(()=>{
-        if(isBulkImported(i)){if(typeof window.enlOpenHistoricalCandidate454==='function')window.enlOpenHistoricalCandidate454(i.historicalOrigin.batchId,i.historicalOrigin.candidateId);else alert('자동이관 관리 화면을 새로고침한 뒤 다시 열어 주세요.');}
-        else if(historicalClosed(i)&&typeof window.enlEditHistoricalTransfer449==='function')window.enlEditHistoricalTransfer449(i,u);
-        else if(typeof window.enlEditIncidentInReportForm==='function')window.enlEditIncidentInReportForm(i,u);
-        else alert('사고정보 수정 화면을 불러오지 못했습니다.');
-      },0);
-      return;
-    }
-    const reopen=e.target?.closest?.('[data-enl438-reopen]');
-    if(reopen){e.preventDefault();e.stopPropagation();}
-  },true);
-
-  const mo=new MutationObserver(()=>{if(document.querySelector('#modalRoot .modal'))decorate()});
-  mo.observe(document.getElementById('modalRoot')||document.body,{childList:true,subtree:true});
-
-  window.enlReopenClosedIncidentToApproved=(id,u=current())=>reopenToApproved(incident(id),u);
-  window.ENL_CLOSED_INCIDENT_REOPEN_VERSION=VERSION;
+ 'use strict';let queued=false;
+ const e=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const actor=()=>{const u=currentUser();return {id:u.id||u.personnelId,role:u.role,siteId:u.siteId||''}};
+ const fields=[['summary','사고 요약'],['occurredAt','발생일시'],['eventType','사고유형'],['injuredName','재해자'],['immediateAction','최초 조치'],['reportDetails.incidentHow','사고경위'],['reportDetails.place','발생 장소'],['reportDetails.workAction','사고 당시 작업'],['reportDetails.medicalCost','치료비 (원)'],['reportDetails.repairCost','수리비 (원)'],['corrective.rootCause','원인 · 미확정 사항은 추정이라고 표시해 주세요'],['corrective.planDetail','재발방지계획'],['corrective.ownerName','계획 담당자'],['corrective.dueDate','완료 목표일'],['corrective.actionDetail','현장 조치결과'],['corrective.actionDate','조치 시행일'],['corrective.actionOwner','조치 담당자'],['corrective.additionalNotes','추가 확인사항']];
+ const val=(i,k)=>k.split('.').reduce((a,b)=>a?.[b],i);
+ function failure(err){alert(String(err.message).includes('conflict')?'다른 사용자가 먼저 수정했습니다. 최신 내용을 확인한 뒤 다시 시도해 주세요.':'서버 저장을 확인하지 못했습니다. 입력 내용과 연결 상태를 확인해 주세요.');}
+ async function operation(i,action,extra){const r=await window.enlIncidentApi({action,incidentId:i.id,expectedVersion:Number(i._syncVersion||0),actor:actor(),...extra},20000);if(r.incident)window.enlAcceptSavedIncident(r.incident);return r;}
+ const labels=Object.fromEntries(fields.concat([['category','사고 구분'],['reportDetails.diagnosis','진단명'],['reportDetails.doctorOpinion','의사 소견'],['reportDetails.medicalCostDetail','진료비 상세'],['reportDetails.repairCostDetail','견적 상세'],['reportDetails.damageDetail','파손 내용'],['reportDetails.damagedItem','파손 물품'],['reportDetails.preventionPlan','예방대책'],['reportDetails.specialNote','특이사항'],['photos','사고 첨부자료'],['corrective.afterPhotos','조치 첨부자료']]));
+ const koreaLocal=v=>{const d=new Date(v);return Number.isFinite(d.getTime())?new Date(d.getTime()+9*3600000).toISOString().slice(0,16):''};
+ const display=(key,v)=>{if(v===null||v===undefined||v==='')return '미입력';if(key==='category')return v==='person'?'대인사고':v==='property'?'대물사고':'사고';if(key==='occurredAt')return koreaLocal(v).replace('T',' ')+' (한국시간)';if(key.endsWith('Cost'))return Number(v).toLocaleString('ko-KR')+'원';if(Array.isArray(v))return v.map(x=>typeof x==='string'?x:x.name||'첨부자료').join(' · ')||'첨부 없음';if(typeof v==='object')return '기록 내용 변경';return String(v)};
+ const historyRows=d=>{if(d.field==='reportDetails')return [...new Set([...Object.keys(d.before||{}),...Object.keys(d.after||{})])].filter(k=>JSON.stringify(d.before?.[k])!==JSON.stringify(d.after?.[k])).map(k=>({field:'reportDetails.'+k,before:d.before?.[k],after:d.after?.[k]}));return [d]};
+ const control=(i,key)=>{const value=val(i,key)??'',attr=' data-correction-key="'+e(key)+'"';if(key==='occurredAt')return '<input type="datetime-local" required'+attr+' value="'+e(koreaLocal(value))+'">';if(key.endsWith('Cost'))return '<input type="number" min="0" max="999999999999" step="1"'+attr+' value="'+e(value)+'">';if(key.endsWith('Date'))return '<input type="date"'+attr+' value="'+e(value)+'">';return '<textarea'+attr+' rows="2">'+e(value)+'</textarea>'};
+ function correction(i){
+  openModal('<div class="modal-head"><h2>종결사고 정정</h2><button class="x" data-close>×</button></div><p>기존 승인·종결 기록은 보존됩니다. 사유와 개정이력이 서버에 기록됩니다.</p><form id="closedCorrectionForm">'+fields.filter(([k])=>!k.startsWith('corrective.')||i.corrective).map(([key,label])=>'<label class="lbl"><span>'+e(label)+'</span>'+control(i,key)+'</label>').join('')+'<label class="lbl"><span>정정 사유 *</span><textarea id="correctionReason" required maxlength="2000"></textarea></label><button class="primary full" type="submit">사유와 함께 정정 저장</button></form>');
+  const form=document.getElementById('closedCorrectionForm'),mutationId=crypto.randomUUID();
+  form.onsubmit=async ev=>{ev.preventDefault();if(!form.reportValidity())return;const b=form.querySelector('button[type=submit]');if(b.disabled)return;const changes={};form.querySelectorAll('[data-correction-key]').forEach(input=>{const key=input.dataset.correctionKey,[top,sub]=key.split('.');let value=input.value.trim();if(key==='occurredAt'){if(value===koreaLocal(val(i,key)))return;value=new Date(value+':00+09:00').toISOString();}if(key.endsWith('Cost'))value=value===''?null:Number(value);if(String(val(i,key)??'')===String(value??''))return;if(sub){changes[top]||=top==='reportDetails'?{...i.reportDetails}:{};changes[top][sub]=value}else changes[top]=value;});if(!Object.keys(changes).length)return alert('변경된 내용이 없습니다.');b.disabled=true;try{await operation(i,'correct_closed',{changes,reason:form.querySelector('#correctionReason').value,mutationId});closeModal();renderShell(currentUser());alert('정정내용과 개정이력이 서버에 저장되었습니다.')}catch(err){failure(err);b.disabled=false;}};
+ }
+ function erp(i){
+  const r=i.officialRecord?.erpManual||{};
+  openModal('<div class="modal-head"><h2>ERP 수동 기안 기록</h2><button class="x" data-close>×</button></div><p>ERP에서 직접 기안하신 뒤 기록해 주세요. 이 기록은 ERP 승인이나 문서 자동수정을 의미하지 않습니다.</p><form id="erpManualForm"><label class="lbl"><span>ERP 문서번호 (선택)</span><input id="erpNumber" maxlength="120" value="'+e(r.documentNumber||'')+'"></label><label class="lbl"><span>기안일 *</span><input id="erpDate" type="date" required value="'+e(r.draftedAt||'')+'"></label><label class="lbl"><span>기록 사유 *</span><input id="erpReason" required maxlength="2000"></label><label><input id="erpDone" type="checkbox" required> ERP에서 수동 기안을 완료했습니다.</label><button type="submit" class="primary full">수동 기안정보 저장</button></form>');
+  const form=document.getElementById('erpManualForm'),mutationId=crypto.randomUUID();form.onsubmit=async ev=>{ev.preventDefault();if(!form.reportValidity())return;const b=form.querySelector('button[type=submit]');if(b.disabled)return;b.disabled=true;try{await operation(i,'erp_record',{record:{submitted:true,documentNumber:form.querySelector('#erpNumber').value,draftedAt:form.querySelector('#erpDate').value},reason:form.querySelector('#erpReason').value,mutationId});closeModal();renderShell(currentUser());alert('ERP 수동 기안정보를 기록했습니다.')}catch(err){failure(err);b.disabled=false;}};
+ }
+ async function history(i){try{const r=await window.enlIncidentApi({action:'revision_list',incidentId:i.id,actor:actor()});openModal('<div class="modal-head"><h2>사고 정정이력</h2><button class="x" data-close>×</button></div>'+(r.revisions||[]).map(x=>'<section class="panel"><h3>개정 '+x.revision+' · '+e(x.editor_name)+'</h3><p>'+e(koreaLocal(x.created_at).replace('T',' '))+' (한국시간) · '+e(x.reason)+'</p>'+x.changes.flatMap(historyRows).map(d=>'<details open><summary>'+e(labels[d.field]||'추가 기록')+'</summary><p style="white-space:pre-wrap;overflow-wrap:anywhere">변경 전: '+e(display(d.field,d.before))+'<br>변경 후: '+e(display(d.field,d.after))+'</p></details>').join('')+'</section>').join('')+'<p>승인 및 종결 당시 기록은 보존됩니다.</p>')}catch(err){failure(err)}}
+ function decorate(){queued=false;const m=document.querySelector('#modalRoot .modal');if(!m)return;const id=m.dataset.wf440Incident||m.querySelector('[data-lifecycle-final]')?.dataset.lifecycleFinal,i=(data.incidents||[]).find(x=>String(x.id)===String(id));if(i?.status!=='closed')return;m.querySelector('#editInc')?.remove();m.querySelector('#closeInc')?.remove();if(m.querySelector('[data-closed-record]'))return;const u=currentUser();if(!['safety','manager','executive','final'].includes(u?.role))return;const s=document.createElement('section');s.className='panel';s.dataset.closedRecord='1';s.innerHTML='<h3>종결기록 · 개정 '+Number(i.officialRecord?.revisionNumber||0)+'</h3>'+(i.officialRecord?.erpCorrectionRequired?'<p><strong>ERP 기안서 정정 또는 추가보고 검토 필요</strong></p>':'')+(i.officialRecord?.actionRecheckRequired?'<p><strong>재발방지계획·조치완료 사실의 재검토가 필요합니다.</strong></p>':'')+'<div class="modal-actions">'+(u.role==='safety'?'<button class="btn-blue" data-closed-correct>사유를 남기고 정정</button><button class="btn-gray" data-closed-erp>ERP 수동 기안 기록</button>':'')+'<button class="btn-gray" data-closed-history>정정이력 조회</button></div>';m.appendChild(s);s.querySelector('[data-closed-correct]')?.addEventListener('click',()=>correction(i));s.querySelector('[data-closed-erp]')?.addEventListener('click',()=>erp(i));s.querySelector('[data-closed-history]').onclick=()=>history(i);}
+ const queue=()=>{if(!queued){queued=true;requestAnimationFrame(decorate)}};new MutationObserver(queue).observe(document.body,{childList:true,subtree:true});window.ENL_CLOSED_INCIDENT_REOPEN_VERSION='4.6.0-audited-correction';
 })();

@@ -27,21 +27,22 @@ Deno.serve(async(req:Request)=>{
   const sql=postgres(dbUrl,{prepare:false,max:1,connect_timeout:5,idle_timeout:2});
   try{
     if(["safety","manager","executive"].includes(actor.role)){
-      const rows=await sql`select user_id,role,active from public.enl_hq_users where user_id=${actor.id} limit 1`,data=rows[0];
-      if(!data||data.active===false||roleNorm(data.role)!==actor.role)return json({ok:false,message:"forbidden"},403);
+      const rows=await sql`select user_id,role,active,password_hash from public.enl_hq_users where user_id=${actor.id} limit 1`,data=rows[0];
+      if(!data||data.active===false||roleNorm(data.role)!==actor.role||!clean(data.password_hash)||clean(body.actorPasswordHash)!==clean(data.password_hash))return json({ok:false,message:"forbidden"},403);
     }else if(["field","worker"].includes(actor.role)){
-      const rows=await sql`select personnel_id,site_id,access_role,active from public.enl_site_personnel where personnel_id::text=${actor.id} limit 1`,data=rows[0],expected=actor.role==="field"?"field":"worker";
-      if(!data||data.active===false||clean(data.access_role)!==expected||(actor.siteId&&clean(data.site_id)!==actor.siteId))return json({ok:false,message:"forbidden"},403);
+      const rows=await sql`select personnel_id,site_id,access_role,active,pin_hash from public.enl_site_personnel where personnel_id::text=${actor.id} limit 1`,data=rows[0],expected=actor.role==="field"?"field":"worker";
+      if(!data||data.active===false||clean(data.access_role)!==expected||clean(data.site_id)!==actor.siteId||(actor.role==="field"&&(!clean(data.pin_hash)||clean(body.actorPinHash)!==clean(data.pin_hash))))return json({ok:false,message:"forbidden"},403);
     }else return json({ok:false,message:"forbidden"},403);
 
     const storage=createClient(url,key,{auth:{persistSession:false}}).storage.from(BUCKET);
     if(action==="upload"){
+      if(!["safety","field","worker"].includes(actor.role))return json({ok:false,message:"reader_upload_forbidden"},403);
       const f=body.file||{},mime=clean(f.mime),name=safeName(f.name),size=Number(f.size)||0,b64=clean(f.base64),scope=clean(body.scope)==="action"?"action":"incident";
       if(!allowedMime.has(mime))return json({ok:false,message:"unsupported_file_type"},400);
       if(!size||size>MAX)return json({ok:false,message:"file_too_large",maxBytes:MAX},413);
       if(!b64)return json({ok:false,message:"file_required"},400);
-      const bytes=decodeBase64(b64);if(bytes.byteLength>MAX)return json({ok:false,message:"file_too_large",maxBytes:MAX},413);
-      const ext=(name.includes(".")?name.split(".").pop():mime==="application/pdf"?"pdf":"bin")||"bin",owner=actor.siteId?`site-${safeName(actor.siteId)}`:`hq-${safeName(actor.id)}`,day=new Date().toISOString().slice(0,7),path=`${scope}/${owner}/${day}/${crypto.randomUUID()}.${safeName(ext).toLowerCase()}`;
+      const bytes=decodeBase64(b64);if(bytes.byteLength!==size||bytes.byteLength>MAX)return json({ok:false,message:"file_too_large",maxBytes:MAX},413);
+      const ext=(name.includes(".")?name.split(".").pop():mime==="application/pdf"?"pdf":"bin")||"bin",owner=actor.siteId?`site-${safeName(actor.siteId)}`:`hq-${safeName(actor.id)}`,day=new Date().toISOString().slice(0,7),path=`${scope}/${owner}/${safeName(actor.id)}/${day}/${crypto.randomUUID()}.${safeName(ext).toLowerCase()}`;
       const {error}=await storage.upload(path,bytes,{contentType:mime,upsert:false,cacheControl:"3600"});if(error)throw error;
       const {data:signed,error:sErr}=await storage.createSignedUrl(path,600);if(sErr)throw sErr;
       return json({ok:true,attachment:{storage:true,path,name,mime,size,kind:mime==="application/pdf"?"pdf":"image",previewUrl:signed.signedUrl}});
@@ -49,6 +50,19 @@ Deno.serve(async(req:Request)=>{
     if(action==="sign"){
       const paths=(Array.isArray(body.paths)?body.paths:[]).map(clean).filter(Boolean).slice(0,30),urls:any={};
       if(paths.some((path:string)=>decodeURIComponent(path).includes("historical-followups")))return json({ok:false,message:"use_followup_authorized_endpoint"},403);
+      const rows=actor.role==='safety'||actor.role==='manager'||actor.role==='executive'?await sql`select payload from public.enl_incident_shared`:await sql`select payload from public.enl_incident_shared where site_id=${actor.siteId}`;
+      const permitted=new Set<string>();
+      for(const row of rows){const i=typeof row.payload==='string'?JSON.parse(row.payload):row.payload;if(!i)continue;
+        if(actor.role==='worker'&&clean(i.reporterId)!==actor.id)continue;
+        const reader=['manager','executive'].includes(actor.role);if(reader&&!['reported','supplement','supplement_submitted','approved','closed'].includes(i.status))continue;
+        const files=[...(i.photos||[]),...(!reader||i.corrective?.status==='approved'?i.corrective?.afterPhotos||[]:[]),...(!reader?i.supplement?.attachments||[]:[])];
+        for(const f of files)if(f?.path)permitted.add(clean(f.path));
+      }
+      const own=actor.siteId?'site-'+safeName(actor.siteId):'hq-'+safeName(actor.id);
+      for(const path of paths){
+        const ownUpload=['incident','action'].some(scope=>path.startsWith(scope+'/'+own+'/'+safeName(actor.id)+'/'));
+        if(path.includes('..')||(!permitted.has(path)&&!ownUpload))return json({ok:false,message:'attachment_forbidden'},403);
+      }
       for(const path of paths){const {data,error}=await storage.createSignedUrl(path,600);if(!error&&data?.signedUrl)urls[path]=data.signedUrl;}
       return json({ok:true,urls});
     }

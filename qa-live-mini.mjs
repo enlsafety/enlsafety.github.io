@@ -1,5 +1,7 @@
 import fs from 'node:fs';import crypto from 'node:crypto';import {chromium} from 'playwright';
-const B='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1',APP='https://enlsafety.github.io/stable412.html?qa=1',H={'Content-Type':'application/json','X-ENL-App':'incident-report-v2'};
+const B=process.env.ENL_QA_BASE;
+if(B!=='https://zgwxzfvvpqgdedyobwmg.supabase.co/functions/v1'||process.env.ENL_QA_ALLOW_LEGACY!=='ISOLATED_ONLY')throw new Error('Legacy online QA disabled: explicit isolated staging required');
+const APP=process.env.ENL_QA_APP||'https://enl-qa.invalid/stable412.html?qa=1',H={'Content-Type':'application/json','X-ENL-App':'incident-report-v2'};
 const S=B+'/enl-incident-sync-v411',O=B+'/enl-incident-sync',L=B+'/enl-login-v411',HQ=B+'/enl-hq-auth',run='QA'+Date.now(),pass='7788',hash=crypto.createHash('sha256').update(pass).digest('hex');
 const R={run,startedAt:new Date().toISOString(),tests:[],times:[],errors:[],sites:[]};fs.mkdirSync('qa-artifacts',{recursive:true});
 const actor=(id,name,role,siteId='',position='')=>({id,name,role,siteId,position}),sleep=ms=>new Promise(r=>setTimeout(r,ms)),iso=(d=0)=>new Date(Date.now()+d).toISOString();

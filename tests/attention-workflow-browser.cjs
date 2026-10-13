@@ -26,15 +26,12 @@ async function managerHome(engine){
       window.enlIncidentTable=()=>'';window.enlOpenIncidentReview=id=>{window.__opened=id};window.ENL_DEPLOY_VERSION='4.4.39';
     });
     await page.addScriptTag({content:fs.readFileSync('app-shell-v411.js','utf8')});
-    assert.equal(await page.locator('[data-hq-approval-alert]').count(),1);
-    assert.ok((await page.locator('.shell411-approval-head').innerText()).includes('승인완료 사고 결재가 필요합니다.'));
-    assert.equal(await page.locator('[data-hq-approval-open]').count(),1);
-    assert.equal(await page.locator('.shell411-approval-count').textContent(),'1');
+    assert.equal(await page.locator('[data-hq-approval-alert],[data-hq-approval-open]').count(),0);
     await page.addScriptTag({content:fs.readFileSync('reader-experience-v424.js','utf8')});
     await page.waitForTimeout(60);
     assert.equal(await page.locator('[data-shell-view="incidents"] > .enl424-nav-dot').count(),1,'reader simple-confirmation event should remain a red dot');
     assert.equal(await page.locator('[data-shell-view="incidents"] > .enl424-nav-count').count(),0,'reader simple-confirmation event must not become a number');
-    await page.locator('[data-hq-approval-open]').click();
+    await page.locator('[data-safety-inc="inc-approved"]').click();
     assert.equal(await page.evaluate(()=>window.__opened),'inc-approved');
 
     await page.evaluate(()=>{
@@ -54,8 +51,8 @@ async function managerHome(engine){
     await page.waitForTimeout(80);
 
     const badge=async view=>page.locator('[data-shell-view="'+view+'"] > .enl424-nav-count').textContent();
-    assert.equal(await badge('home'),'5','home must aggregate all action-required work');
-    assert.equal(await badge('incidents'),'3','reported + supplement approval + own approval');
+    assert.equal(await badge('home'),'4','home must aggregate all action-required work');
+    assert.equal(await badge('incidents'),'2','reported + supplement approval + own approval');
     assert.equal(await badge('actions'),'2','plan registration + corrective approval');
     assert.equal(await page.locator('[data-shell-view="actions"] .prev429-nav-alert').count(),0,'legacy plan-only badge must be removed');
     assert.equal(await page.locator('[data-shell-view="incidents"] > .enl424-nav-dot').count(),0,'safety action work must be numeric, not a dot');
@@ -63,19 +60,19 @@ async function managerHome(engine){
     // Merely opening a tab must not clear an action-required number.
     await page.locator('[data-shell-view="incidents"]').click();
     await page.waitForTimeout(30);
-    assert.equal(await badge('incidents'),'3');
+    assert.equal(await badge('incidents'),'2');
 
     // Process each incident-side action. Counts fall only after workflow state changes.
     await page.evaluate(()=>{
       data.incidents.find(i=>i.id==='inc-review').status='supplement';
       window.enlRefreshSafetyActionBadges();
     });
-    assert.equal(await badge('incidents'),'2');
+    assert.equal(await badge('incidents'),'1');
     await page.evaluate(()=>{
       data.incidents.find(i=>i.id==='inc-supp-review').status='supplement';
       window.enlRefreshSafetyActionBadges();
     });
-    assert.equal(await badge('incidents'),'1');
+    assert.equal(await page.locator('[data-shell-view="incidents"] > .enl424-nav-count').count(),0);
     await page.evaluate(()=>{
       data.incidents.find(i=>i.id==='inc-own-approval').acknowledgements=[{documentType:'incident_report',userId:'u-safety-real',ackAt:new Date().toISOString()}];
       window.enlRefreshSafetyActionBadges();
@@ -111,7 +108,7 @@ async function approvalDetail(engine){
         {id:'stale2',name:'테스트 관리자',role:'manager',position:'부장',active:true},
         {id:'stale3',name:'테스트 안전관리자',role:'safety',position:'과장',active:true},
         {id:'u-manager-real',name:'김관리',role:'manager',position:'차장',active:true}
-      ],incidents:[{id:'inc-approved',siteId:'s01',status:'approved',eventType:'사고',updatedAt:'2026-10-01T10:00:00+09:00',reporterName:'현장소장',createdAt:'2026-10-01T09:00:00+09:00',acknowledgements:[]}]};
+      ],incidents:[{id:'inc-approved',siteId:'s01',status:'approved',eventType:'사고',updatedAt:'2026-10-01T10:00:00+09:00',reporterName:'현장소장',createdAt:'2026-10-01T09:00:00+09:00',acknowledgements:[{name:'과거 승인자',documentType:'incident_report',ackAt:'2026-10-01T10:00:00+09:00'}]}]};
       window.esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       window.enlIncidentApi=async()=>({users:[
         {id:'u-manager-real',name:'김관리',role:'manager',position:'차장',department:'경영관리부'},
@@ -128,16 +125,12 @@ async function approvalDetail(engine){
     assert.ok(!text.includes('테스트 경영진'));
     assert.ok(!text.includes('테스트 관리자'));
     assert.ok(!text.includes('테스트 안전관리자'));
-    assert.equal(await page.locator('[data-enl448-sign]').count(),1);
-    assert.ok((await page.locator('[data-enl448-sign]').innerText()).includes('본인'));
-    assert.ok((await page.locator('[data-enl448-sign]').innerText()).includes('결재하기'));
-    assert.equal(await page.locator('[data-enl448-own-guide]').count(),1);
-    const visual=await page.locator('[data-enl448-sign]').evaluate(el=>{const cs=getComputedStyle(el),pill=getComputedStyle(el.querySelector('.enl448-a'));return {animation:cs.animationName,transform:cs.transform,height:cs.height,pillFont:pill.fontSize}});
-    assert.equal(visual.animation,'none');
-    assert.equal(visual.transform,'none');
-    assert.ok(parseFloat(visual.height)<=66);
-    assert.ok(parseFloat(visual.pillFont)>=9.5);
-    console.log('PASS:',engine.name(),'server-authoritative approval roster and crisp own approval cell');
+    assert.equal(await page.locator('[data-enl448-sign],[data-enl448-own-guide]').count(),0);
+    assert.equal(await page.locator('[data-prior-approvals]').count(),1);
+    await page.locator('[data-prior-approvals] summary').click();
+    assert.ok((await page.locator('[data-prior-approvals]').innerText()).includes('과거 승인자'));
+    assert.equal(await page.evaluate(()=>data.incidents[0].acknowledgements.length),1);
+    console.log('PASS:',engine.name(),'historical approvals preserved read-only');
   }finally{await browser.close()}
 }
 

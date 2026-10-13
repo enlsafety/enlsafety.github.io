@@ -14,7 +14,7 @@ async function setup(engine){
     window.eventTypeOptions=sel=>['넘어짐','부딪힘'].map(x=>'<option '+(x===sel?'selected':'')+'>'+x+'</option>').join('');
     window.photoPickerHtml=()=>'<div></div>';window.renderPhotoThumbs=()=>{};window.bindPhotoButtons=()=>{};window.renderShell=()=>{};
     window.nowISO=()=>new Date().toISOString();window.computePriority=()=> 'normal';window.computeLegalReview=()=>false;
-    window.saveData=()=>{};window.uid=()=> 'qa-id';
+    window.saveData=()=>{};window.enlCommitOrNotify=async i=>{const n=data.incidents.findIndex(x=>x.id===i.id);if(n<0)data.incidents.unshift(i);else data.incidents[n]=i;return true};window.uid=()=> 'qa-id';
   });
   await page.addScriptTag({content:fs.readFileSync('report-v410.js','utf8')});
   return {browser,page};

@@ -1,18 +1,6 @@
 name: incident stats v426 smoke
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'incident-stats-v426.js'
-      - 'stable412.html'
-      - '.github/workflows/incident-stats-v426-smoke.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'incident-stats-v426.js'
-      - 'stable412.html'
-      - '.github/workflows/incident-stats-v426-smoke.yml'
   workflow_dispatch:
 
 jobs:

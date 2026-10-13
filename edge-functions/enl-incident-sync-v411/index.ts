@@ -1,10 +1,11 @@
 import "./site-contract-v451.js";
+import { validateLifecycle, correctedIncident } from "./lifecycle-policy.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import postgres from "npm:postgres@3.4.5";
 
 const ORIGIN="https://enlsafety.github.io";
 const APP="incident-report-v2";
-const VERSION="4.5.4-bulk-lifecycle3";
+const VERSION="4.6.0-r1";
 const cors={"Access-Control-Allow-Origin":ORIGIN,"Access-Control-Allow-Headers":"content-type, x-client-info, apikey, authorization, x-enl-app","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:cors});
 const clean=(v:any)=>String(v??"").trim();
@@ -30,6 +31,7 @@ async function verifyActor(sql:any,body:any,strong=false){
   const rows=await sql`select personnel_id::text as personnel_id,site_id,name,job_title,active,access_role,pin_hash from public.enl_site_personnel where personnel_id::text=${a.id} limit 1`,u=rows[0];
   if(!u||u.active===false||clean(u.site_id)!==a.siteId||clean(u.access_role)!==a.role)return null;
   const hash=clean(body?.actorPinHash),stored=clean(u.pin_hash);
+  if(strong&&a.role==="field"&&(!stored||hash!==stored))return null;
   if(strong&&stored&&hash!==stored)return null;
   return {id:clean(u.personnel_id),name:clean(u.name),role:clean(u.access_role),position:clean(u.job_title),siteId:clean(u.site_id),hasCredential:!!stored,proof:strong&&stored?"pin":"account"};
 }
@@ -135,12 +137,15 @@ function isMine(i:any,a:any){if(!i||!a||isHistoricalTransfer(i)||isBulkImported(
 function reportApproved(i:any){return ["approved","closed"].includes(clean(i?.status));}
 function reportVisibleToReaders(i:any){return ["reported","supplement","supplement_submitted","approved","closed"].includes(clean(i?.status));}
 function redact(v:any,names:any[]=[]){let s=clean(v).replace(/\s+/g," ");for(const n0 of names){const n=clean(n0);if(n&&n.length>=2)s=s.split(n).join("근로자");}s=s.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,"[이메일 비공개]");s=s.replace(/(?:01[016789]|02|0[3-6][1-5])-?\d{3,4}-?\d{4}/g,"[연락처 비공개]");s=s.replace(/\b\d{6}-?[1-4]\d{6}\b/g,"[개인정보 비공개]");return s;}
+function readerMedicalText(value:any,details:any){let v=clean(value);for(const key of ['diagnosis','doctorOpinion','medicalCostDetail']){const token=clean(details?.[key]);if(token.length>=2)v=v.split(token).join('[의료정보 비공개]');}return v.replace(/(?:진단명|의사 소견|치료 상세)\s*:[^/\n]+/g,'[의료정보 비공개]');}
 function readerIncident(i:any){
   if(!i||bulkInactive(i)||!reportVisibleToReaders(i))return null;
   const out=structuredClone(i);
   const d=out?.reportDetails&&typeof out.reportDetails==="object"?out.reportDetails:{};
+  out.summary=readerMedicalText(clean(d.incidentHow)||out.summary,d);
+  if(d.incidentHow)d.incidentHow=readerMedicalText(d.incidentHow,d);
+  delete d.diagnosis;delete d.doctorOpinion;delete d.medicalCostDetail;
   if(clean(out.category)==="person"){
-    delete d.diagnosis;delete d.doctorOpinion;delete d.medicalCostDetail;
     if(out.supplement&&typeof out.supplement==="object"){
       out.supplement={...out.supplement,attachments:[],medicalDocumentRestricted:true};
     }
@@ -177,7 +182,7 @@ function preserveWorkflow(prev:any,next:any,actor:any){
   if(!prev||!["worker","field"].includes(actor?.role))return next;
   const out={...next},isFieldManager=actor.role==="field"&&["현장소장","파트장","서무"].includes(clean(actor.position));
   const allowSupplement=isFieldManager&&clean(prev.status)==="supplement"&&clean(next.status)==="supplement_submitted";
-  for(const k of ["status","approvedBy","approvedAt","closedAt","safetyNote","legalReview"]){if(k in prev)out[k]=prev[k];}
+  for(const k of ["approvedBy","approvedAt","closedAt","safetyNote"]){if(k in prev)out[k]=prev[k];}
   if(allowSupplement){
     out.status="supplement_submitted";
     out.supplement={...(prev.supplement||{}),...(next.supplement||{}),status:"submitted",submittedBy:actor.name,submittedById:actor.id,submittedAt:new Date().toISOString()};
@@ -195,9 +200,6 @@ function normalizeLifecycle(prev:any,next:any,actor:any,now:string){
     next.closedAt=hm.closedAt||clean(next.closedAt)||now;
     return next;
   }
-  if(prev&&clean(prev.status)==="closed"&&clean(next.status)==="reported"&&clean(prev?.corrective?.status)==="approved"){
-    const source=next.corrective&&typeof next.corrective==="object"?next.corrective:prev.corrective||{},history=Array.isArray(source.reviewHistory)?[...source.reviewHistory]:[];history.push({action:"recheck_required",by:clean(next.resubmittedBy)||actor.name,at:now,note:"종결된 사고보고 수정으로 사고조치 재검토 필요"});next.corrective={...source,status:"submitted",submittedAt:now,reviewNote:"",reviewedBy:"",reviewedAt:null,reReviewReason:"종결된 사고보고 수정으로 재검토 필요",reviewHistory:history};next.approvedBy="";next.approvedAt=null;next.closedAt=null;next.rejectionNote="";next.readReceipts=[];
-  }
   const cs=clean(next?.corrective?.status);if(clean(next.status)==="closed"&&cs!=="approved"){next.status=clean(next.approvedAt)?"approved":"reported";next.closedAt=null;}if(clean(next.status)==="approved"&&cs==="approved"){next.status="closed";next.closedAt=clean(next.corrective?.reviewedAt)||now;}return next;
 }
 
@@ -211,7 +213,7 @@ Deno.serve(async(req:Request)=>{
   const dbUrl=Deno.env.get("SUPABASE_DB_URL")||"";if(!dbUrl)return json({ok:false,message:"server_not_configured"},500);
   const now=new Date().toISOString(),sql=postgres(dbUrl,{prepare:false,max:4,connect_timeout:5,idle_timeout:2});
   try{
-    let actor=await verifyActor(sql,body,false);if(!actor)return json({ok:false,message:"forbidden"},403);
+    let actor=await verifyActor(sql,body,true);if(!actor)return json({ok:false,message:"auth_proof_required"},403);
 
     // Shared dashboard: authenticated HQ read access, no incident content or writes.
     if(action==="dashboard_read"){
@@ -223,7 +225,7 @@ Deno.serve(async(req:Request)=>{
       return json({ok:true,sites,metrics:metrics.map((i:any)=>({...i,historicalTransfer:{mode:i.transferMode},historicalImport:{enabled:i.historicalEnabled===true}}))});
     }
 
-    if(action==="approval_roster"){
+    if(action==="approval_roster_legacy_disabled"){
       if(!["safety","manager","executive"].includes(actor.role))return json({ok:false,message:"forbidden"},403);
       const users=await sql`select user_id,name,role,position,department from public.enl_hq_users where active=true and role in ('safety','manager','executive','final') order by name`;
       return json({ok:true,users:users.map((u:any)=>({id:clean(u.user_id),name:clean(u.name),role:roleNorm(u.role),position:clean(u.position),department:clean(u.department)}))});
@@ -238,33 +240,68 @@ Deno.serve(async(req:Request)=>{
       return json({ok:true,incidents:raw});
     }
 
-    if(action==="acknowledge"){
-      if(!["field","safety","manager","executive"].includes(actor.role))return json({ok:false,message:"forbidden"},403);
-      if(actor.role==="field"&&!["현장소장","파트장","서무"].includes(clean(actor.position)))return json({ok:false,message:"forbidden"},403);
-      const strong=await verifyActor(sql,body,true);if(!strong)return json({ok:false,message:"auth_proof_required"},403);actor=strong;
-      const incidentId=clean(body.incidentId),documentType=clean(body.documentType)||"incident_report";if(!incidentId)return json({ok:false,message:"incident_required"},400);
-      if(!["incident_report","corrective_action"].includes(documentType))return json({ok:false,message:"invalid_document_type"},400);
+    if(action==="acknowledge"||action==="approval_roster")return json({ok:false,message:"approval_retired_read_only"},410);
+
+    if(["view","revision_list","correct_closed","erp_record","export_snapshot","export_completed"].includes(action)){
+      const incidentId=clean(body.incidentId);if(!incidentId)return json({ok:false,message:"incident_required"},400);
       return await sql.begin(async(sql:any)=>{
-      await sql`select set_config('enl.actor',${JSON.stringify({id:actor.id,role:actor.role})},true)`;
-      const rows=await sql`select incident_id,site_id,payload from public.enl_incident_shared where incident_id=${incidentId} limit 1 for update`,row=rows[0];if(!row)return json({ok:false,message:"not_found"},404);
-      const prev=parsePayload(row.payload);if(actor.role==="field"&&clean(row.site_id)!==actor.siteId)return json({ok:false,message:"forbidden"},403);
-      if(bulkInactive(prev))return json({ok:false,message:"bulk_incident_invalidated"},409);
-      if(documentType==="incident_report"&&isBulkImported(prev))return json({ok:false,message:"external_initial_approval_no_duplicate_signature"},409);
-      if(documentType==="incident_report"){
-        const reportStatus=clean(prev?.status),actionStatus=clean(prev?.corrective?.status);
-        const reportAckAllowed=reportStatus==="approved"||(reportStatus==="closed"&&actionStatus==="approved");
-        if(!reportAckAllowed)return json({ok:false,message:"not_available"},409);
-      }
-      if(documentType==="corrective_action"&&clean(prev?.corrective?.status)!=="approved")return json({ok:false,message:"action_not_approved"},409);
-      const acknowledgements=Array.isArray(prev.acknowledgements)?prev.acknowledgements.filter((x:any)=>!(clean(x.userId)===actor.id&&clean(x.documentType)===documentType)):[];
-      const receipt={documentType,userId:actor.id,name:actor.name,role:actor.role,position:actor.position,siteId:actor.siteId,ackAt:now,label:documentType==="incident_report"?"본사 결재":"재발방지조치 결재"};
-      acknowledgements.push(receipt);
-      const next={...prev,acknowledgements,updatedAt:now,_syncBaseVersion:versionOf(prev?._syncVersion),_syncMutationId:`ack:${actor.id}:${incidentId}:${crypto.randomUUID()}`};
-      const saved=await sql`update public.enl_incident_shared set payload=${sql.json(next)}::jsonb,updated_at=${now} where incident_id=${incidentId} returning payload`;
-      const after=parsePayload(saved[0]?.payload)||next;
-      await writeAudit(sql,incidentId,clean(row.site_id),"acknowledge",actor,prev,after,now);
-      const responseIncident=actor.role==="manager"||actor.role==="executive"?readerIncident(after):after;
-      return json({ok:true,receipt,incident:responseIncident});
+        await sql`select set_config('enl.actor',${JSON.stringify({id:actor.id,role:actor.role})},true)`;
+        const rows=await sql`select site_id,payload from public.enl_incident_shared where incident_id=${incidentId} for update`,row=rows[0],prev=parsePayload(row?.payload);
+        if(!prev)return json({ok:false,message:"not_found"},404);
+        if(!["safety","manager","executive"].includes(actor.role)&&clean(row.site_id)!==actor.siteId)return json({ok:false,message:"forbidden"},403);
+        if(actor.role==="worker")return json({ok:false,message:"forbidden"},403);
+        if(action==="view"){
+          await sql`insert into public.enl_document_views(incident_id,document_type,viewer_id,viewer_name,viewer_role,first_viewed_at) values(${incidentId},'incident_report',${actor.id},${actor.name},${actor.role},${now}) on conflict do nothing`;
+          return json({ok:true,viewed:true});
+        }
+        if(action==="revision_list"){
+          if(!["safety","manager","executive"].includes(actor.role))return json({ok:false,message:"forbidden"},403);
+          const revisions=await sql`select revision,reason,editor_id,editor_name,created_at,changes,before_payload,after_payload from public.enl_incident_revisions where incident_id=${incidentId} order by revision desc`;
+          // Reader access follows the same medical-information limits as pull.
+          for(const r of revisions){if(actor.role!=="safety")r.changes=r.changes.map((d:any)=>d.field==='reportDetails'?{field:d.field,before:readerIncident({...r.before_payload,reportDetails:d.before})?.reportDetails,after:readerIncident({...r.after_payload,reportDetails:d.after})?.reportDetails}:d.field==='summary'?{...d,before:readerMedicalText(d.before,r.before_payload?.reportDetails),after:readerMedicalText(d.after,r.after_payload?.reportDetails)}:d);delete r.before_payload;delete r.after_payload;}
+          return json({ok:true,revisions});
+        }
+        if(actor.role!=="safety")return json({ok:false,message:"forbidden"},403);
+        if(prev.status!=="closed")return json({ok:false,message:"closed_incident_required"},409);
+        const mutationId=clean(body.mutationId);if(!mutationId||mutationId.length>160)return json({ok:false,message:"mutation_id_required"},400);
+        const requestHash=await sha256Hex(JSON.stringify(canonicalValue({action,incidentId,expectedVersion:body.expectedVersion,changes:body.changes,reason:body.reason,record:body.record,snapshotId:body.snapshotId,fileHash:body.fileHash,filename:body.filename})));
+        const duplicate=await sql`select action,editor_id,details from public.enl_incident_operations where incident_id=${incidentId} and mutation_id=${mutationId}`;
+        if(duplicate.length){
+          const prior=duplicate[0];
+          if(prior.action!==action||prior.editor_id!==actor.id||prior.details?.requestHash!==requestHash)return json({ok:false,message:"mutation_id_conflict"},409);
+          if(action==='export_completed'&&(prior.details?.snapshotId!==clean(body.snapshotId)||prior.details?.fileHash!==clean(body.fileHash)||prior.details?.filename!==clean(body.filename)))return json({ok:false,message:"mutation_id_conflict"},409);
+          if(action==='export_snapshot'&&prior.details?.version!==versionOf(prev._syncVersion))return json({ok:false,message:'enl_sync_conflict_version'},409);
+          if(action==='export_snapshot')return json({ok:true,duplicate:true,incident:prev,snapshotHash:prior.details?.hash,generatedAt:prior.details?.generatedAt,snapshotId:mutationId});
+          return json({ok:true,duplicate:true,incident:prev});
+        }
+        if(body.expectedVersion===undefined||versionOf(body.expectedVersion)!==versionOf(prev._syncVersion))return json({ok:false,message:"enl_sync_conflict_version"},409);
+        if(action==="export_completed"){
+          const source=await sql`select revision,details,editor_id from public.enl_incident_operations where incident_id=${incidentId} and mutation_id=${clean(body.snapshotId)} and action='export_snapshot'`;
+          if(!source.length||source[0].editor_id!==actor.id||source[0].details?.version!==versionOf(prev._syncVersion)||source[0].details?.hash!==await finalHash(prev)||source[0].revision!==versionOf(prev.officialRecord?.revisionNumber)||! /^[a-f0-9]{64}$/i.test(clean(body.fileHash))||!clean(body.filename).endsWith('.xlsx'))return json({ok:false,message:"export_snapshot_required"},409);
+          await sql`insert into public.enl_incident_operations(incident_id,mutation_id,action,revision,editor_id,editor_name,created_at,details) values(${incidentId},${mutationId},${action},${source[0].revision},${actor.id},${actor.name},${now},${sql.json({requestHash,snapshotId:clean(body.snapshotId),fileHash:clean(body.fileHash),filename:clean(body.filename).slice(0,240),status:'file_generated'})}::jsonb)`;
+          return json({ok:true,generated:true});
+        }
+        if(action==="export_snapshot"){
+          const digest=await finalHash(prev);
+          await sql`insert into public.enl_incident_operations(incident_id,mutation_id,action,revision,editor_id,editor_name,created_at,details) values(${incidentId},${mutationId},${action},${versionOf(prev.officialRecord?.revisionNumber)},${actor.id},${actor.name},${now},${sql.json({requestHash,hash:digest,status:'snapshot_created',version:versionOf(prev._syncVersion),generatedAt:now})}::jsonb)`;
+          return json({ok:true,incident:prev,snapshotHash:digest,generatedAt:now,snapshotId:mutationId});
+        }
+        let next:any;
+        if(action==="correct_closed"){
+          const result=correctedIncident(prev,body.changes,body.reason,actor,now);next=result.next;
+          await sql`insert into public.enl_incident_revisions(incident_id,revision,mutation_id,reason,editor_id,editor_name,created_at,changes,before_payload,after_payload) values(${incidentId},${result.revision},${mutationId},${clean(body.reason)},${actor.id},${actor.name},${now},${sql.json(result.diff)}::jsonb,${sql.json(prev)}::jsonb,${sql.json(next)}::jsonb)`;
+        }else{
+          const record=body.record||{},reason=clean(body.reason);
+          if(!reason||reason.length>2000)return json({ok:false,message:"revision_reason_required"},400);
+          if(record.submitted!==true||!/^\d{4}-\d{2}-\d{2}$/.test(clean(record.draftedAt))||clean(record.documentNumber).length>120)return json({ok:false,message:"erp_record_invalid"},400);
+          next=structuredClone(prev);next.officialRecord={...prev.officialRecord,erpManual:{submitted:true,documentNumber:clean(record.documentNumber),draftedAt:clean(record.draftedAt),recordedBy:actor.name,recordedById:actor.id,recordedAt:now,revision:versionOf(prev.officialRecord?.revisionNumber)}};
+        }
+        next._syncBaseVersion=versionOf(prev._syncVersion);next._syncMutationId=mutationId;next.updatedAt=now;next.lastModifiedBy=actor.name;next.lastModifiedAt=now;next.lastModifiedRole=actor.role;
+        const saved=await sql`update public.enl_incident_shared set payload=${sql.json(next)}::jsonb,updated_at=${now} where incident_id=${incidentId} returning payload`;
+        const after=parsePayload(saved[0].payload);
+        await sql`insert into public.enl_incident_operations(incident_id,mutation_id,action,revision,editor_id,editor_name,created_at,details) values(${incidentId},${mutationId},${action},${versionOf(after.officialRecord?.revisionNumber)},${actor.id},${actor.name},${now},${sql.json({requestHash,reason:clean(body.reason)})}::jsonb)`;
+        await writeAudit(sql,incidentId,clean(row.site_id),action,actor,prev,after,now);
+        return json({ok:true,incident:after});
       });
     }
 
@@ -275,16 +312,20 @@ Deno.serve(async(req:Request)=>{
       if(deletedIds.length)return json({ok:false,message:"delete_requires_compliance_api"},409);
       return await sql.begin(async(sql:any)=>{
       await sql`select set_config('enl.actor',${JSON.stringify({id:actor.id,role:actor.role})},true)`;
-      let pushed=0,ignored=0;
+      let pushed=0,ignored=0;const savedIncidents:any[]=[];
       for(const raw0 of incoming){
         if(!raw0||typeof raw0!=="object")continue;const id=clean(raw0.id),siteId=clean(raw0.siteId);if(!id||!siteId)continue;if(["worker","field"].includes(actor.role)&&siteId!==actor.siteId)continue;
         const incomingHistorical=isHistoricalTransfer(raw0);
+        await sql`select pg_advisory_xact_lock(hashtextextended(${id},0))`;
         if(incomingHistorical){
           if(actor.role!=="safety")rejectWrite("historical_transfer_safety_only",403);
           const hm=historicalMeta(raw0);
           if(!hm.erpApproved||clean(raw0.status)!=="closed")rejectWrite("invalid_historical_transfer",400);
         }
         const rr=await sql`select incident_id,site_id,payload,created_at from public.enl_incident_shared where incident_id=${id} limit 1 for update`,row=rr[0],prev=parsePayload(row?.payload);
+        if(prev&&clean(raw0._syncMutationId)&&clean(raw0._syncMutationId)===clean(prev._syncMutationId)){savedIncidents.push(prev);ignored++;continue;}
+        if(prev&&comparableIncident(raw0)===comparableIncident(prev)){savedIncidents.push(prev);ignored++;continue;}
+        const policy=validateLifecycle(prev,raw0,actor,now);
         if(bulkInactive(prev)){ignored++;continue;} // A stale client may still hold a now-invalidated incident.
         if(!prev&&isBulkImported(raw0))rejectWrite("bulk_registration_requires_import_api",409);
         if(prev&&isBulkImported(prev)){
@@ -299,27 +340,22 @@ Deno.serve(async(req:Request)=>{
         if(actor.role==="worker"&&prev&&!isMine(prev,actor)){ignored++;continue;}
         if(prev&&isHistoricalTransfer(prev)&&actor.role!=="safety")rejectWrite("historical_transfer_locked",403);
         if(prev&&isHistoricalTransfer(prev)&&!incomingHistorical)rejectWrite("historical_transfer_locked",409);
-        if(isManualArchive(raw0)||isManualArchive(prev))manualArchiveIntegrity(prev,raw0,actor);
+        if(!prev&&isManualArchive(raw0))manualArchiveIntegrity(prev,raw0,actor);
         let next={...raw0,id,siteId};
         const contract=(globalThis as any).ENLContracts;
         const occurrenceDate=(i:any)=>{if(clean(i?.historicalTransfer?.occurredDate))return clean(i.historicalTransfer.occurredDate);const d=new Date(i?.occurredAt||"");return Number.isFinite(d.getTime())?new Date(d.getTime()+9*60*60*1000).toISOString().slice(0,10):""};
         if(!prev||clean(prev.siteId)!==siteId||occurrenceDate(prev)!==occurrenceDate(next)){
           const masterRows=await sql`select site_id,active,start_date,to_jsonb(enl_site_master)->>'contract_end_date' as contract_end_date,to_jsonb(enl_site_master)->>'contract_period' as contract_period from public.enl_site_master where site_id=${siteId} limit 1`;
           const master=masterRows[0]||{site_id:siteId},date=occurrenceDate(next),check=contract.assess(master,date);
-          const needsConfirmation=incomingHistorical&&(check.outsideContractPeriod===true||(check.currentStatus==="closed"&&check.statusAtOccurrence==="unknown"));
+          const needsConfirmation=(incomingHistorical||isManualArchive(raw0))&&(check.outsideContractPeriod===true||(check.currentStatus==="closed"&&check.statusAtOccurrence==="unknown"));
           const confirmed=actor.role==="safety"&&raw0.siteContractSnapshot?.confirmation?.confirmed===true;
           if(needsConfirmation&&!confirmed)rejectWrite("contract_period_confirmation_required",409,check.warning);
           next.siteContractSnapshot=contract.snapshot(master,date,actor,needsConfirmation&&confirmed);
         }else if(prev.siteContractSnapshot)next.siteContractSnapshot=structuredClone(prev.siteContractSnapshot);
         else delete next.siteContractSnapshot;
-        if(prev&&comparableIncident(next)===comparableIncident(prev)){ignored++;continue;}
+        if(prev&&comparableIncident(next)===comparableIncident(prev)){savedIncidents.push(prev);ignored++;continue;}
         next=preserveWorkflow(prev,next,actor);
         const requestedStatus=clean(raw0.status),prevReportHash=prev?await reportHash(prev):"",candidateHash=await reportHash(next);
-        if(prev&&!isManualArchive(prev)&&["approved","closed"].includes(clean(prev.status))&&prevReportHash!==candidateHash){
-          if(isBulkImported(prev))rejectWrite("bulk_update_requires_import_api",409);
-          if(actor.role!=="safety")rejectWrite("approved_record_locked",409);
-          if(!isManualArchive(prev))next.status="reported";
-        }
         next=normalizeLifecycle(prev,next,actor,now);
         const official:any=structuredClone(prev?.officialRecord||next?.officialRecord||{});
         if(!prev){
@@ -335,7 +371,7 @@ Deno.serve(async(req:Request)=>{
           }
         }else if(isBulkImported(prev)){next.reporterName=prev.reporterName||"";next.reporterId=prev.reporterId||"";}else{next.reporterName=prev.reporterName||next.reporterName||(incomingHistorical?"기존 ERP 자료":actor.name);next.reporterId=prev.reporterId||next.reporterId||(incomingHistorical?"":actor.id);}
         const nextReportHash=await reportHash(next);
-        if(prev&&!isManualArchive(prev)&&["approved","closed"].includes(clean(prev.status))&&prevReportHash!==nextReportHash){
+        if(prev&&!policy.costChanges.length&&!isManualArchive(prev)&&["approved","closed"].includes(clean(prev.status))&&prevReportHash!==nextReportHash){
           official.revisions=Array.isArray(official.revisions)?official.revisions:[];
           official.revisions.push({fromHash:prevReportHash,toHash:nextReportHash,byId:actor.id,by:actor.name,role:actor.role,position:actor.position,at:now});
           official.approvalInvalidatedAt=now;official.approvalInvalidatedBy=actor.name;
@@ -370,12 +406,13 @@ Deno.serve(async(req:Request)=>{
         }
         if(isHistoricalTransfer(next)){const hm=historicalMeta(next);official.transferClosure={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now,source:"erp",erpApproved:true,erpApprovalDate:hm.erpApprovalDate,erpReference:hm.erpReference,existingActionEvidence:hm.existingActionEvidence,followUpType:hm.followType,closeReason:hm.closeReason||"ERP 기결재 과거사고 이력관리 목적 이관종결"};}
         official.lastModified={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now};
-        next.officialRecord=actor.role==="field"&&prev&&["approved","closed"].includes(clean(prev.status))?structuredClone(prev.officialRecord||{}):official;
+        if(policy.costChanges.length)official.costAdditions=[...(prev?.officialRecord?.costAdditions||[]),...policy.costChanges];
+        next.officialRecord=official;
         if(clean(next.status)==="closed"&&clean(prev?.status)!=="closed")next.officialRecord.finalHash=await finalHash(next);
 
         const prevCorr=JSON.stringify(prev?.corrective||null),nextCorr=JSON.stringify(next?.corrective||null);if(next.corrective&&prevCorr!==nextCorr)next.corrective={...next.corrective,lastModifiedBy:actor.name,lastModifiedRole:actor.role,lastModifiedPosition:actor.position,lastModifiedAt:now,submittedBy:next.corrective.submittedBy||actor.name};
         const hadBase=Object.prototype.hasOwnProperty.call(next,"_syncBaseVersion");
-        if(!hadBase){next._syncBaseVersion=Object.prototype.hasOwnProperty.call(raw0,"_syncVersion")?versionOf(raw0._syncVersion):versionOf(prev?._syncVersion);next._syncMutationId=`edge:${actor.id||"user"}:${id}:${crypto.randomUUID()}`;}
+        if(!hadBase){next._syncBaseVersion=Object.prototype.hasOwnProperty.call(raw0,"_syncVersion")?versionOf(raw0._syncVersion):0;next._syncMutationId=`edge:${actor.id||"user"}:${id}:${crypto.randomUUID()}`;}
         else if(!clean(next._syncMutationId))next._syncMutationId=`edge:${actor.id||"user"}:${id}:${crypto.randomUUID()}`;
         if(versionOf(next._syncBaseVersion)!==versionOf(prev?._syncVersion))rejectWrite("enl_sync_conflict_version");
         next.lastModifiedBy=actor.name;next.lastModifiedRole=actor.role;next.lastModifiedPosition=actor.position||(actor.role==="worker"?"일반근로자":"");next.lastModifiedAt=now;next.updatedAt=now;
@@ -385,14 +422,14 @@ Deno.serve(async(req:Request)=>{
           ?await sql`update public.enl_incident_shared set site_id=${siteId},payload=${sql.json(next)}::jsonb,updated_at=${now} where incident_id=${id} returning payload`
           :await sql`insert into public.enl_incident_shared(incident_id,site_id,payload,created_at,updated_at) values(${id},${siteId},${sql.json(next)}::jsonb,${now},${now}) returning payload`;
         const after=parsePayload(saved[0]?.payload)||next;
-        const actionName=semanticAction(prev,after,requestedStatus,prevReportHash,nextReportHash);
+        const actionName=policy.costChanges.length?"cost_added":semanticAction(prev,after,requestedStatus,prevReportHash,nextReportHash);
         await writeAudit(sql,id,siteId,actionName,actor,prev,after,now);
         const ad=attachmentDiff(prev,after);
         if(ad.added.length)await writeAudit(sql,id,siteId,"attachment_add",actor,{attachments:[]},{attachments:ad.added},now);
         if(ad.removed.length)await writeAudit(sql,id,siteId,"attachment_delete",actor,{attachments:ad.removed},{attachments:[]},now);
-        pushed++;
+        savedIncidents.push(after);pushed++;
       }
-      return json({ok:true,pushed,ignored,deleted:0});
+      return json({ok:true,pushed,ignored,deleted:0,incidents:savedIncidents});
       });
     }
     return json({ok:false,message:"invalid_action"},400);

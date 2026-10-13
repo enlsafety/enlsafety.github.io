@@ -14,6 +14,25 @@ function preserveWorkflow(prev:any,next:any,role:string){if(!prev||!["worker","f
 async function hashText(v:string){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,"0")).join("");}
 function phonePin(v:any){const d=clean(v).replace(/\D/g,"");return d.length>=4?d.slice(-4):"";}
 
+const roleNorm=(v:any)=>clean(v)==='final'?'manager':clean(v);
+async function verifyActor(sql:any,body:any,strong=false){
+  const a=actorFrom(body);
+  if(!a.id||!["worker","field","safety","manager","executive"].includes(a.role))return null;
+  if(["safety","manager","executive"].includes(a.role)){
+    const rows=await sql`select user_id,name,role,position,active,password_hash from public.enl_hq_users where user_id=${a.id} limit 1`,u=rows[0];
+    if(!u||u.active===false||roleNorm(u.role)!==a.role)return null;
+    const hash=clean(body?.actorPasswordHash),stored=clean(u.password_hash);
+    if(strong&&(!stored||hash!==stored))return null;
+    return {id:clean(u.user_id),name:clean(u.name),role:roleNorm(u.role),position:clean(u.position),siteId:"",hasCredential:!!stored,proof:strong?"password":"account"};
+  }
+  const rows=await sql`select personnel_id::text as personnel_id,site_id,name,job_title,active,access_role,pin_hash from public.enl_site_personnel where personnel_id::text=${a.id} limit 1`,u=rows[0];
+  if(!u||u.active===false||clean(u.site_id)!==a.siteId||clean(u.access_role)!==a.role)return null;
+  const hash=clean(body?.actorPinHash),stored=clean(u.pin_hash);
+  if(strong&&a.role==="field"&&(!stored||hash!==stored))return null;
+  if(strong&&stored&&hash!==stored)return null;
+  return {id:clean(u.personnel_id),name:clean(u.name),role:clean(u.access_role),position:clean(u.job_title),siteId:clean(u.site_id),hasCredential:!!stored,proof:strong&&stored?"pin":"account"};
+}
+
 Deno.serve(async(req:Request)=>{
   if(req.method==="OPTIONS")return new Response("ok",{headers:cors});
   if(req.method!=="POST")return json({ok:false,message:"method_not_allowed"},405);
@@ -21,9 +40,14 @@ Deno.serve(async(req:Request)=>{
   if(req.headers.get("x-enl-app")!=="incident-report-v2")return json({ok:false,message:"invalid_client"},403);
   const dbUrl=Deno.env.get("SUPABASE_DB_URL")||"";if(!dbUrl)return json({ok:false,message:"server_not_configured"},500);
   let body:any={};try{body=await req.json();}catch(_){return json({ok:false,message:"invalid_json"},400);}
-  const action=clean(body?.action),actor=actorFrom(body),role=actor.role,siteId=actor.siteId||clean(body?.siteId),now=new Date().toISOString();
+  const action=clean(body?.action),now=new Date().toISOString();let actor=actorFrom(body),role=actor.role,siteId=actor.siteId||clean(body?.siteId);
+  if(['push','pull','site_seed','manager_seed'].includes(action))return json({ok:false,message:'legacy_api_retired_update_required'},410);
   const sql=postgres(dbUrl,{prepare:false,max:4,connect_timeout:5,idle_timeout:2});
   try{
+    if(!['site_directory','worker_lookup','worker_resolve','manager_lookup','manager_resolve'].includes(action)){
+      const verified=await verifyActor(sql,body,true);if(!verified)return json({ok:false,message:'auth_proof_required'},403);
+      actor=verified;role=actor.role;siteId=actor.siteId;
+    }
     async function siteNamesMap(){const rows=await sql`select site_id,site_name from public.enl_site_master where active=true`;return new Map(rows.map((x:any)=>[x.site_id,x.site_name]));}
     async function syncSiteRoles(saved:any,prev:any=null){const sid=clean(saved?.site_id);if(!sid)return;const defs=[{title:"현장소장",nameKey:"manager_name",phoneKey:"manager_phone"},{title:"파트장",nameKey:"part_name",phoneKey:"part_phone"},{title:"서무",nameKey:"clerk_name",phoneKey:"clerk_phone"}];let people=await sql`select * from public.enl_site_personnel where site_id=${sid}`;for(const d of defs){const oldName=clean(prev?.[d.nameKey]),newName=clean(saved?.[d.nameKey]),pin=phonePin(saved?.[d.phoneKey]);if(oldName&&norm(oldName)!==norm(newName)){const old=people.find((x:any)=>norm(x.name)===norm(oldName)&&clean(x.job_title)===d.title);if(old)await sql`update public.enl_site_personnel set active=false,updated_at=${now},updated_by_id=${actor.id},updated_by_name=${actor.name},updated_by_role=${role},updated_by_position=${actor.position} where personnel_id=${old.personnel_id}`;}if(!newName)continue;let found=people.find((x:any)=>norm(x.name)===norm(newName));const pinHash=pin?await hashText(pin):clean(found?.pin_hash);if(found){const rows=await sql`update public.enl_site_personnel set site_id=${sid},name=${newName},job_title=${d.title},access_role='field',active=true,pin_hash=${pinHash||null},updated_at=${now},updated_by_id=${actor.id},updated_by_name=${actor.name},updated_by_role=${role},updated_by_position=${actor.position},source=${found.source||"site-master"} where personnel_id=${found.personnel_id} returning *`;people=people.map((x:any)=>x.personnel_id===rows[0]?.personnel_id?rows[0]:x);}else if(pinHash){const rows=await sql`insert into public.enl_site_personnel(site_id,name,job_title,active,created_at,updated_at,updated_by_id,updated_by_name,updated_by_role,updated_by_position,access_role,pin_hash,source) values(${sid},${newName},${d.title},true,${now},${now},${actor.id},${actor.name},${role},${actor.position},'field',${pinHash},'site-master') returning *`;if(rows[0])people.push(rows[0]);}}}
 
@@ -71,3 +95,4 @@ Deno.serve(async(req:Request)=>{
     return json({ok:false,message:"invalid_action"},400);
   }catch(e:any){const m=String(e?.message||e);return json({ok:false,message:m},m.includes("enl_sync_conflict")?409:500)}finally{await sql.end({timeout:1}).catch(()=>{})}
 });
+

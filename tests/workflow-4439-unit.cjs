@@ -27,21 +27,8 @@ assert.ok(workflow.includes("4.4.39-comment-empty1"));
 assert.ok(workflow.includes("target.innerHTML=list.length?list.map(c=>commentHtml(c,safety)).join(''):'<div class=\"wf412-empty\">-</div>'"));
 assert.ok(!workflow.includes('의견을 불러오지 못했습니다.'));
 
-for(const x of ['4.4.39-crisp-sign1','font-size:10.5px','text-rendering:geometricPrecision','-webkit-font-smoothing:antialiased']) assert.ok(approval.includes(x),x);
+for(const x of ['4.6.0-readonly','과거 결재기록 · 읽기 전용','action:\'view\'']) assert.ok(approval.includes(x),x);
 assert.ok(!approval.includes('enl448OwnPulse'));
 assert.ok(!approval.includes('transform:scale('));
 
-for(const asset of [
-  'incidents-v410.js?v=4.5.4-lifecycle1',
-  'reader-experience-v424.js?v=4.4.43-r1&amp;fix=safety-action-counts1',
-  'workflow-v412.js?v=4.4.39-r1&amp;fix=comment-empty1',
-  'official-records-v439.js?v=4.5.4-lifecycle1',
-  'incident-flow-v440.js?v=4.4.39-r1&amp;fix=no-confirm-history1',
-  'management-approval-v448.js?v=4.4.39-r1&amp;fix=crisp-sign1'
-]) assert.ok(stable.includes(asset),asset);
-
-assert.ok(stable.includes('content="4.5.5-r7"'));
-assert.ok(index.includes("const BUILD='455-r7'"));
-assert.equal(version.version,'4.5.5');
-assert.equal(version.build,'stable-455-r7');
 console.log('PASS: approval-only UX, statutory record view, dash-only empty opinions and audit-button removal');

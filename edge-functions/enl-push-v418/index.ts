@@ -4,7 +4,7 @@ import webpush from "npm:web-push@3.6.7";
 
 const ORIGIN="https://enlsafety.github.io";
 const CLIENT="incident-report-v2";
-const VERSION="4.4.11-push-db1";
+const VERSION="4.6.0-r1";
 const FIELD_TITLES=["현장소장","파트장","서무"];
 const cors={"Access-Control-Allow-Origin":ORIGIN,"Access-Control-Allow-Headers":"content-type, x-enl-app, x-enl-internal","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:cors});
@@ -13,19 +13,20 @@ const roleNorm=(v:any)=>clean(v)==="final"?"manager":clean(v);
 const enc=new TextEncoder();
 const sha=async(v:string)=>{const b=await crypto.subtle.digest("SHA-256",enc.encode(v));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")};
 
-async function verifiedActor(sql:any,raw:any){
+async function verifiedActor(sql:any,raw:any,proof:any){
   const actor={id:clean(raw?.id),name:clean(raw?.name),role:roleNorm(raw?.role),position:clean(raw?.position),siteId:clean(raw?.siteId)};
   if(!actor.id)return null;
   if(["safety","manager","executive"].includes(actor.role)){
-    const rows=await sql`select user_id,name,role,position,department,email,push_enabled,email_enabled,active
+    const rows=await sql`select user_id,name,role,position,department,email,push_enabled,email_enabled,active,password_hash
       from public.enl_hq_users where user_id=${actor.id} limit 1`;
-    const d=rows[0];if(!d||d.active===false||roleNorm(d.role)!==actor.role)return null;
+    const d=rows[0];if(!d||d.active===false||roleNorm(d.role)!==actor.role||!clean(d.password_hash)||clean(proof?.actorPasswordHash)!==clean(d.password_hash))return null;
     return {id:clean(d.user_id),name:clean(d.name),role:roleNorm(d.role),position:clean(d.position),siteId:"",email:clean(d.email),pushEnabled:d.push_enabled!==false,emailEnabled:d.email_enabled!==false};
   }
   if(["field","worker"].includes(actor.role)){
-    const rows=await sql`select personnel_id,site_id,name,job_title,access_role,email,push_enabled,email_enabled,active
+    const rows=await sql`select personnel_id,site_id,name,job_title,access_role,email,push_enabled,email_enabled,active,pin_hash
       from public.enl_site_personnel where personnel_id::text=${actor.id} limit 1`;
     const d=rows[0];if(!d||d.active===false)return null;
+    if((actor.role==='field'||clean(d.pin_hash))&&(!clean(d.pin_hash)||clean(proof?.actorPinHash)!==clean(d.pin_hash)))return null;
     const role=clean(d.access_role)==="field"?"field":"worker";
     if(role!==actor.role||role==="field"&&!FIELD_TITLES.includes(clean(d.job_title)))return null;
     if(actor.siteId&&clean(d.site_id)!==actor.siteId)return null;
@@ -45,11 +46,11 @@ async function notificationProfile(sql:any,userId:string){
   return null;
 }
 async function profileGet(sql:any,body:any){
-  const u=await verifiedActor(sql,body.actor);if(!u)return json({ok:false,message:"forbidden"},403);
+  const u=await verifiedActor(sql,body.actor,body);if(!u)return json({ok:false,message:"forbidden"},403);
   return json({ok:true,profile:{email:u.email||"",pushEnabled:u.pushEnabled!==false,emailEnabled:u.emailEnabled!==false,urgentForced:["safety","manager","executive"].includes(u.role)}});
 }
 async function profileUpdate(sql:any,body:any){
-  const u=await verifiedActor(sql,body.actor);if(!u)return json({ok:false,message:"forbidden"},403);
+  const u=await verifiedActor(sql,body.actor,body);if(!u)return json({ok:false,message:"forbidden"},403);
   const email=clean(body.email).toLowerCase(),pushEnabled=body.pushEnabled!==false,emailEnabled=body.emailEnabled!==false;
   if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return json({ok:false,message:"invalid_email"},400);
   if(["safety","manager","executive"].includes(u.role)){
@@ -77,7 +78,7 @@ function allowed(sub:any,kind:string,pushEnabled=true){
   return p[k]!==false;
 }
 async function subscribe(sql:any,body:any){
-  const u=await verifiedActor(sql,body.actor);if(!u)return json({ok:false,message:"forbidden"},403);
+  const u=await verifiedActor(sql,body.actor,body);if(!u)return json({ok:false,message:"forbidden"},403);
   const sub=body.subscription||{},endpoint=clean(sub.endpoint),p256dh=clean(sub.keys?.p256dh),auth=clean(sub.keys?.auth);
   if(!endpoint||!p256dh||!auth)return json({ok:false,message:"invalid_subscription"},400);
   const endpointHash=await sha(endpoint),preferences=body.preferences&&typeof body.preferences==="object"?body.preferences:{};
@@ -94,7 +95,7 @@ async function subscribe(sql:any,body:any){
   return json({ok:true,userId:u.id,role:u.role});
 }
 async function updatePreferences(sql:any,body:any){
-  const u=await verifiedActor(sql,body.actor);if(!u)return json({ok:false,message:"forbidden"},403);
+  const u=await verifiedActor(sql,body.actor,body);if(!u)return json({ok:false,message:"forbidden"},403);
   const endpoint=clean(body.endpoint);if(!endpoint)return json({ok:false,message:"endpoint_required"},400);
   const h=await sha(endpoint),preferences=body.preferences&&typeof body.preferences==="object"?body.preferences:{};
   await sql`update public.enl_push_subscriptions set preferences=${JSON.stringify(preferences)}::jsonb,updated_at=now(),last_seen_at=now()
@@ -102,14 +103,14 @@ async function updatePreferences(sql:any,body:any){
   return json({ok:true});
 }
 async function unsubscribe(sql:any,body:any){
-  const u=await verifiedActor(sql,body.actor);if(!u)return json({ok:false,message:"forbidden"},403);
+  const u=await verifiedActor(sql,body.actor,body);if(!u)return json({ok:false,message:"forbidden"},403);
   const endpoint=clean(body.endpoint);if(!endpoint)return json({ok:true});
   const h=await sha(endpoint);
   await sql`delete from public.enl_push_subscriptions where endpoint_hash=${h} and user_id=${u.id}`;
   return json({ok:true});
 }
 async function testPush(sql:any,body:any){
-  const u=await verifiedActor(sql,body.actor);if(!u)return json({ok:false,message:"forbidden"},403);
+  const u=await verifiedActor(sql,body.actor,body);if(!u)return json({ok:false,message:"forbidden"},403);
   const endpoint=clean(body.endpoint);if(!endpoint)return json({ok:false,message:"endpoint_required"},400);
   const h=await sha(endpoint);
   const rows=await sql`select id,endpoint,p256dh,auth,role from public.enl_push_subscriptions where endpoint_hash=${h} and user_id=${u.id} limit 1`;
@@ -125,7 +126,7 @@ async function testPush(sql:any,body:any){
   }
 }
 async function managementView(sql:any,body:any){
-  const u=await verifiedActor(sql,body.actor);if(!u||!["field","safety","manager","executive"].includes(u.role))return json({ok:false,message:"forbidden"},403);
+  const u=await verifiedActor(sql,body.actor,body);if(!u||!["field","safety","manager","executive"].includes(u.role))return json({ok:false,message:"forbidden"},403);
   if(u.role==="field"&&!FIELD_TITLES.includes(clean(u.position)))return json({ok:false,message:"forbidden"},403);
   const incidentId=clean(body.incidentId),documentType=clean(body.documentType);
   if(!incidentId||!["incident_report","corrective_action"].includes(documentType))return json({ok:false,message:"invalid_view"},400);
@@ -156,7 +157,7 @@ async function managementView(sql:any,body:any){
   return json({ok:true,first:true});
 }
 async function viewList(sql:any,body:any){
-  const u=await verifiedActor(sql,body.actor);if(!u||!["field","safety","manager","executive"].includes(u.role))return json({ok:false,message:"forbidden"},403);
+  const u=await verifiedActor(sql,body.actor,body);if(!u||!["field","safety","manager","executive"].includes(u.role))return json({ok:false,message:"forbidden"},403);
   if(u.role==="field"&&!FIELD_TITLES.includes(clean(u.position)))return json({ok:false,message:"forbidden"},403);
   const incidentId=clean(body.incidentId);if(!incidentId)return json({ok:false,message:"incident_required"},400);
   const rr=await sql`select site_id from public.enl_incident_shared where incident_id=${incidentId} limit 1`;
@@ -167,6 +168,13 @@ async function viewList(sql:any,body:any){
   return json({ok:true,views:rows||[]});
 }
 async function dispatchCore(sql:any,c:any){
+  return await sql.begin(async(tx:any)=>{
+    const lock=await tx`select pg_try_advisory_xact_lock(4600418) as locked`;
+    if(!lock[0]?.locked)return {ok:true,events:0,sent:0,removed:0,pending:0,busy:true};
+    return dispatchCoreLocked(tx,c);
+  });
+}
+async function dispatchCoreLocked(sql:any,c:any){
   const events=await sql`select id,event_key,incident_id,site_id,user_id,kind,title,body,data
     from public.enl_push_events where sent_at is null order by id asc limit 200`;
   let sent=0,removed=0,pending=0;
@@ -186,7 +194,7 @@ async function dispatchCore(sql:any,c:any){
     }
     const eligible=(subs||[]).filter((s:any)=>allowed(s,ev.kind,prof?.pushEnabled!==false));
     if(!eligible.length){
-      await sql`update public.enl_push_events set sent_at=now(),last_error=null where id=${ev.id}`;
+      await sql`update public.enl_push_events set sent_at=now(),last_error='no_eligible_subscription' where id=${ev.id}`;
       continue;
     }
     let transient=false;
@@ -221,7 +229,7 @@ async function dispatchInternal(sql:any,req:Request){
   return json(await dispatchCore(sql,c));
 }
 async function flush(sql:any,body:any){
-  const u=await verifiedActor(sql,body.actor);if(!u)return json({ok:false,message:"forbidden"},403);
+  const u=await verifiedActor(sql,body.actor,body);if(!u)return json({ok:false,message:"forbidden"},403);
   const c=await cfg(sql);return json(await dispatchCore(sql,c));
 }
 

@@ -1,0 +1,76 @@
+name: final isolated cloud QA
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: final-cloud-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  isolated:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-save --package-lock=false @electric-sql/pglite@0.3.10 playwright@1.51.1 pdfjs-dist@3.11.174
+      - run: npx playwright install --with-deps chromium webkit
+      - run: pip install openpyxl==3.1.5 pillow==11.1.0
+      - name: Actual Edge, isolated database, role and browser regressions
+        run: node tests/final-cloud-run.cjs
+      - name: Actual downloaded XLSX OOXML and formatting validation
+        if: always()
+        run: python tests/final-excel-validate.py
+      - name: Supplemental LibreOffice print rendering (not Excel 2019)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libreoffice-calc fonts-noto-cjk poppler-utils
+          mkdir -p qa-output/render
+          libreoffice -env:UserInstallation=file:///tmp/enl-lo-profile --headless --convert-to pdf --outdir qa-output/render qa-output/final-excel-chromium.xlsx
+          pdfinfo qa-output/render/final-excel-chromium.pdf
+          pdftoppm -scale-to 1400 -png qa-output/render/final-excel-chromium.pdf qa-output/render/page
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: final-cloud-evidence
+          path: qa-output/
+  staging:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: |
+          mkdir -p qa-output
+          node tests/final-live-staging.cjs
+          node tests/final-staging-attachment.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: final-staging-evidence
+          path: qa-output/
+  publication:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node tests/final-production-readonly.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: final-publication-evidence
+          path: qa-output/

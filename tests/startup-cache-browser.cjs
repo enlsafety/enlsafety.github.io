@@ -23,12 +23,13 @@ const server=http.createServer((req,res)=>{
   const context=await browser.newContext({serviceWorkers:'allow'});
   const page=await context.newPage();
   try{
+    await context.route('https://**/*',r=>r.abort());
     await page.goto(origin+'/stable412.html?source=pwa',{waitUntil:'domcontentloaded',timeout:15000});
     await page.evaluate(()=>navigator.serviceWorker.ready);
     await page.reload({waitUntil:'domcontentloaded',timeout:15000});
     await page.waitForFunction(()=>!!navigator.serviceWorker.controller,{timeout:10000});
     await page.waitForFunction(async()=>{
-      const cache=await caches.open('enl-pwa-4432-startup1');
+      const cache=await caches.open('enl-pwa-4.6.0-r1');
       return !!(await cache.match('/stable412.html?offline=1')) && !!(await cache.match('/core.js'));
     },{timeout:15000});
     const swUrl=await page.evaluate(()=>navigator.serviceWorker.controller?.scriptURL||'');

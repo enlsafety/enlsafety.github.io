@@ -2,8 +2,9 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { chromium } from 'playwright';
 
-const BASE='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1';
-const APP='https://enlsafety.github.io/stable412.html?qa=2';
+const BASE=process.env.ENL_QA_BASE;
+if(BASE!=='https://zgwxzfvvpqgdedyobwmg.supabase.co/functions/v1'||process.env.ENL_QA_ALLOW_LEGACY!=='ISOLATED_ONLY')throw new Error('Legacy online QA disabled: isolated staging and explicit opt-in required');
+const APP=process.env.ENL_QA_APP||'https://enl-qa.invalid/stable412.html?qa=2';
 const HEAD={'Content-Type':'application/json','X-ENL-App':'incident-report-v2'};
 const SYNC=BASE+'/enl-incident-sync-v411', OLD=BASE+'/enl-incident-sync', LOGIN=BASE+'/enl-login-v411', HQOLD=BASE+'/enl-hq-auth';
 const run='Q2'+Date.now(), suffix=run.slice(-6), pw='7788', pwHash=crypto.createHash('sha256').update(pw).digest('hex');
