@@ -41,7 +41,7 @@ Deno.serve(async(req:Request)=>{
   const dbUrl=Deno.env.get("SUPABASE_DB_URL")||"";if(!dbUrl)return json({ok:false,message:"server_not_configured"},500);
   let body:any={};try{body=await req.json();}catch(_){return json({ok:false,message:"invalid_json"},400);}
   const action=clean(body?.action),now=new Date().toISOString();let actor=actorFrom(body),role=actor.role,siteId=actor.siteId||clean(body?.siteId);
-  if(['push','pull'].includes(action))return json({ok:false,message:'legacy_api_retired_update_required'},410);
+  if(['push','pull','site_seed','manager_seed'].includes(action))return json({ok:false,message:'legacy_api_retired_update_required'},410);
   const sql=postgres(dbUrl,{prepare:false,max:4,connect_timeout:5,idle_timeout:2});
   try{
     if(!['site_directory','worker_lookup','worker_resolve','manager_lookup','manager_resolve'].includes(action)){

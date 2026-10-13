@@ -2,7 +2,7 @@
 const fs=require('node:fs'),assert=require('node:assert/strict');
 const URL='https://zgwxzfvvpqgdedyobwmg.supabase.co/functions/v1/enl-final-lifecycle-qa-20261013';
 const actors={safety:{id:'qa-safety',role:'safety'},field:{id:'qa-field',role:'field',siteId:'qa-site'},manager:{id:'qa-manager',role:'manager'},executive:{id:'qa-executive',role:'executive'}};
-async function call(who,body){const r=await fetch(URL,{method:'POST',headers:{'content-type':'application/json','x-enl-app':'incident-report-v2',origin:'https://enlsafety.github.io'},body:JSON.stringify({actor:actors[who],actorPasswordHash:'qa-proof',actorPinHash:'qa-proof',...body})});return {status:r.status,body:await r.json()};}
+async function call(who,body){const r=await fetch(URL,{signal:AbortSignal.timeout(20000),method:'POST',headers:{'content-type':'application/json','x-enl-app':'incident-report-v2',origin:'https://enlsafety.github.io'},body:JSON.stringify({actor:actors[who],actorPasswordHash:'qa-proof',actorPinHash:'qa-proof',...body})});return {status:r.status,body:await r.json()};}
 (async()=>{let count=0,i;const check=(r,code,label)=>{assert.equal(r.status,code,label+': '+JSON.stringify(r.body));count++;return r.body};
  const id='qa-live-'+Date.now();
  let r=await call('field',{action:'push',incidents:[{id,siteId:'qa-site',status:'reported',summary:'가상 사고 통합검증',category:'property',eventType:'접촉',occurredAt:'2026-10-12T01:00:00Z',reportDetails:{incidentHow:'실제 사고가 아닌 QA 자료',repairCost:null},photos:[],corrective:null,_syncBaseVersion:0,_syncMutationId:id+':create'}]});i=check(r,200,'create').incidents[0];

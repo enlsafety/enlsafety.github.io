@@ -77,6 +77,8 @@ Deno.serve(async(req:Request)=>{
 
     if(action==="comment_list"){
       const incidentId=clean(body.incidentId);if(!incidentId)return json({ok:false,message:"incident_required"},400);const row=await incidentRow(incidentId);if(!row)return json({ok:false,message:"not_found"},404);
+      if(['field','worker'].includes(v.role)&&clean(row.site_id)!==v.siteId)return json({ok:false,message:'site_forbidden'},403);
+      if(v.role==='worker'&&clean(row.payload?.reporterId)!==v.id)return json({ok:false,message:'forbidden'},403);
       if(["manager","executive"].includes(v.role)&&!approved(row))return json({ok:false,message:"not_approved"},409);
       const {data,error}=await db.from("enl_incident_comments").select("*").eq("incident_id",incidentId).order("created_at",{ascending:true});if(error)throw error;return json({ok:true,comments:data||[]});
     }

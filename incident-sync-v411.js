@@ -76,14 +76,27 @@
     lastIds=new Set(next.map(x=>x.id));lastSig=after;dirty=false;return false;
   }
 
+  const retryWrites=new Map();
+  function contentSignature(i){const x=structuredClone(i||{});for(const k of ['_pendingCommitId','_syncBaseVersion','_syncVersion','_syncMutationId','updatedAt','lastModifiedAt','lastModifiedBy','lastModifiedRole','lastModifiedPosition'])delete x[k];return JSON.stringify(x)}
   async function push(deletedIds=[]){
-    const a=actor();if(!a||!serverReady)return;
-    if(['manager','executive'].includes(a.role))return;
-    let incidents=[...(data.incidents||[])];
-    if(a.role==='field')incidents=incidents.filter(i=>String(i.siteId||'')===String(a.siteId||''));
-    if(a.role==='worker')incidents=incidents.filter(i=>String(i.siteId||'')===String(a.siteId||'')&&!i.workerPublicOnly);
-    const deletions=a.role==='safety'?deletedIds:[];
-    await call({action:'push',actor:a,role:a.role,siteId:a.siteId,incidents,deletedIds:deletions});
+    const a=actor();if(!a||!serverReady||['manager','executive'].includes(a.role))return;
+    if(deletedIds.length)throw new Error('delete_requires_compliance_api');
+    const incidents=[];
+    for(const local of data.incidents||[]){
+      if(['field','worker'].includes(a.role)&&String(local.siteId)!==String(a.siteId)||local.workerPublicOnly)continue;
+      const id=String(local.id),before=authoritative.get(id),signature=contentSignature(local);
+      if(before&&signature===contentSignature(before))continue;
+      const candidate=structuredClone(local),prior=retryWrites.get(id),base=Number(before?._syncVersion||0);
+      const mutation=prior&&prior.signature===signature&&prior.base===base?prior.mutation:crypto.randomUUID();retryWrites.set(id,{signature,base,mutation});
+      candidate._syncBaseVersion=base;candidate._syncMutationId=mutation;delete candidate._pendingCommitId;incidents.push(candidate);
+    }
+    if(!incidents.length)return;
+    const result=await call({action:'push',actor:a,incidents,deletedIds:[]});
+    for(const saved of result.incidents||[]){
+      const id=String(saved.id),sent=retryWrites.get(id),local=data.incidents.find(x=>String(x.id)===id);
+      if(local&&sent&&contentSignature(local)===sent.signature){acceptSaved(saved);retryWrites.delete(id);}
+      else{authoritative.set(id,structuredClone(saved));if(local)local._syncVersion=saved._syncVersion;dirty=true;}
+    }
   }
 
   function uiWriteBusy(){
@@ -164,11 +177,11 @@
         if(['manager','executive'].includes(a.role)){dirty=false;return}
         // A local save may have happened while the first pull was in flight.
         // Preserve and flush it instead of clearing dirty and losing the edit.
-        if(dirty||queuedDeletes.length){await push(queuedDeletes);dirty=false;await pull(true)}
+        if(dirty||queuedDeletes.length){await push(queuedDeletes);dirty=(data.incidents||[]).some(i=>contentSignature(i)!==contentSignature(authoritative.get(String(i.id))));await pull(true)}
         return;
       }
       if(['manager','executive'].includes(a.role)){dirty=false;await pull(true);return}
-      if(dirty||queuedDeletes.length){await push(queuedDeletes);dirty=false;await pull(true)}
+      if(dirty||queuedDeletes.length){await push(queuedDeletes);dirty=(data.incidents||[]).some(i=>contentSignature(i)!==contentSignature(authoritative.get(String(i.id))));await pull(true)}
       else await pull(true);
     }catch(e){failed=true;queuedDeletes.forEach(id=>deferredDeletedIds.add(id));console.warn('incident sync skipped',e)}
     finally{
