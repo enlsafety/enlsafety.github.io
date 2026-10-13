@@ -1,5 +1,5 @@
 import "./site-contract-v451.js";
-import { validateLifecycle, correctedIncident } from "./lifecycle-policy.ts";
+import { validateLifecycle, correctedIncident, isHistoricalEditable } from "./lifecycle-policy.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import postgres from "npm:postgres@3.4.5";
 
@@ -37,6 +37,31 @@ async function verifyActor(sql:any,body:any,strong=false){
 }
 const enc=new TextEncoder();
 async function sha256Hex(v:string){const b=await crypto.subtle.digest("SHA-256",enc.encode(v));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
+/** Eight-minute, record-version-bound reauthentication; the password is never retained. */
+async function historicalTicketKey(){
+  const secret=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'';
+  if(!secret)rejectWrite('historical_reauth_unavailable',503);
+  return crypto.subtle.importKey('raw',enc.encode('enl-history-edit-v1:'+secret),{name:'HMAC',hash:'SHA-256'},false,['sign','verify']);
+}
+async function issueHistoricalTicket(actorId:string,incidentId:string,version:number){
+  const expiresAt=Date.now()+8*60*1000;
+  const payload=encodeURIComponent(JSON.stringify({v:1,actorId,incidentId,version,expiresAt,nonce:crypto.randomUUID()}));
+  const key=await historicalTicketKey();
+  const mac=new Uint8Array(await crypto.subtle.sign('HMAC',key,enc.encode(payload)));
+  return {ticket:payload+'.'+Array.from(mac,x=>x.toString(16).padStart(2,'0')).join(''),expiresAt};
+}
+async function verifyHistoricalTicket(raw:any,actorId:string,incidentId:string,version:number){
+  const token=clean(raw),dot=token.lastIndexOf('.');
+  if(dot<1||dot>1800||!/^[a-f0-9]{64}$/i.test(token.slice(dot+1)))return false;
+  const payload=token.slice(0,dot),hex=token.slice(dot+1);
+  try{
+    const data=JSON.parse(decodeURIComponent(payload));
+    if(data.v!==1||data.actorId!==actorId||data.incidentId!==incidentId||data.version!==version||!Number.isSafeInteger(data.expiresAt)||data.expiresAt<Date.now()||data.expiresAt>Date.now()+8*60*1000||typeof data.nonce!=='string')return false;
+    const signature=Uint8Array.from(hex.match(/.{2}/g)!,v=>parseInt(v,16));
+    return crypto.subtle.verify('HMAC',await historicalTicketKey(),signature,enc.encode(payload));
+  }catch(_){return false}
+}
+
 function canonicalValue(v:any):any{if(Array.isArray(v))return v.map(canonicalValue);if(v&&typeof v==="object"){const o:any={};for(const k of Object.keys(v).sort())o[k]=canonicalValue(v[k]);return o;}return v}
 function reportForHash(i:any){if(!i||typeof i!=="object")return {};const x=structuredClone(i);for(const k of ["status","priority","prioritySource","prioritySetBy","prioritySetAt","legalReview","safetyNote","approvedBy","approvedAt","rejectedBy","rejectedAt","rejectionNote","closedAt","corrective","readReceipts","acknowledgements","reportWorkflow","reviewHistory","lifecycleHistory","officialRecord","updatedAt","lastModifiedBy","lastModifiedRole","lastModifiedPosition","lastModifiedAt","resubmittedBy","resubmittedById","resubmittedAt","reopenedBy","reopenedAt","reopenReason","_syncBaseVersion","_syncVersion","_syncMutationId"])delete x[k];return canonicalValue(x)}
 async function reportHash(i:any){return sha256Hex(JSON.stringify(reportForHash(i)))}
