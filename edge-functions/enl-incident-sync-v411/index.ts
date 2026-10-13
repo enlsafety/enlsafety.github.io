@@ -36,7 +36,7 @@ async function verifyActor(sql:any,body:any,strong=false){
 const enc=new TextEncoder();
 async function sha256Hex(v:string){const b=await crypto.subtle.digest("SHA-256",enc.encode(v));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
 function canonicalValue(v:any):any{if(Array.isArray(v))return v.map(canonicalValue);if(v&&typeof v==="object"){const o:any={};for(const k of Object.keys(v).sort())o[k]=canonicalValue(v[k]);return o;}return v}
-function reportForHash(i:any){if(!i||typeof i!=="object")return {};const x=structuredClone(i);for(const k of ["status","priority","prioritySource","prioritySetBy","prioritySetAt","legalReview","safetyNote","approvedBy","approvedAt","rejectedBy","rejectedAt","rejectionNote","closedAt","corrective","readReceipts","acknowledgements","reportWorkflow","reviewHistory","lifecycleHistory","officialRecord","updatedAt","lastModifiedBy","lastModifiedRole","lastModifiedPosition","lastModifiedAt","resubmittedBy","resubmittedById","resubmittedAt","reopenedBy","reopenedAt","reopenReason","_syncBaseVersion","_syncVersion","_syncMutationId"])delete x[k];return canonicalValue(x)}
+function reportForHash(i:any){if(!i||typeof i!=="object")return {};const x=structuredClone(i);if(isManualHistorical(i)&&x.reportDetails){for(const key of ['medicalCost','repairCost','damageAmount','medicalCostDetail','repairCostDetail'])delete x.reportDetails[key];}for(const k of ["status","priority","prioritySource","prioritySetBy","prioritySetAt","legalReview","safetyNote","approvedBy","approvedAt","rejectedBy","rejectedAt","rejectionNote","closedAt","corrective","readReceipts","acknowledgements","reportWorkflow","reviewHistory","lifecycleHistory","officialRecord","updatedAt","lastModifiedBy","lastModifiedRole","lastModifiedPosition","lastModifiedAt","resubmittedBy","resubmittedById","resubmittedAt","reopenedBy","reopenedAt","reopenReason","_syncBaseVersion","_syncVersion","_syncMutationId"])delete x[k];return canonicalValue(x)}
 async function reportHash(i:any){return sha256Hex(JSON.stringify(reportForHash(i)))}
 function finalForHash(i:any){const x=structuredClone(i||{});if(x.officialRecord){x.officialRecord={...x.officialRecord};delete x.officialRecord.reportHash;delete x.officialRecord.finalHash;}for(const k of ["updatedAt","lastModifiedAt","readReceipts","acknowledgements","_syncBaseVersion","_syncVersion","_syncMutationId"])delete x[k];return canonicalValue(x)}
 async function finalHash(i:any){return sha256Hex(JSON.stringify(finalForHash(i)))}
@@ -66,6 +66,8 @@ function semanticAction(prev:any,next:any,requestedStatus:string,prevReportHash:
   if(a!==b&&b==="approved")return "corrective_approve";
   return "update";
 }
+function isManualHistorical(i:any){return !!i&&i?.historicalImport?.manualSafetyApproval===true&&i?.historicalImport?.workflowExempt===false&&clean(i.recordMode)==='historical_transfer';}
+function isLegacyClosedTransfer(i:any){return isHistoricalTransfer(i)&&!isManualHistorical(i);}
 function isHistoricalTransfer(i:any){
   if(!i||typeof i!=="object")return false;
   const h=i.historicalImport&&typeof i.historicalImport==="object"?i.historicalImport:{};
@@ -115,7 +117,7 @@ function readerIncident(i:any){
   return out;
 }
 function publicSummary(i:any){
-  const d=i?.reportDetails||{},hist=isHistoricalTransfer(i),hm=historicalMeta(i),c=i?.corrective||{},actionApproved=clean(c.status)==="approved",names=[i?.injuredName,i?.reporterName,i?.approvedBy,c?.ownerName,c?.submittedBy,c?.reviewedBy],place=redact(d.place||i?.place||"",names),work=redact(d.workAction||"",names),how=redact(d.incidentHow||"",names),type=redact(i?.eventType||"사고",names);
+  const d=i?.reportDetails||{},hist=isLegacyClosedTransfer(i),hm=historicalMeta(i),c=i?.corrective||{},actionApproved=clean(c.status)==="approved",names=[i?.injuredName,i?.reporterName,i?.approvedBy,c?.ownerName,c?.submittedBy,c?.reviewedBy],place=redact(d.place||i?.place||"",names),work=redact(d.workAction||"",names),how=redact(d.incidentHow||"",names),type=redact(i?.eventType||"사고",names);
   let overview=[place?`${place}에서`:"",work?`${work} 중`:"",how].filter(Boolean).join(" ");
   if(!overview)overview=legacyUnverified(i)?`${type} 관련 과거사고 이관자료이며 기존 결재근거는 확인되지 않았습니다.`:isBulkImported(i)?`${type} 관련 ERP 기결재 과거사고 이관자료입니다.`:hist?`${type} 관련 과거사고 이관자료입니다.`:`${type} 관련 사고가 발생하여 안전관리자가 검토·승인하였습니다.`;
   if(hist){
@@ -129,7 +131,7 @@ function publicSummary(i:any){
   return {occurredDate:clean(i?.occurredAt).slice(0,10),eventType:type||"안전사고",category:clean(i?.category),place,overview,cause,preventiveAction:action,actionStatus,approvedAt:clean(i?.approvedAt),publishedAt:clean(i?.updatedAt||i?.approvedAt)};
 }
 function publicIncident(i:any){
-  const hist=isHistoricalTransfer(i);
+  const hist=isLegacyClosedTransfer(i);
   if(!i||bulkInactive(i)||!reportApproved(i)||(!hist&&!isBulkImported(i)&&!clean(i.approvedAt)))return null;
   const p=publicSummary(i),hm=historicalMeta(i);
   return {id:clean(i.id),siteId:clean(i.siteId),status:clean(i.status),approvedAt:hist?"":clean(i.approvedAt),updatedAt:clean(i.updatedAt||i.approvedAt||hm.transferredAt),category:p.category,eventType:p.eventType,occurredAt:p.occurredDate,workerPublicOnly:true,workerPublic:p,publicSummary:p,corrective:hist?null:(i?.corrective?.status?{status:clean(i.corrective.status)}:null),recordMode:hist?"historical_transfer":undefined,historicalImport:hist?{enabled:true,erpApproved:true,workflowExempt:true,transferState:"closed",additionalAction:hm.followType==="site_check"?"field_check":hm.followType==="improvement"?"new_improvement":"none"}:undefined,historicalTransfer:hist?{mode:"historical_transfer",status:"closed",erpApproved:true,followUp:{type:hm.followType,status:hm.followStatus}}:undefined};
@@ -260,7 +262,7 @@ Deno.serve(async(req:Request)=>{
           if(!isBulkImported(raw0)||["historicalOrigin","externalInitialApproval","bulkInvalidation"].some(k=>JSON.stringify(canonicalValue(prev[k]??null))!==JSON.stringify(canonicalValue(raw0[k]??null))))rejectWrite("bulk_record_scope_locked",409);
         }
         if(actor.role==="worker"&&prev&&!isMine(prev,actor)){ignored++;continue;}
-        if(prev&&isHistoricalTransfer(prev)&&actor.role!=="safety")rejectWrite("historical_transfer_locked",403);
+        if(prev&&isHistoricalTransfer(prev)&&actor.role!=="safety"&&!(actor.role==='field'&&isManualHistorical(prev)))rejectWrite("historical_transfer_locked",403);
         if(prev&&isHistoricalTransfer(prev)&&!incomingHistorical)rejectWrite("historical_transfer_locked",409);
         let next={...raw0,id,siteId};
         const contract=(globalThis as any).ENLContracts;
