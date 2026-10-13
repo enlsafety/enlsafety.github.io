@@ -25,7 +25,8 @@ async function verifiedActor(sql:any,raw:any,proof:any){
   if(["field","worker"].includes(actor.role)){
     const rows=await sql`select personnel_id,site_id,name,job_title,access_role,email,push_enabled,email_enabled,active,pin_hash
       from public.enl_site_personnel where personnel_id::text=${actor.id} limit 1`;
-    const d=rows[0];if(!d||d.active===false||!clean(d.pin_hash)||clean(proof?.actorPinHash)!==clean(d.pin_hash))return null;
+    const d=rows[0];if(!d||d.active===false)return null;
+    if((actor.role==='field'||clean(d.pin_hash))&&(!clean(d.pin_hash)||clean(proof?.actorPinHash)!==clean(d.pin_hash)))return null;
     const role=clean(d.access_role)==="field"?"field":"worker";
     if(role!==actor.role||role==="field"&&!FIELD_TITLES.includes(clean(d.job_title)))return null;
     if(actor.siteId&&clean(d.site_id)!==actor.siteId)return null;

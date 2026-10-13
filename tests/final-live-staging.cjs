@@ -20,6 +20,6 @@ async function call(who,body){const r=await fetch(URL,{method:'POST',headers:{'c
  const mutationId=crypto.randomUUID(),expectedVersion=i._syncVersion;
  await op('correct_closed',{mutationId,expectedVersion,reason:'가상 정정',changes:{summary:'정정된 가상 사고'}});await op('correct_closed',{mutationId,expectedVersion,reason:'가상 정정',changes:{summary:'정정된 가상 사고'}});
  assert.equal(i.approvedAt,stamps.approvedAt);assert.equal(i.closedAt,stamps.closedAt);assert.equal(i.officialRecord.revisionNumber,1);assert.ok(i.officialRecord.erpCorrectionRequired);
- await op('export_snapshot');await op('revision_list',{},200,'executive');await op('view',{},200,'manager');
+ const snapshotId=crypto.randomUUID();await op('export_snapshot',{mutationId:snapshotId});await op('export_completed',{snapshotId,fileHash:'g'.repeat(64),filename:'QA.xlsx'},409);const completionId=crypto.randomUUID();await op('export_completed',{snapshotId,fileHash:'a'.repeat(64),filename:'QA.xlsx',mutationId:completionId});await op('export_completed',{snapshotId,fileHash:'a'.repeat(64),filename:'QA.xlsx',mutationId:completionId});await op('revision_list',{},200,'executive');await op('view',{},200,'manager');
  fs.mkdirSync('qa-output',{recursive:true});fs.writeFileSync('qa-output/final-live-staging.json',JSON.stringify({passed:count,failed:0,id,version:'4.6.0-r1',url:URL,at:new Date().toISOString()},null,2));console.log(JSON.stringify({passed:count,failed:0,id}));
 })().catch(e=>{console.error(e);process.exitCode=1});

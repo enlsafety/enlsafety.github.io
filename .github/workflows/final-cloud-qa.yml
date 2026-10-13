@@ -27,6 +27,8 @@ jobs:
       - name: Actual downloaded XLSX OOXML and formatting validation
         if: always()
         run: python tests/final-excel-validate.py
+      - name: Dedicated staging schema and function only
+        run: node tests/final-live-staging.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

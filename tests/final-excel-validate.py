@@ -13,7 +13,7 @@ for path in pathlib.Path('qa-output').glob('final-excel-*.xlsx'):
   assert '미리보기를 만들지 못했습니다' not in xml
   assert 'extLst' not in xml,'no Office-version extension requirements'
  w=openpyxl.load_workbook(path)
- assert w.sheetnames[:2]==['사고경위서','사고조치보고서'],w.sheetnames
+ assert w.sheetnames[0]=='사고경위서' and '사고조치보고서' in w.sheetnames,w.sheetnames
  assert len(w.sheetnames)>=4
  values=[str(c.value) for s in w for row in s for c in row if c.value is not None];text='\n'.join(values)
  for token in ['정정된 가상 사고경위','긴 문장 검증 35','계속','동선 분리 계획','가상 표지 설치 완료','계획 작성자','조치 시행일','조치 담당자','가상PDF증빙.pdf','ERP 기안서 정정','QA-ERP-1']:

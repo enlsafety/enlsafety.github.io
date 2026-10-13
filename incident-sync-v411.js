@@ -13,7 +13,8 @@
   const baseSaveData=saveData;
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
 
-  function signature(arr){return JSON.stringify((arr||[]).map(i=>[i.id,i.updatedAt||'',i.status||'',i.priority||'',i.corrective?.status||'',i.supplement?.status||'',i.reporterId||'',(i.readReceipts||[]).map(r=>`${r.userId}:${r.readAt}`).sort().join('|'),(i.acknowledgements||[]).map(r=>`${r.documentType}:${r.userId}:${r.ackAt||r.readAt}`).sort().join('|')]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))))}
+  function signature(items){return JSON.stringify((items||[]).map(i=>[String(i.id),i]).sort((a,b)=>a[0].localeCompare(b[0])))}
+
   function actor(){const u=currentUser();return u?{id:u.id||u.personnelId||u.username||'',name:u.name||'',role:roleNorm(u.role),position:u.position||u.jobTitle||'',siteId:u.siteId||''}:null}
   function authProof(){
     let u=null;try{u=currentUser?.()||null}catch(e){}
