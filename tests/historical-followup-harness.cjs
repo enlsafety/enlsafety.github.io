@@ -22,7 +22,7 @@ async function fixture(){
  sql.begin=async f=>db.transaction(async t=>{tx=t;try{return await f(sql)}finally{tx=null}});sql.end=async()=>{};
  const ctx={Deno:{env:{get:()=> 'isolated'},serve:h=>handler=h},postgres:()=>sql,createClient:()=>({storage:{from:()=>({upload:async(path,bytes)=>{uploads.set(path,bytes);return {error:null}},createSignedUrl:async path=>({data:{signedUrl:'https://isolated-files.test/'+path}})})}}),Request,Response,TextEncoder,Uint8Array,atob,crypto,structuredClone,console};vm.createContext(ctx);
  vm.runInContext(fs.readFileSync('edge-functions/enl-historical-followup/model.js','utf8').replace(/export /g,''),ctx);
- vm.runInContext(stripTypeScriptTypes(fs.readFileSync('edge-functions/enl-historical-followup/index.ts','utf8').replace(/^import .*;\n/gm,'')),ctx);
+ vm.runInContext(stripTypeScriptTypes(fs.readFileSync('edge-functions/enl-historical-followup/index.ts','utf8').replace(/^import .*;\r?\n/gm,'')),ctx);
  const actors={safety:{id:'qa-safety',name:'QA 안전',role:'safety',position:'안전관리자',passwordHash:'qa-proof'},field:{id:'qa-field',name:'QA 소장',role:'field',position:'현장소장',siteId:'s1',pinHash:'qa-proof'},other:{id:'qa-other',name:'타현장',role:'field',position:'현장소장',siteId:'s2',pinHash:'qa-proof'},executive:{id:'qa-exec',name:'QA 경영',role:'executive',position:'경영진',passwordHash:'qa-proof'}};
  async function raw(body){const r=await handler(new Request('https://isolated.test',{method:'POST',headers:{'content-type':'application/json','x-enl-app':'incident-report-v2',origin:'https://enlsafety.github.io'},body:JSON.stringify(body)}));return {status:r.status,body:await r.json()}}
  const call=(who,body)=>{const a=actors[who];return raw({actor:a,actorPasswordHash:a.passwordHash,actorPinHash:a.pinHash,...body})};

@@ -13,7 +13,7 @@
   const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   async function call(url,action,extra={}){
     const a=actor();if(!a)throw new Error('login_required');
-    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify({action,actor:a,...extra}),cache:'no-store'});
+    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify({action,actor:a,...extra,...window.enlIncidentAuthProof?.()}),cache:'no-store'});
     const j=await r.json().catch(()=>({}));if(!r.ok||j?.ok===false)throw new Error(j?.message||'request_failed');return j;
   }
   function ensureCss(){

@@ -77,7 +77,7 @@ async function loginAutoSelect(engine){
       window.app=document.getElementById('app');
       window.currentUser=()=>null;window.roleName=()=>'';window.renderLogin=()=>{};window.openUserModal=()=>{};window.openAdminPasswordReset=()=>{};
       window.session={};window.data={users:[],sites:[{id:'s01',name:'유일사업장'},{id:'s02',name:'중복사업장A'},{id:'s03',name:'중복사업장B'}]};
-      window.saveSession=()=>{};window.saveData=()=>{};window.nowISO=()=>new Date().toISOString();
+      window.saveSession=()=>{};window.saveData=()=>{};window.enlCommitOrNotify=async i=>{const n=data.incidents.findIndex(x=>x.id===i.id);if(n<0)data.incidents.unshift(i);else data.incidents[n]=i;return true};window.nowISO=()=>new Date().toISOString();
       window.sha256=async v=>'hash-'+v;window.userById=()=>null;
       window.siteById=id=>data.sites.find(s=>s.id===id);window.ENL_SITE_DIRECTORY=data.sites;
       window.currentView='';window.enlPlatformSection='hub';window.ENL_PLATFORM_SECTION_KEY='qa';window.renderShell=()=>{};

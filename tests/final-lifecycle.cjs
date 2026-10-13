@@ -1,0 +1,88 @@
+'use strict';
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const {stripTypeScriptTypes}=require('node:module');
+const {PGlite}=require('@electric-sql/pglite');
+const read=f=>fs.readFileSync(f,'utf8').replace(/\r\n/g,'\n');
+async function fixture(){
+ const db=new PGlite();await db.exec(`
+ create role anon;create role authenticated;create schema private;
+ create table enl_incident_shared(incident_id text primary key,site_id text,payload jsonb,created_at timestamptz,updated_at timestamptz);
+ create table enl_incident_audit(audit_id uuid primary key default gen_random_uuid(),incident_id text,site_id text,action text constraint enl_incident_audit_action_check check(action is not null),editor_id text,editor_name text,editor_role text,editor_position text,changed_at timestamptz,before_payload jsonb,after_payload jsonb);
+ create table enl_hq_users(user_id text primary key,name text,role text,position text,department text,active boolean,password_hash text);
+ create table enl_site_personnel(personnel_id text primary key,site_id text,name text,job_title text,access_role text,active boolean,pin_hash text);
+ create table enl_site_master(site_id text primary key,site_name text,site_type text,region text,address text,regular_count int,daily_count int,total_count int,manager_name text,part_name text,clerk_name text,active boolean,start_date text,contract_end_date text,contract_period text);
+ create table enl_document_views(id bigint generated always as identity primary key,incident_id text,document_type text,viewer_id text,viewer_name text,viewer_role text,first_viewed_at timestamptz,unique(incident_id,document_type,viewer_id));
+ create table enl_push_events(id bigint generated always as identity primary key,event_key text unique,incident_id text,site_id text,user_id text,kind text,title text,body text,data jsonb,created_at timestamptz default now(),sent_at timestamptz,last_error text);
+ create table enl_email_events(id bigint generated always as identity primary key,source_push_event_id bigint unique,event_key text unique,incident_id text,site_id text,user_id text,kind text);
+ insert into enl_hq_users values('qa-safety','QA 안전','safety','안전관리자','QA',true,'qa-proof'),('qa-manager','QA 본사','manager','본사','QA',true,'qa-proof'),('qa-executive','QA 경영','executive','경영진','QA',true,'qa-proof');
+ insert into enl_site_personnel values('qa-field','qa-site','QA 현장','현장소장','field',true,'qa-proof'),('qa-other','other-site','QA 타현장','현장소장','field',true,'qa-proof');
+ insert into enl_site_master(site_id,site_name,active,start_date) values('qa-site','QA 가상 사업장',true,'2020-01-01');
+ `);
+ for(const name of ['enl_incident_optimistic_sync_guard','enl_email_from_push_trigger'])await db.exec(read('tests/fixtures/final-lifecycle/'+name+'.sql'));
+ await db.exec(read('supabase/migrations/20261013052400_final_safety_lifecycle.sql'));
+ await db.exec(`create trigger trg_enl_incident_optimistic_sync_guard before insert or update on enl_incident_shared for each row execute function enl_incident_optimistic_sync_guard();create trigger trg_enl_incident_push after insert or update on enl_incident_shared for each row execute function enl_incident_push_trigger();create trigger trg_enl_push_email_bridge after insert on enl_push_events for each row execute function enl_email_from_push_trigger();`);
+ let handler,tx=null;
+ const sql=async(parts,...args)=>{const query=parts.reduce((s,p,i)=>s+(i?'$'+i:'')+p,'');return (await(tx||db).query(query,args)).rows;};sql.json=JSON.stringify;sql.end=async()=>{};sql.begin=async f=>db.transaction(async t=>{tx=t;try{return await f(sql)}finally{tx=null}});
+ const ctx={Deno:{env:{get:()=> 'isolated'},serve:h=>handler=h},postgres:()=>sql,Request,Response,TextEncoder,crypto,structuredClone,console};vm.createContext(ctx);
+ vm.runInContext(read('edge-functions/enl-incident-sync-v411/site-contract-v451.js'),ctx);
+ vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/lifecycle-policy.ts').replace(/export /g,'')),ctx);
+ // Put the endpoint in an inner scope because each imported file has its own module scope.
+ vm.runInContext('{'+stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/index.ts').replace(/^import .*;\r?\n/gm,''))+'}',ctx);
+ const actors={safety:{id:'qa-safety',role:'safety'},manager:{id:'qa-manager',role:'manager'},executive:{id:'qa-executive',role:'executive'},field:{id:'qa-field',role:'field',siteId:'qa-site'},other:{id:'qa-other',role:'field',siteId:'other-site'}};
+ async function raw(body){const r=await handler(new Request('https://isolated.test',{method:'POST',headers:{'content-type':'application/json','x-enl-app':'incident-report-v2',origin:'https://enlsafety.github.io'},body:JSON.stringify(body)}));return {status:r.status,body:await r.json()};}
+ const call=(who,body)=>raw({actor:actors[who],actorPasswordHash:'qa-proof',actorPinHash:'qa-proof',...body});
+ return {db,call,raw,actors};
+}
+async function run(){const f=await fixture();let checks=0;const check=(condition,label)=>{assert.ok(condition,label);checks++;};
+ const base={id:'qa-final-normal',siteId:'qa-site',status:'reported',category:'property',summary:'가상 카트 접촉 사고',eventType:'충돌',occurredAt:'2026-10-12T01:00:00Z',reportDetails:{incidentHow:'가상 사고경위',repairCost:null},corrective:null,photos:[],_syncBaseVersion:0,_syncMutationId:'first'};
+ let r=await f.call('field',{action:'push',incidents:[base]});assert.equal(r.status,200,JSON.stringify(r));let i=r.body.incidents[0];check(i._syncVersion===1,'initial report persisted');
+ const push=async(who,edit)=>{const next=structuredClone(i);edit(next);next._syncBaseVersion=i._syncVersion;next._syncMutationId=crypto.randomUUID();const result=await f.call(who,{action:'push',incidents:[next]});if(result.status===200)i=result.body.incidents[0];return result;};
+ const count=async q=>(await f.db.query(q)).rows[0].n;
+ check(await count("select count(*)::int n from enl_push_events where kind='incident_new'")===3,'initial awareness reaches all three HQ roles');
+ r=await f.call('field',{action:'push',incidents:[base]});check(r.status===200&&r.body.ignored===1,'lost response retry idempotent');
+ check(await count('select count(*)::int n from enl_push_events')===3,'no duplicate initial event');
+ for(const who of ['manager','executive']){r=await f.call(who,{action:'pull'});check(r.body.incidents[0].status==='reported',who+' sees unapproved report');r=await f.call(who,{action:'acknowledge',incidentId:i.id});check(r.status===410,who+' approval retired');r=await f.call(who,{action:'push',incidents:[i]});check(r.status===403,who+' cannot modify');}
+ r=await f.raw({actor:f.actors.safety,action:'pull'});check(r.status===403,'read requires credential proof');
+ r=await push('other',x=>x.summary='타현장 조작');check(r.status===200&&r.body.incidents.length===0||r.status===403,'cross site write rejected or ignored');
+ // Restore local reference after the intentionally empty result.
+ i=(await f.call('safety',{action:'pull'})).body.incidents[0];
+ r=await push('safety',x=>{x.status='supplement';x.supplement={requestNote:'수리비 증빙 보완 요청',requestedFields:['repairCost']}});check(r.status===200,'supplement request');
+ r=await push('field',x=>{x.status='supplement_submitted';x.reportDetails.incidentHow='보완된 사고경위'});check(r.status===200,'field resubmission');
+ r=await push('safety',x=>{x.status='approved';x.approvedBy='브라우저값';x.approvedAt='2000-01-01'});assert.equal(r.status,200,JSON.stringify(r));check(i.approvedBy==='QA 안전'&&i.approvedAt!=='2000-01-01','server approval identity and time');
+ const approval=i.approvedAt;
+ r=await push('field',x=>x.summary='승인사고 변조');check(r.status===409,'approved facts locked');
+ r=await push('field',x=>x.reportDetails.repairCost=50000);assert.equal(r.status,200,JSON.stringify(r));check(i.status==='approved'&&i.approvedAt===approval&&i.officialRecord.costAdditions.length===1,'additive cost audited without invalidating approval');
+ r=await push('field',x=>x.reportDetails.repairCost=60000);check(r.status===409,'existing cost locked');
+ r=await push('safety',x=>x.corrective={status:'planned',rootCause:'추정: 시야 제한',planDetail:'동선 분리',ownerName:'QA 현장',dueDate:'2026-10-20'});assert.equal(r.status,200,JSON.stringify(r));check(!!i.corrective.planAt,'plan server timestamp');
+ r=await push('field',x=>{x.corrective.status='submitted';x.corrective.actionDetail='완료'});check(r.status===409,'missing action date and evidence blocked');
+ r=await push('field',x=>{x.corrective.status='in_progress';x.corrective.actionDetail='진행중'});check(r.status===200,'action draft');
+ r=await push('field',x=>{x.corrective.status='submitted';x.corrective.actionDetail='동선 분리 완료';x.corrective.actionDate='2026-10-13';x.corrective.actionOwner='QA 현장';x.corrective.afterPhotos=[{name:'QA.pdf',mime:'application/pdf',path:'action/site-qa-site/QA.pdf'}]});assert.equal(r.status,200,JSON.stringify(r));check(i.corrective.submittedBy==='QA 현장','action submitted');
+ r=await push('field',x=>{x.corrective.status='approved';x.status='closed'});check(r.status===403||r.status===409,'field cannot close');
+ r=await push('safety',x=>{x.corrective.status='rejected';x.corrective.reviewNote='사진 보완'});check(r.status===200,'action supplement request');
+ r=await push('field',x=>{x.corrective.status='submitted';x.corrective.afterPhotos.push({name:'QA사진.png',mime:'image/png',path:'action/site-qa-site/QA.png'})});check(r.status===200,'action resubmission');
+ r=await push('safety',x=>{x.corrective.status='approved';x.status='closed'});assert.equal(r.status,200,JSON.stringify(r));check(i.status==='closed'&&i.corrective.reviewedBy==='QA 안전','safety alone closes');
+ const closed=structuredClone(i);
+ check(await count("select count(*)::int n from enl_push_events where kind in ('action_approved','incident_closed') and user_id in ('qa-manager','qa-executive','qa-safety')")===0,'no HQ closure push events');
+ check(await count("select count(*)::int n from enl_email_events where kind in ('action_approved','incident_closed') and user_id in ('qa-manager','qa-executive','qa-safety')")===0,'no HQ closure email');
+ r=await push('safety',x=>{x.status='approved';x.corrective=null});check(r.status===409,'destructive reopen blocked');
+ const op=async(action,extra={},who='safety')=>f.call(who,{action,incidentId:i.id,expectedVersion:i._syncVersion,mutationId:crypto.randomUUID(),...extra});
+ r=await op('erp_record',{record:{submitted:true,documentNumber:'QA-ERP-1',draftedAt:'2026-10-13'},reason:'가상 수동기안 기록'});assert.equal(r.status,200,JSON.stringify(r));i=r.body.incident;check(i.status==='closed','ERP independent of closure');
+ r=await op('correct_closed',{changes:{summary:'정정된 가상 사고'},reason:''});check(r.status===400,'correction reason mandatory');
+ r=await op('correct_closed',{changes:{summary:'정정된 가상 사고'},reason:'검증'},'manager');check(r.status===403,'reader cannot correct');
+ const mutationId=crypto.randomUUID(),version=i._syncVersion;
+ r=await op('correct_closed',{changes:{summary:'정정된 가상 사고'},reason:'가상 사실관계 정정',mutationId});assert.equal(r.status,200,JSON.stringify(r));i=r.body.incident;
+ check(i.officialRecord.revisionNumber===1&&i.approvedAt===closed.approvedAt&&i.closedAt===closed.closedAt&&i.status==='closed','revision preserves approvals and closure');
+ check(i.officialRecord.erpCorrectionRequired&&i.officialRecord.actionRecheckRequired,'ERP and action review flags');
+ r=await op('correct_closed',{changes:{summary:'정정된 가상 사고'},reason:'가상 사실관계 정정',mutationId,expectedVersion:version});check(r.status===200&&r.body.duplicate,'correction retry idempotent');
+ r=await op('correct_closed',{changes:{summary:'충돌'},reason:'가상',expectedVersion:version});check(r.status===409,'stale correction conflict');
+ r=await op('export_snapshot');check(r.status===200&&r.body.incident.summary==='정정된 가상 사고'&&!!r.body.snapshotHash,'export uses server revision snapshot');
+ r=await op('revision_list',{},'executive');check(r.status===200&&r.body.revisions[0].changes[0].before===closed.summary,'readers see correction audit');
+ await f.call('manager',{action:'view',incidentId:i.id});await f.call('manager',{action:'view',incidentId:i.id});check(await count('select count(*)::int n from enl_document_views')===1,'first view recorded once separate from approval');
+ await assert.rejects(()=>f.db.exec('delete from enl_incident_revisions'),/evidence_is_append_only/);checks++;
+ await assert.rejects(()=>f.db.exec('delete from enl_incident_shared'),/incident_deletion_disabled/);checks++;
+ const manual={...base,id:'qa-manual',_syncMutationId:'manual',recordMode:'historical_manual',status:'approved',approvedBy:'QA 안전',approvedAt:new Date().toISOString(),historicalImport:{enabled:true,erpApproved:false,workflowExempt:false,transferState:'approved'},historicalTransfer:{mode:'historical_manual',erpApproved:false}};
+ r=await f.call('safety',{action:'push',incidents:[manual]});assert.equal(r.status,200,JSON.stringify(r));check(r.body.incidents[0].status==='approved','manual historic incident gets safety approval');
+ check(await count("select count(*)::int n from enl_push_events where kind in ('incident_new','urgent_incident')")===3,'supplement and corrections never repeat first awareness');
+ console.log(JSON.stringify({passed:checks,failed:0,environment:'local isolated PostgreSQL and actual Edge handler'}));await f.db.close();
+}
+if(require.main===module)run().catch(e=>{console.error(e);process.exitCode=1});module.exports={fixture};

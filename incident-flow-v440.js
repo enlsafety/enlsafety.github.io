@@ -86,7 +86,7 @@
   function normalizeWorkflows(){
     let changed=false;
     for(const i of data?.incidents||[]){
-      if(!i||!['person','property'].includes(String(i.category||'')))continue;
+      if(!i||['approved','closed'].includes(i.status)||!['person','property'].includes(String(i.category||'')))continue;
       const before=JSON.stringify(i.reportWorkflow||null);workflow(i);if(before!==JSON.stringify(i.reportWorkflow||null))changed=true;
     }
     return changed;
@@ -151,17 +151,18 @@
   }
 
   function openSupplementRequest(i,u){
+    i=structuredClone(i);
     const current=new Set(i?.supplement?.requestedFields||[]),defs=requestDefinitions(i);
     openModal(`<div class="modal-head"><div><div class="ey">SUPPLEMENT REQUEST</div><h2>${ex(siteName(i.siteId))} · 사고보고 보완요청</h2><p>즉시보고 이후 확인 가능한 자료만 선택합니다.</p></div><button class="x" data-close>×</button></div>
       <form id="wf440RequestForm"><div class="wf440-request-list">${defs.map(([k,label])=>`<label class="wf440-request"><input type="checkbox" value="${ex(k)}" ${current.has(k)?'checked':''}><span><b>${ex(label)}</b></span></label>`).join('')}</div>
       <label class="lbl"><span>보완요청 메모</span><textarea id="wf440RequestNote" rows="3" placeholder="예: 병원 진료 후 진단명과 실제 결제금액을 입력해 주세요.">${ex(i?.supplement?.requestNote||'')}</textarea></label>
       <button class="primary full" type="submit">보완대기로 전환</button></form>`);
-    document.getElementById('wf440RequestForm').onsubmit=e=>{
+    document.getElementById('wf440RequestForm').onsubmit=async e=>{
       e.preventDefault();const fields=[...e.currentTarget.querySelectorAll('input[type="checkbox"]:checked')].map(x=>x.value),note=text(document.getElementById('wf440RequestNote')?.value);
       if(!fields.length&&!note)return alert('보완이 필요한 항목을 하나 이상 선택하거나 보완요청 메모를 입력해 주세요.');
-      const ts=now();i.status='supplement';i.supplement={...(i.supplement||{}),status:'waiting',requestedFields:fields,requestNote:note,requestedBy:u.name,requestedById:uid(u),requestedAt:ts,submittedAt:null};
+      const ts=now();i.status='supplement';i.supplement={...(i.supplement||{}),status:'waiting',requestedFields:fields,requestNote:note||defs.filter(([k])=>fields.includes(k)).map(([,label])=>label).join(', ')+' 자료를 보완해 주세요.',requestedBy:u.name,requestedById:uid(u),requestedAt:ts,submittedAt:null};
       const w=workflow(i);w.phase='supplement_waiting';w.supplementRequestedAt=ts;w.supplementRequestedBy=u.name;i.updatedAt=ts;
-      saveData();closeModal();renderShell(u);alert('사고보고를 보완대기로 전환했습니다. 현장관리자에게 보완요청이 전달됩니다.');
+      if(!await window.enlCommitOrNotify(i))return;closeModal();renderShell(u);alert('사고보고를 보완대기로 전환했습니다. 현장관리자에게 보완요청이 전달됩니다.');
     };
   }
 
@@ -181,6 +182,7 @@
   }
 
   function openSupplementForm(i,u){
+    i=structuredClone(i);
     if(!isFieldManager(u)||String(i.siteId)!==String(u.siteId))return alert('해당 사업장 현장관리자만 보완자료를 입력할 수 있습니다.');
     if(String(i.status)!=='supplement')return alert('현재 보완자료 입력 상태가 아닙니다.');
     const d=i.reportDetails||{},req=new Set(i?.supplement?.requestedFields||[]);
@@ -213,7 +215,7 @@
       try{if(typeof addFiles==='function')supplementFiles=await addFiles(supplementFiles,e.target.files,'incident');else alert('첨부파일 처리기능을 불러오지 못했습니다.');}
       catch(err){alert('보완자료를 추가하지 못했습니다.')}e.target.value='';renderSupplementFiles(form);validateSupplementVisual(form);
     };
-    form.onsubmit=e=>{
+    form.onsubmit=async e=>{
       e.preventDefault();if(!form.reportValidity())return;
       const needFile=req.has('medicalDocument')||req.has('estimateDocument');if(needFile&&supplementFiles.length<1){validateSupplementVisual(form);return alert('안전관리자가 요청한 증빙자료를 1개 이상 첨부해 주세요.')}
       if(i.category==='person'){
@@ -224,7 +226,7 @@
       }
       const ts=now();i.reportDetails=d;i.status='supplement_submitted';i.supplement={...(i.supplement||{}),status:'submitted',attachments:persistAttachments(supplementFiles),submittedBy:u.name,submittedById:uid(u),submittedAt:ts};
       const w=workflow(i);w.phase='supplement_review';w.supplementSubmittedAt=ts;w.supplementSubmittedBy=u.name;i.updatedAt=ts;
-      saveData();supplementFiles=[];closeModal();renderShell(u);alert('보완자료를 안전관리자 검토대기로 제출했습니다.');
+      if(!await window.enlCommitOrNotify(i))return;supplementFiles=[];closeModal();renderShell(u);alert('보완자료를 안전관리자 검토대기로 제출했습니다.');
     };
   }
 
@@ -233,12 +235,13 @@
     const note=text(document.getElementById('safetyNoteEdit')?.value);if(note)i.safetyNote=note;
   }
 
-  function finalApprove(i,u){
+  async function finalApprove(i,u){
+    i=structuredClone(i);
     if(!confirm('이 사고보고 내용을 최종승인할까요?\n이 확인은 전자결재가 아니라 사고보고 내용 확정 단계이며, 이후 재발방지계획을 수립합니다.'))return;
     applySafetyFields(i,u);const ts=now();i.status='approved';i.approvedBy=u.name;i.approvedAt=ts;i.rejectionNote='';
     if(i.supplement)i.supplement={...i.supplement,status:'accepted',approvedBy:u.name,approvedById:uid(u),approvedAt:ts};
     const w=workflow(i);w.phase='report_approved';w.finalApprovedAt=ts;w.finalApprovedBy=u.name;w.finalApprovedById=uid(u);i.updatedAt=ts;
-    saveData();closeModal();renderShell(u);alert('사고보고를 최종승인했습니다. 이제 재발방지계획을 수립할 수 있습니다.');
+    if(!await window.enlCommitOrNotify(i))return;closeModal();renderShell(u);alert('사고보고를 최종승인했습니다. 이제 재발방지계획을 수립할 수 있습니다.');
   }
 
   async function pushApi(action,extra={}){

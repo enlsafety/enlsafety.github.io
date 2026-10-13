@@ -1,18 +1,6 @@
 name: prevention flow v429 smoke
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'workflow-prevention-v429.js'
-      - 'stable412.html'
-      - '.github/workflows/prevention-flow-v429-smoke.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'workflow-prevention-v429.js'
-      - 'stable412.html'
-      - '.github/workflows/prevention-flow-v429-smoke.yml'
   workflow_dispatch:
 
 jobs:

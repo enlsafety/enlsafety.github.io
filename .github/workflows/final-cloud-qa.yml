@@ -1,0 +1,34 @@
+name: final isolated cloud QA
+on:
+  push:
+    branches: [feat/final-safety-lifecycle-20261013]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: final-cloud-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  isolated:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-save --package-lock=false @electric-sql/pglite@0.3.10 playwright@1.51.1 pdfjs-dist@3.11.174
+      - run: npx playwright install --with-deps chromium webkit
+      - run: pip install openpyxl==3.1.5 pillow==11.1.0
+      - name: Actual Edge, isolated database, role and browser regressions
+        run: node tests/final-cloud-run.cjs
+      - name: Actual downloaded XLSX OOXML and formatting validation
+        if: always()
+        run: python tests/final-excel-validate.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: final-cloud-evidence
+          path: qa-output/

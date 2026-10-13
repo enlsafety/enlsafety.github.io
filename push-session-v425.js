@@ -47,7 +47,7 @@
     const key=userId(u)+'|'+String(sub.endpoint||'');if(!force&&key===lastClaimKey&&Date.now()-lastClaimAt<15*60*1000)return true;
     claimBusy=true;
     try{
-      const r=await fetch(CLAIM_API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify({action:'claim',actor:u,subscription:sub.toJSON(),preferences:prefs(u),userAgent:navigator.userAgent}),cache:'no-store'});
+      const r=await fetch(CLAIM_API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify({...window.enlIncidentAuthProof?.(),action:'claim',actor:u,subscription:sub.toJSON(),preferences:prefs(u),userAgent:navigator.userAgent}),cache:'no-store'});
       const j=await r.json().catch(()=>({}));if(!r.ok||j?.ok===false)throw new Error(j?.message||`http_${r.status}`);
       lastClaimKey=key;lastClaimAt=Date.now();return true;
     }catch(e){console.warn('push device ownership refresh skipped',e?.message||e);return false}

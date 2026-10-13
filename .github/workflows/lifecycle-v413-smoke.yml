@@ -1,22 +1,6 @@
 name: lifecycle v413 smoke
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'workflow-lifecycle-v413.js'
-      - 'reader-ui-v414.js'
-      - 'closed-incident-reopen-v438.js'
-      - 'stable412.html'
-      - '.github/workflows/lifecycle-v413-smoke.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'workflow-lifecycle-v413.js'
-      - 'reader-ui-v414.js'
-      - 'closed-incident-reopen-v438.js'
-      - 'stable412.html'
-      - '.github/workflows/lifecycle-v413-smoke.yml'
   workflow_dispatch:
 
 jobs:

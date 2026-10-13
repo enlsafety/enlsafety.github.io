@@ -36,7 +36,6 @@ for(const x of ['private.enl_historical_batches','public.enl_incident_shared','f
 assert.ok(!server.includes('historical_bulk_qa.'),'must not use prior QA schema');
 assert.ok(server.includes("const ORIGIN='https://enlsafety.github.io'"));
 const page=read('stable412.html');
-for(const fileName of ['historical-bulk-core-v454.js','historical-bulk-extract-v454.js','historical-bulk-ui-v454.js'])assert.ok(page.includes(fileName),fileName);
-assert.ok(page.indexOf('historical-bulk-core-v454.js')<page.indexOf('historical-bulk-ui-v454.js'));
-assert.ok(page.indexOf('historical-transfer-v449.js')<page.indexOf('historical-bulk-ui-v454.js'));
-console.log('PASS: extraction, ERP evidence guards, merge, review, audit, private storage and runtime wiring');
+for(const name of ['historical-bulk-core-v454.js','historical-bulk-extract-v454.js','historical-bulk-ui-v454.js'])assert.ok(!page.includes(name),'automatic import remains retired');
+assert.ok(server.includes('automatic_import_retired'));
+console.log('PASS archived model contracts and automatic import retirement');

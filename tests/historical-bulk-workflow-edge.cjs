@@ -38,7 +38,7 @@ function harness(file){
  };sql.json=value=>({jsonParameter:true,value});sql.end=async()=>{};sql.begin=async fn=>{const before=clone(state.records),writes=state.writes.length;assert.equal(transaction,false);transaction=true;txActor=null;state.transactions++;try{return await fn(sql)}catch(e){state.records=before;state.writes.length=writes;state.rollbacks++;throw e}finally{transaction=false;txActor=null}};
  const context={Deno:{serve:f=>handler=f,env:{get:()=> 'isolated-db'}},postgres:()=>sql,Request,Response,TextEncoder,crypto,structuredClone,console};vm.createContext(context);
  vm.runInContext(fs.readFileSync('site-contract-v451.js','utf8'),context);
- vm.runInContext(stripTypeScriptTypes(fs.readFileSync(file,'utf8').replace(/^import .*;\n/gm,'')),context);
+ vm.runInContext(stripTypeScriptTypes(fs.readFileSync(file,'utf8').replace(/^import .*;\r?\n/gm,'')),context);
  const invoke=async(action,extra={},role='safety')=>{
   const response=await handler(new Request('https://isolated.test',{method:'POST',headers:{'content-type':'application/json','x-enl-app':'incident-report-v2',origin:'https://enlsafety.github.io'},body:JSON.stringify({action,actor:{id:role==='field'?'qa-field':'qa-safety',name:'격리 테스트',role,siteId:role==='field'?'qa-site':''},actorPasswordHash:'qa-proof',actorPinHash:'qa-pin',...extra})}));
   return {status:response.status,body:await response.json()};
@@ -70,7 +70,7 @@ function harness(file){
  const stale=clone(state.records[0]);stale.corrective={...stale.corrective,reviewNote:'stale attempt'};stale._syncBaseVersion=0;stale._syncMutationId='qa-stale';
  const unchanged=clone(state.records),writeCount=state.writes.length;r=await invoke('push',{incidents:[first,stale]});assert.equal(r.status,409);assert.equal(r.body.message,'enl_sync_conflict_version');assert.deepEqual(state.records,unchanged,'whole push rolls back after a later conflict');assert.equal(state.writes.length,writeCount);assert.ok(state.rollbacks>0);
  // The existing public-read serializer accepts verified ERP approval without forging approvedAt.
- const ctx={Deno:{serve:()=>{},env:{get:()=>''}},postgres:()=>{},Request,Response,TextEncoder,crypto,structuredClone,console};vm.createContext(ctx);vm.runInContext(stripTypeScriptTypes(fs.readFileSync('edge-functions/enl-incident-sync-v411/index.ts','utf8').replace(/^import .*;\n/gm,'')),ctx);ctx.sample=clone(state.records[0]);
+ const ctx={Deno:{serve:()=>{},env:{get:()=>''}},postgres:()=>{},Request,Response,TextEncoder,crypto,structuredClone,console};vm.createContext(ctx);vm.runInContext(stripTypeScriptTypes(fs.readFileSync('edge-functions/enl-incident-sync-v411/index.ts','utf8').replace(/^import .*;\r?\n/gm,'')),ctx);ctx.sample=clone(state.records[0]);
  assert.equal(vm.runInContext('publicIncident(sample).id',ctx),'qa-bulk');assert.equal(vm.runInContext('publicIncident(sample).approvedAt',ctx),'');
  state.records[0].bulkInvalidation={active:true,reason:'격리 무효'};
  r=await invoke('pull');assert.deepEqual(r.body.incidents.map(i=>i.id),['qa-normal']);

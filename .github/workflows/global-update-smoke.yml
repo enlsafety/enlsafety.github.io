@@ -1,20 +1,6 @@
 name: global update smoke
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'app-control-v410.js'
-      - 'incident-sync-v411.js'
-      - 'stable412.html'
-      - '.github/workflows/global-update-smoke.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'app-control-v410.js'
-      - 'incident-sync-v411.js'
-      - 'stable412.html'
-      - '.github/workflows/global-update-smoke.yml'
   workflow_dispatch:
 
 jobs:

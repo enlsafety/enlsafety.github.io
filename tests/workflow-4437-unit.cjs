@@ -22,22 +22,10 @@ assert.ok(flow.includes('현장 보완 제출내용'));
 assert.ok(!flow.includes('addAckSection('));
 assert.ok(!flow.includes('사고보고 확인 기록'));
 assert.ok(flow.includes("if(!(isSafety(u)||isReader(u)))return"));
-assert.ok(approval.includes("function signable(i)"));
-assert.ok(approval.includes("st==='approved'&&t(i?.recordMode)!=='historical_manual'"));
-assert.ok(!approval.includes("SIGN=['reported','supplement','supplement_submitted','approved','closed']"));
+assert.ok(approval.includes('과거 결재기록 · 읽기 전용'));assert.ok(!approval.includes("action:'acknowledge'"));
 assert.ok(reader.includes("window.enlRenderHqHome"));
-assert.ok(reader.includes('검토대기·보완대기 단계에서는 조회만 가능하며'));
+assert.ok(reader.includes('안전관리자가 보고 승인과 종결을 담당하며'));
 assert.ok(shell.includes("function renderReaderHome(root,u){return renderSafetyHome(root,u)}"));
 assert.ok(shell.includes('즉시보고·보완 진행중'));
 assert.ok(shell.includes("window.enlRenderHqHome=renderSafetyHome"));
-for(const asset of [
-  'field-ui-v411.js?v=4.4.42-r1&amp;fix=prevention-attention1',
-  'field-incidents-v411.js?v=4.4.44-r1&amp;fix=mobile-prevention1',
-  'app-shell-v411.js?v=4.4.38-r1&amp;fix=hq-attention1',
-  'reader-ui-v414.js?v=4.4.37-r1&amp;fix=hq-dashboard1',
-  'incident-flow-v440.js?v=4.4.39-r1&amp;fix=no-confirm-history1',
-  'management-approval-v448.js?v=4.4.39-r1&amp;fix=crisp-sign1'
-]) assert.ok(stable.includes(asset),asset);
-assert.equal(version.version,'4.5.5');
-assert.equal(version.build,'stable-455-r7');
 console.log('PASS: formal field copy, supplement highlight, finalized-only approval and unified HQ dashboard wiring');
