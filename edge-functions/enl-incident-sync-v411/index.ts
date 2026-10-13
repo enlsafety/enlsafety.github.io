@@ -293,9 +293,19 @@ Deno.serve(async(req:Request)=>{
         if(!prev){
           if(incomingHistorical){
             const hm=historicalMeta(next);
-            next.reporterName=hm.originalReporterName||clean(next.reporterName)||"기존 ERP 자료";next.reporterId="";next.registeredAt=now;next.status="closed";next.corrective=null;next.approvedBy="";next.approvedAt=null;next.closedAt=hm.closedAt||now;
-            official.transferRegistration={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now,proof:actor.proof,source:"erp",erpApproved:true,erpApprovalDate:hm.erpApprovalDate,erpReference:hm.erpReference};
-            official.originalReporter=hm.originalReporterName?{name:hm.originalReporterName,source:"erp_record"}:null;
+            if(isManualHistorical(next)){
+              next.reporterName=actor.name;next.reporterId=actor.id;next.registeredAt=now;
+              next.approvedBy=actor.name;next.approvedAt=now;next.status="approved";next.closedAt=null;next.corrective=null;
+              official.transferRegistration={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now,proof:actor.proof,source:"manual_archive",erpApproved:false,erpReference:hm.erpReference||null};
+              official.reporter={id:actor.id,name:actor.name,role:actor.role,position:actor.position,siteId:"",at:now,proof:actor.proof};
+              official.review={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now,result:"approved",proof:actor.proof};
+              official.approval={...official.review,source:"manual_historical"};
+              official.originalReporter=hm.originalReporterName?{name:hm.originalReporterName,source:"historical_record"}:null;
+            }else{
+              next.reporterName=hm.originalReporterName||clean(next.reporterName)||"기존 ERP 자료";next.reporterId="";next.registeredAt=now;next.status="closed";next.corrective=null;next.approvedBy="";next.approvedAt=null;next.closedAt=hm.closedAt||now;
+              official.transferRegistration={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now,proof:actor.proof,source:"erp",erpApproved:true,erpApprovalDate:hm.erpApprovalDate,erpReference:hm.erpReference};
+              official.originalReporter=hm.originalReporterName?{name:hm.originalReporterName,source:"erp_record"}:null;
+            }
           }else{
             next.reporterName=actor.name;next.reporterId=actor.id;next.registeredAt=now;
             official.reporter={id:actor.id,name:actor.name,role:actor.role,position:actor.position,siteId:actor.siteId,at:now,proof:actor.proof};
@@ -332,7 +342,7 @@ Deno.serve(async(req:Request)=>{
           if(next.corrective&&typeof next.corrective==="object"){next.corrective={...next.corrective,status:"approved",reviewedBy:actor.name,reviewedAt:now};}
           official.finalApproval={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now,proof:actor.proof};
         }
-        if(isHistoricalTransfer(next)){const hm=historicalMeta(next);official.transferClosure={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now,source:"erp",erpApproved:true,erpApprovalDate:hm.erpApprovalDate,erpReference:hm.erpReference,existingActionEvidence:hm.existingActionEvidence,followUpType:hm.followType,closeReason:hm.closeReason||"ERP 기결재 과거사고 이력관리 목적 이관종결"};}
+        if(isLegacyClosedTransfer(next)){const hm=historicalMeta(next);official.transferClosure={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now,source:"erp",erpApproved:true,erpApprovalDate:hm.erpApprovalDate,erpReference:hm.erpReference,existingActionEvidence:hm.existingActionEvidence,followUpType:hm.followType,closeReason:hm.closeReason||"ERP 기결재 과거사고 이력관리 목적 이관종결"};}
         official.lastModified={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now};
         next.officialRecord=actor.role==="field"&&prev&&["approved","closed"].includes(clean(prev.status))?structuredClone(prev.officialRecord||{}):official;
         if(clean(next.status)==="closed"&&clean(prev?.status)!=="closed")next.officialRecord.finalHash=await finalHash(next);
