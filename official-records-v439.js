@@ -109,6 +109,7 @@
 
   function decorateModal(){
     css();const modal=document.querySelector('#modalRoot .modal');if(!modal)return;
+    if(modal.querySelector('#historical461PasswordForm,#historical461EditForm,#historical461History'))return;
     let i=currentIncidentId?incident(currentIncidentId):null;
     if(!i){const id=modal.querySelector('[data-lifecycle-final]')?.getAttribute('data-lifecycle-final');if(id)i=incident(id)}
     if(!i)return;
