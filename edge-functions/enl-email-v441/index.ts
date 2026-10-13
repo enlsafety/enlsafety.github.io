@@ -187,6 +187,10 @@ async function flush(sql:any){
     const age=Date.now()-new Date(ev.created_at).getTime();
     if(age>24*60*60*1000){await finishEvent(sql,ev.id,{sent_at:new Date().toISOString(),last_error:"expired"});skipped++;continue}
     const p=await profile(sql,clean(ev.user_id)),urgent=clean(ev.kind)==="urgent_incident"&&["safety","manager","executive"].includes(p?.role||"");
+    // Temporary policy: suppress closure email, including already queued items.
+    if(["manager","executive"].includes(p?.role||"")&&["action_approved","incident_closed"].includes(clean(ev.kind))){
+      await finishEvent(sql,ev.id,{sent_at:new Date().toISOString(),last_error:"hq_final_notifications_paused"});skipped++;continue;
+    }
     if(!p?.email){await finishEvent(sql,ev.id,{sent_at:new Date().toISOString(),last_error:"email_missing"});skipped++;continue}
     if(p.emailEnabled===false&&!urgent){await finishEvent(sql,ev.id,{sent_at:new Date().toISOString(),last_error:"email_disabled"});skipped++;continue}
     if(clean(ev.kind).startsWith("historical_followup_")){
