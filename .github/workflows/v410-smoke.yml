@@ -139,12 +139,12 @@ jobs:
             'industrial-report-v436.js?v=4.4.29-r1&amp;fix=deadline-confirmation3-required1',
             'closed-incident-reopen-v438.js?v=4.5.4-lifecycle1',
             'official-records-v439.js?v=4.5.4-lifecycle1',
-            'incidents-v410.js?v=4.5.4-lifecycle1',
+            'incidents-v410.js?v=4.5.6-manual1',
             'report-v410.js?v=4.5.4-lifecycle1',
             'field-incidents-v411.js?v=4.4.44-r1&amp;fix=mobile-prevention1',
             'app-shell-v411.js?v=4.5.6-manual1',
             'reader-ui-v414.js?v=4.5.6-manual1',
-            'reader-experience-v424.js?v=4.4.43-r1&amp;fix=safety-action-counts1',
+            'reader-experience-v424.js?v=4.5.6-manual1',
             'incident-flow-v440.js?v=4.4.39-r1&amp;fix=no-confirm-history1',
           ]
           for x in required: assert x in html,x
