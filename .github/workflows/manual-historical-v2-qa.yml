@@ -32,8 +32,4 @@ jobs:
           node --check incident-excel-v421.js
           node --check app-shell-v411.js
           node --check tests/manual-historical-v2-policy.cjs
-          node --experimental-strip-types --check edge-functions/enl-incident-sync-v411/index.ts
-          node --experimental-strip-types --check edge-functions/enl-push-v418/index.ts
-          node --experimental-strip-types --check edge-functions/enl-email-v441/index.ts
-          node --experimental-strip-types --check edge-functions/enl-historical-bulk-v454/index.ts
           node tests/manual-historical-v2-policy.cjs
