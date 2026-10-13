@@ -77,8 +77,11 @@ async function commit(u,i){
  currentView='incidents';renderShell(u);
  alert(syncOk?'과거사고 최초 등록·승인이 완료되었습니다. 재발방지계획을 수립해 주세요.':'로컬 저장은 완료했으나 서버 동기화를 확인하지 못했습니다. 인터넷 연결과 동기화 상태를 확인해 주세요.');
 }
-function edit(i,u){if(!isClosed(i)||!isSafety(u))return false;alert('기존에 종결된 과거사고의 원본내용은 수정할 수 없습니다.');return false;/*try{closeModal?.()}catch(e){}editId=String(i.id);startedAt=String(i?.historicalImport?.startedAt||i?.historicalImport?.transferredAt||N());currentView='report';renderShell(u);const root=document.getElementById('view');if(root)form(root,u,i.category,i);return true}
-*/
+function edit(i,u){
+ if(!isSafety(u))return false;
+ alert('과거에 이관종결된 사고의 기존 기록은 수정할 수 없습니다.');
+ return false;
+}
 const baseReport=window.renderUnifiedReport;if(typeof baseReport==='function'){const wrapped=function(root,u){if(editId){const i=(data.incidents||[]).find(x=>String(x.id)===String(editId));if(i&&isClosed(i))return form(root,u,i.category,i)}const out=baseReport.apply(this,arguments);setTimeout(()=>addPicker(root,u),0);return out};window.renderUnifiedReport=wrapped;try{renderUnifiedReport=wrapped}catch(e){}}
 window.addEventListener('enl-contracts-ready',()=>{const select=document.getElementById('hSite');if(select){const value=select.value;select.innerHTML=sites(value);select.dispatchEvent(new Event('change'))}});
 css();window.enlStartHistoricalTransfer449=(u=currentUser?.())=>{if(!isSafety(u))return alert('과거사고 이관등록은 안전관리자만 할 수 있습니다.');startedAt=N();editId='';draft=null;currentView='report';renderShell(u);const root=document.getElementById('view');if(root)start(root,u)};window.enlIsHistoricalIncident449=isHist;window.enlIsHistoricalTransferClosed449=isClosed;window.enlEditHistoricalTransfer449=edit;window.ENL_HISTORICAL_TRANSFER_VERSION=VERSION;
