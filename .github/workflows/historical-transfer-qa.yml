@@ -81,8 +81,10 @@ jobs:
           assert "historicalImport" in hist
           for token in ['<select id="hEvent" required><option value="">선택</option>','<select id="hAction" required><option value="">선택</option>','<select id="hFollow" required><option value="">선택</option>']:
             assert token in hist, token
-          for token in ["erpApproved:true","workflowExempt:true","silent:true","transferState:'closed'","status:'closed'","corrective:null","additionalAction","recordMode:'historical_transfer'","historicalTransfer","reporterId:''","hSeverity","enlStartHistoricalTransfer449"]:
+          for token in ["workflowExempt:false","silent:true","transferState:'approved'","status:'approved'","corrective:null","approvedBy:u.name","approvedAt:ts","closedAt:null","recordMode:'historical_manual'","historicalTransfer","hSeverity","enlStartHistoricalTransfer449"]:
             assert token in hist, token
+          assert "수동 등록" in hist and "재발방지계획" in hist
+          assert "ERP 기결재 사고 이력등록" not in hist
           for token in ["historicalClosed","!historicalClosed(i)"]:
             assert token in prev, token
           assert "historicalClosed(i)" in reopen
@@ -100,7 +102,7 @@ jobs:
           assert 'reader-ui-v414.js?v=4.4.37-r1&amp;fix=hq-dashboard1' in stable
           assert 'official-records-v439.js?v=4.5.4-lifecycle1' in stable
           assert 'site-contract-v451.js?v=4.4.24-r1' in stable
-          assert 'historical-transfer-v449.js?v=4.4.29-r1&amp;fix=required1' in stable
-          assert 'content="4.5.5-r6"' in stable
-          assert version["version"]=="4.5.5" and version["build"]=="stable-455-r6"
-          print('OK: historical ERP transfer-close flow invariants preserved')
+          assert 'historical-transfer-v449.js?v=4.4.29-r1&amp;fix=required1&amp;manual=v2' in stable
+          assert 'content="4.5.5-r7"' in stable
+          assert version["version"]=="4.5.5" and version["build"]=="stable-455-r7"
+          print('OK: new manual historical flow plus old ERP transfer audit views preserved')
