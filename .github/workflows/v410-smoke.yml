@@ -179,7 +179,7 @@ jobs:
           assert 'report410-picker-placeholder' in report and '선택하세요' in report
           assert "return {date:'',time:''}" in report
           hist=Path('historical-transfer-v449.js').read_text(encoding='utf-8')
-          for x in ['<select id="hEvent" required><option value="">선택</option>','<select id="hAction" required><option value="">선택</option>','<select id="hFollow" required><option value="">선택</option>']: assert x in hist,x
+          for x in ['<select id="hEvent" required><option value="">선택</option>','<select id="hAction">','<select id="hFollow">','manualSafetyApproval:true', "status:'approved'"]: assert x in hist,x
           assert "siteStatus='active'" in stats and "siteId=''" in stats
           assert 'id="stats426Status"' not in stats and 'id="stats426Site"' not in stats
           flow=Path('incident-flow-v440.js').read_text(encoding='utf-8')
