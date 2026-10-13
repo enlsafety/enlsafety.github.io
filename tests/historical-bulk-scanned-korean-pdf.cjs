@@ -95,4 +95,21 @@ const plain=Core.analyze([{id:'text-form',method:'text',units:[{location:'시트
 assert.equal(plain.state,'ready','ordinary structured spreadsheet must retain existing behavior');
 assert.equal(plain.validation.length,0);
 assert.equal(fs.readFileSync('historical-bulk-core-v454.js','utf8'),fs.readFileSync('edge-functions/enl-historical-bulk-v454/historical-bulk-core.js','utf8'));
+
+// Quote totals must not silently become VAT or subtotal when OCR collapses
+// several financial labels into one line.
+const quoteFrom=(text,identity)=>Core.analyze([{
+ ...file,id:'synthetic-quote-'+identity,
+ units:[file.units[0],{...file.units[1],text}]
+}],sites)[0];
+const sameRow=quoteFrom('견 적 서\n합계금액 (W 135,700) 공급가액 123,364 부가세 12,336','same-row');
+assert.equal(sameRow.values.repairCost,'135,700','grand total first; VAT must never win');
+assert.ok(sameRow.evidence.repairCost.some(e=>e.quote.includes('135,700')));
+assert.equal(sameRow.state,'review','scan still requires manual review');
+const nextRow=quoteFrom('견 적 서\n합계금액\n(W 245,000)\n공급가액 222,727\n세액 22,273','next-row');
+assert.equal(nextRow.values.repairCost,'245,000','grand total on next row');
+const noTotal=quoteFrom('견 적 서\n합계금액 공급가액 123,364 부가세 12,336','no-total');
+assert.ok(Core.missing(noTotal.values.repairCost),'unreadable grand total must remain blank');
+const ambiguousTotal=quoteFrom('견 적 서\n합계금액 123,456 678,910\n부가세 10,000','ambiguous');
+assert.ok(Core.missing(ambiguousTotal.values.repairCost),'ambiguous grand total must not be guessed');
 console.log('PASS: multi-page Korean scanned form, exact observed facts, site identification, property loss, embedded quote, no fake ERP approval or immediate response, structured Excel regression');
