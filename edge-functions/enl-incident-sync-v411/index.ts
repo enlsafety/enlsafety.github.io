@@ -244,12 +244,16 @@ Deno.serve(async(req:Request)=>{
       for(const raw0 of incoming){
         if(!raw0||typeof raw0!=="object")continue;const id=clean(raw0.id),siteId=clean(raw0.siteId);if(!id||!siteId)continue;if(["worker","field"].includes(actor.role)&&siteId!==actor.siteId)continue;
         const incomingHistorical=isHistoricalTransfer(raw0);
-        if(incomingHistorical){
-          if(actor.role!=="safety")rejectWrite("historical_transfer_safety_only",403);
-          const hm=historicalMeta(raw0);
-          if(!hm.erpApproved||clean(raw0.status)!=="closed")rejectWrite("invalid_historical_transfer",400);
-        }
         const rr=await sql`select incident_id,site_id,payload,created_at from public.enl_incident_shared where incident_id=${id} limit 1 for update`,row=rr[0],prev=parsePayload(row?.payload);
+        if(incomingHistorical){
+          if(!prev){
+            if(actor.role!=="safety")rejectWrite("historical_transfer_safety_only",403);
+            if(isManualHistorical(raw0)){
+              if(clean(raw0.status)!=="approved"||!clean(raw0.approvedBy)||!clean(raw0.approvedAt)||!clean(raw0?.reportDetails?.incidentHow))rejectWrite("manual_historical_approval_required",400);
+              if(raw0.historicalImport?.erpApproved===true||raw0.historicalImport?.workflowExempt===true)rejectWrite("manual_historical_provenance_invalid",400);
+            }else if(!historicalMeta(raw0).erpApproved||clean(raw0.status)!=="closed")rejectWrite("invalid_historical_transfer",400);
+          }else if(actor.role!=="safety"&&!(actor.role==="field"&&isManualHistorical(prev)))rejectWrite("historical_transfer_locked",403);
+        }
         if(bulkInactive(prev)){ignored++;continue;} // A stale client may still hold a now-invalidated incident.
         if(!prev&&isBulkImported(raw0))rejectWrite("bulk_registration_requires_import_api",409);
         if(prev&&isBulkImported(prev)){
