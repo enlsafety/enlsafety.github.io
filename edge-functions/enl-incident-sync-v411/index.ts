@@ -217,10 +217,11 @@ Deno.serve(async(req:Request)=>{
       if(documentType==="incident_report"&&isBulkImported(prev))return json({ok:false,message:"external_initial_approval_no_duplicate_signature"},409);
       if(documentType==="incident_report"){
         const reportStatus=clean(prev?.status),actionStatus=clean(prev?.corrective?.status);
-        const reportAckAllowed=reportStatus==="approved"||(reportStatus==="closed"&&actionStatus==="approved");
+        const reportAckAllowed=reportStatus==="approved"&&prev?.historicalImport?.manualSafetyApproval!==true;
         if(!reportAckAllowed)return json({ok:false,message:"not_available"},409);
       }
       if(documentType==="corrective_action"&&clean(prev?.corrective?.status)!=="approved")return json({ok:false,message:"action_not_approved"},409);
+       if(documentType==="corrective_action"&&["manager","executive"].includes(actor.role))return json({ok:false,message:"hq_final_approval_paused"},409);
       const acknowledgements=Array.isArray(prev.acknowledgements)?prev.acknowledgements.filter((x:any)=>!(clean(x.userId)===actor.id&&clean(x.documentType)===documentType)):[];
       const receipt={documentType,userId:actor.id,name:actor.name,role:actor.role,position:actor.position,siteId:actor.siteId,ackAt:now,label:documentType==="incident_report"?"본사 결재":"재발방지조치 결재"};
       acknowledgements.push(receipt);
