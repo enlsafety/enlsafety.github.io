@@ -179,6 +179,11 @@ async function dispatchCore(sql:any,c:any){
     }
     const subs=await sql`select id,endpoint,p256dh,auth,role,preferences from public.enl_push_subscriptions where user_id=${ev.user_id}`;
     const prof=await notificationProfile(sql,clean(ev.user_id));
+    // Temporarily suspend HQ completion push notifications.
+    if(["action_approved","incident_closed"].includes(clean(ev.kind))&&["manager","executive"].includes(prof?.role||"")){
+      await sql`update public.enl_push_events set sent_at=now(),last_error='final_hq_notification_suspended' where id=${ev.id}`;
+      continue;
+    }
     const eligible=(subs||[]).filter((s:any)=>allowed(s,ev.kind,prof?.pushEnabled!==false));
     if(!eligible.length){
       await sql`update public.enl_push_events set sent_at=now(),last_error=null where id=${ev.id}`;

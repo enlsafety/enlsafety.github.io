@@ -117,16 +117,16 @@ jobs:
           import json
 
           meta=json.loads(Path('version.json').read_text(encoding='utf-8'))
-          assert meta.get('build')=='stable-455-r6',meta
+          assert meta.get('build')=='stable-455-r7',meta
           assert meta.get('stableEntry')=='stable412.html',meta
           assert meta.get('version')=='4.5.5' and meta.get('currentStableVersion')=='4.5.5',meta
 
           index=Path('index.html').read_text(encoding='utf-8')
-          for x in ["const BUILD='455-r6'",'beforeinstallprompt','stable412.html?entry=root&build=455-r6',"/sw-v418.js?v=4.5.5-hybridpdf1"]: assert x in index,x
+          for x in ["const BUILD='455-r7'",'beforeinstallprompt','stable412.html?entry=root&build=455-r7',"/sw-v418.js?v=4.5.5-manual1"]: assert x in index,x
 
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'enl-build" content="4.5.5-r6',
+            'enl-build" content="4.5.5-r7',
             'incident-sync-v411.js?v=4.4.34-r1&amp;fix=proof-reuse1',
             'workflow-prevention-v429.js?v=4.4.43-r1&amp;fix=safety-action-counts1',
             'workflow-lifecycle-v413.js?v=4.4.14-r1&amp;fix=historical-transfer1',
@@ -160,7 +160,7 @@ jobs:
           assert 'required-fields-v453.js?v=4.4.31-r1' in html
           assert 'ui-stability-v422.js?v=4.4.29-r1&amp;fix=hq-email-edit1-required1' in html
           assert 'reader-ack-ux-v423.js' not in html
-          assert 'historical-transfer-v449.js?v=4.4.29-r1&amp;fix=required1' in html
+          assert 'historical-transfer-v449.js?v=4.4.29-r1&amp;fix=required1&amp;manual=v2' in html
           assert 'site-dashboard-v450.js?v=4.4.33-r1&amp;fix=map-lock1' in html
           assert 'site-master-seed-v400.js?v=4.4.24-r1' in html
           dash=Path('site-dashboard-v450.js').read_text(encoding='utf-8')
@@ -179,7 +179,7 @@ jobs:
           assert 'report410-picker-placeholder' in report and '선택하세요' in report
           assert "return {date:'',time:''}" in report
           hist=Path('historical-transfer-v449.js').read_text(encoding='utf-8')
-          for x in ['<select id="hEvent" required><option value="">선택</option>','<select id="hAction" required><option value="">선택</option>','<select id="hFollow" required><option value="">선택</option>']: assert x in hist,x
+          for x in ['<select id="hEvent" required><option value="">선택</option>','<select id="hAction" required><option value="">선택</option>','<input type="hidden" id="hFollow" value="new_improvement">']: assert x in hist,x
           assert "siteStatus='active'" in stats and "siteId=''" in stats
           assert 'id="stats426Status"' not in stats and 'id="stats426Site"' not in stats
           flow=Path('incident-flow-v440.js').read_text(encoding='utf-8')
@@ -238,7 +238,7 @@ jobs:
           sw=Path('sw-v418.js').read_text(encoding='utf-8')
           assert 'data-pm434-hq-edit' in hq and 'data-pm434-hq-pw' in hq
           assert 'PUSH_CONFIRM_API' in sw and "action:'ack_test_token'" in sw and "action:'confirm',title:'확인'" in sw
-          for x in ["4.5.5-hybridpdf1","PRECACHE","fetchWithTimeout","cache.match(req)","stable412.html?offline=1"]: assert x in sw,x
+          for x in ["4.5.5-manual1","PRECACHE","fetchWithTimeout","cache.match(req)","stable412.html?offline=1"]: assert x in sw,x
           assert "status==='confirmed'" in hq and '수신 확인' in hq
           assert html.index('personnel-management-v434.js') < html.index('hq-notification-status-v437.js')
 
@@ -324,7 +324,7 @@ jobs:
           for x in ['supplement_request','보완요청','supplement_submit','보완자료 제출','corrective_approve','재발방지조치 승인']: assert x in official,x
           assert '내용 확인기록' not in official
           approval=Path('management-approval-v448.js').read_text(encoding='utf-8')
-          for x in ["4.4.39-crisp-sign1","function signable(i)","st==='approved'||(st==='closed'&&act==='approved')",'aria-label="본인 결재하기"',"serverOk=true","font-size:10.5px","text-rendering:geometricPrecision"]: assert x in approval,x
+          for x in ["4.4.39-crisp-sign1","function signable(i)","st==='approved'&&t(i?.recordMode)!=='historical_manual'",'aria-label="본인 결재하기"',"serverOk=true","font-size:10.5px","text-rendering:geometricPrecision"]: assert x in approval,x
           assert 'enl448OwnPulse' not in approval and 'transform:scale(' not in approval
           shell=Path('app-shell-v411.js').read_text(encoding='utf-8')
           for x in ["4.4.38-hq-attention1","즉시보고·보완 진행중","enlRenderHqHome=renderSafetyHome","승인완료 사고 결재가 필요합니다.","결재하러 가기","재발방지계획 수립대기"]: assert x in shell,x

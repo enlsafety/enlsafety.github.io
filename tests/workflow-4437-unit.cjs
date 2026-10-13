@@ -23,7 +23,7 @@ assert.ok(!flow.includes('addAckSection('));
 assert.ok(!flow.includes('사고보고 확인 기록'));
 assert.ok(flow.includes("if(!(isSafety(u)||isReader(u)))return"));
 assert.ok(approval.includes("function signable(i)"));
-assert.ok(approval.includes("st==='approved'||(st==='closed'&&act==='approved')"));
+assert.ok(approval.includes("st==='approved'&&t(i?.recordMode)!=='historical_manual'"));
 assert.ok(!approval.includes("SIGN=['reported','supplement','supplement_submitted','approved','closed']"));
 assert.ok(reader.includes("window.enlRenderHqHome"));
 assert.ok(reader.includes('검토대기·보완대기 단계에서는 조회만 가능하며'));
@@ -39,5 +39,5 @@ for(const asset of [
   'management-approval-v448.js?v=4.4.39-r1&amp;fix=crisp-sign1'
 ]) assert.ok(stable.includes(asset),asset);
 assert.equal(version.version,'4.5.5');
-assert.equal(version.build,'stable-455-r6');
+assert.equal(version.build,'stable-455-r7');
 console.log('PASS: formal field copy, supplement highlight, finalized-only approval and unified HQ dashboard wiring');

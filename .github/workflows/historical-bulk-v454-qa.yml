@@ -1,73 +1,26 @@
-name: historical bulk v454 QA
+name: historical importer retirement QA
 on:
   pull_request:
     branches: [main]
-    paths:
-      - 'historical-bulk-*.js'
-      - 'edge-functions/enl-historical-bulk-v454/**'
-      - 'edge-functions/enl-incident-sync-v411/**'
-      - 'edge-functions/enl-incident-compliance-v439/**'
-      - 'supabase/migrations/*historical_bulk*.sql'
-      - 'supabase/migrations/*corrective_ack_guard.sql'
-      - 'stable412.html'
-      - 'tests/historical-bulk-*.cjs'
-      - '.github/workflows/historical-bulk-v454-qa.yml'
   push:
     branches: [main]
     paths:
-      - 'historical-bulk-*.js'
-      - 'edge-functions/enl-historical-bulk-v454/**'
-      - 'edge-functions/enl-incident-sync-v411/**'
-      - 'edge-functions/enl-incident-compliance-v439/**'
-      - 'supabase/migrations/*historical_bulk*.sql'
-      - 'supabase/migrations/*corrective_ack_guard.sql'
       - 'stable412.html'
-      - 'tests/historical-bulk-*.cjs'
-      - '.github/workflows/historical-bulk-v454-qa.yml'
+      - 'sw-v418.js'
+      - 'edge-functions/enl-historical-bulk-v454/**'
+      - 'tests/manual-historical-v2-policy.cjs'
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
-  bulk-qa:
+  retired-importer:
     runs-on: ubuntu-latest
-    timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: JavaScript syntax and deterministic import core
-        run: |
-          node --check historical-bulk-core-v454.js
-          node --check historical-bulk-extract-v454.js
-          node --check historical-bulk-ui-v454.js
-          node --check tests/historical-bulk-v454-unit.cjs
-          node --check tests/historical-bulk-ui-browser.cjs
-          node tests/historical-bulk-v454-unit.cjs
-          node tests/historical-bulk-core-extended.cjs
-          node tests/historical-bulk-legacy-erp-exception.cjs
-          node tests/historical-bulk-scanned-korean-pdf.cjs
-          node --check tests/historical-bulk-summary-quote-browser.cjs
-          node tests/historical-bulk-analyze-unresolved-site.cjs
-          node tests/historical-bulk-workflow-edge.cjs
-          node tests/historical-bulk-sync-cache.cjs
-      - name: Install isolated browser QA
-        run: |
-          npm install --no-save --package-lock=false playwright@1.51.1 jszip@3.10.1 @electric-sql/pglite@0.3.10
-          npx playwright install --with-deps chromium webkit
-      - name: Database role, corrective acknowledgement and initial approval guards
-        run: |
-          node tests/historical-bulk-corrective-ack-db.cjs
-          node tests/historical-bulk-legacy-sql-db.cjs
-      - name: iPhone WebKit and desktop Chromium user flow
-        run: |
-          node tests/historical-bulk-ui-browser.cjs
-          node tests/historical-bulk-simple-auto-browser.cjs
-          node tests/historical-bulk-legacy-ui-browser.cjs
-          node tests/historical-bulk-summary-quote-browser.cjs
-          node tests/historical-bulk-upload-stop-browser.cjs
-          node tests/historical-bulk-ocr-reuse-browser.cjs
-          node tests/historical-bulk-hybrid-pdf-browser.cjs
-          node tests/historical-bulk-document-browser.cjs
-          node tests/historical-bulk-general-entry-browser.cjs
-          node tests/historical-bulk-startup-browser.cjs
+      - run: |
+          node --check historical-transfer-v449.js
+          node --check workflow-prevention-v429.js
+          node tests/manual-historical-v2-policy.cjs
