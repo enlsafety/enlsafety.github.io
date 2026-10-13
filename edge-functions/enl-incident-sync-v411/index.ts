@@ -36,7 +36,7 @@ async function verifyActor(sql:any,body:any,strong=false){
 const enc=new TextEncoder();
 async function sha256Hex(v:string){const b=await crypto.subtle.digest("SHA-256",enc.encode(v));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
 function canonicalValue(v:any):any{if(Array.isArray(v))return v.map(canonicalValue);if(v&&typeof v==="object"){const o:any={};for(const k of Object.keys(v).sort())o[k]=canonicalValue(v[k]);return o;}return v}
-function reportForHash(i:any){if(!i||typeof i!=="object")return {};const x=structuredClone(i);for(const k of ["status","priority","prioritySource","prioritySetBy","prioritySetAt","legalReview","safetyNote","approvedBy","approvedAt","rejectedBy","rejectedAt","rejectionNote","closedAt","corrective","readReceipts","acknowledgements","reportWorkflow","reviewHistory","lifecycleHistory","officialRecord","updatedAt","lastModifiedBy","lastModifiedRole","lastModifiedPosition","lastModifiedAt","resubmittedBy","resubmittedById","resubmittedAt","reopenedBy","reopenedAt","reopenReason","_syncBaseVersion","_syncVersion","_syncMutationId"])delete x[k];return canonicalValue(x)}
+function reportForHash(i:any){if(!i||typeof i!=="object")return {};const x=structuredClone(i);if(isManualHistorical(i)&&x.reportDetails){for(const key of ['medicalCost','repairCost','damageAmount','medicalCostDetail','repairCostDetail'])delete x.reportDetails[key];}for(const k of ["status","priority","prioritySource","prioritySetBy","prioritySetAt","legalReview","safetyNote","approvedBy","approvedAt","rejectedBy","rejectedAt","rejectionNote","closedAt","corrective","readReceipts","acknowledgements","reportWorkflow","reviewHistory","lifecycleHistory","officialRecord","updatedAt","lastModifiedBy","lastModifiedRole","lastModifiedPosition","lastModifiedAt","resubmittedBy","resubmittedById","resubmittedAt","reopenedBy","reopenedAt","reopenReason","_syncBaseVersion","_syncVersion","_syncMutationId"])delete x[k];return canonicalValue(x)}
 async function reportHash(i:any){return sha256Hex(JSON.stringify(reportForHash(i)))}
 function finalForHash(i:any){const x=structuredClone(i||{});if(x.officialRecord){x.officialRecord={...x.officialRecord};delete x.officialRecord.reportHash;delete x.officialRecord.finalHash;}for(const k of ["updatedAt","lastModifiedAt","readReceipts","acknowledgements","_syncBaseVersion","_syncVersion","_syncMutationId"])delete x[k];return canonicalValue(x)}
 async function finalHash(i:any){return sha256Hex(JSON.stringify(finalForHash(i)))}
@@ -66,6 +66,8 @@ function semanticAction(prev:any,next:any,requestedStatus:string,prevReportHash:
   if(a!==b&&b==="approved")return "corrective_approve";
   return "update";
 }
+function isManualHistorical(i:any){return !!i&&i?.historicalImport?.manualSafetyApproval===true&&i?.historicalImport?.workflowExempt===false&&clean(i.recordMode)==='historical_transfer';}
+function isLegacyClosedTransfer(i:any){return isHistoricalTransfer(i)&&!isManualHistorical(i);}
 function isHistoricalTransfer(i:any){
   if(!i||typeof i!=="object")return false;
   const h=i.historicalImport&&typeof i.historicalImport==="object"?i.historicalImport:{};
@@ -115,7 +117,7 @@ function readerIncident(i:any){
   return out;
 }
 function publicSummary(i:any){
-  const d=i?.reportDetails||{},hist=isHistoricalTransfer(i),hm=historicalMeta(i),c=i?.corrective||{},actionApproved=clean(c.status)==="approved",names=[i?.injuredName,i?.reporterName,i?.approvedBy,c?.ownerName,c?.submittedBy,c?.reviewedBy],place=redact(d.place||i?.place||"",names),work=redact(d.workAction||"",names),how=redact(d.incidentHow||"",names),type=redact(i?.eventType||"사고",names);
+  const d=i?.reportDetails||{},hist=isLegacyClosedTransfer(i),hm=historicalMeta(i),c=i?.corrective||{},actionApproved=clean(c.status)==="approved",names=[i?.injuredName,i?.reporterName,i?.approvedBy,c?.ownerName,c?.submittedBy,c?.reviewedBy],place=redact(d.place||i?.place||"",names),work=redact(d.workAction||"",names),how=redact(d.incidentHow||"",names),type=redact(i?.eventType||"사고",names);
   let overview=[place?`${place}에서`:"",work?`${work} 중`:"",how].filter(Boolean).join(" ");
   if(!overview)overview=legacyUnverified(i)?`${type} 관련 과거사고 이관자료이며 기존 결재근거는 확인되지 않았습니다.`:isBulkImported(i)?`${type} 관련 ERP 기결재 과거사고 이관자료입니다.`:hist?`${type} 관련 과거사고 이관자료입니다.`:`${type} 관련 사고가 발생하여 안전관리자가 검토·승인하였습니다.`;
   if(hist){
@@ -129,7 +131,7 @@ function publicSummary(i:any){
   return {occurredDate:clean(i?.occurredAt).slice(0,10),eventType:type||"안전사고",category:clean(i?.category),place,overview,cause,preventiveAction:action,actionStatus,approvedAt:clean(i?.approvedAt),publishedAt:clean(i?.updatedAt||i?.approvedAt)};
 }
 function publicIncident(i:any){
-  const hist=isHistoricalTransfer(i);
+  const hist=isLegacyClosedTransfer(i);
   if(!i||bulkInactive(i)||!reportApproved(i)||(!hist&&!isBulkImported(i)&&!clean(i.approvedAt)))return null;
   const p=publicSummary(i),hm=historicalMeta(i);
   return {id:clean(i.id),siteId:clean(i.siteId),status:clean(i.status),approvedAt:hist?"":clean(i.approvedAt),updatedAt:clean(i.updatedAt||i.approvedAt||hm.transferredAt),category:p.category,eventType:p.eventType,occurredAt:p.occurredDate,workerPublicOnly:true,workerPublic:p,publicSummary:p,corrective:hist?null:(i?.corrective?.status?{status:clean(i.corrective.status)}:null),recordMode:hist?"historical_transfer":undefined,historicalImport:hist?{enabled:true,erpApproved:true,workflowExempt:true,transferState:"closed",additionalAction:hm.followType==="site_check"?"field_check":hm.followType==="improvement"?"new_improvement":"none"}:undefined,historicalTransfer:hist?{mode:"historical_transfer",status:"closed",erpApproved:true,followUp:{type:hm.followType,status:hm.followStatus}}:undefined};
@@ -215,10 +217,11 @@ Deno.serve(async(req:Request)=>{
       if(documentType==="incident_report"&&isBulkImported(prev))return json({ok:false,message:"external_initial_approval_no_duplicate_signature"},409);
       if(documentType==="incident_report"){
         const reportStatus=clean(prev?.status),actionStatus=clean(prev?.corrective?.status);
-        const reportAckAllowed=reportStatus==="approved"||(reportStatus==="closed"&&actionStatus==="approved");
+        const reportAckAllowed=reportStatus==="approved"&&prev?.historicalImport?.manualSafetyApproval!==true;
         if(!reportAckAllowed)return json({ok:false,message:"not_available"},409);
       }
       if(documentType==="corrective_action"&&clean(prev?.corrective?.status)!=="approved")return json({ok:false,message:"action_not_approved"},409);
+       if(documentType==="corrective_action"&&["manager","executive"].includes(actor.role))return json({ok:false,message:"hq_final_approval_paused"},409);
       const acknowledgements=Array.isArray(prev.acknowledgements)?prev.acknowledgements.filter((x:any)=>!(clean(x.userId)===actor.id&&clean(x.documentType)===documentType)):[];
       const receipt={documentType,userId:actor.id,name:actor.name,role:actor.role,position:actor.position,siteId:actor.siteId,ackAt:now,label:documentType==="incident_report"?"본사 결재":"재발방지조치 결재"};
       acknowledgements.push(receipt);
@@ -242,12 +245,16 @@ Deno.serve(async(req:Request)=>{
       for(const raw0 of incoming){
         if(!raw0||typeof raw0!=="object")continue;const id=clean(raw0.id),siteId=clean(raw0.siteId);if(!id||!siteId)continue;if(["worker","field"].includes(actor.role)&&siteId!==actor.siteId)continue;
         const incomingHistorical=isHistoricalTransfer(raw0);
-        if(incomingHistorical){
-          if(actor.role!=="safety")rejectWrite("historical_transfer_safety_only",403);
-          const hm=historicalMeta(raw0);
-          if(!hm.erpApproved||clean(raw0.status)!=="closed")rejectWrite("invalid_historical_transfer",400);
-        }
         const rr=await sql`select incident_id,site_id,payload,created_at from public.enl_incident_shared where incident_id=${id} limit 1 for update`,row=rr[0],prev=parsePayload(row?.payload);
+        if(incomingHistorical){
+          if(!prev){
+            if(actor.role!=="safety")rejectWrite("historical_transfer_safety_only",403);
+            if(isManualHistorical(raw0)){
+              if(clean(raw0.status)!=="approved"||!clean(raw0.approvedBy)||!clean(raw0.approvedAt)||!clean(raw0?.reportDetails?.incidentHow))rejectWrite("manual_historical_approval_required",400);
+              if(raw0.historicalImport?.erpApproved===true||raw0.historicalImport?.workflowExempt===true)rejectWrite("manual_historical_provenance_invalid",400);
+            }else if(!historicalMeta(raw0).erpApproved||clean(raw0.status)!=="closed")rejectWrite("invalid_historical_transfer",400);
+          }else if(actor.role!=="safety"&&!(actor.role==="field"&&isManualHistorical(prev)))rejectWrite("historical_transfer_locked",403);
+        }
         if(bulkInactive(prev)){ignored++;continue;} // A stale client may still hold a now-invalidated incident.
         if(!prev&&isBulkImported(raw0))rejectWrite("bulk_registration_requires_import_api",409);
         if(prev&&isBulkImported(prev)){
@@ -260,7 +267,7 @@ Deno.serve(async(req:Request)=>{
           if(!isBulkImported(raw0)||["historicalOrigin","externalInitialApproval","bulkInvalidation"].some(k=>JSON.stringify(canonicalValue(prev[k]??null))!==JSON.stringify(canonicalValue(raw0[k]??null))))rejectWrite("bulk_record_scope_locked",409);
         }
         if(actor.role==="worker"&&prev&&!isMine(prev,actor)){ignored++;continue;}
-        if(prev&&isHistoricalTransfer(prev)&&actor.role!=="safety")rejectWrite("historical_transfer_locked",403);
+        if(prev&&isHistoricalTransfer(prev)&&actor.role!=="safety"&&!(actor.role==='field'&&isManualHistorical(prev)))rejectWrite("historical_transfer_locked",403);
         if(prev&&isHistoricalTransfer(prev)&&!incomingHistorical)rejectWrite("historical_transfer_locked",409);
         let next={...raw0,id,siteId};
         const contract=(globalThis as any).ENLContracts;
@@ -276,6 +283,29 @@ Deno.serve(async(req:Request)=>{
         else delete next.siteContractSnapshot;
         if(prev&&comparableIncident(next)===comparableIncident(prev)){ignored++;continue;}
         next=preserveWorkflow(prev,next,actor);
+        if(prev&&isManualHistorical(prev)&&actor.role==="field"){
+          if(clean(prev.status)!=="approved"||!["현장소장","파트장","서무"].includes(clean(actor.position)))rejectWrite("manual_history_field_role_locked",403);
+          const oldC=prev.corrective||{},newC=next.corrective||{};
+          if(!clean(oldC.planDetail)||!clean(oldC.planAt))rejectWrite("prevention_plan_required",409);
+          if(!["planned","in_progress","rejected","submitted"].includes(clean(oldC.status)))rejectWrite("manual_history_action_locked",409);
+          if(![clean(oldC.status),"in_progress","submitted"].includes(clean(newC.status)))rejectWrite("manual_history_action_state_locked",409);
+          if(clean(newC.status)==="submitted"&&!clean(newC.actionDetail))rejectWrite("prevention_action_text_required",409);
+          const allowed=new Set(["status","actionDetail","afterPhotos","actionBy","actionById","actionStartedAt","actionUpdatedAt","submittedBy","submittedById","submittedAt","reviewHistory"]);
+          for(const key of new Set([...Object.keys(oldC),...Object.keys(newC)])){
+            if(!allowed.has(key)&&JSON.stringify(canonicalValue(oldC[key]??null))!==JSON.stringify(canonicalValue(newC[key]??null)))rejectWrite("manual_history_plan_locked",409);
+          }
+          const details=next.reportDetails||{},oldDetails=prev.reportDetails||{};
+          for(const key of ["medicalCost","repairCost","damageAmount"]){
+            const value=details[key],oldValue=oldDetails[key];
+            if(value!==null&&value!==undefined&&clean(value)!==""&&(!Number.isFinite(Number(value))||Number(value)<0))rejectWrite("historical_cost_invalid",400);
+            if(oldValue!==null&&oldValue!==undefined&&clean(oldValue)!==""&&Number(oldValue)>0&&JSON.stringify(value??null)!==JSON.stringify(oldValue))rejectWrite("historical_recorded_cost_locked",409);
+          }
+          next.reportWorkflow=structuredClone(prev.reportWorkflow||{});
+          next.lifecycleHistory=structuredClone(prev.lifecycleHistory||[]);
+          next.reviewHistory=structuredClone(prev.reviewHistory||[]);
+          next.acknowledgements=structuredClone(prev.acknowledgements||[]);
+          next.readReceipts=structuredClone(prev.readReceipts||[]);
+        }
         const requestedStatus=clean(raw0.status),prevReportHash=prev?await reportHash(prev):"",candidateHash=await reportHash(next);
         if(prev&&["approved","closed"].includes(clean(prev.status))&&prevReportHash!==candidateHash){
           if(isBulkImported(prev))rejectWrite("bulk_update_requires_import_api",409);
@@ -287,9 +317,19 @@ Deno.serve(async(req:Request)=>{
         if(!prev){
           if(incomingHistorical){
             const hm=historicalMeta(next);
-            next.reporterName=hm.originalReporterName||clean(next.reporterName)||"기존 ERP 자료";next.reporterId="";next.registeredAt=now;next.status="closed";next.corrective=null;next.approvedBy="";next.approvedAt=null;next.closedAt=hm.closedAt||now;
-            official.transferRegistration={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now,proof:actor.proof,source:"erp",erpApproved:true,erpApprovalDate:hm.erpApprovalDate,erpReference:hm.erpReference};
-            official.originalReporter=hm.originalReporterName?{name:hm.originalReporterName,source:"erp_record"}:null;
+            if(isManualHistorical(next)){
+              next.reporterName=actor.name;next.reporterId=actor.id;next.registeredAt=now;
+              next.approvedBy=actor.name;next.approvedAt=now;next.status="approved";next.closedAt=null;next.corrective=null;
+              official.transferRegistration={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now,proof:actor.proof,source:"manual_archive",erpApproved:false,erpReference:hm.erpReference||null};
+              official.reporter={id:actor.id,name:actor.name,role:actor.role,position:actor.position,siteId:"",at:now,proof:actor.proof};
+              official.review={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now,result:"approved",proof:actor.proof};
+              official.approval={...official.review,source:"manual_historical"};
+              official.originalReporter=hm.originalReporterName?{name:hm.originalReporterName,source:"historical_record"}:null;
+            }else{
+              next.reporterName=hm.originalReporterName||clean(next.reporterName)||"기존 ERP 자료";next.reporterId="";next.registeredAt=now;next.status="closed";next.corrective=null;next.approvedBy="";next.approvedAt=null;next.closedAt=hm.closedAt||now;
+              official.transferRegistration={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now,proof:actor.proof,source:"erp",erpApproved:true,erpApprovalDate:hm.erpApprovalDate,erpReference:hm.erpReference};
+              official.originalReporter=hm.originalReporterName?{name:hm.originalReporterName,source:"erp_record"}:null;
+            }
           }else{
             next.reporterName=actor.name;next.reporterId=actor.id;next.registeredAt=now;
             official.reporter={id:actor.id,name:actor.name,role:actor.role,position:actor.position,siteId:actor.siteId,at:now,proof:actor.proof};
@@ -326,7 +366,7 @@ Deno.serve(async(req:Request)=>{
           if(next.corrective&&typeof next.corrective==="object"){next.corrective={...next.corrective,status:"approved",reviewedBy:actor.name,reviewedAt:now};}
           official.finalApproval={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now,proof:actor.proof};
         }
-        if(isHistoricalTransfer(next)){const hm=historicalMeta(next);official.transferClosure={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now,source:"erp",erpApproved:true,erpApprovalDate:hm.erpApprovalDate,erpReference:hm.erpReference,existingActionEvidence:hm.existingActionEvidence,followUpType:hm.followType,closeReason:hm.closeReason||"ERP 기결재 과거사고 이력관리 목적 이관종결"};}
+        if(isLegacyClosedTransfer(next)){const hm=historicalMeta(next);official.transferClosure={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now,source:"erp",erpApproved:true,erpApprovalDate:hm.erpApprovalDate,erpReference:hm.erpReference,existingActionEvidence:hm.existingActionEvidence,followUpType:hm.followType,closeReason:hm.closeReason||"ERP 기결재 과거사고 이력관리 목적 이관종결"};}
         official.lastModified={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now};
         next.officialRecord=actor.role==="field"&&prev&&["approved","closed"].includes(clean(prev.status))?structuredClone(prev.officialRecord||{}):official;
         if(clean(next.status)==="closed"&&clean(prev?.status)!=="closed")next.officialRecord.finalHash=await finalHash(next);

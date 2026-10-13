@@ -9,7 +9,7 @@ const permitted=u=>['safety','manager','executive'].includes(role(u))||(role(u)=
 const today=()=>new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Seoul'});
 const site=id=>window.ENLContracts?.site(id)?.site_name||window.ENL_SITE_DIRECTORY?.find(s=>s.id===id)?.name||id;
 const stamp=v=>v?new Date(v).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',hour12:false}):'-';
-const hist=i=>i?.status==='closed'&&window.enlIsHistoricalIncident449?.(i);
+const hist=i=>i?.status==='closed'&&i?.historicalImport?.workflowExempt===true&&window.enlIsHistoricalIncident449?.(i);
 let rows=[],owner='',serial=0;
 async function api(body,retry=true){
  const u=currentUser(),actor=window.enlCurrentActor(u),key=String(actor?.id||'');if(!u||!permitted(u))throw Error('접근 권한이 없습니다.');

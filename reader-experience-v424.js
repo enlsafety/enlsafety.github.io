@@ -75,7 +75,7 @@
     const incidentApproval=arr.filter(i=>['reported','supplement_submitted'].includes(String(i.status||''))).length;
     const ownApproval=arr.filter(i=>{
       const status=String(i.status||''),action=String(i?.corrective?.status||'');
-      return i?.externalInitialApproval?.state!=='verified'&&(status==='approved'||(status==='closed'&&action==='approved'))&&!safetyHasOwnApproval(i,u);
+      return i?.externalInitialApproval?.state!=='verified'&&i?.historicalImport?.manualSafetyApproval!==true&&status==='approved'&&!safetyHasOwnApproval(i,u);
     }).length;
     const plan=arr.filter(i=>String(i.status||'')==='approved'&&!safetyHasPlan(i)&&String(i?.corrective?.status||'')!=='approved').length;
     const prevention=arr.filter(i=>String(i?.corrective?.status||'')==='submitted').length;

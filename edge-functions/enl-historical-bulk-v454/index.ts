@@ -91,6 +91,9 @@ Deno.serve(async(req:Request)=>{
  const sql=postgres(Deno.env.get('SUPABASE_DB_URL')!,{prepare:false,max:1,idle_timeout:2,connect_timeout:5});let a:any=null,owned=false;
  try{
   a=await actor(sql,b);
+  // Automatic bulk import has been retired. Keep original read-only
+  // archives accessible, but never accept a write from an old cached PWA.
+  if(!['options','list','get','sign'].includes(String(b.action||'')))return json({ok:false,message:'historical_automatic_import_retired'},410);
   if(b.action==='options')return json({ok:true,sites:await sites(sql),version:VERSION,method:'local-structured-extraction-and-ocr',paidAI:false});
   if(b.action==='list'){const rows=await sql`select id,created_at,updated_at,jsonb_array_length(candidates) as count from private.enl_historical_batches where owner_id=${a.id} order by updated_at desc limit 100`;return json({ok:true,batches:rows})}
   if(!uuid(b.batchId))fail('invalid_batch_id');

@@ -79,10 +79,11 @@ jobs:
           stable=Path('stable412.html').read_text(encoding='utf-8')
           version=json.loads(Path('version.json').read_text(encoding='utf-8'))
           assert "historicalImport" in hist
-          for token in ['<select id="hEvent" required><option value="">선택</option>','<select id="hAction" required><option value="">선택</option>','<select id="hFollow" required><option value="">선택</option>']:
+          for token in ['<select id="hEvent" required><option value="">선택</option>','<select id="hAction">','<select id="hFollow">']:
             assert token in hist, token
-          for token in ["erpApproved:true","workflowExempt:true","silent:true","transferState:'closed'","status:'closed'","corrective:null","additionalAction","recordMode:'historical_transfer'","historicalTransfer","reporterId:''","hSeverity","enlStartHistoricalTransfer449"]:
+          for token in ["manualSafetyApproval:true","workflowExempt:false","transferState:'active'","status:'approved'","corrective:null","recordMode:'historical_transfer'","historicalTransfer","hSeverity","enlStartHistoricalTransfer449"]:
             assert token in hist, token
+          assert "과거사고 수동 이관" in hist and "안전관리자" in hist
           for token in ["historicalClosed","!historicalClosed(i)"]:
             assert token in prev, token
           assert "historicalClosed(i)" in reopen
@@ -90,17 +91,17 @@ jobs:
             assert token in inc, token
           assert "이관종결" in stats
           assert "historicalClosed" in field and "ERP 기결재" in field and "actionVisible" in field
-          assert "enlStartHistoricalTransfer449" in shell and "!isHistorical(i)" in shell
+          assert "enlStartHistoricalTransfer449" in shell and "manualSafetyApproval" in shell
           assert "historicalClosed" in lifecycle and "if(historicalClosed(i))continue" in lifecycle
           assert "historicalClosed" in reader_exp and "!historicalClosed(i)" in reader_exp
           assert "이관종결" in reader
           assert "과거사고 ERP 이관기록" in official and "과거사고 · ERP 기결재 · 이관종결" in official
-          assert 'workflow-lifecycle-v413.js?v=4.4.14-r1&amp;fix=historical-transfer1' in stable
-          assert 'reader-experience-v424.js?v=4.4.43-r1&amp;fix=safety-action-counts1' in stable
-          assert 'reader-ui-v414.js?v=4.4.37-r1&amp;fix=hq-dashboard1' in stable
+          assert 'workflow-lifecycle-v413.js?v=4.5.6-manual1' in stable
+          assert 'reader-experience-v424.js?v=4.5.6-manual1' in stable
+          assert 'reader-ui-v414.js?v=4.5.6-manual1' in stable
           assert 'official-records-v439.js?v=4.5.4-lifecycle1' in stable
           assert 'site-contract-v451.js?v=4.4.24-r1' in stable
-          assert 'historical-transfer-v449.js?v=4.4.29-r1&amp;fix=required1' in stable
-          assert 'content="4.5.5-r6"' in stable
-          assert version["version"]=="4.5.5" and version["build"]=="stable-455-r6"
-          print('OK: historical ERP transfer-close flow invariants preserved')
+          assert 'historical-transfer-v449.js?v=4.5.6-manual1' in stable
+          assert 'content="4.5.6-r1"' in stable
+          assert version["version"]=="4.5.6" and version["build"]=="stable-456-r1"
+          print('OK: manual historical safety approval and archived legacy closure invariants preserved')

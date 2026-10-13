@@ -90,6 +90,16 @@
 
   function historicalInfoHtml(i){
     if(!isHistorical(i))return '';
+    if(i?.historicalImport?.manualSafetyApproval===true){
+      const h=i.historicalImport||{},approval=i.approvedAt?fmt(i.approvedAt):'미확인';
+      return '<section class="inc411-section"><h3>과거사고 수동 이관기록</h3><div class="inc411-section-body">'
+        +'<div class="inc411-kv"><b>등록구분</b><span>안전관리자 직접 승인 · 재발방지조치 관리</span></div>'
+        +'<div class="inc411-kv"><b>사고보고 승인</b><span>'+esc(i.approvedBy||'-')+' · '+esc(approval)+'</span></div>'
+        +'<div class="inc411-kv"><b>기존 보고자</b><span>'+esc(h.originalReporterName||'미확인')+'</span></div>'
+        +'<div class="inc411-kv"><b>원본 ERP 식별정보</b><span>'+esc(h.erpApprovalRef||'조회 불가 또는 미기입')+'</span></div>'
+        +'<div class="inc411-kv"><b>후속 관리</b><span>재발방지계획 → 현장 조치 제출 → 안전관리자 승인 후 종결</span></div>'
+        +'</div></section>';
+    }
     const h=i.historicalTransfer||{},f=h.followUp||{},e=h.existingActionEvidence==='confirmed'?'확인됨':h.existingActionEvidence==='partial'?'일부 확인':'확인자료 없음';
     const follow=f.type==='site_check'?'현장 확인 필요':f.type==='improvement'?'신규 개선조치 필요':'추가조치 없음';
     return '<section class="inc411-section"><h3>과거사고 이관정보</h3><div class="inc411-section-body">'

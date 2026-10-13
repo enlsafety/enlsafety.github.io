@@ -9,7 +9,7 @@ function role(v){return t(v)==='final'?'manager':t(v)}
 function id(u){return t(u&&(u.id||u.personnelId||u.username))}
 function hq(u){return !!u&&HQ.indexOf(role(u.role))>=0}
 function legacyTestPerson(x){var n=t(x&&x.name);return ['테스트 경영진','테스트 관리자','테스트 안전관리자'].indexOf(n)>=0||/^test\b/i.test(n)}
-function signable(i){if(i&&i.externalInitialApproval&&i.externalInitialApproval.state==='verified')return false;var st=t(i&&i.status),act=t(i&&i.corrective&&i.corrective.status);return st==='approved'||(st==='closed'&&act==='approved')}
+function signable(i){if(i?.historicalImport?.manualSafetyApproval===true||i?.status==='closed')return false;if(i&&i.externalInitialApproval&&i.externalInitialApproval.state==='verified')return false;var st=t(i&&i.status),act=t(i&&i.corrective&&i.corrective.status);return st==='approved'}
 function me(){try{return currentUser?currentUser():null}catch(e){return null}}
 function inc(x){try{return (data&&data.incidents||[]).find(function(i){return t(i.id)===t(x)})||null}catch(e){return null}}
 function e(v){if(typeof esc==='function')return esc(v);return String(v==null?'':v).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]})}
