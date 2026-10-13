@@ -155,12 +155,21 @@ function parseUnits(file){
    }
   }
   if(quote){
-   // \"합계금액\" is a quoted repair cost. It is not proof of payment.
+   // Amounts on a scanned total row can include subtotal or VAT. Never
+   // substitute the last numeric token for the actual quoted grand total.
    const i=rows.findIndex(x=>/합계\s*금액/.test(x));
    if(i>=0&&!segment.values.repairCost){
-    const prices=[...rows.slice(i,i+2).join(' ').matchAll(/(?:\d{1,3}(?:,\d{3})+|\d{4,10})(?:\.\d{1,2})?/g)]
-      .map(x=>x[0]).filter(v=>Number.isFinite(money(v))&&money(v)>0);
-    if(prices.length)push('repairCost',prices[prices.length-1],i);
+    const laterLabel=/공급\s*가액|부가\s*세|세\s*액|부가가치세|VAT/i;
+    const amountTokens=src=>[...src.matchAll(/(?:\d{1,3}(?:,\d{3})+|\d{4,10})(?:\.\d{1,2})?/g)]
+     .map(x=>x[0]).filter(v=>Number.isFinite(money(v))&&money(v)>0&&!/^(?:19|20)\d{2}$/.test(v));
+    const totalPart=rows[i].replace(/^.*?합계\s*금액\s*[:：]?\s*/,'').split(laterLabel)[0];
+    let prices=amountTokens(totalPart);
+    if(!prices.length){
+     const following=rows[i+1]||'';
+     if(!laterLabel.test(following)&&!/사업자|전화|견적일자|보고일자|발행일자/.test(following))prices=amountTokens(following);
+    }
+    // More than one non-labelled figure is ambiguous; keep human review.
+    if(prices.length===1)push('repairCost',prices[0],i);
    }
   }
  };

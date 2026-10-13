@@ -157,15 +157,41 @@ async function pdfUnits(bytes,progress,signal){
     txt+=item.str||'';lastY=y;lastXEnd=Number(item.transform?.[4]||0)+Number(item.width||0);
     if(item.hasEOL){txt+='\n';lastY=null;lastXEnd=null;}
    }
-   if(trim(txt).length<15){
-    alive(signal);progress?.('스캔 페이지 OCR '+n+'/'+pdf.numPages);
+   // Mixed PDFs sometimes expose selectable headers while the accident form
+   // and repair quote are raster images. Short text alone cannot prove that
+   // the body is accessible. Examine image operators only on sparse pages.
+   const visible=trim(txt);
+   let needsOcr=visible.length<15,hybrid=false;
+   if(!needsOcr&&visible.length<220&&typeof page.getOperatorList==='function'){
+    const codes=window.pdfjsLib.OPS||{};
+    const imageOps=['paintImageXObject','paintJpegXObject','paintInlineImageXObject','paintImageXObjectRepeat']
+     .map(name=>codes[name]).filter(Number.isFinite);
+    if(imageOps.length){
+     try{
+      const ops=await withAbort(page.getOperatorList(),signal);
+      hybrid=Array.isArray(ops?.fnArray)&&ops.fnArray.some(code=>imageOps.includes(code));
+      needsOcr=hybrid;
+     }catch(error){if(error?.name==='AbortError')throw error;}
+    }
+   }
+   if(needsOcr){
+    alive(signal);progress?.((hybrid?'혼합 PDF 본문 OCR ':'스캔 페이지 OCR ')+n+'/'+pdf.numPages);
     const view=page.getViewport({scale:1.4}),canvas=document.createElement('canvas');
     canvas.width=Math.ceil(view.width);canvas.height=Math.ceil(view.height);
     try{
      const rendering=page.render({canvasContext:canvas.getContext('2d'),viewport:view});
      await withAbort(rendering.promise,signal,()=>rendering.cancel());
      const recognized=await ocr(canvas,signal);
-     txt=recognized.text;confidence=recognized.confidence;method='ocr';ocrUsed=true;
+     // Incidental logos must not replace correct selectable text with poor OCR.
+     const recognizedText=trim(recognized.text);
+     const preferOcr=!hybrid||(
+      recognizedText.length>=Math.max(45,visible.length+30)&&
+      /[가-힣]/.test(recognizedText)&&
+      /사고|발생|작업|경위|견적|합계|금액|피해|훼손|파손|수리|부상|조치/.test(recognizedText)
+     );
+     if(preferOcr){
+      txt=recognizedText;confidence=recognized.confidence;method='ocr';ocrUsed=true;
+     }
     }finally{canvas.width=0;canvas.height=0;}
    }
    if(trim(txt))units.push({location:n+'페이지',method,confidence,text:txt});
