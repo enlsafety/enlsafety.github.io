@@ -87,7 +87,7 @@ function manualArchiveIntegrity(prev:any,next:any,actor:any){
   if(JSON.stringify(canonicalValue(old??null))===JSON.stringify(canonicalValue(fresh??null)))continue;
   if(old!==null&&old!==undefined&&clean(old)!=="")rejectWrite("manual_archive_existing_supplement_locked",409);
   if(key.toLowerCase().includes("cost")||key==="damageAmount"){
-   if(!/^(?:0|[1-9]\\d{0,11})(?:\\.\\d{1,2})?$/.test(clean(fresh)))
+   if(!/^(?:0|[1-9]\d{0,11})(?:\\.\\d{1,2})?$/.test(clean(fresh)))
     rejectWrite("manual_archive_cost_invalid",409);
   }else if(clean(fresh).length>1000)rejectWrite("manual_archive_supplement_invalid",409);
   comparable.reportDetails[key]=old;
@@ -312,7 +312,7 @@ Deno.serve(async(req:Request)=>{
         if(prev&&comparableIncident(next)===comparableIncident(prev)){ignored++;continue;}
         next=preserveWorkflow(prev,next,actor);
         const requestedStatus=clean(raw0.status),prevReportHash=prev?await reportHash(prev):"",candidateHash=await reportHash(next);
-        if(prev&&["approved","closed"].includes(clean(prev.status))&&prevReportHash!==candidateHash){
+        if(prev&&!isManualArchive(prev)&&["approved","closed"].includes(clean(prev.status))&&prevReportHash!==candidateHash){
           if(isBulkImported(prev))rejectWrite("bulk_update_requires_import_api",409);
           if(actor.role!=="safety")rejectWrite("approved_record_locked",409);
           if(!isManualArchive(prev))next.status="reported";
