@@ -1,8 +1,8 @@
 /* E&L Accident Report App v4.4.14 - historical ERP transfer close */
 (function(){
 'use strict';
-const VERSION='4.4.14-historical-transfer1';
-const REASON='사고보고앱 도입 이전 또는 과거 발생 건으로 ERP에서 기결재 완료된 사고를 사고이력 관리를 위해 이관 등록함';
+const VERSION='4.5.6-manual-safety-approval1';
+const REASON='안전관리자가 과거사고를 수동 등록·승인하고 재발방지조치 시퀀스로 관리합니다';
 let editId='',draft=null,startedAt='';
 const role=v=>String(v||'')==='final'?'manager':String(v||'');
 const isSafety=u=>role(u?.role)==='safety';
