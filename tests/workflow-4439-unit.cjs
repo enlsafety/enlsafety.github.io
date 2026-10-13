@@ -32,8 +32,8 @@ assert.ok(!approval.includes('enl448OwnPulse'));
 assert.ok(!approval.includes('transform:scale('));
 
 for(const asset of [
-  'incidents-v410.js?v=4.5.4-lifecycle1',
-  'reader-experience-v424.js?v=4.4.43-r1&amp;fix=safety-action-counts1',
+  'incidents-v410.js?v=4.5.6-manual1',
+  'reader-experience-v424.js?v=4.5.6-manual1',
   'workflow-v412.js?v=4.4.39-r1&amp;fix=comment-empty1',
   'official-records-v439.js?v=4.5.4-lifecycle1',
   'incident-flow-v440.js?v=4.4.39-r1&amp;fix=no-confirm-history1',
