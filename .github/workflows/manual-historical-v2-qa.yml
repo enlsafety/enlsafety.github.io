@@ -1,0 +1,39 @@
+name: manual historical workflow QA
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    paths:
+      - 'historical-transfer-v449.js'
+      - 'workflow-prevention-v429.js'
+      - 'edge-functions/enl-incident-sync-v411/**'
+      - 'edge-functions/enl-push-v418/**'
+      - 'edge-functions/enl-email-v441/**'
+      - 'management-approval-v448.js'
+      - 'incident-excel-v421.js'
+      - 'tests/manual-historical-v2-policy.cjs'
+      - '.github/workflows/manual-historical-v2-qa.yml'
+permissions:
+  contents: read
+jobs:
+  manual:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax and authoritative backend policy
+        run: |
+          node --check historical-transfer-v449.js
+          node --check workflow-prevention-v429.js
+          node --check management-approval-v448.js
+          node --check incident-excel-v421.js
+          node --check app-shell-v411.js
+          node --check tests/manual-historical-v2-policy.cjs
+          node --experimental-strip-types --check edge-functions/enl-incident-sync-v411/index.ts
+          node --experimental-strip-types --check edge-functions/enl-push-v418/index.ts
+          node --experimental-strip-types --check edge-functions/enl-email-v441/index.ts
+          node --experimental-strip-types --check edge-functions/enl-historical-bulk-v454/index.ts
+          node tests/manual-historical-v2-policy.cjs
