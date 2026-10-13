@@ -137,10 +137,13 @@ function isMine(i:any,a:any){if(!i||!a||isHistoricalTransfer(i)||isBulkImported(
 function reportApproved(i:any){return ["approved","closed"].includes(clean(i?.status));}
 function reportVisibleToReaders(i:any){return ["reported","supplement","supplement_submitted","approved","closed"].includes(clean(i?.status));}
 function redact(v:any,names:any[]=[]){let s=clean(v).replace(/\s+/g," ");for(const n0 of names){const n=clean(n0);if(n&&n.length>=2)s=s.split(n).join("근로자");}s=s.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,"[이메일 비공개]");s=s.replace(/(?:01[016789]|02|0[3-6][1-5])-?\d{3,4}-?\d{4}/g,"[연락처 비공개]");s=s.replace(/\b\d{6}-?[1-4]\d{6}\b/g,"[개인정보 비공개]");return s;}
+function readerMedicalText(value:any,details:any){let v=clean(value);for(const key of ['diagnosis','doctorOpinion','medicalCostDetail']){const token=clean(details?.[key]);if(token.length>=2)v=v.split(token).join('[의료정보 비공개]');}return v.replace(/(?:진단명|의사 소견|치료 상세)\s*:[^/\n]+/g,'[의료정보 비공개]');}
 function readerIncident(i:any){
   if(!i||bulkInactive(i)||!reportVisibleToReaders(i))return null;
   const out=structuredClone(i);
   const d=out?.reportDetails&&typeof out.reportDetails==="object"?out.reportDetails:{};
+  out.summary=readerMedicalText(clean(d.incidentHow)||out.summary,d);
+  if(d.incidentHow)d.incidentHow=readerMedicalText(d.incidentHow,d);
   delete d.diagnosis;delete d.doctorOpinion;delete d.medicalCostDetail;
   if(clean(out.category)==="person"){
     if(out.supplement&&typeof out.supplement==="object"){
@@ -253,9 +256,9 @@ Deno.serve(async(req:Request)=>{
         }
         if(action==="revision_list"){
           if(!["safety","manager","executive"].includes(actor.role))return json({ok:false,message:"forbidden"},403);
-          const revisions=await sql`select revision,reason,editor_id,editor_name,created_at,changes from public.enl_incident_revisions where incident_id=${incidentId} order by revision desc`;
+          const revisions=await sql`select revision,reason,editor_id,editor_name,created_at,changes,before_payload,after_payload from public.enl_incident_revisions where incident_id=${incidentId} order by revision desc`;
           // Reader access follows the same medical-information limits as pull.
-          if(actor.role!=="safety")for(const r of revisions)r.changes=r.changes.map((d:any)=>d.field==='reportDetails'?{field:d.field,before:readerIncident({...prev,reportDetails:d.before})?.reportDetails,after:readerIncident({...prev,reportDetails:d.after})?.reportDetails}:d);
+          for(const r of revisions){if(actor.role!=="safety")r.changes=r.changes.map((d:any)=>d.field==='reportDetails'?{field:d.field,before:readerIncident({...r.before_payload,reportDetails:d.before})?.reportDetails,after:readerIncident({...r.after_payload,reportDetails:d.after})?.reportDetails}:d.field==='summary'?{...d,before:readerMedicalText(d.before,r.before_payload?.reportDetails),after:readerMedicalText(d.after,r.after_payload?.reportDetails)}:d);delete r.before_payload;delete r.after_payload;}
           return json({ok:true,revisions});
         }
         if(actor.role!=="safety")return json({ok:false,message:"forbidden"},403);

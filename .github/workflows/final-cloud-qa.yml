@@ -12,6 +12,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   isolated:
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -35,12 +36,41 @@ jobs:
           libreoffice -env:UserInstallation=file:///tmp/enl-lo-profile --headless --convert-to pdf --outdir qa-output/render qa-output/final-excel-chromium.xlsx
           pdfinfo qa-output/render/final-excel-chromium.pdf
           pdftoppm -scale-to 1400 -png qa-output/render/final-excel-chromium.pdf qa-output/render/page
-      - name: Dedicated staging schema and function only
-        run: |
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: final-cloud-evidence
+          path: qa-output/
+  staging:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: |
+          mkdir -p qa-output
           node tests/final-live-staging.cjs
           node tests/final-staging-attachment.cjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: final-cloud-evidence
+          name: final-staging-evidence
+          path: qa-output/
+  publication:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node tests/final-production-readonly.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: final-publication-evidence
           path: qa-output/
