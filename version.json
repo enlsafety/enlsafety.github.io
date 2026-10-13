@@ -1,6 +1,6 @@
 {
   "version": "4.6.0",
-  "build": "stable-460-r1",
+  "build": "stable-460-r2",
   "autoUpdate": false,
   "loginAutoUpdate": false,
   "stableEntry": "stable412.html",
