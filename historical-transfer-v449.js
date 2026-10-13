@@ -67,9 +67,12 @@ async function commit(u,i){
  saveData();
  let syncOk=false;
  try{
-  const result=await window.enlIncidentSyncNow?.();
-  syncOk=!result||result.ok!==false;
- }catch(error){console.error('[historical manual] server sync failed',error);}
+  await window.enlIncidentSyncNow?.();
+  if(typeof window.enlIncidentApi==='function'){
+   const remote=await window.enlIncidentApi({action:'pull',actor:{id:actorId,role:'safety'},role:'safety'},12000);
+   syncOk=!!remote?.incidents?.some(x=>String(x.id)===String(incident.id)&&x.status==='approved'&&String(x.approvedBy)===String(u.name));
+  }
+ }catch(error){console.error('[historical manual] server confirmation failed',error);}
  draft=null;editId='';startedAt='';incidentPhotos=[];
  currentView='incidents';renderShell(u);
  alert(syncOk?'과거사고 최초 등록·승인이 완료되었습니다. 재발방지계획을 수립해 주세요.':'로컬 저장은 완료했으나 서버 동기화를 확인하지 못했습니다. 인터넷 연결과 동기화 상태를 확인해 주세요.');
