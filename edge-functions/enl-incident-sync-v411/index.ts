@@ -79,6 +79,9 @@ function manualArchiveIntegrity(prev:any,next:any,actor:any){
  }
  if(!isManualArchive(prev)||clean(prev.approvedAt)!==clean(next.approvedAt)||clean(prev.approvedBy)!==clean(next.approvedBy))
   rejectWrite("manual_archive_initial_approval_locked",409);
+ if(!['approved','closed'].includes(clean(next.status))||(clean(prev.status)==='closed'&&clean(next.status)!=='closed'))rejectWrite('manual_archive_state_locked',409);
+ if(clean(next?.corrective?.status)==='approved'&&clean(prev?.corrective?.status)!=='submitted')rejectWrite('manual_archive_action_not_submitted',409);
+ if(clean(next.status)==='closed'&&actor.role!=='safety')rejectWrite('manual_archive_safety_close_only',403);
  const comparable=structuredClone(next);
  const previousDetails=prev.reportDetails||{},incomingDetails=next.reportDetails||{};
  comparable.reportDetails={...incomingDetails};
@@ -332,10 +335,14 @@ Deno.serve(async(req:Request)=>{
           }
         }else if(isBulkImported(prev)){next.reporterName=prev.reporterName||"";next.reporterId=prev.reporterId||"";}else{next.reporterName=prev.reporterName||next.reporterName||(incomingHistorical?"기존 ERP 자료":actor.name);next.reporterId=prev.reporterId||next.reporterId||(incomingHistorical?"":actor.id);}
         const nextReportHash=await reportHash(next);
-        if(prev&&["approved","closed"].includes(clean(prev.status))&&prevReportHash!==nextReportHash){
+        if(prev&&!isManualArchive(prev)&&["approved","closed"].includes(clean(prev.status))&&prevReportHash!==nextReportHash){
           official.revisions=Array.isArray(official.revisions)?official.revisions:[];
           official.revisions.push({fromHash:prevReportHash,toHash:nextReportHash,byId:actor.id,by:actor.name,role:actor.role,position:actor.position,at:now});
           official.approvalInvalidatedAt=now;official.approvalInvalidatedBy=actor.name;
+        }
+        if(prev&&isManualArchive(prev)&&prevReportHash!==nextReportHash){
+          official.historicalCostSupplementAudit=Array.isArray(official.historicalCostSupplementAudit)?official.historicalCostSupplementAudit:[];
+          official.historicalCostSupplementAudit.push({byId:actor.id,by:actor.name,role:actor.role,at:now,note:"기존 사고내용 유지 · 미기재 비용 추가"});
         }
         if(requestedStatus==="supplement"&&actor.role==="safety"){
           next.status="supplement";next.approvedBy="";next.approvedAt=null;next.closedAt=null;
