@@ -4,6 +4,14 @@ const canonical = (v:any):any => Array.isArray(v) ? v.map(canonical) : v && type
 const equal = (a:any,b:any) => JSON.stringify(canonical(a ?? null)) === JSON.stringify(canonical(b ?? null));
 const fail = (message:string,status=409):never => {throw Object.assign(new Error(message),{httpStatus:status});};
 const accepted = (i:any) => ['approved','closed'].includes(text(i?.status));
+export function isHistoricalEditable(i:any) {
+  if(!i||i.bulkInvalidation?.active===true)return false;
+  return ['historical_manual','historical_transfer'].includes(text(i.recordMode))
+    ||text(i?.historicalTransfer?.mode)==='historical_transfer'
+    ||i.historicalImport?.enabled===true
+    ||!!(text(i.historicalOrigin?.batchId)&&text(i.historicalOrigin?.candidateId)
+      &&['verified','unverifiable'].includes(text(i.externalInitialApproval?.state)));
+}
 const costKeys = ['medicalCost','repairCost','damageAmount'];
 const planKeys = ['rootCause','causeStatus','planDetail','ownerName','dueDate','planBy','planById','planAt','planUpdatedBy','planUpdatedAt'];
 const managedKeys = ['officialRecord','acknowledgements','readReceipts','historicalOrigin','externalInitialApproval','bulkInvalidation','recordMode','historicalImport','historicalTransfer'];
@@ -93,9 +101,10 @@ export function validateLifecycle(prev:any,next:any,actor:any,now:string){
 }
 export function correctedIncident(prev:any,changes:any,reason:string,actor:any,now:string){
   if(actor.role!=='safety')fail('forbidden',403);
-  if(prev.status!=='closed')fail('closed_incident_required');
+  const historical=isHistoricalEditable(prev);
+  if(prev.status!=='closed'&&!(historical&&prev.status==='approved'))fail('closed_incident_required');
   if(!text(reason)||text(reason).length>2000)fail('revision_reason_required',400);
-  const allowed=new Set(['summary','occurredAt','eventType','category','injuredName','injuredAge','injuredGender','injuredPart','injuryType','leaveEstimate','immediateAction','reportDetails','photos','corrective']);
+  const allowed=new Set(['summary','occurredAt','eventType','category','injuredName','injuredAge','injuredGender','injuredPart','injuryType','leaveEstimate','immediateAction','reportDetails','photos','corrective',...(historical?['historicalImport']:[])]);
   const correctiveAllowed=new Set(['rootCause','causeStatus','planDetail','ownerName','dueDate','actionDetail','actionDate','actionOwner','additionalNotes','afterPhotos']);
   const next=structuredClone(prev),diff:any[]=[];
   if(!changes||typeof changes!=='object'||Array.isArray(changes))fail('invalid_changes',400);
