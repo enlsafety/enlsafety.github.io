@@ -14,7 +14,7 @@ async function run(engine,width){
   await page.evaluate(()=>{
    const u={id:'qa-safety',name:'QA 안전관리자',role:'safety'};
    window.data={incidents:[],users:[u],sites:[{id:'s1',name:'가상CC'}]};
-   window.currentUser=()=>u;window.currentView='report';
+   window.currentUser=()=>u;window.currentView='report';window.incidentPhotos=[];
    window.esc=x=>String(x??'');window.uid=()=> 'qa-manual-inc-1';
    window.saveData=()=>{window.__saved=true};
    window.enlIncidentSyncNow=async()=>{window.__synced=true};
