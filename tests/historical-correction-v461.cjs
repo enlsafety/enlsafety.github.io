@@ -100,6 +100,20 @@ const {chromium,webkit}=require('playwright');
         i=await page.evaluate(()=>data.incidents[0]);
         assert.equal(i.reportDetails.incidentHow,engine.name()+' 재정정');checks++;
         assert.equal(i.status,'approved');checks++;
+        // Exercise the actual incident-detail button; previously this route returned
+        // before binding the click handler and left the button apparently inert.
+        await page.evaluate(()=>{
+          window.fmt=value=>String(value||'').replace('T',' ').slice(0,16);
+          window.siteById=id=>({id,name:'QA 가상 사업장'});
+          window.ENLContracts={badge:()=>'',incidentDetail:()=>''};
+          window.enlAttachmentGalleryHtml=()=>'';window.enlBindAttachmentOpen=()=>{};
+          window.categoryBadge=()=>'';window.priorityBadge=()=>'';window.actionBadge=()=>'';window.legalBadge=()=>'';window.badge=()=>'';window.nowISO=()=>new Date().toISOString();
+        });
+        await page.addScriptTag({content:fs.readFileSync('incidents-v410.js','utf8')});
+        await page.evaluate(()=>window.openIncidentModal(data.incidents[0].id,true,currentUser()));
+        await page.locator('#editInc').waitFor();checks++;
+        await page.locator('#editInc').click();
+        await page.locator('#historical461PasswordForm').waitFor();checks++;
       }finally{await browser.close()}
     }
     console.log(JSON.stringify({passed:checks,failed:0,scope:'real isolated server + Chromium/WebKit password-gated historical corrections'}));
