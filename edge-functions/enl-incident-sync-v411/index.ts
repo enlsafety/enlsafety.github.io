@@ -282,6 +282,28 @@ Deno.serve(async(req:Request)=>{
         else delete next.siteContractSnapshot;
         if(prev&&comparableIncident(next)===comparableIncident(prev)){ignored++;continue;}
         next=preserveWorkflow(prev,next,actor);
+        if(prev&&isManualHistorical(prev)&&actor.role==="field"){
+          if(clean(prev.status)!=="approved"||!["현장소장","파트장","서무"].includes(clean(actor.position)))rejectWrite("manual_history_field_role_locked",403);
+          const oldC=prev.corrective||{},newC=next.corrective||{};
+          if(!clean(oldC.planDetail)||!clean(oldC.planAt))rejectWrite("prevention_plan_required",409);
+          if(!["planned","in_progress","rejected","submitted"].includes(clean(oldC.status)))rejectWrite("manual_history_action_locked",409);
+          if(![clean(oldC.status),"in_progress","submitted"].includes(clean(newC.status)))rejectWrite("manual_history_action_state_locked",409);
+          if(clean(newC.status)==="submitted"&&!clean(newC.actionDetail))rejectWrite("prevention_action_text_required",409);
+          const allowed=new Set(["status","actionDetail","afterPhotos","actionBy","actionById","actionStartedAt","actionUpdatedAt","submittedBy","submittedById","submittedAt","reviewHistory"]);
+          for(const key of new Set([...Object.keys(oldC),...Object.keys(newC)])){
+            if(!allowed.has(key)&&JSON.stringify(canonicalValue(oldC[key]??null))!==JSON.stringify(canonicalValue(newC[key]??null)))rejectWrite("manual_history_plan_locked",409);
+          }
+          const details=next.reportDetails||{};
+          for(const key of ["medicalCost","repairCost","damageAmount"]){
+            const value=details[key];
+            if(value!==null&&value!==undefined&&clean(value)!==""&&(!Number.isFinite(Number(value))||Number(value)<0))rejectWrite("historical_cost_invalid",400);
+          }
+          next.reportWorkflow=structuredClone(prev.reportWorkflow||{});
+          next.lifecycleHistory=structuredClone(prev.lifecycleHistory||[]);
+          next.reviewHistory=structuredClone(prev.reviewHistory||[]);
+          next.acknowledgements=structuredClone(prev.acknowledgements||[]);
+          next.readReceipts=structuredClone(prev.readReceipts||[]);
+        }
         const requestedStatus=clean(raw0.status),prevReportHash=prev?await reportHash(prev):"",candidateHash=await reportHash(next);
         if(prev&&["approved","closed"].includes(clean(prev.status))&&prevReportHash!==candidateHash){
           if(isBulkImported(prev))rejectWrite("bulk_update_requires_import_api",409);
