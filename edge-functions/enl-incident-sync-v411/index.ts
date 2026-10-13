@@ -293,10 +293,11 @@ Deno.serve(async(req:Request)=>{
           for(const key of new Set([...Object.keys(oldC),...Object.keys(newC)])){
             if(!allowed.has(key)&&JSON.stringify(canonicalValue(oldC[key]??null))!==JSON.stringify(canonicalValue(newC[key]??null)))rejectWrite("manual_history_plan_locked",409);
           }
-          const details=next.reportDetails||{};
+          const details=next.reportDetails||{},oldDetails=prev.reportDetails||{};
           for(const key of ["medicalCost","repairCost","damageAmount"]){
-            const value=details[key];
+            const value=details[key],oldValue=oldDetails[key];
             if(value!==null&&value!==undefined&&clean(value)!==""&&(!Number.isFinite(Number(value))||Number(value)<0))rejectWrite("historical_cost_invalid",400);
+            if(oldValue!==null&&oldValue!==undefined&&clean(oldValue)!==""&&Number(oldValue)>0&&JSON.stringify(value??null)!==JSON.stringify(oldValue))rejectWrite("historical_recorded_cost_locked",409);
           }
           next.reportWorkflow=structuredClone(prev.reportWorkflow||{});
           next.lifecycleHistory=structuredClone(prev.lifecycleHistory||[]);
