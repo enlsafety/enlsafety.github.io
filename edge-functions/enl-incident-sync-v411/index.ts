@@ -89,8 +89,8 @@ function manualArchiveIntegrity(prev:any,next:any,actor:any){
   const old=previousDetails[key],fresh=incomingDetails[key];
   if(JSON.stringify(canonicalValue(old??null))===JSON.stringify(canonicalValue(fresh??null)))continue;
   if(old!==null&&old!==undefined&&clean(old)!=="")rejectWrite("manual_archive_existing_supplement_locked",409);
-  if(key.toLowerCase().includes("cost")||key==="damageAmount"){
-   if(!/^(?:0|[1-9]\d{0,11})(?:\\.\\d{1,2})?$/.test(clean(fresh)))
+  if(["medicalCost","repairCost","damageAmount"].includes(key)){
+   if(!/^(?:0|[1-9]\d{0,11})$/.test(clean(fresh)))
     rejectWrite("manual_archive_cost_invalid",409);
   }else if(clean(fresh).length>1000)rejectWrite("manual_archive_supplement_invalid",409);
   comparable.reportDetails[key]=old;
