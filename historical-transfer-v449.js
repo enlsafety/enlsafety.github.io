@@ -79,7 +79,8 @@ async function commit(u,i){
 }
 function edit(i,u){
  if(!isSafety(u))return false;
- alert('과거에 이관종결된 사고의 기존 기록은 수정할 수 없습니다.');
+ if(typeof window.enlOpenHistoricalCorrection==='function')return window.enlOpenHistoricalCorrection(i,u);
+ alert('과거사고 이관수정 화면을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.');
  return false;
 }
 const baseReport=window.renderUnifiedReport;if(typeof baseReport==='function'){const wrapped=function(root,u){if(editId){const i=(data.incidents||[]).find(x=>String(x.id)===String(editId));if(i&&isClosed(i))return form(root,u,i.category,i)}const out=baseReport.apply(this,arguments);setTimeout(()=>addPicker(root,u),0);return out};window.renderUnifiedReport=wrapped;try{renderUnifiedReport=wrapped}catch(e){}}
