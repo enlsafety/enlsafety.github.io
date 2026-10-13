@@ -53,7 +53,7 @@ jobs:
           ]
           for x in required:
             assert x in js, x
-          assert 'workflow-prevention-v429.js?v=4.4.43-r1&amp;fix=safety-action-counts1' in html
+          assert 'workflow-prevention-v429.js?v=4.5.6-manual1' in html
           assert html.index('sync-conflict-v428.js') < html.index('workflow-prevention-v429.js')
           assert "String(i.status)==='approved'&&String(i.corrective?.status)==='approved'" in lifecycle
           assert "i.status='closed'" in lifecycle
