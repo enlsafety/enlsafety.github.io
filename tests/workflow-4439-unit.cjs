@@ -37,11 +37,11 @@ for(const asset of [
   'workflow-v412.js?v=4.4.39-r1&amp;fix=comment-empty1',
   'official-records-v439.js?v=4.5.4-lifecycle1',
   'incident-flow-v440.js?v=4.4.39-r1&amp;fix=no-confirm-history1',
-  'management-approval-v448.js?v=4.4.39-r1&amp;fix=crisp-sign1'
+  'management-approval-v448.js?v=4.5.6-manual1'
 ]) assert.ok(stable.includes(asset),asset);
 
-assert.ok(stable.includes('content="4.5.5-r6"'));
-assert.ok(index.includes("const BUILD='455-r6'"));
-assert.equal(version.version,'4.5.5');
-assert.equal(version.build,'stable-455-r6');
+assert.ok(stable.includes('content="4.5.6-r1"'));
+assert.ok(index.includes("const BUILD='456-r1'"));
+assert.equal(version.version,'4.5.6');
+assert.equal(version.build,'stable-456-r1');
 console.log('PASS: approval-only UX, statutory record view, dash-only empty opinions and audit-button removal');
