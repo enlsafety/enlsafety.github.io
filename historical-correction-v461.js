@@ -1,7 +1,7 @@
 /* Safety-only historical corrections: fresh password, signed short-lived grant, append-only revision. */
 (function(){
 'use strict';
-const VERSION='4.6.0-r2-historical-correction';
+const VERSION='4.6.1-r1-historical-correction';
 const e=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const isHistorical=i=>!!i&&i.bulkInvalidation?.active!==true&&(
   ['historical_manual','historical_transfer'].includes(String(i.recordMode||''))||
@@ -50,7 +50,13 @@ function errorText(err){
  if(x.includes('historical_password_required'))return '안전관리자 비밀번호를 입력해 주세요.';
  if(x.includes('historical_reauth_required'))return '수정 권한이 만료되었거나 유효하지 않습니다. 다시 비밀번호를 확인해 주세요.';
  if(x.includes('enl_sync_conflict_version'))return '다른 사용자가 먼저 수정했습니다. 최신 사고기록을 다시 열어 주세요.';
- if(x.includes('auth_proof_required'))return '로그인 인증이 만료되었습니다. 다시 로그인해 주세요.';
+ if(x.includes('auth_proof_required')||x.includes('session_auth_expired'))return '로그인 인증이 만료되었습니다. 다시 로그인해 주세요.';
+ if(x.includes('not_found'))return '서버에 이관 사고기록이 없어 저장할 수 없습니다. 이관등록 및 서버 동기화 상태를 확인해 주세요.';
+ if(x.includes('bulk_use_import_editor'))return '승인된 과거사고 정정을 서버의 보호 규칙이 차단했습니다. 앱을 새로고침한 뒤 다시 시도해 주세요.';
+ if(x.includes('revision_field_forbidden'))return '수정할 수 없는 원본·결재정보가 포함되어 있습니다. 수정 항목을 확인해 주세요.';
+ if(x.includes('approved_or_closed_required'))return '승인 또는 종결된 사고만 이관정보를 정정할 수 있습니다.';
+ if(x.includes('invalid_cost'))return '치료비·수리비는 0원 이상의 정수로 입력해 주세요.';
+ if(x.includes('no_changes'))return '실제로 변경된 내용이 없습니다.';
  return '서버 확인에 실패했습니다. 인터넷 연결 및 입력정보를 확인해 주세요.';
 }
 function inputs(i){
@@ -95,6 +101,7 @@ function edit(i,ticket,expiresAt){
   +'<div class="historical461-actions"><button class="btn-gray" type="button" data-close>취소</button><button type="submit" class="primary">수정내용 저장</button></div></form>';
  openModal(html);
  const form=document.getElementById('historical461EditForm');
+ let pendingSignature='',pendingMutationId='';
  form.querySelector('[data-close]')?.addEventListener('click',()=>closeModal());
  form.onsubmit=async event=>{
   event.preventDefault();if(!form.reportValidity())return;
@@ -103,9 +110,13 @@ function edit(i,ticket,expiresAt){
   let changes;try{changes=collect(i,form)}catch(_){hint.textContent='치료비·수리비는 0원 이상의 정수로 입력해 주세요.';return}
   if(!Object.keys(changes).length){hint.textContent='수정된 내용이 없습니다.';return;}
   if(Date.now()>=Number(expiresAt)){hint.textContent='수정 권한 8분이 만료되었습니다. 창을 닫고 비밀번호를 다시 확인해 주세요.';return;}
+  const reason=form.querySelector('#historical461Reason').value.trim();
+  if(!reason){hint.textContent='수정 사유를 입력해 주세요.';return;}
+  const signature=JSON.stringify({changes,reason});
+  if(signature!==pendingSignature){pendingSignature=signature;pendingMutationId=crypto.randomUUID();}
   button.disabled=true;button.textContent='수정내용 저장 중…';
   try{
-   const r=await call(i,'correct_closed',{expectedVersion:Number(i._syncVersion||0),mutationId:crypto.randomUUID(),changes,reason:form.querySelector('#historical461Reason').value.trim(),reauthTicket:ticket},22000);
+   const r=await call(i,'correct_closed',{expectedVersion:Number(i._syncVersion||0),mutationId:pendingMutationId,changes,reason,reauthTicket:ticket},22000);
    if(!r?.incident)throw Error('server_unavailable');
    window.enlAcceptSavedIncident?.(r.incident);
    closeModal();renderShell(user());alert('과거사고 이관정보의 정정사항이 저장되었습니다. 최초 승인·종결 기록과 변경이력은 보존됩니다.');
