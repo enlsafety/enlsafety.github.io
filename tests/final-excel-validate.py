@@ -16,7 +16,7 @@ for path in pathlib.Path('qa-output').glob('final-excel-*.xlsx'):
  assert w.sheetnames[0]=='사고경위서' and '사고조치보고서' in w.sheetnames,w.sheetnames
  assert len(w.sheetnames)>=4
  values=[str(c.value) for s in w for row in s for c in row if c.value is not None];text='\n'.join(values)
- for token in ['정정된 가상 사고경위','긴 문장 검증 35','계속','동선 분리 계획','가상 표지 설치 완료','계획 작성자','조치 시행일','조치 담당자','가상PDF증빙.pdf','ERP 기안서 정정','QA-ERP-1']:
+ for token in ['원인분석 상태','조사 중 · 원인 미확정','기타·종합 원인','원인분석 담당','최근 분석·정정일시','QA 안전','정정된 가상 사고경위','긴 문장 검증 35','계속','동선 분리 계획','가상 표지 설치 완료','계획 작성자','조치 시행일','조치 담당자','가상PDF증빙.pdf','ERP 기안서 정정','QA-ERP-1']:
   assert token in text,token
  cost=[s.cell(r,2) for s in w for r in range(1,s.max_row+1) if s.cell(r,1).value=='복구 예상 비용'];assert cost and cost[0].value==12000 and cost[0].data_type=='n' and '원' in cost[0].number_format
  for s in w:
