@@ -1,0 +1,27 @@
+
+/* Demo-only controls. All other styles, cards, forms and navigation are the unmodified operational app assets. */
+#zwRuntimeToolbar{position:fixed;z-index:999998;top:5px;right:6px;display:flex;align-items:center;gap:6px;padding:5px 7px;background:#123e62;border:1px solid #246394;border-radius:12px;box-shadow:0 4px 20px rgba(0,24,45,.16);color:#fff;font-family:"Malgun Gothic",sans-serif}
+#zwRuntimeToolbar .zw-runtime-label{font-size:10px;font-weight:900;white-space:nowrap;line-height:1.15}
+#zwRuntimeToolbar .zw-runtime-label small{display:block;font-size:9px;color:#c7e5f8;font-weight:600}
+#zwRuntimeToolbar select,#zwRuntimeToolbar button{border:1px solid #8ab5d1;border-radius:7px;background:#fff;color:#184566;font-size:11px;font-weight:750;min-height:29px;padding:3px 6px;cursor:pointer}
+#zwRuntimeToolbar button:hover{background:#e4f4ff}
+.zw-runtime-welcome{padding:12px 13px;background:#eaf6ff;border:1px solid #c8e2f2;border-radius:11px;color:#195276;font-size:12px;margin:16px 0}
+.zw-runtime-welcome strong{font-size:15px;display:block;margin:0 0 5px}
+.zw-runtime-welcome span{line-height:1.7}
+.zw-runtime-rolecards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.zw-runtime-role{border:1.5px solid #c2d9e8;border-radius:13px;background:#fff;min-height:106px;padding:12px;text-align:left;display:flex;flex-direction:column;justify-content:space-between;gap:3px;cursor:pointer}
+.zw-runtime-role:hover,.zw-runtime-role:focus-visible{border-color:#1e5d91;background:#f2f9ff;outline-offset:2px}
+.zw-runtime-role b{color:#173b66;font-size:15px}
+.zw-runtime-role span{font-size:11px;color:#637f93}
+.zw-runtime-role em{font-style:normal;font-size:11px;color:#1e5d91;font-weight:900}
+.zw-runtime-explanation{font-size:11px;line-height:1.65;color:#627c90;margin:13px 0 0}
+@media(max-width:620px){
+ #zwRuntimeToolbar{top:auto;bottom:5px;right:5px;left:5px;justify-content:space-between;border-radius:10px}
+ #zwRuntimeToolbar .zw-runtime-label{font-size:9px}
+ #zwRuntimeToolbar .zw-runtime-label small{font-size:8px}
+ #zwRuntimeToolbar select,#zwRuntimeToolbar button{font-size:10px;min-height:34px;padding:4px 5px;max-width:43%}
+ .zw-runtime-rolecards{grid-template-columns:1fr 1fr;gap:7px}
+ .zw-runtime-role{min-height:98px;padding:11px}
+ .zw-runtime-role b{font-size:14px}
+ body{padding-bottom:50px!important}
+}
