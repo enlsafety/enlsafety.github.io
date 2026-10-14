@@ -116,6 +116,16 @@ const {chromium,webkit}=require('playwright');
         await page.locator('#historical461PasswordForm').waitFor();checks++;
       }finally{await browser.close()}
     }
+    // Historical imported cause text remains correctable without fabricating a modern cause-analysis status.
+    r=await request('safety','historical_reauth',{reauthPassword:password});
+    assert.equal(r.status,200,JSON.stringify(r));checks++;
+    r=await send('safety',{reportDetails:{environmentCause:'기존 이관자료의 환경적 원인 오기 정정'}},r.body.reauthTicket,'원본 과거자료의 환경적 요인 오타 수정');
+    assert.equal(r.status,200,JSON.stringify(r));i=r.body.incident;checks++;
+    assert.equal(i.reportDetails.environmentCause,'기존 이관자료의 환경적 원인 오기 정정');checks++;
+    assert.equal(i.reportDetails.causeAnalysisStatus,undefined,'legacy correction does not fabricate current safety investigation');checks++;
+    assert.equal(i.approvedAt,approval.at);assert.equal(i.status,'approved');checks++;
+    const past=(await request('safety','revision_list')).body.revisions;
+    assert.equal(past[0].reason,'원본 과거자료의 환경적 요인 오타 수정');checks++;
     console.log(JSON.stringify({passed:checks,failed:0,scope:'real isolated server + Chromium/WebKit password-gated historical corrections'}));
   }finally{await f.db.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});

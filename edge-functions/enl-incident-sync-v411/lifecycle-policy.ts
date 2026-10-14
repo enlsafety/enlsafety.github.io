@@ -18,6 +18,9 @@ const causeFields=[...causeFacts,'causeAnalysisStatus','causeAnalyzedBy','causeA
 function causeDetails(i:any){return i?.reportDetails&&typeof i.reportDetails==='object'&&!Array.isArray(i.reportDetails)?i.reportDetails:{};}
 function isCauseReady(d:any){return text(d?.causeAnalysisStatus)==='investigating'||(text(d?.causeAnalysisStatus)==='analyzed'&&causeFacts.some(k=>text(d?.[k])));}
 function normalizeCause(prev:any,next:any,actor:any,now:string){
+  // Existing approved records and imported historical records are immutable here.
+  // Their allowed corrections run through the append-only revision transaction.
+  if((prev&&accepted(prev))||isHistoricalEditable(prev||next))return;
   const old=causeDetails(prev),out=causeDetails(next);
   next.reportDetails={...out};
   if(actor.role!=='safety'){
@@ -28,7 +31,6 @@ function normalizeCause(prev:any,next:any,actor:any,now:string){
     if(!prev)next.reportDetails.causeAnalysisStatus='not_reviewed';
     return;
   }
-  if(prev&&accepted(prev))return; // After approval use audited correct_closed, never an ordinary push.
   const status=text(out.causeAnalysisStatus);
   if(status&&!['not_reviewed','investigating','analyzed'].includes(status))fail('cause_status_invalid',400);
   if(status==='analyzed'&&!causeFacts.some(k=>text(out[k])))fail('cause_details_required',400);
@@ -175,11 +177,17 @@ export function correctedIncident(prev:any,changes:any,reason:string,actor:any,n
       }
       const changedCause=causeFacts.some(k=>!equal(prev.reportDetails?.[k],updated[k]))||!equal(prev.reportDetails?.causeAnalysisStatus,updated.causeAnalysisStatus);
       if(changedCause){
-        if(!['investigating','analyzed'].includes(text(updated.causeAnalysisStatus)))fail('cause_analysis_required',400);
-        if(!isCauseReady(updated))fail('cause_details_required',400);
-        updated.causeAnalyzedBy=actor.name;
-        updated.causeAnalyzedById=actor.id;
-        updated.causeAnalyzedAt=now;
+        const statusChangedExplicitly=Object.prototype.hasOwnProperty.call(value,'causeAnalysisStatus');
+        // Legacy historical material may be corrected without retroactively
+        // claiming that today's safety analysis took place in the past.
+        // If the editor explicitly supplies a review status, always validate it.
+        if(!historical||statusChangedExplicitly){
+          if(!['investigating','analyzed'].includes(text(updated.causeAnalysisStatus)))fail('cause_analysis_required',400);
+          if(!isCauseReady(updated))fail('cause_details_required',400);
+          updated.causeAnalyzedBy=actor.name;
+          updated.causeAnalyzedById=actor.id;
+          updated.causeAnalyzedAt=now;
+        }
       }
       if(!equal(prev.reportDetails,updated)){
         diff.push({field:'reportDetails',before:prev.reportDetails??null,after:updated});

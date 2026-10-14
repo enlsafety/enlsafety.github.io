@@ -67,7 +67,14 @@
     }
     const d=i.reportDetails||{},c=i.corrective||{},person=String(i.category||'')==='person';
     const worker=person?[d.injuredName||i.injuredName||'',d.job||i.job||''].filter(Boolean).join(' · '):[d.workerName||'',d.job||i.job||''].filter(Boolean).join(' · ');
-    const cause=[c.rootCause||'',d.environmentCause||'',d.behaviorCause||''].filter(Boolean).join(' / ');
+    const causeStatus=d.causeAnalysisStatus==='investigating'?'조사 중 · 원인 미확정':d.causeAnalysisStatus==='analyzed'?'분석 완료':'원인분석 상태 미기록';
+    const cause=[
+      '분석상태: '+causeStatus,
+      c.rootCause?'재발방지 원인분석: '+c.rootCause:'',
+      d.environmentCause?'환경적 요인: '+d.environmentCause:'',
+      d.behaviorCause?'행동적 요인: '+d.behaviorCause:'',
+      d.causeAnalysisNote?'기타·종합 원인: '+d.causeAnalysisNote:''
+    ].filter(Boolean).join(' / ');
     const process=[d.workAction||'',d.incidentHow||i.summary||''].filter(Boolean).join(' → ');
     const plan=c.planDetail||d.preventionPlan||'-';
     return `${erpInfo}<section class="official439-box"><h3>법정 사고기록</h3><div class="official439-grid">
@@ -86,7 +93,14 @@
   function printReport(i){
     const d=i.reportDetails||{},c=i.corrective||{},h=i.historicalImport||{},isHist=historical(i),person=String(i.category||'')==='person';
     const worker=person?[d.injuredName||i.injuredName||'',d.job||i.job||''].filter(Boolean).join(' · '):[d.workerName||'',d.job||i.job||''].filter(Boolean).join(' · ');
-    const cause=[c.rootCause||'',d.environmentCause||'',d.behaviorCause||''].filter(Boolean).join(' / ');
+    const causeStatus=d.causeAnalysisStatus==='investigating'?'조사 중 · 원인 미확정':d.causeAnalysisStatus==='analyzed'?'분석 완료':'원인분석 상태 미기록';
+    const cause=[
+      '분석상태: '+causeStatus,
+      c.rootCause?'재발방지 원인분석: '+c.rootCause:'',
+      d.environmentCause?'환경적 요인: '+d.environmentCause:'',
+      d.behaviorCause?'행동적 요인: '+d.behaviorCause:'',
+      d.causeAnalysisNote?'기타·종합 원인: '+d.causeAnalysisNote:''
+    ].filter(Boolean).join(' / ');
     const process=[d.workAction||'',d.incidentHow||i.summary||''].filter(Boolean).join(' → ');
     const rows=isHist?[
       ['사업장',site(i.siteId)],['근로자 인적사항',worker||'-'],['재해 발생 일시',occurrenceText(i)],['재해 발생 장소',d.place||'-'],
