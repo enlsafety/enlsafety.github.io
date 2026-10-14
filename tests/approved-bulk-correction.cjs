@@ -43,8 +43,9 @@ const assert=require('node:assert/strict'),crypto=require('node:crypto'),fs=requ
   const revision=(await f.db.query("select before_payload,after_payload,changes from enl_incident_revisions where incident_id=$1",[incidentId])).rows;
   check(revision.length===1&&revision[0].before_payload.summary===before.summary&&revision[0].after_payload.summary===changes.summary,'immutable before/after evidence');
   r=await corrective(mutationId);check(r.status===200&&r.body.duplicate===true,'same mutation retry idempotent');
-  r=await safety('correct_closed',{reauthTicket:ticket,expectedVersion:2,mutationId:crypto.randomUUID(),reason:'승인정보 조작',changes:{externalInitialApproval:{state:'unverifiable'}}});
-  check(r.status===400,'external approval remains uneditable');
+  r=await safety('historical_reauth',{reauthPassword:password});check(r.status===200,'fresh password proof after version changed');
+  r=await safety('correct_closed',{reauthTicket:r.body.reauthTicket,expectedVersion:2,mutationId:crypto.randomUUID(),reason:'승인정보 조작',changes:{externalInitialApproval:{state:'unverifiable'}}});
+  check(r.status===400,'external approval remains uneditable even after fresh proof');
   await assert.rejects(()=>f.db.query("update enl_incident_shared set payload=jsonb_set(payload,'{summary}',to_jsonb('unlogged edit'::text)) where incident_id=$1",[incidentId]),/bulk_use_import_editor/);checks++;
   check(Number((await f.db.query("select count(*)::int n from enl_incident_revisions where incident_id=$1",[incidentId])).rows[0].n)===1,'unaudited direct edit did not alter history');
   const saved=(await safety('pull')).body.incidents.find(x=>x.id===incidentId);
