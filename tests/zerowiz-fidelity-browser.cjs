@@ -25,9 +25,11 @@ const TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; c
    await safety.click();
    await frame.locator('.app-shell.shell-v411').waitFor({timeout:16000});
    const safetyView=await frame.locator('#view').innerText();
-   assert.ok(safetyView.includes('사고 대시보드')||safetyView.includes('전체 사업장 사고현황'),'real production safety dashboard is rendered: '+safetyView.slice(0,500));
+   assert.ok(safetyView.includes('사고 대시보드')||safetyView.includes('안전 대시보드')||safetyView.includes('전체 사업장 사고현황'),'real production safety dashboard is rendered: '+safetyView.slice(0,500));
    assert.ok(!safetyView.includes('소피아그린')&&!safetyView.includes('백양우리'),'real site names never shown');
    assert.ok(safetyView.includes('가상 솔빛 골프장'),'fake business appears in real safety site dashboard');
+   await frame.locator('[data-sd450-map]').waitFor({timeout:16000});
+   assert.ok(await frame.locator('[data-sd450-map-site]').count()>=3,'real production Korea map with synthetic site pins');
    assert.ok(await frame.locator('.shell411-nav').count()>0,'operational app nav present');
    const intro=await frame.locator('body').evaluate(()=>({origin:window.origin,api:window.ENL_ZEROWIZ_FIDELITY?.version,network:window.ENL_ZEROWIZ_FIDELITY?.getNetworkBlocks(),active:window.ENL_ZEROWIZ_FIDELITY?.getRole()}));
    assert.equal(intro.origin,'null','demo must run with opaque sandbox origin');

@@ -35,7 +35,11 @@ const USERS=[
 const siteColumns=()=>SITES.map(s=>({...s,site_id:s.id,site_name:s.name,total_count:12,regular_count:9,daily_count:3,start_date:"2026-01-01",contract_end_date:"2027-12-31",address:"가상 위치 (실제 주소 아님)"}));
 window.ENL_SITE_MASTER_SEED=siteColumns();
 window.ENL_SITE_DIRECTORY=SITES.map(s=>({id:s.id,name:s.name,region:s.region}));
-window.ENL_SITE_LOCATIONS={};
+window.ENL_SITE_LOCATIONS={
+ "zw-site01":{address:"가상 위치 (실제 주소 아님)",lat:37.28,lon:127.17,accuracy:"demo"},
+ "zw-site02":{address:"가상 위치 (실제 주소 아님)",lat:36.87,lon:127.42,accuracy:"demo"},
+ "zw-site03":{address:"가상 위치 (실제 주소 아님)",lat:37.01,lon:127.09,accuracy:"demo"}
+};
 function incident(id,siteId,status,summary,category="property",opts={}) {
  const timestamp="2026-10-12T02:10:00.000Z";
  const d={

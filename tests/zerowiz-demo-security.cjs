@@ -3,6 +3,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict');
 const parent=fs.readFileSync('zerowiz-demo.html','utf8'),
  child=fs.readFileSync('zerowiz-demo-app.html','utf8'),
  boot=fs.readFileSync('zerowiz-fidelity-boot.js','utf8'),
+ map=fs.readFileSync('zerowiz-fidelity-dashboard.js','utf8'),
  runtime=fs.readFileSync('zerowiz-fidelity-runtime.js','utf8'),
  stable=fs.readFileSync('stable412.html','utf8'),
  auth=fs.readFileSync('auth-v411.js','utf8'),
@@ -16,6 +17,9 @@ ok(!child.includes('navigator.serviceWorker?.register('),'no prod PWA registrati
 ok(!child.includes('site-master-seed-v400.js')&&!child.includes('site-locations-v450.js'),'no real staff data or geolocation');
 ok(!/<script src="site-directory-v410\.js/.test(child)&&!/<script src="site-dashboard-v450\.js/.test(child),'no hardcoded real business names or coordinates');
 ok(!child.includes('zerowiz-demo.js'),'old simplified UI must not be loaded');
+ok(child.includes('zerowiz-fidelity-dashboard.js?v=2.0.0'),'real site dashboard map rendering reused');
+ok(!/소피아그린|백양우리|파주CC|010-\d{4}/.test(map),'map script contains no real business names or personnel');
+ok(map.includes('전국 사업장 분포'),'uses operational Korea map component');
 for(const path of ['core.js','app-shell-v411.js','report-v410.js','incidents-v410.js','incident-flow-v440.js','workflow-prevention-v429.js','closed-incident-reopen-v438.js']){
  ok(child.includes('<script src="'+path+'?'),'reuse exact operational component '+path);
 }
