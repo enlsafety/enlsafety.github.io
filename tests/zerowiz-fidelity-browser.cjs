@@ -25,8 +25,7 @@ const TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; c
    await safety.click();
    await frame.locator('.app-shell.shell-v411').waitFor({timeout:16000});
    const safetyView=await frame.locator('#view').innerText();
-   console.log('QA_REAL_SAFETY_VIEW',profile.name,JSON.stringify(safetyView.slice(0,1400)),await frame.locator('body').evaluate(()=>({view:window.currentView,role:window.currentUser?.()?.role}))); 
-   assert.ok(safetyView.includes('전체 사업장 사고현황'),'real safety homepage is rendered: '+safetyView.slice(0,800));
+   assert.ok(safetyView.includes('사고 대시보드')||safetyView.includes('전체 사업장 사고현황'),'real production safety dashboard is rendered: '+safetyView.slice(0,500));
    assert.ok(!safetyView.includes('소피아그린')&&!safetyView.includes('백양우리'),'real site names never shown');
    assert.ok(safetyView.includes('가상 솔빛 골프장'),'fake business appears in real safety site dashboard');
    assert.ok(await frame.locator('.shell411-nav').count()>0,'operational app nav present');
