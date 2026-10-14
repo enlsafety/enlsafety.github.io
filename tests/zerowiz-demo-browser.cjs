@@ -6,7 +6,7 @@ async function run(profile){
  const browser=await profile.engine.launch({headless:true}),page=await browser.newPage({viewport:{width:profile.width,height:850},isMobile:profile.width<700,hasTouch:profile.width<700});
  const errs=[],unexpected=[],visited=[];
  const role=async r=>{await page.locator('[data-logout]').click();await page.locator(`[data-role="${r}"]`).click()};
- const open=async id=>{await page.locator('[data-nav="incidents"]').click();await page.locator(`[data-open="${id}"]`).click()};
+ const open=async id=>{await page.locator('nav [data-nav="incidents"]').click();await page.locator(`[data-open="${id}"]`).click()};
  const state=()=>page.evaluate(()=>window.ENL_ZEROWIZ_DEMO.getState());
  try{
   page.on('pageerror',e=>errs.push(e.message));
@@ -106,7 +106,7 @@ async function run(profile){
    assert.match(await page.locator('#demoMain').innerText(),/의료·개인정보 제한/);
   }
   await role('worker');
-  await page.locator('[data-nav="incidents"]').click();
+  await page.locator('nav [data-nav="incidents"]').click();
   assert.equal(await page.locator(`[data-open="${id}"]`).count(),0,'worker cannot see manager incident');
   assert.ok(await page.locator('[data-open="DEMO-002"]').count()>0,'worker can see own incident');
 
