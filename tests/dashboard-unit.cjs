@@ -5,8 +5,8 @@ const ctx={data:{sites:[],incidents:[]},Date,console};ctx.window=ctx;vm.createCo
 const t=ctx.window.test,y=new Date().getFullYear();
 const incident=(extra={})=>({siteId:'s01',occurredAt:`${y}-05-01`,status:'reported',...extra});
 ctx.data.incidents=[incident({occurredAt:`${y-1}-12-01`,priority:'urgent'})];
-assert.equal(t.risk('s01').high,true,'active urgent incident triggers current high risk');assert.equal(t.risk('s01').activeHigh,true);assert.equal(t.risk('s01').count,0);assert.equal(t.risk('s01').open,1);
-ctx.data.incidents[0].recordMode='historical_transfer';assert.equal(t.risk('s01').high,false,'historical urgent excluded');
+assert.equal(t.risk('s01').high,true,'active urgent incident triggers current high risk');assert.equal(t.risk('s01').activeHigh,true);assert.equal(t.risk('s01').count,0);assert.equal(t.risk('s01').open,1);assert.equal(t.color('s01'),'#d83f45','older unresolved urgent incident stays red');
+ctx.data.incidents[0].recordMode='historical_transfer';assert.equal(t.risk('s01').high,false,'historical urgent excluded');assert.equal(t.risk('s01').level,'안전');assert.equal(t.color('s01'),'#219653');
 ctx.data.incidents=Array.from({length:4},()=>incident({status:'closed'}));assert.equal(t.risk('s01').high,false);ctx.data.incidents.push(incident({status:'closed'}));assert.equal(t.risk('s01').high,true,'5 current-year accidents');
 for(const extra of [{severity:'major'},{potentialMajor:true},{priority:'urgent'}]){ctx.data.incidents=[incident(extra)];assert.equal(t.risk('s01').high,true);assert.equal(t.risk('s01').activeHigh,true);ctx.data.incidents[0].status='closed';assert.equal(t.risk('s01').high,false)}
 ctx.window.ENL_SITE_MASTER_SEED=[{site_id:'s01',site_name:'검증',address:'주소',regular_count:3,daily_count:2}];ctx.data.sites=[{id:'s01',name:'검증'}];assert.equal(t.master('s01').address,'주소','undefined local field must not erase seed');
@@ -34,7 +34,7 @@ assert.equal(sp[0].x,10);assert.ok(Math.hypot(sp[1].x-11,sp[1].y-10)<=9.5,'minim
 console.log('PASS: only heavily overlapping points move; already distinct points stay exactly fixed');
 
 ctx.ENLContracts.setSites([{site_id:'s01',active:true}]);
-for(const [n,level,color] of [[0,'일반','#20252b'],[1,'일반','#20252b'],[2,'일반','#20252b'],[3,'주의','#e88918'],[4,'주의','#e88918'],[5,'고위험','#d83f45'],[6,'고위험','#d83f45']]){ctx.data.incidents=Array.from({length:n},()=>incident());assert.equal(t.risk('s01').level,level);assert.equal(t.color('s01'),color)}
-console.log('PASS: 0/1/2 black, 3/4 orange, 5/6 red; urgency remains independent');
+for(const [n,level,color] of [[0,'안전','#219653'],[1,'일반','#20252b'],[2,'일반','#20252b'],[3,'주의','#e88918'],[4,'주의','#e88918'],[5,'고위험','#d83f45'],[6,'고위험','#d83f45']]){ctx.data.incidents=Array.from({length:n},()=>incident());assert.equal(t.risk('s01').level,level);assert.equal(t.color('s01'),color)}
+console.log('PASS: 0 green; 1/2 black; 3/4 orange; 5/6 red; urgent unresolved stays red');
 
 ctx.data.incidents=Array.from({length:6},()=>incident({siteId:'s34',priority:'urgent'}));assert.equal(t.risk('s34').high,false);assert.equal(t.color('s34'),'#89939d');assert.equal(t.dashboardRows('all').length,2);console.log('PASS: closed sites never enter current high risk, even with 6 incidents or urgent records');
