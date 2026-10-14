@@ -8,7 +8,7 @@ const {fixture}=require('./final-lifecycle.cjs'),{chromium,webkit}=require('play
   try{
    let r=await f.call('field',{action:'push',incidents:[{id:'qa-approved-browser',siteId:'qa-site',category:'property',status:'reported',summary:'원본 가상 사고',eventType:'접촉',occurredAt:'2026-10-12T03:00:00Z',reportDetails:{place:'QA 동선',incidentHow:'원본 경위',repairCost:null,repairCostPending:true,recordedAt:'2026-10-12T03:30:00Z'},corrective:null,photos:[],_syncBaseVersion:0,_syncMutationId:'approved-browser-create'}]});
    assert.equal(r.status,200);const saved=r.body.incidents[0];
-   const approved={...saved,status:'approved',approvedBy:'client',approvedAt:'2001-01-01',_syncBaseVersion:saved._syncVersion,_syncMutationId:crypto.randomUUID()};
+   const approved={...saved,status:'approved',reportDetails:{...saved.reportDetails,causeAnalysisStatus:'investigating'},approvedBy:'client',approvedAt:'2001-01-01',_syncBaseVersion:saved._syncVersion,_syncMutationId:crypto.randomUUID()};
    r=await f.call('safety',{action:'push',incidents:[approved]});assert.equal(r.status,200);const incident=r.body.incidents[0];
    page=await browser.newPage({viewport:{width:profile.width,height:880},isMobile:profile.width<600,hasTouch:profile.width<600});
    page.on('pageerror',e=>errors.push(e.message));page.on('dialog',async d=>d.accept());
@@ -49,6 +49,28 @@ const {fixture}=require('./final-lifecycle.cjs'),{chromium,webkit}=require('play
    await page.evaluate(()=>openEditIncidentModal(data.incidents[0],currentUser()));
    assert.equal(await page.locator('[data-correction-key="summary"]').inputValue(),'정정된 가상 사고');
    assert.equal(await page.evaluate(()=>qaLegacyEditorUsed),false);
+   // Safety-only cause analysis correction, after the original accident has been approved.
+   await page.evaluate(()=>{openIncidentModal('qa-approved-browser',true,currentUser());document.querySelector('#modalRoot .modal').dataset.wf440Incident='qa-approved-browser';});
+   await page.locator('[data-closed-cause]').waitFor();
+   await page.locator('[data-closed-cause]').click();
+   await page.locator('#cause438Environment').fill('시설 안전점검 결과 작업 동선이 협소했음');
+   await page.locator('#cause438Behavior').fill('현장 사진 대조로 차량 회전반경 미확인 확인');
+   await page.locator('#cause438Other').fill('현장 기록과 사진을 교차 확인');
+   await page.locator('#cause438Pending').uncheck();
+   await page.locator('#cause438Reason').fill('사고 이후 확보된 증빙으로 원인분석 변경');
+   await page.locator('#cause438Form button[type=submit]').click();
+   await page.locator('#cause438Form').waitFor({state:'detached',timeout:12000});
+   const causeSaved=(await f.call('safety',{action:'pull'})).body.incidents[0];
+   assert.equal(causeSaved.status,'approved');
+   assert.equal(causeSaved.approvedAt,incident.approvedAt);
+   assert.equal(causeSaved.reportDetails.causeAnalysisStatus,'analyzed');
+   assert.equal(causeSaved.reportDetails.environmentCause,'시설 안전점검 결과 작업 동선이 협소했음');
+   assert.equal(causeSaved.reportDetails.behaviorCause,'현장 사진 대조로 차량 회전반경 미확인 확인');
+   assert.equal(causeSaved.officialRecord.revisionNumber,2);
+   await page.evaluate(()=>{openIncidentModal('qa-approved-browser',true,currentUser());document.querySelector('#modalRoot .modal').dataset.wf440Incident='qa-approved-browser';});
+   await page.locator('[data-closed-history]').click();
+   const details=await page.locator('#modalRoot').innerText();
+   assert.ok(details.includes('환경적 요인')&&details.includes('분석 완료')&&details.includes('사고 이후 확보된 증빙'));
    assert.deepEqual(errors,[]);
    console.log('PASS approved correction UI -> backend save: '+profile.name+' '+profile.width+'px');
   }finally{if(page)await page.close();await browser.close();await f.db.close();}

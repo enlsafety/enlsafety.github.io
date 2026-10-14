@@ -13,7 +13,7 @@ const assert=require('node:assert/strict'),crypto=require('node:crypto'),{fixtur
   }]});eq(r.status,200,'created');let i=r.body.incidents[0];
   r=await call('safety','correct_closed',{changes:{summary:'승인 전 오류 수정'},reason:'테스트',expectedVersion:i._syncVersion,mutationId:crypto.randomUUID()});
   eq(r.status,409,'unapproved correction denied');
-  const approve={...i,status:'approved',approvedBy:'client-not-authoritative',approvedAt:'2000-01-01',_syncBaseVersion:i._syncVersion,_syncMutationId:crypto.randomUUID()};
+  const approve={...i,status:'approved',reportDetails:{...i.reportDetails,causeAnalysisStatus:'investigating'},approvedBy:'client-not-authoritative',approvedAt:'2000-01-01',_syncBaseVersion:i._syncVersion,_syncMutationId:crypto.randomUUID()};
   r=await f.call('safety',{action:'push',incidents:[approve]});eq(r.status,200,'approval succeeded');i=r.body.incidents[0];
   const original={by:i.approvedBy,at:i.approvedAt,reportedBy:i.reporterId,site:i.siteId,version:i._syncVersion};
   const pushCount=Number((await f.db.query('select count(*)::int n from enl_push_events')).rows[0].n);
