@@ -37,7 +37,8 @@ const TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; c
    await frame.locator('.app-shell.shell-v411').waitFor();
    const fieldView=await frame.locator('body').innerText();
    assert.ok(fieldView.includes('가상 솔빛 골프장'),'operational field shell');
-   await frame.locator('[data-view="report"]').first().click().catch(async()=>{await frame.locator('button:has-text("사고 등록")').first().click()});
+   await frame.locator('[data-field-task="accident_report"]').click();
+   await frame.locator('[data-report-type="property"]').click();
    await frame.locator('#unifiedReportForm').waitFor({timeout:10000});
    assert.equal(await frame.locator('#environmentCause410,#behaviorCause410').count(),0,'actual field report excludes cause input');
    assert.ok(await frame.locator('.report410-section').count()>=3,'real report section styles and fields');
