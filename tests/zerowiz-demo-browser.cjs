@@ -26,7 +26,7 @@ async function run(profile){
 
   // Field manager: report an accident. Cause fields are intentionally absent.
   await page.locator('[data-role="field"]').click();
-  await page.locator('[data-nav="new"]').click();
+  await page.locator('nav [data-nav="new"]').click();
   assert.equal(await page.locator('#demoForm [name="environmentCause"],#demoForm [name="behaviorCause"]').count(),0);
   await page.locator('#demoForm [name="summary"]').fill('QA 제로위즈 현장 사고등록');
   await page.locator('#demoForm [name="place"]').fill('가상 8홀 카트 도로');
