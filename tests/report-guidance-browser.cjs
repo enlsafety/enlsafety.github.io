@@ -25,13 +25,15 @@ async function setup(engine){
     const {browser,page}=await setup(engine);
     try{
       await page.evaluate(()=>window.enlOpenIncidentReport('person',window.currentUser()));
-      for(const id of ['environmentCause410','behaviorCause410','injuryDetail410','doctorOpinion410','medicalCostDetail410','preventionPlan410','specialNote410']){
+      for(const id of ['injuryDetail410','doctorOpinion410','medicalCostDetail410','preventionPlan410','specialNote410']){
         const ph=await page.locator('#'+id).getAttribute('placeholder');
         assert.ok(ph&&ph.startsWith('예:'),id+' needs a concrete example placeholder');
       }
 
+      assert.equal(await page.locator('#environmentCause410,#behaviorCause410').count(),0,'person site form must not ask for cause analysis');
       await page.evaluate(()=>window.enlOpenIncidentReport('property',window.currentUser()));
-      for(const id of ['environmentCause410','behaviorCause410','damageDetail410','preventionPlan410','specialNote410']){
+      assert.equal(await page.locator('#environmentCause410,#behaviorCause410').count(),0,'property site form must not ask for cause analysis');
+      for(const id of ['damageDetail410','preventionPlan410','specialNote410']){
         const ph=await page.locator('#'+id).getAttribute('placeholder');
         assert.ok(ph&&ph.startsWith('예:'),id+' needs a concrete example placeholder');
       }
