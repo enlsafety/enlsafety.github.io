@@ -102,11 +102,11 @@ export function validateLifecycle(prev:any,next:any,actor:any,now:string){
 export function correctedIncident(prev:any,changes:any,reason:string,actor:any,now:string){
   if(actor.role!=='safety')fail('forbidden',403);
   const historical=isHistoricalEditable(prev);
-  if(prev.status!=='closed'&&!(historical&&prev.status==='approved'))fail('closed_incident_required');
+  if(!accepted(prev))fail('approved_or_closed_required');
   if(!text(reason)||text(reason).length>2000)fail('revision_reason_required',400);
   const allowed=new Set(['summary','occurredAt','eventType','category','injuredName','injuredAge','injuredGender','injuredPart','injuryType','leaveEstimate','immediateAction','reportDetails','photos','corrective',...(historical?['historicalImport']:[])]);
   const correctiveAllowed=new Set(['rootCause','causeStatus','planDetail','ownerName','dueDate','actionDetail','actionDate','actionOwner','additionalNotes','afterPhotos']);
-  const historicalDetails=new Set(['place','workAction','incidentHow','environmentCause','behaviorCause','injuredName','workerName','job','injuryDetail','diagnosis','doctorOpinion','medicalCost','medicalCostDetail','repairCost','repairCostDetail','damagedItem','damageDetail','specialNote']);
+  const historicalDetails=new Set(['place','workAction','incidentHow','environmentCause','behaviorCause','injuredName','workerName','job','injuryDetail','diagnosis','doctorOpinion','medicalCost','medicalCostDetail','repairCost','repairCostDetail','damagedItem','damageDetail','preventionPlan','specialNote']);
   const historicalMeta=new Set(['originalReporterName','erpApprovalRef','erpApprovalDate','existingActionNote','additionalActionNote','existingActionStatus']);
   const next=structuredClone(prev),diff:any[]=[];
   if(!changes||typeof changes!=='object'||Array.isArray(changes))fail('invalid_changes',400);
@@ -127,13 +127,14 @@ export function correctedIncident(prev:any,changes:any,reason:string,actor:any,n
           if(mirror[k]&&next.historicalTransfer)next.historicalTransfer={...next.historicalTransfer,[mirror[k]]:v};
         }
       }
-    }else if(key==='reportDetails'&&historical){
+    }else if(key==='reportDetails'){
       if(!value||typeof value!=='object'||Array.isArray(value))fail('invalid_changes',400);
       const updated={...(prev.reportDetails||{})};
       for(const [k,v] of Object.entries(value)){
         if(equal(prev.reportDetails?.[k],v))continue;
         if(!historicalDetails.has(k))fail('revision_field_forbidden',400);
         updated[k]=v;
+        if(costKeys.includes(k)&&v!==null&&v!==undefined&&v!=='')updated[k+'Pending']=false;
       }
       if(!equal(prev.reportDetails,updated)){
         diff.push({field:'reportDetails',before:prev.reportDetails??null,after:updated});
@@ -148,7 +149,7 @@ export function correctedIncident(prev:any,changes:any,reason:string,actor:any,n
   if(!text(next.summary)||!Number.isFinite(Date.parse(next.occurredAt)))fail('report_fields_required',400);
   for(const key of costKeys){const v=next.reportDetails?.[key];if(v!==null&&v!==undefined&&v!==''&&(!Number.isSafeInteger(v)||v<0))fail('invalid_cost',400);}
   const revision=Number(prev.officialRecord?.revisionNumber||0)+1;
-  const affectsAction=diff.some(x=>x.field.startsWith('corrective.')||['summary','occurredAt','eventType','category','reportDetails'].includes(x.field));
+  const affectsAction=diff.some(x=>x.field.startsWith('corrective.')||['summary','occurredAt','eventType','category','reportDetails','immediateAction','injuredName','injuredAge','injuredPart','injuryType','leaveEstimate'].includes(x.field));
   next.officialRecord={...prev.officialRecord,revisionNumber:revision,lastCorrection:{reason:text(reason),byId:actor.id,by:actor.name,at:now,revision},actionRecheckRequired:affectsAction||prev.officialRecord?.actionRecheckRequired===true,erpCorrectionRequired:!!prev.officialRecord?.erpManual?.submitted||prev.officialRecord?.erpCorrectionRequired===true};
   return {next,diff,revision};
 }

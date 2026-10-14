@@ -5,7 +5,7 @@ import postgres from "npm:postgres@3.4.5";
 
 const ORIGIN="https://enlsafety.github.io";
 const APP="incident-report-v2";
-const VERSION="4.6.0-r1";
+const VERSION="4.6.1-r1";
 const cors={"Access-Control-Allow-Origin":ORIGIN,"Access-Control-Allow-Headers":"content-type, x-client-info, apikey, authorization, x-enl-app","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:cors});
 const clean=(v:any)=>String(v??"").trim();
@@ -297,7 +297,7 @@ Deno.serve(async(req:Request)=>{
           return json({ok:true,verified:true,incident:prev,reauthTicket:permit.ticket,expiresAt:permit.expiresAt});
         }
         if(actor.role!=="safety")return json({ok:false,message:"forbidden"},403);
-        if(prev.status!=="closed"&&!(action==="correct_closed"&&isHistoricalEditable(prev)&&prev.status==="approved"))return json({ok:false,message:"closed_incident_required"},409);
+        if(prev.status!=="closed"&&!(action==="correct_closed"&&prev.status==="approved"))return json({ok:false,message:"approved_or_closed_required"},409);
         const mutationId=clean(body.mutationId);if(!mutationId||mutationId.length>160)return json({ok:false,message:"mutation_id_required"},400);
         const requestHash=await sha256Hex(JSON.stringify(canonicalValue({action,incidentId,expectedVersion:body.expectedVersion,changes:body.changes,reason:body.reason,record:body.record,snapshotId:body.snapshotId,fileHash:body.fileHash,filename:body.filename})));
         const duplicate=await sql`select action,editor_id,details from public.enl_incident_operations where incident_id=${incidentId} and mutation_id=${mutationId}`;
