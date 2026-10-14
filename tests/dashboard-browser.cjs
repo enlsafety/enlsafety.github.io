@@ -42,8 +42,8 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  assert.equal(await page.locator('.sd450-kpis>div').filter({hasText:'일용 인원'}).locator('strong').innerText(),'66명');
  assert.ok(await page.locator('.sd450-primary-legend').evaluate(el=>el.getBoundingClientRect().bottom<=document.querySelector('.sd450-map-viewport').getBoundingClientRect().top),'legend must be above map, including mobile');
  assert.equal(await page.locator('.sd450-map-note').count(),0);
- assert.ok((await page.locator('.sd450-primary-legend').innerText()).includes('계약종료 · 회색'));
- assert.equal(await page.locator('.sd450-dot.closed').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(137, 147, 157)');
+ const mapLegend=await page.locator('.sd450-primary-legend').innerText();assert.ok(mapLegend.includes('계약종료 · 회색'));assert.ok(mapLegend.includes('안전: 올해 사고 0건'));assert.ok(mapLegend.includes('일반: 올해 사고 1~2건'));
+ assert.equal(await page.locator('.sd450-dot.closed').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(137, 147, 157)');assert.equal(await page.locator('.sd450-dot.safe').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(33, 150, 83)');
  await page.waitForFunction(()=>window.enlDashboardMetrics?.()!==null,{timeout:5000});
  await page.waitForTimeout(1350);
  await page.locator('[data-sd450-map]').waitFor();
@@ -64,8 +64,9 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  await page.waitForFunction(()=>{const b=document.querySelector('[data-sd450-map-site="s02"]');return b&&getComputedStyle(b).backgroundColor==='rgb(232, 137, 24)'},{timeout:5000});
  await openSite('s29');assert.ok((await page.locator('[data-sd450-summary]').innerText()).includes('미종결 긴급·중대 사고 있음'));
  assert.equal(await page.locator('[data-sd450-map-site="s29"].high').count(),1);
- for(const [id,expected] of [['s29','rgb(216, 63, 69)'],['s02','rgb(232, 137, 24)'],['s03','rgb(216, 63, 69)']])assert.equal(await page.locator(`[data-sd450-map-site="${id}"]`).evaluate(b=>getComputedStyle(b).backgroundColor),expected);
- const verifyLabels=async()=>{
+ for(const [id,expected] of [['s04','rgb(33, 150, 83)'],['s01','rgb(32, 37, 43)'],['s29','rgb(216, 63, 69)'],['s02','rgb(232, 137, 24)'],['s03','rgb(216, 63, 69)']])assert.equal(await page.locator(`[data-sd450-map-site="${id}"]`).evaluate(b=>getComputedStyle(b).backgroundColor),expected);
+ assert.ok((await page.locator('[data-sd450-map-site="s04"]').getAttribute('aria-label')).includes('안전'),'0-incident marker labeled safe');assert.ok((await page.locator('[data-sd450-map-site="s01"]').getAttribute('aria-label')).includes('일반'),'1-2 incident marker labeled normal');
+  const verifyLabels=async()=>{
   const labels=await page.locator('.sd450-marker:not([hidden]) .sd450-marker-label').evaluateAll(bs=>bs.map(b=>{const r=b.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,visible:getComputedStyle(b).visibility==='visible',text:b.textContent}}));
   assert.ok(labels.length>0,'zoomed map retains visible markers');
   assert.ok(await page.locator('.sd450-marker:not([hidden]) .sd450-marker-label').evaluateAll(bs=>bs.every(b=>getComputedStyle(b).transform==='none'&&getComputedStyle(b).fontSize==='11px')),'text remains native 11px without transform');
