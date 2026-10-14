@@ -48,7 +48,7 @@ async function run(){const f=await fixture();let checks=0;const check=(condition
  i=(await f.call('safety',{action:'pull'})).body.incidents[0];
  r=await push('safety',x=>{x.status='supplement';x.supplement={requestNote:'수리비 증빙 보완 요청',requestedFields:['repairCost']}});check(r.status===200,'supplement request');
  r=await push('field',x=>{x.status='supplement_submitted';x.reportDetails.incidentHow='보완된 사고경위'});check(r.status===200,'field resubmission');
- r=await push('safety',x=>{x.status='approved';x.approvedBy='브라우저값';x.approvedAt='2000-01-01'});assert.equal(r.status,200,JSON.stringify(r));check(i.approvedBy==='QA 안전'&&i.approvedAt!=='2000-01-01','server approval identity and time');
+ r=await push('safety',x=>{x.status='approved';x.reportDetails.causeAnalysisStatus='investigating';x.approvedBy='브라우저값';x.approvedAt='2000-01-01'});assert.equal(r.status,200,JSON.stringify(r));check(i.approvedBy==='QA 안전'&&i.approvedAt!=='2000-01-01','server approval identity and time');
  const approval=i.approvedAt;
  r=await push('field',x=>x.summary='승인사고 변조');check(r.status===409,'approved facts locked');
  r=await push('field',x=>x.reportDetails.repairCost=50000);assert.equal(r.status,200,JSON.stringify(r));check(i.status==='approved'&&i.approvedAt===approval&&i.officialRecord.costAdditions.length===1,'additive cost audited without invalidating approval');

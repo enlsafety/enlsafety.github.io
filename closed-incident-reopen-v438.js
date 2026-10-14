@@ -4,7 +4,7 @@
  const e=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const actor=()=>{const u=currentUser();return {id:u.id||u.personnelId,role:u.role,siteId:u.siteId||''}};
  const fields=[['summary','사고 요약'],['occurredAt','발생일시'],['eventType','사고유형'],['injuredName','피해 직원명'],['immediateAction','사고 직후 조치'],
-  ['reportDetails.place','발생 장소'],['reportDetails.workAction','사고 당시 작업'],['reportDetails.incidentHow','사고경위'],['reportDetails.environmentCause','환경적 요인'],['reportDetails.behaviorCause','작업자 행동요인'],['reportDetails.preventionPlan','최초 예방대책'],['reportDetails.specialNote','특이사항'],['reportDetails.job','직종·업무'],
+  ['reportDetails.place','발생 장소'],['reportDetails.workAction','사고 당시 작업'],['reportDetails.incidentHow','사고경위'],['reportDetails.preventionPlan','최초 예방대책'],['reportDetails.specialNote','특이사항'],['reportDetails.job','직종·업무'],
   ['reportDetails.injuryDetail','부상 내용'],['reportDetails.diagnosis','진단명'],['reportDetails.doctorOpinion','의사 소견'],['reportDetails.medicalCost','치료비 (원)'],['reportDetails.medicalCostDetail','치료비 상세'],
   ['reportDetails.workerName','사고 당시 작업자'],['reportDetails.damagedItem','파손 물품'],['reportDetails.damageDetail','파손 내용'],['reportDetails.repairCost','수리비 (원)'],['reportDetails.repairCostDetail','수리비 상세'],
   ['corrective.rootCause','원인 · 미확정 사항은 추정이라고 표시해 주세요'],['corrective.planDetail','재발방지계획'],['corrective.ownerName','계획 담당자'],['corrective.dueDate','완료 목표일'],['corrective.actionDetail','현장 조치결과'],['corrective.actionDate','조치 시행일'],['corrective.actionOwner','조치 담당자'],['corrective.additionalNotes','추가 확인사항']];
@@ -25,9 +25,9 @@
   return '서버 저장을 확인하지 못했습니다. 저장 오류: '+(msg&&/^[a-z0-9_ -]{1,100}$/i.test(msg)?msg:'연결·서버 처리 실패');
  }
  async function operation(i,action,extra){const r=await window.enlIncidentApi({action,incidentId:i.id,expectedVersion:Number(i._syncVersion||0),actor:actor(),...extra},22000);if(!r?.incident)throw Error('save_not_confirmed');window.enlAcceptSavedIncident?.(r.incident);return r;}
- const labels=Object.fromEntries(fields.concat([['category','사고 구분'],['reportDetails.diagnosis','진단명'],['reportDetails.doctorOpinion','의사 소견'],['reportDetails.medicalCostDetail','진료비 상세'],['reportDetails.repairCostDetail','견적 상세'],['reportDetails.damageDetail','파손 내용'],['reportDetails.damagedItem','파손 물품'],['reportDetails.preventionPlan','예방대책'],['reportDetails.specialNote','특이사항'],['photos','사고 첨부자료'],['corrective.afterPhotos','조치 첨부자료']]));
+ const labels=Object.fromEntries(fields.concat([['category','사고 구분'],['reportDetails.diagnosis','진단명'],['reportDetails.doctorOpinion','의사 소견'],['reportDetails.medicalCostDetail','진료비 상세'],['reportDetails.repairCostDetail','견적 상세'],['reportDetails.damageDetail','파손 내용'],['reportDetails.damagedItem','파손 물품'],['reportDetails.preventionPlan','예방대책'],['reportDetails.specialNote','특이사항'],['photos','사고 첨부자료'],['corrective.afterPhotos','조치 첨부자료'],['reportDetails.environmentCause','환경적 요인'],['reportDetails.behaviorCause','행동적 요인'],['reportDetails.causeAnalysisNote','기타·종합 원인'],['reportDetails.causeAnalysisStatus','원인분석 상태'],['reportDetails.causeAnalyzedBy','원인분석 담당자'],['reportDetails.causeAnalyzedById','원인분석 담당자 ID'],['reportDetails.causeAnalyzedAt','원인분석 수정시각']]));
  const koreaLocal=v=>{const d=new Date(v);return Number.isFinite(d.getTime())?new Date(d.getTime()+9*3600000).toISOString().slice(0,16):''};
- const display=(key,v)=>{if(v===null||v===undefined||v==='')return '미입력';if(key==='category')return v==='person'?'대인사고':v==='property'?'대물사고':'사고';if(key==='occurredAt')return koreaLocal(v).replace('T',' ')+' (한국시간)';if(key.endsWith('Cost'))return Number(v).toLocaleString('ko-KR')+'원';if(Array.isArray(v))return v.map(x=>typeof x==='string'?x:x.name||'첨부자료').join(' · ')||'첨부 없음';if(typeof v==='object')return '기록 내용 변경';return String(v)};
+ const display=(key,v)=>{if(v===null||v===undefined||v==='')return '미입력';if(key==='reportDetails.causeAnalysisStatus')return v==='investigating'?'조사 중 · 미확정':v==='analyzed'?'분석 완료':'분석 대기';if(key==='reportDetails.causeAnalyzedAt')return koreaLocal(v).replace('T',' ')+' (한국시간)';if(key==='category')return v==='person'?'대인사고':v==='property'?'대물사고':'사고';if(key==='occurredAt')return koreaLocal(v).replace('T',' ')+' (한국시간)';if(key.endsWith('Cost'))return Number(v).toLocaleString('ko-KR')+'원';if(Array.isArray(v))return v.map(x=>typeof x==='string'?x:x.name||'첨부자료').join(' · ')||'첨부 없음';if(typeof v==='object')return '기록 내용 변경';return String(v)};
  const historyRows=d=>{if(d.field==='reportDetails')return [...new Set([...Object.keys(d.before||{}),...Object.keys(d.after||{})])].filter(k=>JSON.stringify(d.before?.[k])!==JSON.stringify(d.after?.[k])).map(k=>({field:'reportDetails.'+k,before:d.before?.[k],after:d.after?.[k]}));return [d]};
  const control=(i,key)=>{const value=val(i,key)??'',attr=' data-correction-key="'+e(key)+'"';if(key==='occurredAt')return '<input type="datetime-local" required'+attr+' value="'+e(koreaLocal(value))+'">';if(key.endsWith('Cost'))return '<input type="number" min="0" max="999999999999" step="1"'+attr+' value="'+e(value)+'">';if(key.endsWith('Date'))return '<input type="date"'+attr+' value="'+e(value)+'">';return '<textarea'+attr+' rows="2">'+e(value)+'</textarea>'};
  function correction(i){
@@ -74,6 +74,43 @@
     }
   };
  }
+ function causeCorrection(i){
+  if(currentUser()?.role!=='safety')return alert('안전관리자만 원인분석을 정정할 수 있습니다.');
+  if(!['approved','closed'].includes(String(i?.status||'')))return alert('승인·종결된 사고만 정정할 수 있습니다.');
+  const d=i.reportDetails||{},isPending=d.causeAnalysisStatus==='investigating';
+  const textarea=(id,label,value,tip)=>'<label class="lbl"><span>'+label+'</span><textarea id="'+id+'" rows="3" maxlength="4000" style="width:100%;box-sizing:border-box" placeholder="'+tip+'">'+e(value||'')+'</textarea></label>';
+  openModal('<div class="modal-head"><div><h2>사고원인 분석 정정</h2><p>기존 승인·종결 정보는 유지되며, 원인분석의 변경 전후 내용과 사유를 서버 이력으로 보존합니다.</p></div><button class="x" data-close>×</button></div>'
+    +'<form id="cause438Form">'
+    +textarea('cause438Environment','환경적 요인',d.environmentCause,'확인된 작업환경·시설물·장비 요인')
+    +textarea('cause438Behavior','행동적 요인',d.behaviorCause,'확인된 작업방법 요인. 추측이나 책임 단정은 피하세요.')
+    +textarea('cause438Other','기타·종합 원인',d.causeAnalysisNote,'기타 원인 또는 조사 근거')
+    +'<label class="lbl" style="display:flex;align-items:flex-start;gap:10px;padding:12px;background:#fff7e9;border:1px solid #e3c58a;border-radius:10px"><input id="cause438Pending" type="checkbox" style="min-width:20px;min-height:20px" '+(isPending?'checked':'')+'><span>조사 중 · 사고원인 미확정</span></label>'
+    +'<label class="lbl"><span>변경 사유 *</span><textarea id="cause438Reason" required maxlength="2000" rows="3" placeholder="예: 현장 재조사 및 추가 증빙에 따른 원인분석 변경"></textarea></label>'
+    +'<p id="cause438Feedback" role="alert" aria-live="polite" style="color:#ad3434;font-size:13px"></p>'
+    +'<button type="submit" class="primary full">원인분석 정정 저장</button></form>');
+  const form=document.getElementById('cause438Form');let lastPayload='',mutationId='';
+  form.onsubmit=async event=>{
+    event.preventDefault();if(!form.reportValidity())return;
+    const btn=form.querySelector('button[type=submit]'),hint=form.querySelector('#cause438Feedback');if(btn.disabled)return;
+    const causes={environmentCause:form.querySelector('#cause438Environment').value.trim(),
+      behaviorCause:form.querySelector('#cause438Behavior').value.trim(),
+      causeAnalysisNote:form.querySelector('#cause438Other').value.trim(),
+      causeAnalysisStatus:form.querySelector('#cause438Pending').checked?'investigating':'analyzed'};
+    if(causes.causeAnalysisStatus==='analyzed'&&!causes.environmentCause&&!causes.behaviorCause&&!causes.causeAnalysisNote){
+      hint.textContent='확인된 원인을 작성하거나, 조사 중·미확정을 선택해 주세요.';return;
+    }
+    const reason=form.querySelector('#cause438Reason').value.trim();
+    if(reason.length<2){hint.textContent='변경 사유를 2자 이상 입력해 주세요.';return;}
+    const update={};for(const [key,val] of Object.entries(causes))if(String(d[key]??'')!==val)update[key]=val;
+    if(!Object.keys(update).length){hint.textContent='변경된 원인분석 내용이 없습니다.';return;}
+    const payload=JSON.stringify({update,reason});if(payload!==lastPayload){lastPayload=payload;mutationId=crypto.randomUUID();}
+    btn.disabled=true;btn.textContent='서버 저장 중…';hint.textContent='';
+    try{
+      await operation(i,'correct_closed',{changes:{reportDetails:update},reason,mutationId});
+      closeModal();renderShell(currentUser());alert('원인분석 정정이 서버에 저장되었습니다. 수정 사유와 변경이력을 확인할 수 있습니다.');
+    }catch(error){hint.textContent=failure(error);btn.disabled=false;btn.textContent='원인분석 정정 저장';}
+  };
+ }
  function erp(i){
   const r=i.officialRecord?.erpManual||{};
   openModal('<div class="modal-head"><h2>ERP 수동 기안 기록</h2><button class="x" data-close>×</button></div><p>ERP에서 직접 기안하신 뒤 기록해 주세요. 이 기록은 ERP 승인이나 문서 자동수정을 의미하지 않습니다.</p><form id="erpManualForm"><label class="lbl"><span>ERP 문서번호 (선택)</span><input id="erpNumber" maxlength="120" value="'+e(r.documentNumber||'')+'"></label><label class="lbl"><span>기안일 *</span><input id="erpDate" type="date" required value="'+e(r.draftedAt||'')+'"></label><label class="lbl"><span>기록 사유 *</span><input id="erpReason" required maxlength="2000"></label><label><input id="erpDone" type="checkbox" required> ERP에서 수동 기안을 완료했습니다.</label><button type="submit" class="primary full">수동 기안정보 저장</button></form>');
@@ -101,12 +138,13 @@
     +(i.officialRecord?.actionRecheckRequired?'<p><strong>재발방지계획·조치완료 사실의 재검토가 필요합니다.</strong></p>':'')
     +'<div class="modal-actions">'
     +(u.role==='safety'?'<button class="btn-blue" data-closed-correct>'+(historic?'과거사고 이관정보 수정':done?'사유를 남기고 정정':'승인 후 사고정보 정정')+'</button>'
-    +(done?'<button class="btn-gray" data-closed-erp>ERP 수동 기안 기록</button>':''):'')
+    +(!historic?'<button class="btn-blue" data-closed-cause>원인분석 정정</button>':'')+(done?'<button class="btn-gray" data-closed-erp>ERP 수동 기안 기록</button>':''):'')
     +'<button class="btn-gray" data-closed-history>정정이력 조회</button></div>';
   m.appendChild(s);
   s.querySelector('[data-closed-correct]')?.addEventListener('click',()=>historic?window.enlOpenHistoricalCorrection?.(i,u):correction(i));
+  s.querySelector('[data-closed-cause]')?.addEventListener('click',()=>causeCorrection(i));
   s.querySelector('[data-closed-erp]')?.addEventListener('click',()=>erp(i));
   s.querySelector('[data-closed-history]').onclick=()=>history(i);
  }
- const queue=()=>{if(!queued){queued=true;requestAnimationFrame(decorate)}};new MutationObserver(queue).observe(document.body,{childList:true,subtree:true});window.enlOpenApprovedCorrection=correction;window.ENL_CLOSED_INCIDENT_REOPEN_VERSION='4.6.1-r1-audited-correction';
+ const queue=()=>{if(!queued){queued=true;requestAnimationFrame(decorate)}};new MutationObserver(queue).observe(document.body,{childList:true,subtree:true});window.enlOpenApprovedCorrection=correction;window.ENL_CLOSED_INCIDENT_REOPEN_VERSION='4.6.2-r1-cause-audit';
 })();

@@ -1,9 +1,9 @@
 {
-  "version": "4.6.1",
-  "build": "stable-461-r1",
+  "version": "4.6.2",
+  "build": "stable-462-r1",
   "autoUpdate": false,
   "loginAutoUpdate": false,
   "stableEntry": "stable412.html",
-  "currentStableVersion": "4.6.1",
-  "updatedAt": "2026-10-14T01:40:25.400Z"
+  "currentStableVersion": "4.6.2",
+  "updatedAt": "2026-10-14T06:00:10.072Z"
 }

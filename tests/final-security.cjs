@@ -5,7 +5,7 @@ try{
  let r=await f.call('field',{action:'push',incidents:[{id:'qa-security',siteId:'qa-site',status:'reported',category:'person',summary:'가상 보안사고 / 진단명: 비공개진단 / 의사 소견: 비공개의견',occurredAt:'2026-10-12T01:00:00Z',reportDetails:{diagnosis:'비공개진단',doctorOpinion:'비공개의견',medicalCostDetail:'비공개상세',medicalCost:null},photos:[],corrective:null,_syncBaseVersion:0,_syncMutationId:'security-create'}]});check(r.status,200,'create');let i=r.body.incidents[0];
  const push=async(who,edit)=>{const n=structuredClone(i);edit(n);n._syncBaseVersion=i._syncVersion;n._syncMutationId=crypto.randomUUID();const r=await f.call(who,{action:'push',incidents:[n]});if(r.status===200&&r.body.incidents[0])i=r.body.incidents[0];return r};
  for(const who of ['manager','executive']){const v=(await f.call(who,{action:'pull'})).body.incidents[0];check(v.reportDetails.diagnosis,undefined,'initial medical redaction');check(v.reportDetails.doctorOpinion,undefined,'opinion redaction');check(/비공개진단|비공개의견/.test(v.summary),false,'generated summary medical redaction')}
- check((await push('safety',x=>x.status='approved')).status,200,'approve');
+ check((await push('safety',x=>{x.status='approved';x.reportDetails.causeAnalysisStatus='investigating'})).status,200,'approve');
  check((await push('field',x=>x.acknowledgements=[{userId:'fake'}])).status,409,'old signatures immutable');
  check((await push('safety',x=>x.corrective={status:'planned',rootCause:'가상 원인',planDetail:'가상 계획',ownerName:'QA 현장',dueDate:'2026-10-20'})).status,200,'plan');
  check((await push('field',x=>Object.assign(x.corrective,{status:'submitted',actionDetail:'가상 조치',actionDate:'2026-10-13',actionOwner:'QA 현장',afterPhotos:[{path:'action/site-qa-site/qa.pdf',name:'QA.pdf',mime:'application/pdf'}]}))).status,200,'evidence');

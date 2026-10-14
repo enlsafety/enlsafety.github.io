@@ -12,6 +12,39 @@ export function isHistoricalEditable(i:any) {
     ||!!(text(i.historicalOrigin?.batchId)&&text(i.historicalOrigin?.candidateId)
       &&['verified','unverifiable'].includes(text(i.externalInitialApproval?.state)));
 }
+// Cause analysis belongs to safety, not the reporting site. Status is explicit and reviewable.
+const causeFacts=['environmentCause','behaviorCause','causeAnalysisNote'];
+const causeFields=[...causeFacts,'causeAnalysisStatus','causeAnalyzedBy','causeAnalyzedById','causeAnalyzedAt'];
+function causeDetails(i:any){return i?.reportDetails&&typeof i.reportDetails==='object'&&!Array.isArray(i.reportDetails)?i.reportDetails:{};}
+function isCauseReady(d:any){return text(d?.causeAnalysisStatus)==='investigating'||(text(d?.causeAnalysisStatus)==='analyzed'&&causeFacts.some(k=>text(d?.[k])));}
+function normalizeCause(prev:any,next:any,actor:any,now:string){
+  const old=causeDetails(prev),out=causeDetails(next);
+  next.reportDetails={...out};
+  if(actor.role!=='safety'){
+    for(const k of causeFields){
+      if(Object.prototype.hasOwnProperty.call(old,k))next.reportDetails[k]=structuredClone(old[k]);
+      else delete next.reportDetails[k];
+    }
+    if(!prev)next.reportDetails.causeAnalysisStatus='not_reviewed';
+    return;
+  }
+  if(prev&&accepted(prev))return; // After approval use audited correct_closed, never an ordinary push.
+  const status=text(out.causeAnalysisStatus);
+  if(status&&!['not_reviewed','investigating','analyzed'].includes(status))fail('cause_status_invalid',400);
+  if(status==='analyzed'&&!causeFacts.some(k=>text(out[k])))fail('cause_details_required',400);
+  for(const key of causeFacts)if(text(out[key]).length>4000)fail('cause_details_too_long',400);
+  const changed=causeFacts.some(k=>!equal(old[k],out[k]))||!equal(text(old.causeAnalysisStatus),status);
+  if(changed&&['investigating','analyzed'].includes(status)){
+    next.reportDetails.causeAnalyzedBy=actor.name;
+    next.reportDetails.causeAnalyzedById=actor.id;
+    next.reportDetails.causeAnalyzedAt=now;
+  }else{
+    for(const k of ['causeAnalyzedBy','causeAnalyzedById','causeAnalyzedAt']){
+      if(Object.prototype.hasOwnProperty.call(old,k))next.reportDetails[k]=structuredClone(old[k]);
+      else delete next.reportDetails[k];
+    }
+  }
+}
 const costKeys = ['medicalCost','repairCost','damageAmount'];
 const planKeys = ['rootCause','causeStatus','planDetail','ownerName','dueDate','planBy','planById','planAt','planUpdatedBy','planUpdatedAt'];
 const managedKeys = ['officialRecord','acknowledgements','readReceipts','historicalOrigin','externalInitialApproval','bulkInvalidation','recordMode','historicalImport','historicalTransfer'];
@@ -24,6 +57,7 @@ export function validateLifecycle(prev:any,next:any,actor:any,now:string){
   if(actor.role!=='safety'&&text(next.siteId)!==text(actor.siteId))fail('site_forbidden',403);
   if(prev&&text(prev.siteId)!==text(next.siteId))fail('incident_site_locked');
   if(!prev){
+    normalizeCause(null,next,actor,now);
     if(next.recordMode==='historical_manual'){
       if(actor.role!=='safety'||next.status!=='approved'||next.corrective)fail('manual_archive_safety_approval_required',403);
     }else if(next.recordMode||next.historicalImport||next.historicalOrigin||next.status!=='reported'||next.corrective)fail('initial_report_state_required');
@@ -34,6 +68,8 @@ export function validateLifecycle(prev:any,next:any,actor:any,now:string){
   for(const key of managedKeys)if(!equal(prev[key],next[key]))fail('server_record_locked');
   for(const key of stampKeys)if(!equal(prev[key],next[key])&&!(['approvedBy','approvedAt','closedAt'].includes(key)&&actor.role==='safety'&&prev.status!=='closed'))fail('approval_history_locked');
   if(prev.status==='closed')fail('closed_revision_required');
+  normalizeCause(prev,next,actor,now);
+  if(actor.role==='safety'&&!accepted(prev)&&next.status==='approved'&&!isHistoricalEditable(next)&&!isCauseReady(next.reportDetails))fail('cause_analysis_required',409);
   const costChanges:any[]=[];
   if(accepted(prev)){
     const comparable=structuredClone(next);
@@ -106,7 +142,7 @@ export function correctedIncident(prev:any,changes:any,reason:string,actor:any,n
   if(!text(reason)||text(reason).length>2000)fail('revision_reason_required',400);
   const allowed=new Set(['summary','occurredAt','eventType','category','injuredName','injuredAge','injuredGender','injuredPart','injuryType','leaveEstimate','immediateAction','reportDetails','photos','corrective',...(historical?['historicalImport']:[])]);
   const correctiveAllowed=new Set(['rootCause','causeStatus','planDetail','ownerName','dueDate','actionDetail','actionDate','actionOwner','additionalNotes','afterPhotos']);
-  const historicalDetails=new Set(['place','workAction','incidentHow','environmentCause','behaviorCause','injuredName','workerName','job','injuryDetail','diagnosis','doctorOpinion','medicalCost','medicalCostDetail','repairCost','repairCostDetail','damagedItem','damageDetail','preventionPlan','specialNote']);
+  const historicalDetails=new Set(['place','workAction','incidentHow','environmentCause','behaviorCause','injuredName','workerName','job','injuryDetail','diagnosis','doctorOpinion','medicalCost','medicalCostDetail','repairCost','repairCostDetail','damagedItem','damageDetail','preventionPlan','specialNote','causeAnalysisStatus','causeAnalysisNote']);
   const historicalMeta=new Set(['originalReporterName','erpApprovalRef','erpApprovalDate','existingActionNote','additionalActionNote','existingActionStatus']);
   const next=structuredClone(prev),diff:any[]=[];
   if(!changes||typeof changes!=='object'||Array.isArray(changes))fail('invalid_changes',400);
@@ -133,8 +169,17 @@ export function correctedIncident(prev:any,changes:any,reason:string,actor:any,n
       for(const [k,v] of Object.entries(value)){
         if(equal(prev.reportDetails?.[k],v))continue;
         if(!historicalDetails.has(k))fail('revision_field_forbidden',400);
+        if(causeFacts.includes(k)&&text(v).length>4000)fail('cause_details_too_long',400);
         updated[k]=v;
         if(costKeys.includes(k)&&v!==null&&v!==undefined&&v!=='')updated[k+'Pending']=false;
+      }
+      const changedCause=causeFacts.some(k=>!equal(prev.reportDetails?.[k],updated[k]))||!equal(prev.reportDetails?.causeAnalysisStatus,updated.causeAnalysisStatus);
+      if(changedCause){
+        if(!['investigating','analyzed'].includes(text(updated.causeAnalysisStatus)))fail('cause_analysis_required',400);
+        if(!isCauseReady(updated))fail('cause_details_required',400);
+        updated.causeAnalyzedBy=actor.name;
+        updated.causeAnalyzedById=actor.id;
+        updated.causeAnalyzedAt=now;
       }
       if(!equal(prev.reportDetails,updated)){
         diff.push({field:'reportDetails',before:prev.reportDetails??null,after:updated});

@@ -2,7 +2,7 @@
 (function(){
   'use strict';
 
-  const VERSION='4.4.39-no-confirm-history1';
+  const VERSION='4.6.2-r1-safety-cause-review';
   const PUSH_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-v418';
   const CLIENT='incident-report-v2';
   const MANAGER_POSITIONS=['현장소장','파트장','서무'];
@@ -53,6 +53,15 @@
       .wf440-viewlog{margin-top:10px;padding-top:9px;border-top:1px dashed #c9dbd0}.wf440-viewlog b{font-size:11px;color:#587166}.wf440-viewlog-list{margin-top:5px;display:flex;gap:5px;flex-wrap:wrap}.wf440-view-chip{display:inline-flex;padding:5px 7px;border-radius:999px;background:#eef6f1;color:#557064;font-size:9px;font-weight:850}
       .wf440-reader-pending{margin:0 0 12px;padding:11px;border:1.5px solid #e3bb62;border-radius:12px;background:#fff9e7}.wf440-reader-pending h3{margin:0 0 7px;color:#795609;font-size:14px}.wf440-reader-pending-list{display:grid;gap:6px}.wf440-reader-pending button{width:100%;border:1px solid #e4d09c;border-radius:9px;background:#fff;padding:9px;text-align:left;color:#35536b}.wf440-reader-pending button b{display:block;color:#6b4d0e}.wf440-reader-pending button small{display:block;margin-top:3px;color:#738595}
       .wf440-sensitive{margin:10px 0;padding:10px;border-radius:10px;background:#f4f6f8;color:#607181;font-size:11px;line-height:1.5}
+      .wf440-cause{margin:12px 0;padding:14px;border:1.5px solid #bfd4e3;border-radius:13px;background:#f6faff;display:grid;gap:10px;color:#274d69}
+      .wf440-cause h3{font-size:16px;margin:0;color:#174d78}.wf440-cause p{font-size:12px;line-height:1.5;margin:0}
+      .wf440-cause .wf440-context{padding:9px 11px;background:#fff;border:1px solid #d8e4ec;border-radius:9px;white-space:pre-wrap;overflow-wrap:anywhere}
+      .wf440-cause label{display:grid;gap:5px;color:#244c69;font-size:13px;font-weight:800}
+      .wf440-cause textarea{width:100%;box-sizing:border-box;min-height:66px;border:1px solid #b7cad8;border-radius:9px;padding:9px;font-size:14px;font-weight:400;background:#fff;color:#173b66}
+      .wf440-cause .wf440-pending{display:flex;gap:9px;align-items:flex-start;background:#fff9e9;border:1px solid #edc77b;padding:11px;border-radius:10px}
+      .wf440-cause .wf440-pending input{flex:0 0 20px;width:20px;height:20px;margin:0}
+      .wf440-cause button{width:100%;min-height:44px;background:#1e5d91;color:#fff;border:0;border-radius:10px;font-weight:850}
+      .wf440-cause [data-wf440-cause-message]{color:#a13939;min-height:17px;font-weight:750}
       @media(max-width:620px){.wf440-form-grid{grid-template-columns:1fr}.wf440-wide{grid-column:auto}.wf440-safety-actions button{flex:1 1 140px}.wf440-queue-row{grid-template-columns:80px minmax(0,1fr)}.wf440-queue-row strong{grid-column:1/-1}}
     `;document.head.appendChild(s)
   }
@@ -230,13 +239,54 @@
     };
   }
 
+  const isOrdinaryCauseReview=i=>!!i&&!['historical_manual','historical_transfer'].includes(text(i.recordMode))&&!i.historicalImport?.enabled&&!i.historicalOrigin?.batchId&&!i.historicalTransfer?.mode;
+  function causePanel(i){
+    const d=i.reportDetails||{},pending=d.causeAnalysisStatus==='investigating';
+    const panel=document.createElement('section');panel.className='wf440-cause';panel.dataset.wf440Cause='1';
+    panel.innerHTML='<h3>안전관리자 사고원인 분석</h3>'
+      +'<p>현장에는 원인 입력을 요청하지 않습니다. 사고경위와 확인자료를 검토해 근거가 있는 원인만 작성하세요. 조사 중이면 미확정을 선택할 수 있습니다.</p>'
+      +'<div class="wf440-context"><strong>사고경위 참고</strong><p>'+ex(d.incidentHow||i.summary||'입력된 사고경위 없음')+'</p></div>'
+      +'<label>환경적 요인<textarea id="wf440EnvironmentCause" maxlength="4000" rows="2" placeholder="예: 작업환경·시설물·장비 상태 등 확인된 요인">'+ex(d.environmentCause||'')+'</textarea></label>'
+      +'<label>행동적 요인<textarea id="wf440BehaviorCause" maxlength="4000" rows="2" placeholder="예: 확인된 작업방법·행동적 위험요인. 근로자 과실을 추정하지 마세요.">'+ex(d.behaviorCause||'')+'</textarea></label>'
+      +'<label>기타·종합 원인<textarea id="wf440CauseAnalysisNote" maxlength="4000" rows="2" placeholder="기타 확인된 원인이나 분석 근거">'+ex(d.causeAnalysisNote||'')+'</textarea></label>'
+      +'<label class="wf440-pending"><input id="wf440CausePending" type="checkbox" '+(pending?'checked':'')+'><span>조사 중 · 사고원인 미확정<br><small>현시점에 인과관계를 확정할 자료가 부족한 경우 선택해 주세요.</small></span></label>'
+      +'<p data-wf440-cause-message role="alert" aria-live="polite"></p>'
+      +'<button type="button" data-wf440-cause-save>원인분석 별도 저장</button>';
+    return panel;
+  }
+  function collectCause(){
+    const box=document.querySelector('#modalRoot [data-wf440-cause]');if(!box){alert('원인분석 입력화면을 찾지 못했습니다. 사고를 다시 열어 주세요.');return null;}
+    const get=id=>text(box.querySelector('#'+id)?.value);
+    const environmentCause=get('wf440EnvironmentCause'),behaviorCause=get('wf440BehaviorCause'),causeAnalysisNote=get('wf440CauseAnalysisNote');
+    const pending=!!box.querySelector('#wf440CausePending')?.checked,feedback=box.querySelector('[data-wf440-cause-message]');
+    if(!pending&&!environmentCause&&!behaviorCause&&!causeAnalysisNote){
+      if(feedback)feedback.textContent='원인을 확인한 항목에 작성하거나, 조사 중·미확정을 선택해 주세요.';
+      box.querySelector('#wf440EnvironmentCause')?.focus();return null;
+    }
+    if(feedback)feedback.textContent='';
+    return {environmentCause,behaviorCause,causeAnalysisNote,causeAnalysisStatus:pending?'investigating':'analyzed'};
+  }
+  async function saveCause(i,u){
+    const cause=collectCause();if(!cause)return;
+    const box=document.querySelector('#modalRoot [data-wf440-cause]'),button=box?.querySelector('[data-wf440-cause-save]');if(button?.disabled)return;
+    if(button){button.disabled=true;button.textContent='원인분석 저장 중…';}
+    try{
+      const next=structuredClone(i);next.reportDetails={...(next.reportDetails||{}),...cause};next.updatedAt=now();
+      if(!await window.enlCommitOrNotify(next)){if(box?.querySelector('[data-wf440-cause-message]'))box.querySelector('[data-wf440-cause-message]').textContent='서버 저장을 확인하지 못했습니다. 입력 내용을 유지했으니 다시 시도해 주세요.';return;}
+      closeModal();renderShell(u);alert('안전관리자 원인분석 내용을 서버에 저장했습니다. 사고 승인 전 다시 수정할 수 있습니다.');
+    }finally{if(button){button.disabled=false;button.textContent='원인분석 별도 저장';}}
+  }
+
   function applySafetyFields(i,u){
     const p=document.getElementById('priorityEdit411')?.value;if(['normal','important','urgent'].includes(p)){i.priority=p;i.prioritySource='manual';i.prioritySetBy=u.name;i.prioritySetAt=now()}
     const note=text(document.getElementById('safetyNoteEdit')?.value);if(note)i.safetyNote=note;
   }
 
   async function finalApprove(i,u){
+    const cause=isOrdinaryCauseReview(i)?collectCause():null;
+    if(isOrdinaryCauseReview(i)&&!cause)return;
     i=structuredClone(i);
+    if(cause)i.reportDetails={...(i.reportDetails||{}),...cause};
     if(!confirm('이 사고보고 내용을 최종승인할까요?\n이 확인은 전자결재가 아니라 사고보고 내용 확정 단계이며, 이후 재발방지계획을 수립합니다.'))return;
     applySafetyFields(i,u);const ts=now();i.status='approved';i.approvedBy=u.name;i.approvedAt=ts;i.rejectionNote='';
     if(i.supplement)i.supplement={...i.supplement,status:'accepted',approvedBy:u.name,approvedById:uid(u),approvedAt:ts};
@@ -302,6 +352,10 @@
         const target=modal.querySelector('.modal-actions')||modal.lastElementChild;target?.insertAdjacentElement('beforebegin',actions);
         actions.querySelector('[data-wf440-supp]')?.addEventListener('click',()=>openSupplementRequest(i,u));
         actions.querySelector('[data-wf440-final]')?.addEventListener('click',()=>finalApprove(i,u));
+        if(isOrdinaryCauseReview(i)){
+          const cause=causePanel(i);actions.insertAdjacentElement('beforebegin',cause);
+          cause.querySelector('[data-wf440-cause-save]')?.addEventListener('click',()=>saveCause(i,u));
+        }
       }
     }
   }
