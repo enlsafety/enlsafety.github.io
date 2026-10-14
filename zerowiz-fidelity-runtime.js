@@ -7,13 +7,22 @@ const appRoot=document.getElementById("app");
 const escape=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const ROLE_LABEL={safety:"안전관리자",field:"현장관리자",worker:"현장근무자",manager:"본사관리자",executive:"경영진"};
 let activeRole="";
+function setToolbarOpen(open){
+ const toolbar=document.getElementById("zwRuntimeToolbar");if(!toolbar)return;
+ toolbar.dataset.expanded=String(!!open);
+ const toggle=toolbar.querySelector("#zwRuntimeToggle");
+ if(toggle){
+  toggle.setAttribute("aria-expanded",String(!!open));
+  toggle.setAttribute("aria-label",open?"데모 관리 도구 닫기":"데모 관리 도구 열기");
+ }
+}
 function decorateToolbar(){
  let host=document.getElementById("zwRuntimeToolbar");
  if(!host){
   host=document.createElement("aside");host.id="zwRuntimeToolbar";
   document.body.appendChild(host);
  }
- host.innerHTML=`<strong class="zw-runtime-label">ZERO-WIZ DEMO <small>운영본과 분리된 가상 화면</small></strong><select id="zwRuntimeRoleSelect" aria-label="데모 역할 전환"><option value="">테스트 계정 변경</option>${sandbox.users.map(u=>`<option value="${u.id}" ${u.id===activeRole?'selected':''}>${ROLE_LABEL[u.role]}</option>`).join("")}</select><button id="zwRuntimeReset" type="button">가상 자료 초기화</button>`;
+ host.innerHTML=`<button id="zwRuntimeToggle" class="zw-runtime-toggle" type="button" aria-controls="zwRuntimeControls" aria-expanded="false" aria-label="데모 관리 도구 열기">데모 관리 <span aria-hidden="true">⋯</span></button><div id="zwRuntimeControls" class="zw-runtime-controls"><strong class="zw-runtime-label">ZERO-WIZ DEMO <small>운영본과 분리된 가상 화면</small></strong><label class="zw-runtime-rolelabel" for="zwRuntimeRoleSelect">테스트 계정</label><select id="zwRuntimeRoleSelect" aria-label="데모 역할 전환"><option value="">테스트 계정 변경</option>${sandbox.users.map(u=>`<option value="${u.id}" ${u.id===activeRole?'selected':''}>${ROLE_LABEL[u.role]}</option>`).join("")}</select><button id="zwRuntimeReset" type="button">가상 자료 초기화</button></div>`;
  host.querySelector("#zwRuntimeRoleSelect").addEventListener("change",ev=>{if(ev.target.value)chooseRole(ev.target.value)});
  host.querySelector("#zwRuntimeReset").addEventListener("click",()=>{
   if(!window.confirm("제로위즈 데모에 입력한 가상 자료를 모두 초기화할까요? 운영 자료에는 영향이 없습니다."))return;
@@ -23,6 +32,16 @@ function decorateToolbar(){
   else showSelector();
  });
 }
+document.addEventListener("pointerdown",event=>{
+ const toolbar=document.getElementById("zwRuntimeToolbar");
+ if(toolbar?.dataset.expanded==="true"&&!toolbar.contains(event.target))setToolbarOpen(false);
+});
+document.addEventListener("keydown",event=>{
+ if(event.key==="Escape"&&document.getElementById("zwRuntimeToolbar")?.dataset.expanded==="true"){
+  setToolbarOpen(false);
+  document.getElementById("zwRuntimeToggle")?.focus();
+ }
+});
 function showSelector(){
  session=null;try{saveSession()}catch(e){}
  activeRole="";
@@ -57,7 +76,7 @@ function chooseRole(id){
 window.enlRenderLogin=showSelector;
 window.renderLogin=showSelector;
 window.ENL_ZEROWIZ_FIDELITY={
- version:"2.0.0",
+ version:"2.0.1",
  selectRole:chooseRole,
  showLogin:showSelector,
  getRole:()=>activeRole,
