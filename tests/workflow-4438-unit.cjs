@@ -31,6 +31,6 @@ assert.ok(!workflow.includes('id="wf412CommentBody" maxlength="2000" required'))
 assert.ok(approval.includes('과거 결재기록 · 읽기 전용'));assert.ok(!approval.includes('data-enl448-sign'));
 
 for(const x of ["4.4.38-test-hq-cleanup1","테스트 경영진","테스트 관리자","테스트 안전관리자","acknowledgements","readReceipts"]) assert.ok(cleanup.includes(x),x);
-for(const x of ["4.4.44-single-affiliation-auto1","remote=Array.isArray(r.users)?r.users:[]","ids.has(String(v.id||''))"]) assert.ok(auth.includes(x),x);
+for(const x of ["4.6.3-r1-demo-entry","remote=Array.isArray(r.users)?r.users:[]","ids.has(String(v.id||''))"]) assert.ok(auth.includes(x),x);
 
 console.log('PASS: unified safety action badge wiring, HQ approval attention, optional opinion, own-sign highlight and stale test cleanup');
