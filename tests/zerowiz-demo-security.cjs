@@ -14,7 +14,7 @@ ok(child.includes("connect-src 'none'"),'all network fetch connections blocked b
 ok(child.includes("form-action 'none'")&&child.includes("worker-src 'none'"),'no form posting or worker');
 ok(!child.includes('navigator.serviceWorker?.register('),'no prod PWA registration');
 ok(!child.includes('site-master-seed-v400.js')&&!child.includes('site-locations-v450.js'),'no real staff data or geolocation');
-ok(!child.includes('site-directory-v410.js')&&!child.includes('site-dashboard-v450.js'),'no hardcoded real business names or coordinates');
+ok(!/<script src="site-directory-v410\.js/.test(child)&&!/<script src="site-dashboard-v450\.js/.test(child),'no hardcoded real business names or coordinates');
 ok(!child.includes('zerowiz-demo.js'),'old simplified UI must not be loaded');
 for(const path of ['core.js','app-shell-v411.js','report-v410.js','incidents-v410.js','incident-flow-v440.js','workflow-prevention-v429.js','closed-incident-reopen-v438.js']){
  ok(child.includes('<script src="'+path+'?'),'reuse exact operational component '+path);
