@@ -18,9 +18,20 @@ const TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; c
      return route.fulfill({status:200,body,contentType:ct});
    });
    await page.goto(HOST+'/zerowiz-demo.html',{waitUntil:'domcontentloaded'});
+   assert.equal(await page.locator('#zwFrame').getAttribute('src'),null,'demo runtime is not requested before PIN');
+   assert.equal(await page.locator('#zwRolePanel').isVisible(),false,'role selector requires password');
+   await page.locator('#zwPin').fill('0000');
+   await page.locator('#zwPinForm button[type=submit]').click();
+   assert.equal(await page.locator('#zwRolePanel').isVisible(),false,'wrong PIN never opens roles');
+   assert.equal(await page.locator('#zwFrame').getAttribute('src'),null,'wrong PIN never loads demo');
+   await page.locator('#zwPin').fill('6846');
+   await page.locator('#zwPinForm button[type=submit]').click();
+   await page.locator('[data-zw-entry-role="zw-safety"]').waitFor({state:'visible'});
+   assert.equal(await page.locator('[data-zw-entry-role]').count(),5,'five demo roles available immediately after PIN');
+   await page.locator('[data-zw-entry-role="zw-safety"]').click();
    const frame=page.frameLocator('iframe.frame');
-   await frame.locator('[data-zw-role]').first().waitFor({timeout:16000});
-   assert.equal(await frame.locator('[data-zw-role]').count(),5,'five demo accounts');
+   await frame.locator('.app-shell.shell-v411').waitFor({timeout:20000});
+   assert.equal(await frame.locator('#loginName411').count(),0,'production login is never shown in demo');
    const desktop=profile.width>620,tools=frame.locator('#zwRuntimeControls'),toggle=frame.locator('#zwRuntimeToggle');
    if(desktop){
     assert.equal(await tools.isVisible(),false,'desktop toolbar is collapsed by default');
@@ -42,9 +53,7 @@ const TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; c
     await frame.locator('#zwRuntimeRoleSelect').selectOption(id);
     if(desktop)assert.equal(await tools.isVisible(),false,'desktop closes after role switching');
    };
-   const safety=frame.locator('[data-zw-role="zw-safety"]');
-   await safety.click();
-   await frame.locator('.app-shell.shell-v411').waitFor({timeout:16000});
+   assert.equal(await frame.locator('.app-shell.shell-v411').isVisible(),true,'entered directly as safety without extra login');
    const safetyView=await frame.locator('#view').innerText();
    assert.ok(safetyView.includes('사고 대시보드')||safetyView.includes('안전 대시보드')||safetyView.includes('전체 사업장 사고현황'),'real production safety dashboard is rendered: '+safetyView.slice(0,500));
    assert.ok(!safetyView.includes('소피아그린')&&!safetyView.includes('백양우리'),'real site names never shown');
@@ -55,7 +64,7 @@ const TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; c
    const intro=await frame.locator('body').evaluate(()=>({origin:window.origin,api:window.ENL_ZEROWIZ_FIDELITY?.version,network:window.ENL_ZEROWIZ_FIDELITY?.getNetworkBlocks(),active:window.ENL_ZEROWIZ_FIDELITY?.getRole()}));
    assert.equal(intro.origin,'null','demo must run with opaque sandbox origin');
    assert.equal(intro.active,'zw-safety');
-   assert.equal(intro.api,'2.0.1');
+   assert.equal(intro.api,'2.0.2');
    await switchRole('zw-field');
    await frame.locator('.app-shell.shell-v411').waitFor();
    const fieldView=await frame.locator('body').innerText();
