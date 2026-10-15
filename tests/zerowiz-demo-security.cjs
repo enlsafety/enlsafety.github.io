@@ -1,5 +1,6 @@
 'use strict';
 const fs=require('node:fs'),assert=require('node:assert/strict');
+const toolbarStyle=fs.readFileSync('zerowiz-fidelity.css','utf8');
 const parent=fs.readFileSync('zerowiz-demo.html','utf8'),
  child=fs.readFileSync('zerowiz-demo-app.html','utf8'),
  boot=fs.readFileSync('zerowiz-fidelity-boot.js','utf8'),
@@ -10,7 +11,7 @@ const parent=fs.readFileSync('zerowiz-demo.html','utf8'),
  sw=fs.readFileSync('sw-v418.js','utf8');
 let passed=0;const ok=(x,m)=>{assert.ok(x,m);passed++};
 ok(parent.includes('sandbox="allow-scripts allow-downloads"')&&!parent.includes('allow-same-origin'),'iframe must have opaque origin');
-ok(parent.includes('src="zerowiz-demo-app.html?v=2.0.0"'),'parent loads identical production UI clone');
+ok(parent.includes('src="zerowiz-demo-app.html?v=2.0.1"'),'parent loads identical production UI clone');
 ok(child.includes("connect-src 'none'"),'all network fetch connections blocked by CSP');
 ok(child.includes("form-action 'none'")&&child.includes("worker-src 'none'"),'no form posting or worker');
 ok(!child.includes('navigator.serviceWorker?.register('),'no prod PWA registration');
@@ -31,6 +32,8 @@ ok(!/https:\/\/wjelumpbjklfrdjxbesj/.test(boot),'no operational backend in synth
 ok(!/010-\\d{4}|김상호|소피아그린|백양우리|파주CC/.test(boot),'no real accident site/employee seed');
 for(const role of ['safety','field','worker','manager','executive'])ok(boot.includes('role:"'+role+'"'),'synthetic '+role+' account');
 ok(boot.includes('incident("ZW-011"'),'eleven synthetic accidents');
+ok(toolbarStyle.includes('bottom:10px')&&toolbarStyle.includes('display:none')&&toolbarStyle.includes('@media(max-width:620px)'),'desktop toolbar collapses without removing mobile bar');
+ok(runtime.includes('id="zwRuntimeToggle"')&&runtime.includes('setToolbarOpen(false)'),'desktop control is accessible and dismissible');
 ok(runtime.includes('window.enlRenderApp(u)'),'render actual app shell, not redesigned simulator');
 ok(runtime.includes('data.users=sandbox.users'),'full staff data replaced with synthetic data');
 ok(sw.includes("url.pathname.startsWith('/zerowiz-')"),'PWA will never cache any demo URL');

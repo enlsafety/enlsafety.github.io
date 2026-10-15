@@ -1,10 +1,16 @@
-
-/* Demo-only controls. All other styles, cards, forms and navigation are the unmodified operational app assets. */
-#zwRuntimeToolbar{position:fixed;z-index:999998;top:5px;right:6px;display:flex;align-items:center;gap:6px;padding:5px 7px;background:#123e62;border:1px solid #246394;border-radius:12px;box-shadow:0 4px 20px rgba(0,24,45,.16);color:#fff;font-family:"Malgun Gothic",sans-serif}
-#zwRuntimeToolbar .zw-runtime-label{font-size:10px;font-weight:900;white-space:nowrap;line-height:1.15}
+/* Zero-Wiz demo tools only. Operational app styles are untouched.
+   Desktop: unobtrusive collapsed launcher; mobile: original bottom toolbar. */
+#zwRuntimeToolbar{position:fixed;z-index:999998;top:auto;right:10px;bottom:10px;color:#fff;font-family:"Malgun Gothic",sans-serif}
+#zwRuntimeToolbar .zw-runtime-toggle{display:flex;align-items:center;gap:6px;min-height:34px;padding:6px 11px;border:1px solid #246394;border-radius:10px;background:#123e62;color:#fff;box-shadow:0 3px 12px rgba(0,24,45,.18);font-size:11px;font-weight:800;cursor:pointer}
+#zwRuntimeToolbar .zw-runtime-toggle:hover{background:#205b85}
+#zwRuntimeToolbar .zw-runtime-toggle:focus-visible,#zwRuntimeToolbar select:focus-visible,#zwRuntimeToolbar #zwRuntimeReset:focus-visible{outline:2px solid #71c7ff;outline-offset:2px}
+#zwRuntimeToolbar .zw-runtime-controls{position:absolute;right:0;bottom:calc(100% + 8px);display:none;flex-direction:column;align-items:stretch;gap:7px;width:min(236px,calc(100vw - 20px));padding:10px;background:#123e62;border:1px solid #246394;border-radius:12px;box-shadow:0 5px 20px rgba(0,24,45,.22)}
+#zwRuntimeToolbar[data-expanded="true"] .zw-runtime-controls{display:flex}
+#zwRuntimeToolbar .zw-runtime-label{font-size:11px;font-weight:900;line-height:1.25}
 #zwRuntimeToolbar .zw-runtime-label small{display:block;font-size:9px;color:#c7e5f8;font-weight:600}
-#zwRuntimeToolbar select,#zwRuntimeToolbar button{border:1px solid #8ab5d1;border-radius:7px;background:#fff;color:#184566;font-size:11px;font-weight:750;min-height:29px;padding:3px 6px;cursor:pointer}
-#zwRuntimeToolbar button:hover{background:#e4f4ff}
+#zwRuntimeToolbar .zw-runtime-rolelabel{font-size:10px;font-weight:700;color:#c7e5f8}
+#zwRuntimeToolbar select,#zwRuntimeToolbar #zwRuntimeReset{box-sizing:border-box;width:100%;min-height:32px;padding:5px 7px;border:1px solid #8ab5d1;border-radius:7px;background:#fff;color:#184566;font-size:11px;font-weight:750;cursor:pointer}
+#zwRuntimeToolbar #zwRuntimeReset:hover{background:#e4f4ff}
 .zw-runtime-welcome{padding:12px 13px;background:#eaf6ff;border:1px solid #c8e2f2;border-radius:11px;color:#195276;font-size:12px;margin:16px 0}
 .zw-runtime-welcome strong{font-size:15px;display:block;margin:0 0 5px}
 .zw-runtime-welcome span{line-height:1.7}
@@ -16,10 +22,13 @@
 .zw-runtime-role em{font-style:normal;font-size:11px;color:#1e5d91;font-weight:900}
 .zw-runtime-explanation{font-size:11px;line-height:1.65;color:#627c90;margin:13px 0 0}
 @media(max-width:620px){
- #zwRuntimeToolbar{top:auto;bottom:5px;right:5px;left:5px;justify-content:space-between;border-radius:10px}
+ #zwRuntimeToolbar{right:5px;left:5px;bottom:5px}
+ #zwRuntimeToolbar .zw-runtime-toggle{display:none}
+ #zwRuntimeToolbar .zw-runtime-controls,#zwRuntimeToolbar[data-expanded="true"] .zw-runtime-controls{position:static;display:flex;width:100%;flex-direction:row;align-items:center;justify-content:space-between;gap:6px;padding:5px 7px;border-radius:10px;box-shadow:0 4px 20px rgba(0,24,45,.16)}
  #zwRuntimeToolbar .zw-runtime-label{font-size:9px}
  #zwRuntimeToolbar .zw-runtime-label small{font-size:8px}
- #zwRuntimeToolbar select,#zwRuntimeToolbar button{font-size:10px;min-height:34px;padding:4px 5px;max-width:43%}
+ #zwRuntimeToolbar .zw-runtime-rolelabel{display:none}
+ #zwRuntimeToolbar select,#zwRuntimeToolbar #zwRuntimeReset{width:auto;max-width:43%;font-size:10px;min-height:34px;padding:4px 5px}
  .zw-runtime-rolecards{grid-template-columns:1fr 1fr;gap:7px}
  .zw-runtime-role{min-height:98px;padding:11px}
  .zw-runtime-role b{font-size:14px}

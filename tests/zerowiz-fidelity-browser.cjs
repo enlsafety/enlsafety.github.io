@@ -21,6 +21,27 @@ const TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; c
    const frame=page.frameLocator('iframe.frame');
    await frame.locator('[data-zw-role]').first().waitFor({timeout:16000});
    assert.equal(await frame.locator('[data-zw-role]').count(),5,'five demo accounts');
+   const desktop=profile.width>620,tools=frame.locator('#zwRuntimeControls'),toggle=frame.locator('#zwRuntimeToggle');
+   if(desktop){
+    assert.equal(await tools.isVisible(),false,'desktop toolbar is collapsed by default');
+    assert.equal(await toggle.isVisible(),true,'desktop has a small launcher');
+    const box=await toggle.boundingBox();
+    assert.ok(box&&box.width<=130&&box.height<=50&&box.x>=profile.width-160&&box.y>700,'launcher stays compact at bottom right');
+    await toggle.click();
+    const opened=await frame.locator('#zwRuntimeToolbar').evaluate(el=>({expanded:el.dataset.expanded,aria:el.querySelector('#zwRuntimeToggle')?.getAttribute('aria-expanded'),display:getComputedStyle(el.querySelector('#zwRuntimeControls')).display}));
+    assert.equal(await tools.isVisible(),true,'desktop toolbar opens on demand: '+JSON.stringify(opened));
+    assert.equal(await frame.locator('#zwRuntimeReset').isVisible(),true,'reset remains available on demand');
+    await toggle.press('Escape');
+    assert.equal(await tools.isVisible(),false,'Escape closes desktop toolbar');
+   }else{
+    assert.equal(await toggle.isVisible(),false,'mobile toolbar launcher hidden');
+    assert.equal(await tools.isVisible(),true,'mobile toolbar remains visible');
+   }
+   const switchRole=async id=>{
+    if(desktop)await toggle.click();
+    await frame.locator('#zwRuntimeRoleSelect').selectOption(id);
+    if(desktop)assert.equal(await tools.isVisible(),false,'desktop closes after role switching');
+   };
    const safety=frame.locator('[data-zw-role="zw-safety"]');
    await safety.click();
    await frame.locator('.app-shell.shell-v411').waitFor({timeout:16000});
@@ -34,8 +55,8 @@ const TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; c
    const intro=await frame.locator('body').evaluate(()=>({origin:window.origin,api:window.ENL_ZEROWIZ_FIDELITY?.version,network:window.ENL_ZEROWIZ_FIDELITY?.getNetworkBlocks(),active:window.ENL_ZEROWIZ_FIDELITY?.getRole()}));
    assert.equal(intro.origin,'null','demo must run with opaque sandbox origin');
    assert.equal(intro.active,'zw-safety');
-   assert.equal(intro.api,'2.0.0');
-   await frame.locator('#zwRuntimeRoleSelect').selectOption('zw-field');
+   assert.equal(intro.api,'2.0.1');
+   await switchRole('zw-field');
    await frame.locator('.app-shell.shell-v411').waitFor();
    const fieldView=await frame.locator('body').innerText();
    assert.ok(fieldView.includes('가상 솔빛 골프장'),'operational field shell');
@@ -44,13 +65,13 @@ const TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; c
    await frame.locator('#unifiedReportForm').waitFor({timeout:10000});
    assert.equal(await frame.locator('#environmentCause410,#behaviorCause410').count(),0,'actual field report excludes cause input');
    assert.ok(await frame.locator('.report410-section').count()>=3,'real report section styles and fields');
-   await frame.locator('#zwRuntimeRoleSelect').selectOption('zw-worker');
+   await switchRole('zw-worker');
    await frame.locator('.app-shell.shell-v411').waitFor();
    assert.equal(await frame.locator('#zwRuntimeRoleSelect').inputValue(),'zw-worker');
-   await frame.locator('#zwRuntimeRoleSelect').selectOption('zw-manager');
+   await switchRole('zw-manager');
    await frame.locator('.app-shell.shell-v411').waitFor();
    assert.ok(await frame.locator('#view').count()>0);
-   await frame.locator('#zwRuntimeRoleSelect').selectOption('zw-executive');
+   await switchRole('zw-executive');
    await frame.locator('.app-shell.shell-v411').waitFor();
    const state=await frame.locator('body').evaluate(()=>({role:window.ENL_ZEROWIZ_FIDELITY.getRole(),counts:window.ENL_ZEROWIZ_FIDELITY.getRecords().length,network:window.ENL_ZEROWIZ_FIDELITY.getNetworkBlocks()}));
    assert.equal(state.role,'zw-executive');assert.equal(state.counts,11);
