@@ -1,0 +1,22 @@
+# Keep development and server-side sources out of the GitHub Pages artifact.
+# Runtime HTML, JavaScript, CSS, icons, manifest, and service worker stay unchanged.
+exclude:
+  # Preserve the standard Jekyll/GitHub Pages exclusions.
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor/bundle/
+  - vendor/cache/
+  - vendor/gems/
+  - vendor/ruby/
+  - CNAME
+  # Repository-only implementation, database, test, and development documentation.
+  - edge-functions
+  - supabase
+  - tests
+  - docs
+  - README.md
+  - qa-functional-v3.mjs
+  - qa-functional-v4-wrapper.mjs
+  - qa-live-mini.mjs
+  - qa-live-v2.mjs
