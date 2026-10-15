@@ -28,7 +28,8 @@ const TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; c
     const box=await toggle.boundingBox();
     assert.ok(box&&box.width<=130&&box.height<=50&&box.x>=profile.width-160&&box.y>700,'launcher stays compact at bottom right');
     await toggle.click();
-    assert.equal(await tools.isVisible(),true,'desktop toolbar opens on demand');
+    const opened=await frame.locator('#zwRuntimeToolbar').evaluate(el=>({expanded:el.dataset.expanded,aria:el.querySelector('#zwRuntimeToggle')?.getAttribute('aria-expanded'),display:getComputedStyle(el.querySelector('#zwRuntimeControls')).display}));
+    assert.equal(await tools.isVisible(),true,'desktop toolbar opens on demand: '+JSON.stringify(opened));
     assert.equal(await frame.locator('#zwRuntimeReset').isVisible(),true,'reset remains available on demand');
     await toggle.press('Escape');
     assert.equal(await tools.isVisible(),false,'Escape closes desktop toolbar');
