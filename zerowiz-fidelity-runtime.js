@@ -7,9 +7,11 @@ const appRoot=document.getElementById("app");
 const escape=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const ROLE_LABEL={safety:"안전관리자",field:"현장관리자",worker:"현장근무자",manager:"본사관리자",executive:"경영진"};
 let activeRole="";
+let toolbarExpanded=false;
 function setToolbarOpen(open){
+ toolbarExpanded=!!open;
  const toolbar=document.getElementById("zwRuntimeToolbar");if(!toolbar)return;
- toolbar.dataset.expanded=String(!!open);
+ toolbar.dataset.expanded=String(toolbarExpanded);
  const toggle=toolbar.querySelector("#zwRuntimeToggle");
  if(toggle){
   toggle.setAttribute("aria-expanded",String(!!open));
@@ -23,6 +25,8 @@ function decorateToolbar(){
   document.body.appendChild(host);
  }
  host.innerHTML=`<button id="zwRuntimeToggle" class="zw-runtime-toggle" type="button" aria-controls="zwRuntimeControls" aria-expanded="false" aria-label="데모 관리 도구 열기">데모 관리 <span aria-hidden="true">⋯</span></button><div id="zwRuntimeControls" class="zw-runtime-controls"><strong class="zw-runtime-label">ZERO-WIZ DEMO <small>운영본과 분리된 가상 화면</small></strong><label class="zw-runtime-rolelabel" for="zwRuntimeRoleSelect">테스트 계정</label><select id="zwRuntimeRoleSelect" aria-label="데모 역할 전환"><option value="">테스트 계정 변경</option>${sandbox.users.map(u=>`<option value="${u.id}" ${u.id===activeRole?'selected':''}>${ROLE_LABEL[u.role]}</option>`).join("")}</select><button id="zwRuntimeReset" type="button">가상 자료 초기화</button></div>`;
+ setToolbarOpen(toolbarExpanded);
+ host.querySelector("#zwRuntimeToggle").addEventListener("click",()=>setToolbarOpen(host.dataset.expanded!=="true"));
  host.querySelector("#zwRuntimeRoleSelect").addEventListener("change",ev=>{if(ev.target.value)chooseRole(ev.target.value)});
  host.querySelector("#zwRuntimeReset").addEventListener("click",()=>{
   if(!window.confirm("제로위즈 데모에 입력한 가상 자료를 모두 초기화할까요? 운영 자료에는 영향이 없습니다."))return;
@@ -52,6 +56,7 @@ function showSelector(){
 function chooseRole(id){
  const u=sandbox.users.find(x=>x.id===id);if(!u)return;
  activeRole=id;
+ setToolbarOpen(false);
  data.users=sandbox.users.map(x=>structuredClone(x));
  data.sites=sandbox.sites.map(x=>({id:x.id,name:x.name,region:x.region,active:true}));
  const display=u.role==="safety"||u.role==="manager"||u.role==="executive"
