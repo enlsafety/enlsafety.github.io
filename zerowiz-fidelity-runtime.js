@@ -81,7 +81,7 @@ function chooseRole(id){
 window.enlRenderLogin=showSelector;
 window.renderLogin=showSelector;
 window.ENL_ZEROWIZ_FIDELITY={
- version:"2.0.1",
+ version:"2.0.2",
  selectRole:chooseRole,
  showLogin:showSelector,
  getRole:()=>activeRole,
@@ -89,5 +89,12 @@ window.ENL_ZEROWIZ_FIDELITY={
  getRequests:sandbox.getRequests,
  getNetworkBlocks:sandbox.getNetworkBlocks
 };
-showSelector();
+const requestedRole=new URLSearchParams(location.search).get("role");
+if(requestedRole&&sandbox.users.some(u=>u.id===requestedRole))chooseRole(requestedRole);
+else showSelector();
+// Keep all shared-app login rendering hidden until the demo runtime is fully ready.
+appRoot.style.visibility="visible";
+try{
+ if(window.parent!==window)window.parent.postMessage({type:"ENL_ZW_DEMO_READY",role:activeRole,version:"2.0.2"},"*");
+}catch(e){}
 })();

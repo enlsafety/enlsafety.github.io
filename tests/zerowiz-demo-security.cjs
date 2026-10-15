@@ -3,6 +3,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict');
 const toolbarStyle=fs.readFileSync('zerowiz-fidelity.css','utf8');
 const parent=fs.readFileSync('zerowiz-demo.html','utf8'),
  child=fs.readFileSync('zerowiz-demo-app.html','utf8'),
+ entry=fs.readFileSync('zerowiz-demo-entry.js','utf8'),
  boot=fs.readFileSync('zerowiz-fidelity-boot.js','utf8'),
  map=fs.readFileSync('zerowiz-fidelity-dashboard.js','utf8'),
  runtime=fs.readFileSync('zerowiz-fidelity-runtime.js','utf8'),
@@ -11,7 +12,11 @@ const parent=fs.readFileSync('zerowiz-demo.html','utf8'),
  sw=fs.readFileSync('sw-v418.js','utf8');
 let passed=0;const ok=(x,m)=>{assert.ok(x,m);passed++};
 ok(parent.includes('sandbox="allow-scripts allow-downloads"')&&!parent.includes('allow-same-origin'),'iframe must have opaque origin');
-ok(parent.includes('src="zerowiz-demo-app.html?v=2.0.1"'),'parent loads identical production UI clone');
+ok(parent.includes('id="zwFrame"')&&!parent.includes('src="zerowiz-demo-app'), 'demo iframe loads only after PIN and role choice');
+ok(parent.includes('id="zwPin"')&&parent.includes('id="zwRolePanel"'),'PIN gate and five role selector appear before app loading');
+ok(entry.includes('zerowiz-demo-app.html?v=2.0.2&role=')&&entry.includes('crypto.subtle.digest'), 'entry verifies supplied PIN and loads selected role');
+ok(!entry.includes('6846'),'plain PIN must not be embedded in the demo entry script');
+ok(child.includes('id="app" style="visibility:hidden"'),'legacy app login is concealed during bootstrap');
 ok(child.includes("connect-src 'none'"),'all network fetch connections blocked by CSP');
 ok(child.includes("form-action 'none'")&&child.includes("worker-src 'none'"),'no form posting or worker');
 ok(!child.includes('navigator.serviceWorker?.register('),'no prod PWA registration');
@@ -39,5 +44,5 @@ ok(runtime.includes('data.users=sandbox.users'),'full staff data replaced with s
 ok(sw.includes("url.pathname.startsWith('/zerowiz-')"),'PWA will never cache any demo URL');
 ok(auth.includes('href="zerowiz-demo.html?v=2.0.0"'),'operator login links to updated vendor demo');
 ok(stable.includes('auth-v411.js?v=4.6.3-r2'),'login update cache busted');
-new Function(boot);new Function(runtime);
+new Function(boot);new Function(runtime);new Function(entry);
 console.log(JSON.stringify({passed,failed:0,kind:'opaque iframe UI-clone and backend isolation source audit'}));
