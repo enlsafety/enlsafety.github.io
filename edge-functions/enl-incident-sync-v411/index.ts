@@ -5,7 +5,7 @@ import postgres from "npm:postgres@3.4.5";
 
 const ORIGIN="https://enlsafety.github.io";
 const APP="incident-report-v2";
-const VERSION="4.6.2-r2";
+const VERSION="4.6.4-r1-occurrence-date";
 const cors={"Access-Control-Allow-Origin":ORIGIN,"Access-Control-Allow-Headers":"content-type, x-client-info, apikey, authorization, x-enl-app","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:cors});
 const clean=(v:any)=>String(v??"").trim();
@@ -299,7 +299,7 @@ Deno.serve(async(req:Request)=>{
         if(actor.role!=="safety")return json({ok:false,message:"forbidden"},403);
         if(prev.status!=="closed"&&!(action==="correct_closed"&&prev.status==="approved"))return json({ok:false,message:"approved_or_closed_required"},409);
         const mutationId=clean(body.mutationId);if(!mutationId||mutationId.length>160)return json({ok:false,message:"mutation_id_required"},400);
-        const requestHash=await sha256Hex(JSON.stringify(canonicalValue({action,incidentId,expectedVersion:body.expectedVersion,changes:body.changes,reason:body.reason,record:body.record,snapshotId:body.snapshotId,fileHash:body.fileHash,filename:body.filename})));
+        const requestHash=await sha256Hex(JSON.stringify(canonicalValue({action,incidentId,expectedVersion:body.expectedVersion,changes:body.changes,reason:body.reason,contractConfirmed:body.contractConfirmed===true,record:body.record,snapshotId:body.snapshotId,fileHash:body.fileHash,filename:body.filename})));
         const duplicate=await sql`select action,editor_id,details from public.enl_incident_operations where incident_id=${incidentId} and mutation_id=${mutationId}`;
         if(duplicate.length){
           const prior=duplicate[0];
@@ -325,6 +325,17 @@ Deno.serve(async(req:Request)=>{
         let next:any;
         if(action==="correct_closed"){
           const result=correctedIncident(prev,body.changes,body.reason,actor,now);next=result.next;
+          if(result.diff.some((d:any)=>d.field==="occurredAt")){
+            const contracts=(globalThis as any).ENLContracts;
+            const day=new Date(new Date(next.occurredAt).getTime()+9*3600000).toISOString().slice(0,10);
+            const masterRows=await sql`select site_id,active,start_date,to_jsonb(enl_site_master)->>'contract_end_date' as contract_end_date,to_jsonb(enl_site_master)->>'contract_period' as contract_period from public.enl_site_master where site_id=${clean(row.site_id)} limit 1`;
+            const master=masterRows[0]||{site_id:clean(row.site_id)},assessment=contracts.assess(master,day);
+            const needsConfirmation=assessment.outsideContractPeriod===true||(assessment.currentStatus==='closed'&&assessment.statusAtOccurrence==='unknown');
+            if(needsConfirmation&&body.contractConfirmed!==true)return json({ok:false,message:"contract_period_confirmation_required",detail:assessment.warning},409);
+            const oldSnapshot=prev.siteContractSnapshot??null;
+            next.siteContractSnapshot=contracts.snapshot(master,day,actor,needsConfirmation&&body.contractConfirmed===true);
+            result.diff.push({field:"siteContractSnapshot",before:oldSnapshot,after:next.siteContractSnapshot});
+          }
           await sql`insert into public.enl_incident_revisions(incident_id,revision,mutation_id,reason,editor_id,editor_name,created_at,changes,before_payload,after_payload) values(${incidentId},${result.revision},${mutationId},${clean(body.reason)},${actor.id},${actor.name},${now},${sql.json(result.diff)}::jsonb,${sql.json(prev)}::jsonb,${sql.json(next)}::jsonb)`;
         }else{
           const record=body.record||{},reason=clean(body.reason);
