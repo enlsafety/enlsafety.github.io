@@ -47,6 +47,19 @@ const assert=require('node:assert/strict'),crypto=require('node:crypto'),{fixtur
   eq(r.status,409,'stale edit blocked');
   eq(Number((await f.db.query('select count(*)::int n from enl_push_events')).rows[0].n),pushCount,'corrections send no new approval/incident push');
   eq(Number((await f.db.query("select count(*)::int n from enl_incident_audit where action='correct_closed'")).rows[0].n),1,'correction audit committed');
+
+  r=await call('safety','correct_closed',{changes:{occurredAt:'2099-01-01T02:30:00.000Z'},reason:'미래일시 금지 검증',mutationId:crypto.randomUUID(),expectedVersion:i._syncVersion});
+  eq(r.status,400,'future date forbidden even for safety');
+  r=await call('safety','correct_closed',{changes:{occurredAt:'2026-10-09T08:20:00.000Z'},reason:'사고 당시 근거사진에 따라 발생일시 정정',mutationId:crypto.randomUUID(),expectedVersion:i._syncVersion});
+  assert.equal(r.status,200,JSON.stringify(r));checks++;i=r.body.incident;
+  eq(i.occurredAt,'2026-10-09T08:20:00.000Z','ordinary approved date persisted');
+  eq(i.status,'approved','approved state preserved after date change');
+  eq(i.approvedAt,original.at,'original approval timestamp preserved after date change');
+  eq(i.siteContractSnapshot?.occurredDate,'2026-10-09','site contract snapshot reflects corrected date');
+  const dateHistory=(await call('safety','revision_list')).body.revisions;
+  assert.ok(dateHistory[0].changes.some(d=>d.field==='occurredAt'),'occurrence date change audited');checks++;
+  eq(dateHistory[0].reason,'사고 당시 근거사진에 따라 발생일시 정정','date correction reason audited');
+  eq(Number((await f.db.query("select count(*)::int n from enl_incident_audit where action='correct_closed'")).rows[0].n),2,'date revision appended, not overwritten');
   console.log('PASS ordinary approved correction: '+checks+' checks; persistent update, unchanged approval, audit, access denial, stale conflict and no push');
  }finally{await f.db.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});

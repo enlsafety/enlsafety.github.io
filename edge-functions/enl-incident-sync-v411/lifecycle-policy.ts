@@ -200,6 +200,36 @@ export function correctedIncident(prev:any,changes:any,reason:string,actor:any,n
   }
   if(!diff.length)fail('no_changes',400);
   if(!text(next.summary)||!Number.isFinite(Date.parse(next.occurredAt)))fail('report_fields_required',400);
+  if(diff.some(d=>d.field==='occurredAt')){
+    const when=new Date(next.occurredAt);
+    if(typeof next.occurredAt!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(next.occurredAt)||!Number.isFinite(when.getTime())||when.getUTCFullYear()<1900)fail('invalid_occurrence_date',400);
+    if(when.getTime()>Date.now()+60000)fail('future_occurrence_invalid',400);
+    const seoul=new Date(when.getTime()+9*3600000).toISOString(),day=seoul.slice(0,10),time=seoul.slice(11,16);
+    // Historical reports keep copied occurrence date/time fields for listings and ERP evidence.
+    if(next.historicalTransfer&&Object.prototype.hasOwnProperty.call(next.historicalTransfer,'occurredDate')){
+      const known=next.historicalTransfer.occurredTimeKnown!==false;
+      next.historicalTransfer={...next.historicalTransfer,occurredDate:day,occurredTime:known?time:''};
+    }
+    if(Object.prototype.hasOwnProperty.call(next,'occurredDate'))next.occurredDate=day;
+    if(Object.prototype.hasOwnProperty.call(next,'occurredTime'))next.occurredTime=next.occurrenceTimeKnown===false?null:time;
+    // Only refresh the old automated summary date. Manually authored text is never overwritten.
+    if(!Object.prototype.hasOwnProperty.call(changes,'summary')&&
+       typeof prev.summary==='string'&&prev.summary===prev.reportDetails?.generatedSummary&&
+       /^\[사고 개요\]\s*\d{4}년\s*\d{1,2}월\s*\d{1,2}일/.test(prev.summary)){
+      const year=+day.slice(0,4),month=+day.slice(5,7),date=+day.slice(8,10);
+      const replacement=prev.summary.replace(/^(\[사고 개요\]\s*)\d{4}년\s*\d{1,2}월\s*\d{1,2}일(?:\s*\d{1,2}:\d{2}경)?/,
+        (_m,prefix)=>prefix+year+'년 '+month+'월 '+date+'일 '+time+'경');
+      if(replacement!==prev.summary){
+        next.summary=replacement;
+        diff.push({field:'summary',before:prev.summary,after:replacement});
+        const previousDetail=next.reportDetails||{};
+        next.reportDetails={...previousDetail,generatedSummary:replacement};
+        const changed=diff.find(d=>d.field==='reportDetails');
+        if(changed)changed.after=next.reportDetails;
+        else diff.push({field:'reportDetails',before:prev.reportDetails??null,after:next.reportDetails});
+      }
+    }
+  }
   for(const key of costKeys){const v=next.reportDetails?.[key];if(v!==null&&v!==undefined&&v!==''&&(!Number.isSafeInteger(v)||v<0))fail('invalid_cost',400);}
   const revision=Number(prev.officialRecord?.revisionNumber||0)+1;
   const affectsAction=diff.some(x=>x.field.startsWith('corrective.')||['summary','occurredAt','eventType','category','reportDetails','immediateAction','injuredName','injuredAge','injuredPart','injuryType','leaveEstimate'].includes(x.field));
