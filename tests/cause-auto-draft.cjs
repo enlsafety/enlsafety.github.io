@@ -29,7 +29,7 @@ assert.equal(hasSavedCause({causeAnalysisStatus:'investigating'}),true);
 assert.equal(hasSavedCause({behaviorCause:'현장 재조사 결과'}),true);
 assert.equal(hasSavedCause({causeAnalysisStatus:'not_reviewed'}),false);
 assert.ok(src.includes("panel.dataset.wf440Draft=auto?'unreviewed':'stored'"));
-assert.ok(src.includes("panel.dataset.wf440Draft==='unreviewed'&&!allowAutoDraft"));
+assert.ok(src.includes("box.dataset.wf440Draft==='unreviewed'&&!allowAutoDraft"));
 assert.ok(src.includes("collectCause({allowAutoDraft:true})"));
 assert.ok(src.includes("bindCausePanel(cause,i)"));
 console.log('PASS: 7 accident draft cases, unknown case, manual retention and explicit review guard');
