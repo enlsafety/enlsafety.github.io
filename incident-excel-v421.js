@@ -86,7 +86,8 @@
     const style=typeof value==='number'?11:mode==='center'?5:4;
     const lines=[];for(const line of String(value??'-').split(/\r\n|\r|\n/)){let part='';for(const ch of line){if(visualUnits(part+ch)>64){lines.push(part);part='';}part+=ch;}lines.push(part);}
     const chunks=[];for(let n=0;n<lines.length;n+=10)chunks.push(lines.slice(n,n+10).join('\n'));
-    const height=(text,name)=>Math.max(min,5+14*Math.max(lineCount(text,64),lineCount(name,24)));
+    // Keep single-line facts compact; CJK fallback fonts need extra leading for wrapped print rows.
+    const height=(text,name)=>{const lines=Math.max(lineCount(text,64),lineCount(name,24));return Math.max(min,lines===1?20:5+18*lines);};
     const result=row([{c:'A',v:label,s:3},{c:'B',v:typeof value==='number'?value:chunks[0],s:style}],height(chunks[0],label));
     result.continuations=chunks.slice(1).map(v=>row([{c:'A',v:label+' (계속)',s:3},{c:'B',v,s:style}],height(v,label+' (계속)')));return result;
   }
