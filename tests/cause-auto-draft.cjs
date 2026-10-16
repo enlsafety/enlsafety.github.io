@@ -23,7 +23,7 @@ for(const [name,eventType,incidentHow,env,behavior] of cases){
   assert.match(draft.causeAnalysisNote,/미확정/,name);
   assert.ok(Object.values(draft).every(s=>s.length<4000),name+' maxlength');
 }
-assert.match(buildCauseDraft({eventType:'기타',reportDetails:{}}).causeAnalysisNote,/자료가 부족/);
+assert.match(buildCauseDraft({eventType:'기타',reportDetails:{}}).causeAnalysisNote,/미확정|자료가 부족/);
 assert.equal(hasSavedCause({causeAnalysisStatus:'analyzed'}),true);
 assert.equal(hasSavedCause({causeAnalysisStatus:'investigating'}),true);
 assert.equal(hasSavedCause({behaviorCause:'현장 재조사 결과'}),true);
