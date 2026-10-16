@@ -67,12 +67,13 @@
     root.querySelectorAll('input,select,textarea').forEach(el=>{
       if(el.type==='hidden'){el.remove();return;}
       const box=document.createElement('div');box.className='report410-read-value';
-      box.textContent=el.id==='occurredTime410'&&unknownTime(i)?'시간 미상':el.type==='checkbox'?(el.checked?'해당':'해당 없음'):el.tagName==='SELECT'?(el.selectedOptions[0]?.textContent||'미입력'):(el.value||'미입력');
+      box.textContent=el.id==='occurredTime410'&&unknownTime(i)?'시간 미상':el.id==='severity'&&!i.severity?'미입력':el.id==='potentialMajor'&&i.potentialMajor==null?'미확인':el.type==='checkbox'?(el.checked?'해당':'해당 없음'):el.tagName==='SELECT'?(el.selectedOptions[0]?.textContent||'미입력'):(el.value||'미입력');
       el.replaceWith(box);
     });
     root.querySelectorAll('[id]').forEach(x=>x.removeAttribute('id'));
     root.querySelectorAll('.report410-section-head small').forEach(x=>x.remove());
     const d=i.reportDetails||{};
+    if(i.summary&&i.summary!==d.generatedSummary&&i.summary!==d.incidentHow)root.innerHTML+=reportRow('기존 사고 요약',i.summary);
     if(d.preventionPlan&&d.preventionPlan!=='후속 단계에서 안전관리자가 별도 수립')root.innerHTML+=reportRow('최초 보고 당시 예방대책',d.preventionPlan);
     root.innerHTML+=reportRow('보고자 / 보고일시',[i.reporterName,i.createdAt&&fmt(i.createdAt)].filter(Boolean).join(' · '));
     root.innerHTML+=`<section class="report410-section"><div class="report410-section-head"><b>현장사진 · PDF</b></div>${reportFiles('photos',i.photos)||'첨부 없음'}${reportFiles('supplement',i.supplement?.attachments)}</section>`;

@@ -30,6 +30,7 @@ const profiles=[{name:'desktop',engine:chromium,width:1365},{name:'android',engi
    window.enlCommitOrNotify=async record=>{try{const next={...record,_syncBaseVersion:record._syncVersion||0,_syncMutationId:crypto.randomUUID()};const r=await qaApi(currentUser().role,{action:'push',incidents:[next]});if(!r.incidents?.length)throw Error('not_saved');enlAcceptSavedIncident(r.incidents[0]);return true;}catch(e){alert(e.message);return false;}};
   });
   for(const file of ['incidents-v410.js','report-v410.js','workflow-prevention-v429.js','closed-incident-reopen-v438.js','incident-flow-v440.js','required-fields-v453.js'])await page.addScriptTag({content:fs.readFileSync(file,'utf8')});
+  const legacy=await page.evaluate(()=>enlReportReadOnlyHtml({id:'legacy',siteId:'qa-site',category:'property',summary:'QA 이전 형식에만 저장된 경위',reportDetails:{}}));assert.ok(legacy.includes('QA 이전 형식에만 저장된 경위'));assert.ok(legacy.includes('미확인'));
   const setRole=role=>page.evaluate(role=>{qaUser=role==='safety'?{id:'qa-safety',name:'QA 안전',role:'safety',position:'안전관리자'}:{id:'qa-field',name:'QA 현장',role:'field',position:'현장소장',siteId:'qa-site'};},role);
   const get=async()=> (await f.call('safety',{action:'pull'})).body.incidents[0];
   const openAction=()=>page.evaluate(()=>openUnifiedCorrectiveModal(data.incidents[0].id,currentUser()));
