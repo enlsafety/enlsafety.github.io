@@ -12,7 +12,7 @@ const {chromium,webkit}=require('playwright');
       eventType:'충돌',occurredAt:'2026-10-08T03:00:00Z',photos:[],corrective:null,
       reportDetails:{templateVersion:'historical-manual-v1',incidentHow:'자재와 카트 노타',place:'관리동 입구',damagedItem:'카트',damageDetail:'좌측 손상',repairCost:null},
       historicalImport:{enabled:true,sourceSystem:'ARCHIVE',erpApproved:false,workflowExempt:false,transferState:'approved',originalReporterName:'기록자',erpApprovalRef:'ERP-TPO',existingActionNote:'원본자료 확인'},
-      historicalTransfer:{mode:'historical_manual',erpApproved:false,erpReference:'ERP-TPO',originalReporterName:'기록자'},
+      historicalTransfer:{mode:'historical_manual',erpApproved:false,erpReference:'ERP-TPO',originalReporterName:'기록자',occurredDate:'2026-10-08',occurredTime:'12:00',occurredTimeKnown:true},
       approvedBy:'QA 안전',approvedAt:'2026-10-13T01:00:00Z',
       _syncBaseVersion:0,_syncMutationId:'create-history'};
     let r=await who('safety',{action:'push',incidents:[source]});
@@ -89,6 +89,10 @@ const {chromium,webkit}=require('playwright');
         await page.locator('#historical461Password').fill(password);
         await page.locator('#historical461PasswordForm button[type=submit]').click();
         await page.locator('#historical461EditForm').waitFor();checks++;
+        const revisedLocal=engine.name()==='chromium'?'2026-10-07T14:20':'2026-10-06T10:35';
+        const occurredInput=page.locator('[data-historical461-field="occurredAt"]');
+        assert.equal(await occurredInput.getAttribute('type'),'datetime-local','known time is editable');checks++;
+        await occurredInput.fill(revisedLocal);
         await page.locator('[data-historical461-field="reportDetails.incidentHow"]').fill(engine.name()+' 재정정');
         await page.locator('#historical461Reason').fill(engine.name()+' 기재오류 정정');
         await page.locator('#historical461EditForm button[type=submit]').click();
@@ -99,6 +103,13 @@ const {chromium,webkit}=require('playwright');
         assert.match(await page.evaluate(()=>qaAlerts[0]),/서버|정정|저장/);checks++;
         i=await page.evaluate(()=>data.incidents[0]);
         assert.equal(i.reportDetails.incidentHow,engine.name()+' 재정정');checks++;
+        assert.equal(i.occurredAt,engine.name()==='chromium'?'2026-10-07T05:20:00.000Z':'2026-10-06T01:35:00.000Z','KST time and UTC persisted');checks++;
+        assert.equal(i.historicalTransfer.occurredDate,revisedLocal.slice(0,10),'historical mirrored date follows correction');checks++;
+        assert.equal(i.historicalTransfer.occurredTime,revisedLocal.slice(11,16),'historical mirrored time follows correction');checks++;
+        assert.equal(i.approvedBy,approval.by);assert.equal(i.approvedAt,approval.at);checks++;
+        const audit=(await request('safety','revision_list')).body.revisions;
+        assert.ok(audit[0].changes.some(d=>d.field==='occurredAt'),'server audit includes date before/after');checks++;
+        assert.equal(i.siteContractSnapshot?.occurredDate,revisedLocal.slice(0,10),'contract snapshot corrected');checks++;
         assert.equal(i.status,'approved');checks++;
         // Exercise the actual incident-detail button; previously this route returned
         // before binding the click handler and left the button apparently inert.
