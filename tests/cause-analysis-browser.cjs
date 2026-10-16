@@ -33,11 +33,14 @@ const fs=require('node:fs'),crypto=require('node:crypto'),assert=require('node:a
    await page.evaluate(()=>enlOpenIncidentReview('qa-cause-ui',true,currentUser()));
    await page.locator('#wf440EnvironmentCause').waitFor();
    assert.ok((await page.locator('[data-wf440-cause]').innerText()).includes('안전관리자 사고원인 분석'));
+   assert.match(await page.locator('#wf440EnvironmentCause').inputValue(),/차량|동선/);
+   assert.equal(await page.locator('#wf440CausePending').isChecked(),true,'automatic cause suggestions are unconfirmed');
    await page.locator('[data-wf440-final]').click();
    assert.ok((await page.locator('[data-wf440-cause-message]').innerText()).includes('원인을'));
    assert.equal((await f.call('safety',{action:'pull'})).body.incidents[0].status,'reported');
    await page.locator('#wf440EnvironmentCause').fill('가상 시설물과 통행구간 간섭 확인');
    await page.locator('#wf440BehaviorCause').fill('작업 전 주행동선 확인 누락 확인');
+   await page.locator('#wf440CausePending').uncheck();
    await page.locator('[data-wf440-cause-save]').click();
    await page.waitForFunction(()=>data.incidents[0].reportDetails.causeAnalysisStatus==='analyzed');
    const saved=(await f.call('safety',{action:'pull'})).body.incidents[0];
