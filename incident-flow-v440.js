@@ -2,7 +2,7 @@
 (function(){
   'use strict';
 
-  const VERSION='4.6.2-r1-safety-cause-review';
+  const VERSION='4.6.6-r1-cause-auto-draft';
   const PUSH_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-v418';
   const CLIENT='incident-report-v2';
   const MANAGER_POSITIONS=['현장소장','파트장','서무'];
@@ -62,6 +62,8 @@
       .wf440-cause .wf440-pending input{flex:0 0 20px;width:20px;height:20px;margin:0}
       .wf440-cause button{width:100%;min-height:44px;background:#1e5d91;color:#fff;border:0;border-radius:10px;font-weight:850}
       .wf440-cause [data-wf440-cause-message]{color:#a13939;min-height:17px;font-weight:750}
+      .wf440-cause .wf440-auto-note{padding:9px 11px;background:#e9f3fc;border:1px solid #c4dbec;border-radius:9px;color:#285d80;font-weight:650}
+      .wf440-cause [data-wf440-cause-generate]{background:#fff;color:#1e5d91;border:1px solid #a8c9df}
       @media(max-width:620px){.wf440-form-grid{grid-template-columns:1fr}.wf440-wide{grid-column:auto}.wf440-safety-actions button{flex:1 1 140px}.wf440-queue-row{grid-template-columns:80px minmax(0,1fr)}.wf440-queue-row strong{grid-column:1/-1}}
     `;document.head.appendChild(s)
   }
@@ -240,21 +242,127 @@
   }
 
   const isOrdinaryCauseReview=i=>!!i&&!['historical_manual','historical_transfer'].includes(text(i.recordMode))&&!i.historicalImport?.enabled&&!i.historicalOrigin?.batchId&&!i.historicalTransfer?.mode;
+
+  // Rule-based suggestions only: no external AI or server write is involved.
+  // Every statement is a hypothesis to verify, never a confirmed accident cause.
+  const CAUSE_DRAFT_RULES=[
+    {types:['붕괴/전도','붕괴','전도'],pattern:/안전망|방풍망|펜스|휀스|구조물.{0,12}(?:붕괴|전도|쓰러)|강풍.{0,12}(?:붕괴|전도)|(?:붕괴|전도).{0,12}(?:구조물|시설물)/,
+      environment:'구조물·안전망의 고정·지지 상태와 기상·설치조건 확인 필요.',
+      behavior:'작업 전 고정상태 확인, 위험구역 접근통제 및 작업중지 절차 이행 여부 확인 필요.',
+      mechanism:'구조물 고정·지지 조건과 외력 및 작업·접근 과정의 관련성'},
+    {types:['타구','골프공 맞음'],pattern:/골프공|타구|티샷|샷.{0,8}(?:맞|충돌)/,
+      environment:'경기구역과 작업구역의 거리·방호상태 및 타구 노출 환경 확인 필요.',
+      behavior:'경기 진행 확인, 작업중지·대피 및 경기운영자와의 연락 절차 이행 여부 확인 필요.',
+      mechanism:'골프 경기 진행과 작업 위치·동선이 겹친 경위'},
+    {types:['차량/중장비','차량사고','차량 충돌'],pattern:/카트|지게차|차량|트럭|화물차|승용차|굴삭기|로더|중장비|후진|주행|운행/,
+      environment:'차량·장비와 인원·시설물 간 동선, 시야·사각지대 및 통행 여건 확인 필요.',
+      behavior:'차량 운행·회전 시 주변 확인, 정지·유도 및 안전거리 확보 여부 확인 필요.',
+      mechanism:'차량·장비의 이동 경로와 사람·시설물의 접촉 과정'},
+    {types:['추락','떨어짐'],pattern:/추락|사다리|고소작업|작업발판|개구부|안전난간|높은 곳.{0,8}떨어/,
+      environment:'작업 높이·발판·난간·개구부 등 추락방지 시설의 상태 확인 필요.',
+      behavior:'고소작업 전 발판·보호구 점검과 안전한 승강·이동방법 준수 여부 확인 필요.',
+      mechanism:'높이 차이와 작업발판·이동동작 및 추락방지조치 간 관련성'},
+    {types:['넘어짐','미끄러짐','낙상'],pattern:/넘어짐|넘어졌|미끄러|걸려 넘어|발을 헛딛|단차|낙상/,
+      environment:'사고 지점의 바닥·경사·단차·수분·장애물 등 넘어짐 위험요인 확인 필요.',
+      behavior:'보행·작업 동선, 이동 중 주변 확인 및 작업에 맞는 신발 착용 여부 확인 필요.',
+      mechanism:'통행·작업 중 바닥 환경과 이동동작이 균형 상실에 미친 영향'},
+    {types:['끼임','협착'],pattern:/끼임|협착|말림|회전체|컨베이어|구동부/,
+      environment:'설비 위험점·방호덮개·간격 및 가동·정지 상태 확인 필요.',
+      behavior:'위험점 접근, 설비 정지·에너지 차단 및 안전작업 절차 이행 여부 확인 필요.',
+      mechanism:'작업자 신체와 가동부·구조물 사이 접촉·협착 과정'},
+    {types:['베임/찔림','베임','절단'],pattern:/베임|베였|찔림|절단|낫|예초기|칼날|톱날|절삭/,
+      environment:'날이 있는 공구·장비의 상태, 방호장치 및 작업공간 확인 필요.',
+      behavior:'공구 취급 시 손 위치·절단방향·보호구 사용 등 작업방법 확인 필요.',
+      mechanism:'공구·날과 신체의 접촉 경위 및 방호·취급방법 간 관련성'},
+    {types:['감전'],pattern:/감전|누전|전선|전기설비|활선|콘센트/,
+      environment:'전기설비의 절연·접지·누전보호 및 전선 손상 여부 확인 필요.',
+      behavior:'전원차단·무전압 확인과 전기기기 취급절차 이행 여부 확인 필요.',
+      mechanism:'전기 노출 경로와 설비 보호상태 및 작업방법의 관련성'},
+    {types:['화재/폭발','화재','폭발'],pattern:/화재|폭발|화상|용접|인화성|발화|점화원/,
+      environment:'점화원, 가연물·인화성 물질과 환기·소화설비 상태 확인 필요.',
+      behavior:'화기작업 통제, 인화물 분리 및 화재예방 절차 이행 여부 확인 필요.',
+      mechanism:'점화원·가연물·작업환경의 상호작용 가능성'},
+    {types:['질식/중독','질식','중독'],pattern:/질식|중독|산소결핍|밀폐공간|유해가스/,
+      environment:'작업공간 환기상태와 산소·유해가스 농도 및 출입 여건 확인 필요.',
+      behavior:'작업 전 측정·환기·감시인 배치와 출입통제 절차 이행 여부 확인 필요.',
+      mechanism:'작업장 공기 상태와 노출경로 및 출입·작업 절차의 관련성'},
+    {types:['근골격','근골격계'],pattern:/근골격|중량물|반복작업|허리.{0,8}(?:통증|다침)|무거운 물건/,
+      environment:'취급물의 무게·작업 높이·동선과 운반보조 장비의 적정성 확인 필요.',
+      behavior:'들기·운반 자세, 반복동작과 2인 작업·보조도구 사용 여부 확인 필요.',
+      mechanism:'취급하중·작업자세·반복빈도에 따른 신체부담 가능성'},
+    {types:['낙하/맞음','낙하물','맞음'],pattern:/낙하물|비래|떨어진 물체|물체.{0,8}맞|물건.{0,8}떨어/,
+      environment:'상부 적치물·고정상태와 낙하·비산 방지시설 확인 필요.',
+      behavior:'하부 출입통제, 낙하 위험 작업방법 및 보호구 착용 여부 확인 필요.',
+      mechanism:'물체 이탈·낙하 경로와 작업자 위치 간 관련성'},
+    {types:['설비/시설 파손'],pattern:/설비.{0,8}파손|시설물.{0,8}파손|기계.{0,8}고장/,
+      environment:'관련 설비·시설물의 이상·손상 상태 및 보호·점검 여건 확인 필요.',
+      behavior:'설비 운전·취급 및 이상 발견 시 사용중지·보고 절차 확인 필요.',
+      mechanism:'설비·시설물의 상태와 사용·접촉 과정의 관련성'}
+  ];
+  function buildCauseDraft(i){
+    const d=i?.reportDetails||{},event=text(i?.eventType);
+    const how=[d.incidentHow,d.damageDetail,d.injuryDetail].map(text).filter(Boolean).join(' ');
+    const work=[d.workAction,d.job,i?.job].map(text).filter(Boolean).join(' ');
+    // The generated summary may contain proposed prevention measures; avoid
+    // using it to classify causes when firsthand incident fields are present.
+    const source=[event,how,work,d.place,(!how&&!work?i?.summary:'')].map(text).filter(Boolean).join(' ');
+    const rule=CAUSE_DRAFT_RULES.find(x=>x.types.includes(event))
+      ||CAUSE_DRAFT_RULES.find(x=>x.pattern.test(source));
+    if(!rule)return {
+      environmentCause:'사고 장소의 바닥·동선·시설·장비 상태 등 관련 환경요인 확인 필요.',
+      behaviorCause:'사고 직전 작업방법·이동동선과 필요한 안전조치 이행 여부 확인 필요. 근로자 과실은 단정하지 않음.',
+      causeAnalysisNote:(source?'초기 검토(미확정): '+(event||'해당 사고')+'의 직접 원인과 환경·작업방법·관리상 요인의 관계 확인 필요.':'사고경위 자료가 부족해 원인을 특정할 수 없음.')+' 현장 사진·관계자 진술·점검기록 대조 후 최종 판단.'
+    };
+    return {
+      environmentCause:rule.environment,
+      behaviorCause:rule.behavior,
+      causeAnalysisNote:'초기 가설(미확정): '+rule.mechanism+' 검토. 사고경위·현장사진·관계자 진술·점검기록으로 인과관계 확인 필요.'
+    };
+  }
+  function hasSavedCause(d){
+    return ['analyzed','investigating'].includes(text(d?.causeAnalysisStatus))
+      ||[d?.environmentCause,d?.behaviorCause,d?.causeAnalysisNote].some(v=>!!text(v));
+  }
+
   function causePanel(i){
-    const d=i.reportDetails||{},pending=d.causeAnalysisStatus==='investigating';
+    const d=i.reportDetails||{},auto=!hasSavedCause(d),draft=auto?buildCauseDraft(i):null;
+    const pending=d.causeAnalysisStatus==='investigating'||auto;
     const panel=document.createElement('section');panel.className='wf440-cause';panel.dataset.wf440Cause='1';
+    panel.dataset.wf440Draft=auto?'unreviewed':'stored';
+    panel.dataset.wf440Dirty='0';
     panel.innerHTML='<h3>안전관리자 사고원인 분석</h3>'
       +'<p>현장에는 원인 입력을 요청하지 않습니다. 사고경위와 확인자료를 검토해 근거가 있는 원인만 작성하세요. 조사 중이면 미확정을 선택할 수 있습니다.</p>'
       +'<div class="wf440-context"><strong>사고경위 참고</strong><p>'+ex(d.incidentHow||i.summary||'입력된 사고경위 없음')+'</p></div>'
-      +'<label>환경적 요인<textarea id="wf440EnvironmentCause" maxlength="4000" rows="2" placeholder="예: 작업환경·시설물·장비 상태 등 확인된 요인">'+ex(d.environmentCause||'')+'</textarea></label>'
-      +'<label>행동적 요인<textarea id="wf440BehaviorCause" maxlength="4000" rows="2" placeholder="예: 확인된 작업방법·행동적 위험요인. 근로자 과실을 추정하지 마세요.">'+ex(d.behaviorCause||'')+'</textarea></label>'
-      +'<label>기타·종합 원인<textarea id="wf440CauseAnalysisNote" maxlength="4000" rows="2" placeholder="기타 확인된 원인이나 분석 근거">'+ex(d.causeAnalysisNote||'')+'</textarea></label>'
+      +'<p class="wf440-auto-note" data-wf440-draft-note>'+(auto?'사고보고를 바탕으로 세 항목에 자동 분석 초안을 입력했습니다. 아직 확인된 원인이 아니므로 검토·수정·삭제 후 저장하세요.':'기존에 저장한 분석내용을 유지했습니다. 필요할 때만 아래 버튼으로 초안을 다시 작성할 수 있습니다.')+'</p>'
+      +'<label>환경적 요인<textarea id="wf440EnvironmentCause" maxlength="4000" rows="2" placeholder="예: 작업환경·시설물·장비 상태 등 확인된 요인">'+ex(auto?draft.environmentCause:d.environmentCause||'')+'</textarea></label>'
+      +'<label>행동적 요인<textarea id="wf440BehaviorCause" maxlength="4000" rows="2" placeholder="예: 확인된 작업방법·행동적 위험요인. 근로자 과실을 추정하지 마세요.">'+ex(auto?draft.behaviorCause:d.behaviorCause||'')+'</textarea></label>'
+      +'<label>기타·종합 원인<textarea id="wf440CauseAnalysisNote" maxlength="4000" rows="2" placeholder="기타 확인된 원인이나 분석 근거">'+ex(auto?draft.causeAnalysisNote:d.causeAnalysisNote||'')+'</textarea></label>'
       +'<label class="wf440-pending"><input id="wf440CausePending" type="checkbox" '+(pending?'checked':'')+'><span>조사 중 · 사고원인 미확정<br><small>현시점에 인과관계를 확정할 자료가 부족한 경우 선택해 주세요.</small></span></label>'
+      +'<button type="button" data-wf440-cause-generate>사고보고 내용으로 초안 다시 작성</button>'
       +'<p data-wf440-cause-message role="alert" aria-live="polite"></p>'
       +'<button type="button" data-wf440-cause-save>원인분석 별도 저장</button>';
     return panel;
   }
-  function collectCause(){
+  function bindCausePanel(panel,i){
+    const fields=['wf440EnvironmentCause','wf440BehaviorCause','wf440CauseAnalysisNote'];
+    const markReviewed=()=>{panel.dataset.wf440Dirty='1';if(panel.dataset.wf440Draft==='unreviewed')panel.dataset.wf440Draft='reviewed';};
+    fields.forEach(id=>panel.querySelector('#'+id)?.addEventListener('input',markReviewed));
+    panel.querySelector('#wf440CausePending')?.addEventListener('change',markReviewed);
+    panel.querySelector('[data-wf440-cause-generate]')?.addEventListener('click',()=>{
+      const values=fields.map(id=>panel.querySelector('#'+id));
+      if((panel.dataset.wf440Draft==='stored'||panel.dataset.wf440Dirty==='1')
+         &&values.some(el=>text(el?.value))
+         &&!confirm('직접 작성하거나 저장한 원인분석이 자동 초안으로 바뀝니다. 계속할까요?'))return;
+      const draft=buildCauseDraft(i);
+      values.forEach((el,n)=>{if(el)el.value=[draft.environmentCause,draft.behaviorCause,draft.causeAnalysisNote][n]});
+      const pending=panel.querySelector('#wf440CausePending');if(pending)pending.checked=true;
+      panel.dataset.wf440Draft='unreviewed';panel.dataset.wf440Dirty='0';
+      const note=panel.querySelector('[data-wf440-draft-note]');if(note)note.textContent='사고보고를 바탕으로 초안을 다시 작성했습니다. 조사 중·미확정으로 설정했으니 검토 후 수정·저장하세요.';
+      const message=panel.querySelector('[data-wf440-cause-message]');if(message)message.textContent='';
+    });
+  }
+  function collectCause({allowAutoDraft=false}={}){
+
     const box=document.querySelector('#modalRoot [data-wf440-cause]');if(!box){alert('원인분석 입력화면을 찾지 못했습니다. 사고를 다시 열어 주세요.');return null;}
     const get=id=>text(box.querySelector('#'+id)?.value);
     const environmentCause=get('wf440EnvironmentCause'),behaviorCause=get('wf440BehaviorCause'),causeAnalysisNote=get('wf440CauseAnalysisNote');
@@ -263,11 +371,15 @@
       if(feedback)feedback.textContent='원인을 확인한 항목에 작성하거나, 조사 중·미확정을 선택해 주세요.';
       box.querySelector('#wf440EnvironmentCause')?.focus();return null;
     }
+    if(box.dataset.wf440Draft==='unreviewed'&&!allowAutoDraft){
+      if(feedback)feedback.textContent='자동 입력된 원인을 검토하여 수정하거나 [원인분석 별도 저장]을 눌러 확인해 주세요.';
+      return null;
+    }
     if(feedback)feedback.textContent='';
     return {environmentCause,behaviorCause,causeAnalysisNote,causeAnalysisStatus:pending?'investigating':'analyzed'};
   }
   async function saveCause(i,u){
-    const cause=collectCause();if(!cause)return;
+    const cause=collectCause({allowAutoDraft:true});if(!cause)return;
     const box=document.querySelector('#modalRoot [data-wf440-cause]'),button=box?.querySelector('[data-wf440-cause-save]');if(button?.disabled)return;
     if(button){button.disabled=true;button.textContent='원인분석 저장 중…';}
     try{
@@ -354,6 +466,7 @@
         actions.querySelector('[data-wf440-final]')?.addEventListener('click',()=>finalApprove(i,u));
         if(isOrdinaryCauseReview(i)){
           const cause=causePanel(i);actions.insertAdjacentElement('beforebegin',cause);
+          bindCausePanel(cause,i);
           cause.querySelector('[data-wf440-cause-save]')?.addEventListener('click',()=>saveCause(i,u));
         }
       }
