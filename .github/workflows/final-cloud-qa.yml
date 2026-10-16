@@ -29,6 +29,7 @@ jobs:
         if: always()
         run: python tests/final-excel-validate.py
       - name: Supplemental LibreOffice print rendering (not Excel 2019)
+        if: always()
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq libreoffice-calc fonts-noto-cjk poppler-utils
