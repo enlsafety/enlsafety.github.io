@@ -51,7 +51,7 @@ assert.doesNotThrow(()=>guard(submitted,approved,'safety'));
 rejects(()=>guard(approved,{...clone(approved),status:'approved'},'safety'),/manual_archive_state_locked/);
 const attach=read('workflow-prevention-v429.js');
 assert.match(attach,/prev429Extra-medicalCost|prev429Extra-/);
-assert.match(attach,/i\.reportDetails=d/);
+assert.match(attach,/next\.reportDetails=\{\.\.\.next\.reportDetails,\[k\]:amount\}/);
 const old=read('historical-transfer-v449.js');
 for(const t of ["recordMode:'historical_manual'","status:'approved'","approvedBy:u.name","closedAt:null","corrective:null","SAFETY_MANUAL_ARCHIVE","enlIncidentApi"])assert.ok(old.includes(t),t);
 assert.ok(!old.includes("ERP 기결재 사고 이력등록"),'old automatic close wording removed');
@@ -61,7 +61,7 @@ for(const t of ['historical-bulk-core-v454.js','historical-bulk-extract-v454.js'
  assert.ok(!sw.includes('/'+t),'retired auto JS not pre-cached: '+t);
 }
 assert.match(read('edge-functions/enl-historical-bulk-v454/index.ts'),/automatic_import_retired/);
-assert.match(read('incident-excel-v421.js'),/\['재발방지계획',x\.planDetail/);
+assert.match(read('incident-excel-v421.js'),/put\('재발방지계획',c\.planDetail/);
 assert.match(read('edge-functions/enl-email-v441/index.ts'),/final_hq_notification_suspended/);
 assert.match(read('edge-functions/enl-push-v418/index.ts'),/final_hq_notification_suspended/);
 assert.match(read('management-approval-v448.js'),/과거 결재기록 · 읽기 전용/);assert.doesNotMatch(read('management-approval-v448.js'),/action:'acknowledge'|data-enl448-sign/);

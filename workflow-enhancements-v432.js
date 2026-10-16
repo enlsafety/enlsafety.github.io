@@ -105,7 +105,7 @@
   function actionIncident(){return getIncident(activeIncidentId)}
   function saveCompletionDateFromForm(){
     const form=document.getElementById('prev429FieldForm'),input=form?.querySelector('#prev432CompletedDate'),i=actionIncident();
-    if(!form||!input||!i?.corrective||!txt(input.value))return;
+    if(!form||form.dataset.reportStage==='D'||!input||!i?.corrective||!txt(input.value))return;
     i.corrective.actionCompletedDate=txt(input.value);
     i.corrective.completedDate=txt(input.value);
     i.corrective.actionCompletedBy=currentUser?.()?.name||'';
@@ -189,7 +189,7 @@
       if(grid.querySelector('[data-prev432-completed]'))return;
       const box=document.createElement('div');box.dataset.prev432Completed='1';box.className='prev432-completed';box.innerHTML=`<b>실제 조치 완료일</b><span>${ex(fmtDate(date))}</span>`;grid.appendChild(box);
     });
-    const modal=document.querySelector('#modalRoot .modal');if(!modal)return;
+    const modal=document.querySelector('#modalRoot .modal');if(!modal||modal.dataset.cumulativeIncident)return;
     modal.querySelectorAll('.prev429-modal-section').forEach(section=>{
       const h=txt(section.querySelector('h3')?.textContent);if(!h.includes('재발방지조치'))return;
       const body=section.querySelector('.prev429-modal-body');if(!body||body.querySelector('[data-prev432-completed]'))return;

@@ -26,6 +26,23 @@
   return '서버 저장을 확인하지 못했습니다. 저장 오류: '+(msg&&/^[a-z0-9_ -]{1,100}$/i.test(msg)?msg:'연결·서버 처리 실패');
  }
  async function operation(i,action,extra){const r=await window.enlIncidentApi({action,incidentId:i.id,expectedVersion:Number(i._syncVersion||0),actor:actor(),...extra},22000);if(!r?.incident)throw Error('save_not_confirmed');window.enlAcceptSavedIncident?.(r.incident);return r;}
+ async function saveReportCorrection(i,changes,reason,{reauthTicket,expiresAt,requestState={}}={}){
+  if(currentUser()?.role!=='safety')throw Error('forbidden');
+  if(expiresAt&&Date.now()>=Number(expiresAt))throw Error('historical_reauth_required');
+  let contractConfirmed=false;
+  if(changes.occurredAt&&window.ENLContracts?.assess){
+    const day=new Date(Date.parse(changes.occurredAt)+9*3600000).toISOString().slice(0,10),check=window.ENLContracts.assess(window.ENLContracts.site(i.siteId),day);
+    if(check.outsideContractPeriod===true||(check.currentStatus==='closed'&&check.statusAtOccurrence==='unknown')){
+      if(!confirm((check.warning||'계약기간 확인이 필요합니다.')+'\n실제 자료를 확인했으며 이 날짜로 정정할까요?'))throw Error('contract_period_confirmation_required');
+      contractConfirmed=true;
+    }
+  }
+  const signature=JSON.stringify({changes,reason,contractConfirmed});
+  if(requestState.correctionSignature!==signature){requestState.correctionSignature=signature;requestState.correctionMutationId=crypto.randomUUID();}
+  return operation(i,'correct_closed',{changes,reason,contractConfirmed,reauthTicket,mutationId:requestState.correctionMutationId});
+ }
+ window.enlSaveReportCorrection=saveReportCorrection;
+ window.enlCorrectionError=failure;
  const labels=Object.fromEntries(fields.concat([['category','사고 구분'],['reportDetails.diagnosis','진단명'],['reportDetails.doctorOpinion','의사 소견'],['reportDetails.medicalCostDetail','진료비 상세'],['reportDetails.repairCostDetail','견적 상세'],['reportDetails.damageDetail','파손 내용'],['reportDetails.damagedItem','파손 물품'],['reportDetails.preventionPlan','예방대책'],['reportDetails.specialNote','특이사항'],['photos','사고 첨부자료'],['corrective.afterPhotos','조치 첨부자료'],['reportDetails.environmentCause','환경적 요인'],['reportDetails.behaviorCause','행동적 요인'],['reportDetails.causeAnalysisNote','기타·종합 원인'],['reportDetails.causeAnalysisStatus','원인분석 상태'],['reportDetails.causeAnalyzedBy','원인분석 담당자'],['reportDetails.causeAnalyzedById','원인분석 담당자 ID'],['reportDetails.causeAnalyzedAt','원인분석 수정시각']]));
  const koreaLocal=v=>{const d=new Date(v);return Number.isFinite(d.getTime())?new Date(d.getTime()+9*3600000).toISOString().slice(0,16):''};
  const display=(key,v)=>{if(v===null||v===undefined||v==='')return '미입력';if(key==='reportDetails.causeAnalysisStatus')return v==='investigating'?'조사 중 · 미확정':v==='analyzed'?'분석 완료':'분석 대기';if(key==='reportDetails.causeAnalyzedAt')return koreaLocal(v).replace('T',' ')+' (한국시간)';if(key==='category')return v==='person'?'대인사고':v==='property'?'대물사고':'사고';if(key==='occurredAt')return koreaLocal(v).replace('T',' ')+' (한국시간)';if(key.endsWith('Cost'))return Number(v).toLocaleString('ko-KR')+'원';if(Array.isArray(v))return v.map(x=>typeof x==='string'?x:x.name||'첨부자료').join(' · ')||'첨부 없음';if(typeof v==='object')return '기록 내용 변경';return String(v)};
@@ -35,6 +52,7 @@
   if(currentUser()?.role!=='safety')return alert('안전관리자만 승인 후 정정할 수 있습니다.');
   if(!['approved','closed'].includes(String(i?.status||'')))return alert('승인·종결된 사고만 정정할 수 있습니다.');
   if(window.enlIsHistoricalCorrectionSupported?.(i)===true)return window.enlOpenHistoricalCorrection?.(i,currentUser());
+  if(window.enlEditIncidentInReportForm)return window.enlEditIncidentInReportForm(i,currentUser());
   const done=i.status==='closed',keys=fields.filter(([k])=>(!k.startsWith('corrective.')||i.corrective)&&(i.category==='person'||!personOnly.has(k))&&(i.category!=='person'||!propertyOnly.has(k)));
   openModal('<div class="modal-head"><h2>'+(done?'종결사고 정정':'승인 후 사고정보 정정')+'</h2><button class="x" data-close>×</button></div>'
     +'<p>사고발생일시를 포함해 안전관리자가 직접 정정할 수 있습니다. 최초 승인·종결 기록은 그대로 두고 변경 전후 내용과 수정 사유를 서버에 보존합니다.</p>'

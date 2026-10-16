@@ -25,7 +25,7 @@ async function setup(engine){
     const {browser,page}=await setup(engine);
     try{
       await page.evaluate(()=>window.enlOpenIncidentReport('person',window.currentUser()));
-      for(const id of ['injuryDetail410','doctorOpinion410','medicalCostDetail410','preventionPlan410','specialNote410']){
+      for(const id of ['injuryDetail410','doctorOpinion410','medicalCostDetail410','specialNote410']){
         const ph=await page.locator('#'+id).getAttribute('placeholder');
         assert.ok(ph&&ph.startsWith('예:'),id+' needs a concrete example placeholder');
       }
@@ -33,7 +33,7 @@ async function setup(engine){
       assert.equal(await page.locator('#environmentCause410,#behaviorCause410').count(),0,'person site form must not ask for cause analysis');
       await page.evaluate(()=>window.enlOpenIncidentReport('property',window.currentUser()));
       assert.equal(await page.locator('#environmentCause410,#behaviorCause410').count(),0,'property site form must not ask for cause analysis');
-      for(const id of ['damageDetail410','preventionPlan410','specialNote410']){
+      for(const id of ['damageDetail410','specialNote410']){
         const ph=await page.locator('#'+id).getAttribute('placeholder');
         assert.ok(ph&&ph.startsWith('예:'),id+' needs a concrete example placeholder');
       }
@@ -44,7 +44,7 @@ async function setup(engine){
       await detail.focus();assert.equal(await detail.inputValue(),'');await detail.blur();assert.equal(await detail.inputValue(),'사후 보완 예정');
       await cost.fill('0');
 
-      const fill={occurredDate410:'2026-10-01',occurredTime410:'13:20',incidentPlace410:'3번홀 카트도로',workAction410:'작업차량 이동 중',incidentHow410:'회전 중 지주와 접촉',immediateAction:'차량 정지 후 현장 통제',damagedItem410:'홀맵 지주',damageDetail410:'지주 하단부 찌그러짐',preventionPlan410:'이동 전 회전반경 확인 및 유도자 배치'};
+      const fill={occurredDate410:'2026-10-01',occurredTime410:'13:20',incidentPlace410:'3번홀 카트도로',workAction410:'작업차량 이동 중',incidentHow410:'회전 중 지주와 접촉',immediateAction:'차량 정지 후 현장 통제',damagedItem410:'홀맵 지주',damageDetail410:'지주 하단부 찌그러짐'};
       for(const [id,val] of Object.entries(fill))await page.locator('#'+id).fill(val);
       await page.locator('#unifiedReportForm button[type="submit"]').click();
       await page.waitForFunction(()=>window.data.incidents.length===1);

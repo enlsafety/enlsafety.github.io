@@ -2,6 +2,15 @@
 "use strict";
 const sandbox=window.ENL_ZEROWIZ_SANDBOX;
 if(!sandbox)throw Error("DEMO_SAFETY_BOOT_MISSING");
+// Native posting stays blocked by both sandbox and CSP. Route submit-button clicks
+// to the same form handlers against the memory-only demo backend.
+document.addEventListener('click',event=>{
+ const button=event.target.closest?.('button,input');
+ const form=button?.form;
+ if(!form||button.type!=='submit')return;
+ event.preventDefault();
+ if(form.reportValidity())form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+},true);
 if(window.ENL_DEMO_ISOLATED!==true||window.localStorage?.length<0)throw Error("DEMO_ISOLATION_UNVERIFIED");
 const appRoot=document.getElementById("app");
 const escape=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));

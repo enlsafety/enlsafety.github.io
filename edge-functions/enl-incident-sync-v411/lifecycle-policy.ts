@@ -89,6 +89,10 @@ export function validateLifecycle(prev:any,next:any,actor:any,now:string){
     if(!['approved','closed'].includes(next.status))fail('approved_state_locked');
   }
   const oldC=prev.corrective||{},c=next.corrective||{};
+  if(!equal(oldC.submissions,c.submissions))fail('submission_history_locked',403);
+  const actionFields=['actionDetail','actionDate','actionCompletedDate','completedDate','actionOwner','additionalNotes','afterPhotos','submittedBy','submittedById','submittedAt'];
+  const snapshot=(record:any)=>Object.fromEntries(['submittedBy','submittedById','submittedAt','actionDetail','actionDate','actionCompletedDate','completedDate','actionOwner','additionalNotes','afterPhotos'].filter(k=>record[k]!==undefined).map(k=>[k,structuredClone(record[k])]));
+  const appendHistory=(action:string,note:string)=>{c.reviewHistory=[...(oldC.reviewHistory||[]),{action,by:actor.name,byId:actor.id,at:now,note}];};
   if(actor.role!=='safety'){
     if(next.status!==prev.status&&!(prev.status==='supplement'&&next.status==='supplement_submitted')&&!(prev.status==='rejected'&&next.status==='reported'))fail('safety_approval_required',403);
     for(const key of ['safetyNote',...(accepted(prev)?['priority','prioritySource','prioritySetBy','prioritySetAt','legalReview']:[])])if(!equal(prev[key],next[key]))fail('safety_fields_locked',403);
@@ -105,13 +109,24 @@ export function validateLifecycle(prev:any,next:any,actor:any,now:string){
       if(actor.role!=='field'||!['현장소장','파트장','서무'].includes(actor.position)||prev.status!=='approved')fail('field_action_forbidden',403);
       if(!text(oldC.planDetail)||!text(oldC.planAt))fail('prevention_plan_required');
       if(['submitted','approved'].includes(oldC.status))fail('action_review_in_progress');
-      const allowed=new Set(['status','actionDetail','actionDate','actionOwner','additionalNotes','afterPhotos','actionBy','actionById','actionStartedAt','actionUpdatedAt','submittedBy','submittedById','submittedAt','reviewHistory']);
+      const allowed=new Set(['status','actionDetail','actionDate','actionCompletedDate','completedDate','actionOwner','additionalNotes','afterPhotos','actionBy','actionById','actionStartedAt','actionUpdatedAt','submittedBy','submittedById','submittedAt','reviewHistory']);
       for(const key of new Set([...Object.keys(oldC),...Object.keys(c)]))if(!allowed.has(key)&&!equal(oldC[key],c[key]))fail('prevention_plan_locked');
       if(!['in_progress','submitted'].includes(c.status))fail('action_transition_invalid');
       if(c.status==='submitted'&&(!text(c.actionDetail)||!/^\d{4}-\d{2}-\d{2}$/.test(text(c.actionDate))||!text(c.actionOwner)||!Array.isArray(c.afterPhotos)||!c.afterPhotos.length))fail('action_evidence_required');
+      const today=new Date(Date.parse(now)+9*3600000).toISOString().slice(0,10);
+      const validDay=(value:any)=>{const day=text(value);if(!/^\d{4}-\d{2}-\d{2}$/.test(day))return false;const parsed=new Date(day+'T00:00:00Z');return Number.isFinite(parsed.getTime())&&parsed.toISOString().slice(0,10)===day&&day<=today;};
+      if(text(c.actionDate)&&!validDay(c.actionDate))fail('action_date_invalid',400);
       c.actionBy=oldC.actionBy||actor.name;c.actionById=oldC.actionById||actor.id;c.actionUpdatedAt=now;
       if(c.status==='submitted'){c.submittedBy=actor.name;c.submittedById=actor.id;c.submittedAt=now;}
-      c.reviewHistory=oldC.reviewHistory||[];
+      if(c.actionCompletedDate!==undefined&&text(c.actionCompletedDate)){
+        if(!validDay(c.actionCompletedDate)||c.actionCompletedDate<text(c.actionDate))fail('action_completion_date_invalid',400);
+      }
+      if(c.status==='submitted'){
+        const previous=structuredClone(oldC.submissions||[]);
+        if(!previous.length&&oldC.submittedAt)previous.push(snapshot(oldC));
+        c.submissions=[...previous,{...snapshot(c),requestNote:oldC.status==='rejected'?text(oldC.reviewNote):''}];
+      }
+      appendHistory(c.status==='submitted'?'prevention_action_submitted':'prevention_action_draft',text(c.actionDetail));
     }
   }else{
     if(!['reported','supplement','supplement_submitted','rejected','approved','closed'].includes(next.status))fail('invalid_report_state');
@@ -121,15 +136,17 @@ export function validateLifecycle(prev:any,next:any,actor:any,now:string){
     if(!equal(oldC,c)){
       if(c.status==='approved'||next.status==='closed'){
         if(oldC.status!=='submitted'||!text(oldC.actionDetail)||!(oldC.afterPhotos||[]).length)fail('submitted_action_required');
-        for(const key of [...planKeys,'actionDetail','actionDate','actionOwner','additionalNotes','afterPhotos','submittedBy','submittedById','submittedAt'])if(!equal(oldC[key],c[key]))fail('submitted_evidence_locked');
-        c.reviewedBy=actor.name;c.reviewedById=actor.id;c.reviewedAt=now;next.status='closed';next.closedAt=now;
-      }else if(c.status==='rejected'){
+        for(const key of [...planKeys,...actionFields])if(!equal(oldC[key],c[key]))fail('submitted_evidence_locked');
+        c.reviewedBy=actor.name;c.reviewedById=actor.id;c.reviewedAt=now;next.status='closed';next.closedAt=now;appendHistory('prevention_action_confirmed',text(c.reviewNote));
+      }else if(c.status==='rejected'&&oldC.status==='submitted'){
         if(oldC.status!=='submitted'||!text(c.reviewNote))fail('action_review_reason_required');
-        c.reviewedBy=actor.name;c.reviewedById=actor.id;c.reviewedAt=now;
-      }else if(['planned','in_progress'].includes(c.status)){
+        for(const key of [...planKeys,...actionFields])if(!equal(oldC[key],c[key]))fail('submitted_evidence_locked');
+        c.reviewedBy=actor.name;c.reviewedById=actor.id;c.reviewedAt=now;appendHistory('prevention_action_rejected',text(c.reviewNote));
+      }else if(['planned','in_progress'].includes(c.status)||(c.status==='rejected'&&oldC.status==='rejected')){
         if(['submitted','approved'].includes(oldC.status))fail('action_review_in_progress');
+        for(const key of [...actionFields,'reviewedBy','reviewedById','reviewedAt','reviewNote'])if(!equal(oldC[key],c[key]))fail('submitted_evidence_locked');
         if(!text(c.rootCause)||!text(c.planDetail)||!text(c.ownerName)||!/^\d{4}-\d{2}-\d{2}$/.test(text(c.dueDate)))fail('plan_fields_required');
-        c.planBy=oldC.planBy||actor.name;c.planById=oldC.planById||actor.id;c.planAt=oldC.planAt||now;c.planUpdatedBy=actor.name;c.planUpdatedAt=now;
+        c.planBy=oldC.planBy||actor.name;c.planById=oldC.planById||actor.id;c.planAt=oldC.planAt||now;c.planUpdatedBy=actor.name;c.planUpdatedAt=now;appendHistory(oldC.planAt?'prevention_plan_updated':'prevention_plan_registered',text(c.planDetail));
       }else fail('action_transition_invalid');
     }
     if(next.status==='closed'&&!(oldC.status==='submitted'&&c.status==='approved'))fail('submitted_action_required');
@@ -142,9 +159,9 @@ export function correctedIncident(prev:any,changes:any,reason:string,actor:any,n
   const historical=isHistoricalEditable(prev);
   if(!accepted(prev))fail('approved_or_closed_required');
   if(!text(reason)||text(reason).length>2000)fail('revision_reason_required',400);
-  const allowed=new Set(['summary','occurredAt','eventType','category','injuredName','injuredAge','injuredGender','injuredPart','injuryType','leaveEstimate','immediateAction','reportDetails','photos','corrective',...(historical?['historicalImport']:[])]);
+  const allowed=new Set(['summary','occurredAt','eventType','category','injuredName','injuredAge','injuredGender','injuredPart','injuryType','job','severity','potentialMajor','leaveEstimate','immediateAction','reportDetails','photos','corrective',...(historical?['historicalImport']:[])]);
   const correctiveAllowed=new Set(['rootCause','causeStatus','planDetail','ownerName','dueDate','actionDetail','actionDate','actionOwner','additionalNotes','afterPhotos']);
-  const historicalDetails=new Set(['place','workAction','incidentHow','environmentCause','behaviorCause','injuredName','workerName','job','injuryDetail','diagnosis','doctorOpinion','medicalCost','medicalCostDetail','repairCost','repairCostDetail','damagedItem','damageDetail','preventionPlan','specialNote','causeAnalysisStatus','causeAnalysisNote']);
+  const historicalDetails=new Set(['place','workAction','incidentHow','environmentCause','behaviorCause','injuredName','workerName','job','injuryDetail','diagnosis','doctorOpinion','medicalCost','medicalCostPending','medicalCostDetail','repairCost','repairCostPending','repairCostDetail','damagedItem','damageDetail','preventionPlan','specialNote','causeAnalysisStatus','causeAnalysisNote']);
   const historicalMeta=new Set(['originalReporterName','erpApprovalRef','erpApprovalDate','existingActionNote','additionalActionNote','existingActionStatus']);
   const next=structuredClone(prev),diff:any[]=[];
   if(!changes||typeof changes!=='object'||Array.isArray(changes))fail('invalid_changes',400);
@@ -172,8 +189,13 @@ export function correctedIncident(prev:any,changes:any,reason:string,actor:any,n
         if(equal(prev.reportDetails?.[k],v))continue;
         if(!historicalDetails.has(k))fail('revision_field_forbidden',400);
         if(causeFacts.includes(k)&&text(v).length>4000)fail('cause_details_too_long',400);
+        if(k.endsWith('CostPending')){
+          if(typeof v!=='boolean')fail('invalid_cost',400);
+          const amount=(value as any)[k.replace('Pending','')]??updated[k.replace('Pending','')];
+          if(v===true&&Number(amount)>0)fail('invalid_cost',400);
+        }
         updated[k]=v;
-        if(costKeys.includes(k)&&v!==null&&v!==undefined&&v!=='')updated[k+'Pending']=false;
+        if(costKeys.includes(k)&&v!==null&&v!==undefined&&v!==''&&!(Number(v)===0&&(value as any)[k+'Pending']===true))updated[k+'Pending']=false;
       }
       const changedCause=causeFacts.some(k=>!equal(prev.reportDetails?.[k],updated[k]))||!equal(prev.reportDetails?.causeAnalysisStatus,updated.causeAnalysisStatus);
       if(changedCause){
@@ -198,6 +220,13 @@ export function correctedIncident(prev:any,changes:any,reason:string,actor:any,n
       for(const [k,v] of Object.entries(value)){if(!correctiveAllowed.has(k))fail('revision_field_forbidden',400);if(!equal(prev.corrective[k],v)){diff.push({field:'corrective.'+k,before:prev.corrective[k]??null,after:v});next.corrective[k]=v;}}
     }else if(!equal(prev[key],value)){diff.push({field:key,before:prev[key]??null,after:value});next[key]=value;}
   }
+  if(changes.summary!==undefined&&prev.summary===prev.reportDetails?.generatedSummary){
+    next.reportDetails={...next.reportDetails,generatedSummary:next.summary};
+    const detailDiff=diff.find(d=>d.field==='reportDetails');if(detailDiff)detailDiff.after=next.reportDetails;
+    else diff.push({field:'reportDetails',before:prev.reportDetails??null,after:next.reportDetails});
+  }
+  if(changes.severity!==undefined&&!['minor','moderate','major'].includes(changes.severity))fail('revision_field_forbidden',400);
+  if(changes.potentialMajor!==undefined&&typeof changes.potentialMajor!=='boolean')fail('revision_field_forbidden',400);
   if(!diff.length)fail('no_changes',400);
   if(!text(next.summary)||!Number.isFinite(Date.parse(next.occurredAt)))fail('report_fields_required',400);
   if(diff.some(d=>d.field==='occurredAt')){
@@ -232,7 +261,7 @@ export function correctedIncident(prev:any,changes:any,reason:string,actor:any,n
   }
   for(const key of costKeys){const v=next.reportDetails?.[key];if(v!==null&&v!==undefined&&v!==''&&(!Number.isSafeInteger(v)||v<0))fail('invalid_cost',400);}
   const revision=Number(prev.officialRecord?.revisionNumber||0)+1;
-  const affectsAction=diff.some(x=>x.field.startsWith('corrective.')||['summary','occurredAt','eventType','category','reportDetails','immediateAction','injuredName','injuredAge','injuredPart','injuryType','leaveEstimate'].includes(x.field));
+  const affectsAction=diff.some(x=>x.field.startsWith('corrective.')||['summary','occurredAt','eventType','category','reportDetails','immediateAction','injuredName','injuredAge','injuredPart','injuryType','job','severity','potentialMajor','leaveEstimate'].includes(x.field));
   next.officialRecord={...prev.officialRecord,revisionNumber:revision,lastCorrection:{reason:text(reason),byId:actor.id,by:actor.name,at:now,revision},actionRecheckRequired:affectsAction||prev.officialRecord?.actionRecheckRequired===true,erpCorrectionRequired:!!prev.officialRecord?.erpManual?.submitted||prev.officialRecord?.erpCorrectionRequired===true};
   return {next,diff,revision};
 }

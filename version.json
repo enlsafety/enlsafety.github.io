@@ -1,9 +1,9 @@
 {
-  "version": "4.6.6",
-  "build": "stable-466-r1",
+  "version": "4.7.0",
+  "build": "stable-470-r1",
   "autoUpdate": false,
   "loginAutoUpdate": false,
   "stableEntry": "stable412.html",
-  "currentStableVersion": "4.6.6",
-  "updatedAt": "2026-10-16T07:19:56.297Z"
+  "currentStableVersion": "4.7.0",
+  "updatedAt": "2026-10-16T08:55:12.831Z"
 }
