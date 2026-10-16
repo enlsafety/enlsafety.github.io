@@ -18,6 +18,7 @@
   }
 
   function requiredState(el){
+    if(el.dataset.allowExistingBlank==='1')return false;
     const starred=hasStarMarker(el);
     if(el.tagName==='SELECT')return starred;
     return !!el.required||starred;

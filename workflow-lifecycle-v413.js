@@ -77,7 +77,7 @@
   }
   function appendFinalAction(id){
     const i=(data?.incidents||[]).find(x=>String(x.id)===String(id));if(!finalized(i))return;
-    const modal=document.querySelector('#modalRoot .modal');if(!modal||modal.querySelector(`[data-lifecycle-final="${CSS.escape(String(id))}"]`))return;
+    const modal=document.querySelector('#modalRoot .modal');if(!modal||modal.dataset.cumulativeIncident||modal.querySelector(`[data-lifecycle-final="${CSS.escape(String(id))}"]`))return;
     const html=finalActionSection(i),anchor=modal.querySelector('#ackIncident411')||modal.querySelector('.modal-actions');
     if(anchor)anchor.insertAdjacentHTML('beforebegin',html);else modal.insertAdjacentHTML('beforeend',html);
     try{window.enlBindAttachmentOpen?.(modal,i.corrective?.afterPhotos||[])}catch(e){}

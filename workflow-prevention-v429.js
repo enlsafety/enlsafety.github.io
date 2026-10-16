@@ -2,7 +2,7 @@
 (function(){
   'use strict';
 
-  const VERSION='4.4.43-safety-action-counts1';
+  const VERSION='4.7.0-cumulative-report';
   const LEGACY_SENTINEL='후속 단계에서 안전관리자가 별도 수립';
   const MANAGER_POSITIONS=['현장소장','파트장','서무'];
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
@@ -135,7 +135,7 @@
     const cause=[`발생 메커니즘: ${mechanism}`];
     if(text(d.environmentCause))cause.push(`환경적 요인: ${text(d.environmentCause)}`);
     if(text(d.behaviorCause))cause.push(`행동적 요인: ${text(d.behaviorCause)}`);
-    cause.push(`관리상 원인: ${hazard.cause}`);
+    cause.push(`확인할 관리요인(추정): ${hazard.cause.replace(/충분하지 않아|충분히 확보되지 않아/g,'충분했는지 확인이 필요하며').replace(/것으로 판단됨/g,'가능성을 검토해야 함')}`);
     const days=(i?.potentialMajor===true||String(i?.priority||'')==='urgent')?3:(String(i?.priority||'')==='important'||String(i?.category||'')==='person')?7:14;
     return {rootCause:cause.join('\n'),planDetail:hazard.plan,ownerName:suggestedOwner(i),dueDate:targetDate(days)};
   }
@@ -171,7 +171,7 @@
   function ensureCss(){
     if(document.getElementById('prevention429Css'))return;
     const s=document.createElement('style');s.id='prevention429Css';s.textContent=`
-      .prev429-list{display:grid;gap:10px}.prev429-card{border:1.5px solid #d7e3ec;border-radius:14px;background:#fff;padding:14px}.prev429-card.rejected{border-color:#e2b2b2;background:#fffafa}.prev429-top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}.prev429-card h3{margin:9px 0 6px;color:#173b66;font-size:17px}.prev429-meta{display:flex;gap:6px;flex-wrap:wrap}.prev429-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:10px}.prev429-grid>div{padding:10px;border:1px solid #dfe8ef;border-radius:10px;background:#f7fafc;min-width:0}.prev429-grid b{display:block;font-size:10px;color:#667c8f;margin-bottom:4px}.prev429-grid span{display:block;color:#29475f;font-size:13px;line-height:1.45;white-space:pre-wrap;word-break:keep-all}.prev429-plan{grid-column:1/-1;border-color:#c7ddec!important;background:#f3f9fd!important}.prev429-action{grid-column:1/-1;border-color:#cfe2d7!important;background:#f5faf7!important}.prev429-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}.prev429-actions button{min-height:42px;border:1px solid #b9cbd8;border-radius:9px;background:#fff;color:#264f6e;padding:0 13px;font-weight:900}.prev429-actions button.primary{border-color:#1e5d91;background:#1e5d91;color:#fff}.prev429-actions button:disabled{opacity:.55;cursor:not-allowed}.prev429-wait{margin-top:9px;padding:10px 11px;border-radius:10px;background:#fff8e9;border:1px solid #ead8a9;color:#71551d;font-size:12px;line-height:1.5}.prev429-reject{margin-top:9px;padding:10px 11px;border-radius:10px;background:#fff0f0;border:1px solid #e8bcbc;color:#8b3737;font-size:12px;line-height:1.5}.prev429-note{padding:10px 11px;border:1px solid #d4e3ed;border-radius:10px;background:#f5fafd;color:#3b607c;font-size:12px;line-height:1.55}.prev429-modal-section{margin-top:12px;border:1px solid #d9e5ed;border-radius:12px;background:#fff;overflow:hidden}.prev429-modal-section>h3{margin:0;padding:10px 12px;background:#eef6fb;color:#174d78;font-size:14px}.prev429-modal-body{padding:12px;display:grid;gap:9px}.prev429-kv{display:grid;grid-template-columns:115px minmax(0,1fr);gap:10px;line-height:1.5}.prev429-kv>b{font-size:12px;color:#577084}.prev429-kv>span{font-size:13px;color:#29465d;white-space:pre-wrap}.prev429-confirm{border:2px solid #b9d8c5;background:#f6fbf8}.prev429-confirm>h3{background:#eaf6ef;color:#286044}.prev429-hidden-legacy{display:none!important}.prev429-flow{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}.prev429-flow span{display:inline-flex;align-items:center;min-height:27px;padding:0 8px;border-radius:999px;background:#eef4f8;color:#526d82;border:1px solid #d2e0ea;font-size:10px;font-weight:900}.prev429-flow span.on{background:#1e5d91;color:#fff;border-color:#1e5d91}.prev429-flow span.done{background:#eaf6ef;color:#2e6949;border-color:#bdd9c7}.prev429-nav-alert{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 6px;margin-left:6px;border-radius:999px;background:#cf3636;color:#fff!important;font-size:11px;font-weight:950;line-height:1;box-shadow:0 3px 8px rgba(174,44,44,.25)}.shell411-nav button.prev429-nav-attention{border-color:#cf4a4a!important;background:#fff4f4!important;color:#9b2e2e!important;box-shadow:0 0 0 2px rgba(207,54,54,.08)}.shell411-nav button.prev429-nav-attention.on{background:#a92d2d!important;color:#fff!important;border-color:#a92d2d!important}.shell411-nav button.prev429-nav-attention.on .prev429-nav-alert{background:#fff;color:#a92d2d!important}@media(max-width:620px){.prev429-grid{grid-template-columns:1fr}.prev429-plan,.prev429-action{grid-column:auto}.prev429-kv{grid-template-columns:1fr;gap:3px}.prev429-actions button{flex:1 1 145px}}
+      .prev429-list{display:grid;gap:10px}.prev429-card{border:1.5px solid #d7e3ec;border-radius:14px;background:#fff;padding:14px}.prev429-card.rejected{border-color:#e2b2b2;background:#fffafa}.prev429-top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}.prev429-card h3{margin:9px 0 6px;color:#173b66;font-size:17px}.prev429-meta{display:flex;gap:6px;flex-wrap:wrap}.prev429-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:10px}.prev429-grid>div{padding:10px;border:1px solid #dfe8ef;border-radius:10px;background:#f7fafc;min-width:0}.prev429-grid b{display:block;font-size:10px;color:#667c8f;margin-bottom:4px}.prev429-grid span{display:block;color:#29475f;font-size:13px;line-height:1.45;white-space:pre-wrap;word-break:keep-all}.prev429-plan{grid-column:1/-1;border-color:#c7ddec!important;background:#f3f9fd!important}.prev429-action{grid-column:1/-1;border-color:#cfe2d7!important;background:#f5faf7!important}.prev429-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}.prev429-actions button{min-height:42px;border:1px solid #b9cbd8;border-radius:9px;background:#fff;color:#264f6e;padding:0 13px;font-weight:900}.prev429-actions button.primary{border-color:#1e5d91;background:#1e5d91;color:#fff}.prev429-actions button:disabled{opacity:.55;cursor:not-allowed}.prev429-wait{margin-top:9px;padding:10px 11px;border-radius:10px;background:#fff8e9;border:1px solid #ead8a9;color:#71551d;font-size:12px;line-height:1.5}.prev429-reject{margin-top:9px;padding:10px 11px;border-radius:10px;background:#fff0f0;border:1px solid #e8bcbc;color:#8b3737;font-size:12px;line-height:1.5}.prev429-note{padding:10px 11px;border:1px solid #d4e3ed;border-radius:10px;background:#f5fafd;color:#3b607c;font-size:12px;line-height:1.55}.prev429-modal-section{margin-top:12px;border:1px solid #d9e5ed;border-radius:12px;background:#fff;overflow:hidden}.prev429-modal-section>h3{margin:0;padding:10px 12px;background:#eef6fb;color:#174d78;font-size:14px}.prev429-modal-body{padding:12px;display:grid;gap:9px}.prev429-kv{display:grid;grid-template-columns:115px minmax(0,1fr);gap:10px;line-height:1.5}.prev429-kv>b{font-size:12px;color:#577084}.prev429-kv>span{font-size:13px;color:#29465d;white-space:pre-wrap}.prev429-confirm{border:2px solid #b9d8c5;background:#f6fbf8}.prev429-confirm>h3{background:#eaf6ef;color:#286044}.prev429-flow{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}.prev429-flow span{display:inline-flex;align-items:center;min-height:27px;padding:0 8px;border-radius:999px;background:#eef4f8;color:#526d82;border:1px solid #d2e0ea;font-size:10px;font-weight:900}.prev429-flow span.on{background:#1e5d91;color:#fff;border-color:#1e5d91}.prev429-flow span.done{background:#eaf6ef;color:#2e6949;border-color:#bdd9c7}.prev429-nav-alert{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 6px;margin-left:6px;border-radius:999px;background:#cf3636;color:#fff!important;font-size:11px;font-weight:950;line-height:1;box-shadow:0 3px 8px rgba(174,44,44,.25)}.shell411-nav button.prev429-nav-attention{border-color:#cf4a4a!important;background:#fff4f4!important;color:#9b2e2e!important;box-shadow:0 0 0 2px rgba(207,54,54,.08)}.shell411-nav button.prev429-nav-attention.on{background:#a92d2d!important;color:#fff!important;border-color:#a92d2d!important}.shell411-nav button.prev429-nav-attention.on .prev429-nav-alert{background:#fff;color:#a92d2d!important}@media(max-width:620px){.prev429-grid{grid-template-columns:1fr}.prev429-plan,.prev429-action{grid-column:auto}.prev429-kv{grid-template-columns:1fr;gap:3px}.prev429-actions button{flex:1 1 145px}}
     `;document.head.appendChild(s);
   }
 
@@ -180,32 +180,6 @@
     const steps=[['접수완료',accepted],['재발방지계획',plan],['재발방지조치 등록',fieldDone],['안전관리자 확인',String(c.status||'')==='approved'],['종결',closed]];
     let currentFound=false;
     return `<div class="prev429-flow">${steps.map(([label,done])=>{let cls=done?'done':'';if(!done&&!currentFound){cls='on';currentFound=true}return `<span class="${cls}">${ex(label)}</span>`}).join('')}</div>`;
-  }
-
-  function stripSentinelSummary(s){
-    return String(s||'').replace(new RegExp(`\\s*\\[재발 방지 대책\\]\\s*${LEGACY_SENTINEL.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}`,'g'),'').replace(/\s{2,}/g,' ').trim();
-  }
-  function cleanupSentinel(){
-    let dirty=false;
-    for(const i of data?.incidents||[]){
-      const d=i?.reportDetails;if(['approved','closed'].includes(i.status)||!d||text(d.preventionPlan)!==LEGACY_SENTINEL)continue;
-      d.preventionPlan='';if(d.generatedSummary)d.generatedSummary=stripSentinelSummary(d.generatedSummary);if(i.summary)i.summary=stripSentinelSummary(i.summary);dirty=true;
-    }
-    if(dirty){try{saveData()}catch(e){}}
-  }
-
-  function patchReportForm(root=document){
-    const form=root.querySelector?.('#unifiedReportForm');if(!form||form.dataset.prevention429==='1')return;form.dataset.prevention429='1';
-    const prevention=form.querySelector('#preventionPlan410'),preventionLabel=prevention?.closest('label'),targetSection=prevention?.closest('.report410-section');
-    const immediate=form.querySelector('#immediateAction'),immediateLabel=immediate?.closest('label'),originSection=immediate?.closest('.report410-section');
-    if(targetSection){
-      const head=targetSection.querySelector('.report410-section-head b');if(head)head.textContent='5. 사고조치 내용';
-      const small=targetSection.querySelector('.report410-section-head small');if(small)small.textContent='사고 직후 실제로 실시한 응급처치·작업중지·현장통제·병원이송·보고 등의 조치를 입력합니다.';
-      if(immediateLabel){const span=immediateLabel.querySelector('span');if(span)span.textContent='사고조치 내용 *';targetSection.insertBefore(immediateLabel,preventionLabel||targetSection.querySelector('.report410-grid')||targetSection.firstChild)}
-    }
-    if(originSection&&originSection!==targetSection){const small=originSection.querySelector('.report410-section-head small');if(small)small.textContent='사고 직전 작업과 발생 과정을 확인된 사실대로 입력합니다.'}
-    if(prevention){if(!text(prevention.value))prevention.value=LEGACY_SENTINEL;prevention.required=false;preventionLabel?.classList.add('prev429-hidden-legacy');preventionLabel?.setAttribute('aria-hidden','true')}
-    form.addEventListener('submit',()=>setTimeout(cleanupSentinel,0),true);
   }
 
   function preventionPlanMissing(u=currentUser?.()){if(!isSafety(u))return 0;return [...(data?.incidents||[])].filter(i=>reportAccepted(i)&&!historicalClosed(i)&&String(i.status||'')==='approved'&&!hasPlan(i.corrective)).length}
@@ -220,7 +194,7 @@
   }
 
   function reportUiRewrite(root=document){
-    patchReportForm(root);patchPreventionNav();
+    patchPreventionNav();
     root.querySelectorAll?.('.inc411-kv').forEach(row=>{const key=row.querySelector('b'),val=row.querySelector('span');if(!key)return;const k=text(key.textContent);if(k==='즉시 조치')key.textContent='사고조치 내용';if(k==='재발방지대책'){if(!val||['','-',LEGACY_SENTINEL].includes(text(val.textContent)))row.remove();else key.textContent='기존 재발방지대책(전환 전)'}});
     const approve=root.querySelector?.('#approveInc');if(approve&&text(approve.textContent)!=='사고 접수완료')approve.textContent='사고 접수완료';
     root.querySelectorAll?.('option[value="approved"]').forEach(o=>{if(text(o.textContent)==='승인')o.textContent='접수완료'});
@@ -257,35 +231,86 @@
   }
 
   function historyPush(c,entry){c.reviewHistory=Array.isArray(c.reviewHistory)?c.reviewHistory:[];c.reviewHistory.push(entry)}
+  function cumulative(i,options){return window.enlCumulativeReportHtml?.(i,options)||overview(i);}
+  const modalHead=(i,title)=>`<div class="modal-head"><div><h2>${ex(siteName(i.siteId))} · ${title}</h2><div style="margin-top:7px">${preventionBadge(i)}</div></div><button class="x" data-close>×</button></div>`;
+  function historyHtml(c){
+    const submissions=c.submissions||[],reviews=(c.reviewHistory||[]).filter(x=>/rejected|confirmed/.test(x.action||''));
+    if(!submissions.length&&!reviews.length)return '';
+    return `<details class="report410-history"><summary>이전 제출·보완 이력 (${submissions.length}회 제출)</summary>${submissions.map((x,n)=>`<section><h4>${n+1}차 제출 · ${ex(x.submittedBy||'')} · ${ex(x.submittedAt?fmt(x.submittedAt):'')}</h4><div style="white-space:pre-wrap">${ex(x.actionDetail||'')}</div><p>시행 ${ex(x.actionDate||'미입력')} / 완료 ${ex(x.actionCompletedDate||'미입력')}</p>${x.requestNote?`<p>반영한 보완요청: ${ex(x.requestNote)}</p>`:''}<div data-submission-files="${n}">${attachmentsHtml(x.afterPhotos||[])}</div></section>`).join('')}${reviews.map(x=>`<p><b>${/rejected/.test(x.action)?'보완요청':'최종확인'}</b> · ${ex(x.by||'')} · ${ex(x.at?fmt(x.at):'')}<br>${ex(x.note||'의견 없음')}</p>`).join('')}</details>`;
+  }
+  function mountDocument(i,target){
+    const root=document.querySelector('#modalRoot .modal');if(!root)return;
+    root.dataset.cumulativeIncident=i.id;
+    window.enlBindCumulativeReport?.(root,i);
+    root.querySelectorAll('[data-submission-files]').forEach(el=>bindAttachments(el,i.corrective?.submissions?.[Number(el.dataset.submissionFiles)]?.afterPhotos||[]));
+    if(target)window.enlScrollReportStage?.(root,target);
+  }
+  // Drafts belong to this tab, user, incident, stage and server version. A newer
+  // server record never receives an old draft automatically.
+  function retainDraft(form,i,u,kind){
+    const key=['enl-report-draft',userId(u),i.id,kind,Number(i._syncVersion||0)].join(':');
+    const fields=()=>[...form.querySelectorAll('input[id],textarea[id],select[id]')].filter(el=>el.type!=='file'&&!el.disabled);
+    try{const saved=JSON.parse(sessionStorage.getItem(key)||'null');if(saved){for(const el of fields())if(Object.prototype.hasOwnProperty.call(saved.values,el.id)){if(el.type==='checkbox')el.checked=!!saved.values[el.id];else el.value=saved.values[el.id];}if(kind==='action'&&Array.isArray(saved.photos)){actionPhotos=saved.photos;renderPhotoThumbs('action');}}}catch(e){}
+    const capture=()=>{if(!form.isConnected)return;const values=Object.fromEntries(fields().map(el=>[el.id,el.type==='checkbox'?el.checked:el.value]));try{sessionStorage.setItem(key,JSON.stringify({values,photos:kind==='action'?persistAttachments(actionPhotos):[]}));}catch(e){}};
+    form.addEventListener('input',capture);form.addEventListener('change',capture);window.addEventListener('pagehide',capture);
+    const thumbs=form.querySelector('#actionThumbs'),observer=thumbs?new MutationObserver(capture):null;if(thumbs)observer.observe(thumbs,{childList:true});
+    const cleanup=()=>{window.removeEventListener('pagehide',capture);observer?.disconnect();};
+    const removal=new MutationObserver(()=>{if(!form.isConnected){cleanup();removal.disconnect();}});removal.observe(document.getElementById('modalRoot'),{childList:true,subtree:true});
+    return {capture,clear:()=>{cleanup();removal.disconnect();try{sessionStorage.removeItem(key)}catch(e){}}};
+  }
+  async function commitForm(form,i,u,onSuccess){
+    if(form.dataset.saving==='1')return false;form.dataset.saving='1';
+    const buttons=[...form.querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);
+    try{if(!await window.enlCommitOrNotify(i))return false;onSuccess?.();closeModal();renderShell(u);return true;}
+    finally{form.dataset.saving='0';buttons.forEach(b=>b.disabled=false);}
+  }
   function openReadOnly(i,u){
-    const c=i.corrective||{},files=attachmentsHtml(c.afterPhotos||[]);openModal(`<div class="modal-head"><div><div class="ey">RECURRENCE PREVENTION</div><h2>${ex(siteName(i.siteId))} · ${ex(i.eventType||'사고')}</h2><div style="margin-top:7px">${preventionBadge(i)}</div></div><button class="x" data-close>×</button></div>${overview(i)}${flowHtml(i)}<section class="prev429-modal-section"><h3>재발방지계획</h3><div class="prev429-modal-body"><div class="prev429-kv"><b>원인 분석</b><span>${ex(c.rootCause||'-')}</span></div><div class="prev429-kv"><b>재발방지계획</b><span>${ex(c.planDetail||'기존 재발방지조치 기록(전환 전)')}</span></div><div class="prev429-kv"><b>담당 / 목표일</b><span>${ex(c.ownerName||'-')} · ${ex(c.dueDate||'-')}</span></div><div class="prev429-kv"><b>계획 수립</b><span>${ex(c.planBy||'-')} · ${ex(c.planAt&&typeof fmt==='function'?fmt(c.planAt):(c.planAt||'-'))}</span></div></div></section><section class="prev429-modal-section prev429-confirm"><h3>현장 재발방지조치 및 확인</h3><div class="prev429-modal-body"><div class="prev429-kv"><b>재발방지조치 내용</b><span>${ex(c.actionDetail||'-')}</span></div><div class="prev429-kv"><b>재발방지조치 제출</b><span>${ex(c.submittedBy||'-')} · ${ex(c.submittedAt&&typeof fmt==='function'?fmt(c.submittedAt):(c.submittedAt||'-'))}</span></div><div class="prev429-kv"><b>안전관리자 확인</b><span>${ex(c.reviewedBy||'-')} · ${ex(c.reviewedAt&&typeof fmt==='function'?fmt(c.reviewedAt):(c.reviewedAt||'-'))}</span></div>${c.reviewNote?`<div class="prev429-kv"><b>확인의견</b><span>${ex(c.reviewNote)}</span></div>`:''}</div></section>${files?`<section class="prev429-modal-section"><h3>조치 증빙 사진 · PDF</h3><div class="prev429-modal-body">${files}</div></section>`:''}`);bindAttachments(document.getElementById('modalRoot'),c.afterPhotos||[]);
+    openModal(modalHead(i,'누적 사고보고서')+cumulative(i)+historyHtml(i.corrective||{}));
+    mountDocument(i,i.corrective?.actionDetail?'[data-report-stage="D"]':'[data-report-stage="C"]');
   }
-
   function openSafetyPlanModal(i,u){
-    i=structuredClone(i);
-    const c=i.corrective||{},plan=hasPlan(c),locked=(plan&&['submitted','approved'].includes(String(c.status||'')))||isFinalized(i),files=attachmentsHtml(c.afterPhotos||[]);
-    if(locked){
-      if(c.status==='submitted'){
-        openModal(`<div class="modal-head"><div><div class="ey">SAFETY CONFIRMATION</div><h2>${ex(siteName(i.siteId))} · 재발방지조치 확인</h2><div style="margin-top:7px">${preventionBadge(i)}</div></div><button class="x" data-close>×</button></div>${overview(i)}${flowHtml(i)}<section class="prev429-modal-section"><h3>안전관리자 재발방지계획</h3><div class="prev429-modal-body"><div class="prev429-kv"><b>원인 분석</b><span>${ex(c.rootCause||'-')}</span></div><div class="prev429-kv"><b>재발방지계획</b><span>${ex(c.planDetail||'-')}</span></div><div class="prev429-kv"><b>담당 / 목표일</b><span>${ex(c.ownerName||'-')} · ${ex(c.dueDate||'-')}</span></div></div></section><section class="prev429-modal-section prev429-confirm"><h3>현장 재발방지조치</h3><div class="prev429-modal-body"><div class="prev429-kv"><b>조치내용</b><span>${ex(c.actionDetail||'-')}</span></div><div class="prev429-kv"><b>제출자</b><span>${ex(c.submittedBy||'-')} · ${ex(c.submittedAt&&typeof fmt==='function'?fmt(c.submittedAt):(c.submittedAt||'-'))}</span></div>${files?`<div>${files}</div>`:''}</div></section><label class="lbl"><span>확인의견 / 보완요청 사유</span><textarea id="prev429Review" rows="3" placeholder="확인 의견은 선택사항이며, 보완요청 시 사유는 필수입니다.">${ex(c.reviewNote||'')}</textarea></label><div class="modal-actions"><button type="button" class="btn-reject" id="prev429Reject">보완요청</button><button type="button" class="btn-green" id="prev429Approve">재발방지조치 확인완료</button></div>`);
-        bindAttachments(document.getElementById('modalRoot'),c.afterPhotos||[]);
-        document.getElementById('prev429Approve')?.addEventListener('click',async()=>{const ts=now(),note=text(document.getElementById('prev429Review')?.value);c.status='approved';c.reviewNote=note;c.reviewedBy=u.name;c.reviewedById=userId(u);c.reviewedAt=ts;historyPush(c,{action:'prevention_action_confirmed',by:u.name,at:ts,note});i.corrective=c;i.status='closed';i.closedAt=ts;i.updatedAt=ts;if(!await window.enlCommitOrNotify(i))return;closeModal();renderShell(u);alert('재발방지조치 확인이 완료되어 사고가 종결되었습니다.')});
-        document.getElementById('prev429Reject')?.addEventListener('click',async()=>{const note=text(document.getElementById('prev429Review')?.value);if(!note)return alert('보완요청 사유를 입력해 주세요.');const ts=now();c.status='rejected';c.reviewNote=note;c.reviewedBy=u.name;c.reviewedById=userId(u);c.reviewedAt=ts;historyPush(c,{action:'prevention_action_rejected',by:u.name,at:ts,note});i.corrective=c;i.updatedAt=ts;if(!await window.enlCommitOrNotify(i))return;closeModal();renderShell(u);alert('현장에 재발방지조치 보완을 요청했습니다.')});return;
-      }
-      return openReadOnly(i,u);
+    i=structuredClone(i);const c=i.corrective||{},plan=hasPlan(c);
+    if(c.status==='approved'||isFinalized(i))return openReadOnly(i,u);
+    if(c.status==='submitted'){
+      openModal(modalHead(i,'재발방지조치 검토')+cumulative(i,{through:'D',highlight:'D'})+historyHtml(c)+
+        `<form id="prev429ReviewForm" class="report410-stage report410-active-blue" data-report-stage="E"><h3>E. 안전관리자 확인</h3><label class="lbl"><span>확인의견 / 보완요청 사유</span><textarea id="prev429Review" rows="3" placeholder="보완이 필요한 항목과 사유를 구체적으로 입력해 주세요."></textarea></label><div class="modal-actions"><button type="button" class="btn-reject" id="prev429Reject">보완요청</button><button type="submit" class="btn-green" id="prev429Approve">최종 확인·종결</button></div></form>`);
+      mountDocument(i,'[data-report-stage="D"]');const form=document.getElementById('prev429ReviewForm');
+      const review=async approved=>{const note=text(form.querySelector('#prev429Review').value);if(!approved&&!note)return alert('보완요청 사유를 입력해 주세요.');
+        const next=structuredClone(i),ts=now();Object.assign(next.corrective,{status:approved?'approved':'rejected',reviewNote:note});next.updatedAt=ts;if(approved){next.status='closed';next.closedAt=ts;}
+        if(await commitForm(form,next,u))alert(approved?'최종 확인이 완료되어 사고가 종결되었습니다.':'현장에 보완을 요청했습니다. 기존 제출내용과 증빙은 유지됩니다.');
+      };
+      form.onsubmit=e=>{e.preventDefault();review(true)};document.getElementById('prev429Reject').onclick=()=>review(false);return;
     }
-    const draft=autoPreventionDraft(i),rootCauseValue=text(c.rootCause)||draft.rootCause,planDetailValue=text(c.planDetail)||draft.planDetail,ownerValue=text(c.ownerName)||draft.ownerName,dueValue=text(c.dueDate)||draft.dueDate;
-    openModal(`<div class="modal-head"><div><div class="ey">PREVENTION PLAN</div><h2>${ex(siteName(i.siteId))} · 재발방지계획 ${plan?'확인·수정':'등록'}</h2><div style="margin-top:7px">${preventionBadge(i)}</div></div><button class="x" data-close>×</button></div>${overview(i)}${flowHtml(i)}${c.status==='rejected'&&c.reviewNote?`<div class="prev429-reject"><b>재발방지조치 보완요청 중</b><br>${ex(c.reviewNote)}</div>`:''}<form id="prev429PlanForm"><label class="lbl"><span>원인 분석 *</span><textarea id="prev429RootCause" rows="3" required placeholder="사고 발생의 직접·간접 원인을 사실에 근거해 정리해 주세요. 미확정 원인은 추정이라고 표시해 주세요.">${ex(rootCauseValue)}</textarea></label><label class="lbl"><span>재발방지계획 *</span><textarea id="prev429PlanDetail" rows="4" required placeholder="설비개선, 작업방법 변경, 보호구, 교육 등 재발방지를 위해 실시해야 할 계획을 구체적으로 입력해 주세요.">${ex(planDetailValue)}</textarea></label><div class="formgrid"><label class="lbl"><span>조치 담당자 *</span><input id="prev429Owner" value="${ex(ownerValue)}" required placeholder="예: 현장소장 홍길동"></label><label class="lbl"><span>완료 목표일 *</span><input id="prev429Due" type="date" value="${ex(dueValue)}" required></label></div><button class="primary full" type="submit">${plan?'재발방지계획 수정 저장':'재발방지계획 등록'}</button></form>`);
-    document.getElementById('prev429PlanForm').onsubmit=async e=>{e.preventDefault();if(!e.currentTarget.reportValidity())return;const ts=now(),prevStatus=String(c.status||'');c.rootCause=text(document.getElementById('prev429RootCause')?.value);c.planDetail=text(document.getElementById('prev429PlanDetail')?.value);c.ownerName=text(document.getElementById('prev429Owner')?.value);c.dueDate=text(document.getElementById('prev429Due')?.value);c.planBy=c.planBy||u.name;c.planById=c.planById||userId(u);c.planAt=c.planAt||ts;c.planUpdatedBy=u.name;c.planUpdatedAt=ts;if(!plan)c.status=text(c.actionDetail)?'in_progress':'planned';else if(!prevStatus||prevStatus==='none')c.status='planned';historyPush(c,{action:plan?'prevention_plan_updated':'prevention_plan_registered',by:u.name,at:ts,note:c.planDetail});i.corrective=c;i.updatedAt=ts;if(!await window.enlCommitOrNotify(i))return;closeModal();renderShell(u);alert(plan?'재발방지계획을 수정했습니다.':'재발방지계획을 등록했습니다. 현장에서 재발방지조치를 등록할 수 있습니다.')};
+    const draft=autoPreventionDraft(i),initial=k=>Object.prototype.hasOwnProperty.call(c,k)?c[k]:draft[k];
+    openModal(modalHead(i,`재발방지계획 ${plan?'수정':'작성'}`)+cumulative(i,{through:'B'})+
+      `<form id="prev429PlanForm" class="report410-stage report410-active-blue" data-report-stage="C"><h3>C. 안전관리자 재발방지계획</h3><p class="report410-current-note">${plan?'저장된 계획을 불러왔습니다. 변경할 내용만 수정해 주세요.':'기존 사고내용을 바탕으로 제안한 초안입니다. 확인한 사실에 맞게 수정해 주세요.'}</p><label class="lbl"><span>원인 분석 *</span><textarea id="prev429RootCause" rows="4" required>${ex(initial('rootCause'))}</textarea></label><label class="lbl"><span>재발방지계획 *</span><textarea id="prev429PlanDetail" rows="5" required>${ex(initial('planDetail'))}</textarea></label><div class="formgrid"><label class="lbl"><span>조치 담당자 *</span><input id="prev429Owner" value="${ex(initial('ownerName'))}" required></label><label class="lbl"><span>완료예정일 *</span><input id="prev429Due" type="date" value="${ex(initial('dueDate'))}" required></label></div><button type="submit" class="primary full">${plan?'재발방지계획 수정 저장':'재발방지계획 등록'}</button></form>`+
+      (c.actionDetail?cumulative(i,{from:'D'})+historyHtml(c):''));
+    mountDocument(i,'[data-report-stage="C"]');const form=document.getElementById('prev429PlanForm'),draftStore=retainDraft(form,i,u,'plan');
+    form.onsubmit=async e=>{e.preventDefault();if(!form.reportValidity())return;draftStore.capture();const next=structuredClone(i),out={...c};
+      for(const [k,id] of [['rootCause','prev429RootCause'],['planDetail','prev429PlanDetail'],['ownerName','prev429Owner'],['dueDate','prev429Due']])out[k]=text(form.querySelector('#'+id).value);
+      if(!plan)out.status=text(c.actionDetail)?'in_progress':'planned';else if(!out.status||out.status==='none')out.status='planned';
+      next.corrective=out;next.updatedAt=now();if(await commitForm(form,next,u,()=>draftStore.clear()))alert(plan?'재발방지계획을 수정했습니다.':'재발방지계획을 등록했습니다.');
+    };
   }
-
   function openFieldActionModal(i,u){
-    i=structuredClone(i);
-    const c=i.corrective||{},costAdditionsAllowed=true,previousCost=i.reportDetails||{};if(!hasPlan(c))return alert('안전관리자가 재발방지계획을 등록한 뒤 조치할 수 있습니다.');if(c.status==='submitted')return alert('재발방지조치가 안전관리자 확인대기 중입니다.');if(c.status==='approved'||isFinalized(i))return openReadOnly(i,u);
-    actionPhotos=[...(c.afterPhotos||[])];const rejected=String(c.status||'')==='rejected';
-    openModal(`<div class="modal-head"><div><div class="ey">FIELD PREVENTION ACTION</div><h2>${ex(siteName(i.siteId))} · 재발방지조치 등록</h2><div style="margin-top:7px">${preventionBadge(i)}</div></div><button class="x" data-close>×</button></div>${overview(i)}${flowHtml(i)}<section class="prev429-modal-section"><h3>안전관리자 재발방지계획</h3><div class="prev429-modal-body"><div class="prev429-kv"><b>원인 분석</b><span>${ex(c.rootCause||'-')}</span></div><div class="prev429-kv"><b>재발방지계획</b><span>${ex(c.planDetail||'-')}</span></div><div class="prev429-kv"><b>담당 / 목표일</b><span>${ex(c.ownerName||'-')} · ${ex(c.dueDate||'-')}</span></div></div></section>${rejected&&c.reviewNote?`<div class="prev429-reject"><b>안전관리자 보완요청</b><br>${ex(c.reviewNote)}</div>`:''}<form id="prev429FieldForm">${costAdditionsAllowed?`<section class="prev429-modal-section"><h3>사고 발생 후 확인된 추가 비용</h3><p>사고경위 등 최초 승인내용은 수정할 수 없습니다. 미입력된 비용만 새로 입력할 수 있습니다.</p><div class="formgrid">${[['medicalCost','추가 치료비'],['repairCost','추가 수리비']].map(([key,label])=>`<label class="lbl"><span>${label} (원)</span><input id="prev429Extra-${key}" type="number" min="0" step="1" ${previousCost[key]!==null&&previousCost[key]!==undefined&&String(previousCost[key])!==''&&!(Number(previousCost[key])===0&&previousCost[key+'Pending']===true)?'disabled':''} value="${ex(previousCost[key]??'')}" placeholder="금액 확인 후 입력"></label>`).join('')}</div></section>`:''}<label class="lbl"><span>실제 실시한 재발방지조치 *</span><textarea id="prev429ActionDetail" rows="5" required placeholder="재발방지계획에 따라 현장에서 실제 실시한 조치 결과를 입력해 주세요.">${ex(c.actionDetail||'')}</textarea></label><div class="formgrid"><label class="lbl"><span>실제 시행일 *</span><input id="prev429ActionDate" type="date" value="${ex(c.actionDate||'')}" required></label><label class="lbl"><span>조치 담당자 *</span><input id="prev429ActionOwner" value="${ex(c.actionOwner||u.name||'')}" required></label></div><label class="lbl"><span>추가 확인사항</span><textarea id="prev429AdditionalNotes">${ex(c.additionalNotes||'')}</textarea></label>${typeof photoPickerHtml==='function'?photoPickerHtml('action'):''}<div class="modal-actions"><button type="button" class="btn-gray" id="prev429Draft">임시저장</button><button type="submit" class="btn-blue">안전관리자 확인요청</button></div></form>`);
-    try{renderPhotoThumbs('action');bindPhotoButtons()}catch(e){bindAttachments(document.getElementById('modalRoot'),c.afterPhotos||[])}
-    const save=async status=>{const detail=text(document.getElementById('prev429ActionDetail')?.value);if(!detail)return alert('실제로 실시한 재발방지조치 내용을 입력해 주세요.');const ts=now();if(costAdditionsAllowed){const d=i.reportDetails||{},supplements=[];for(const key of ['medicalCost','repairCost']){const input=document.getElementById('prev429Extra-'+key);if(!input||input.disabled||!text(input.value))continue;const amount=Number(input.value);if(!Number.isSafeInteger(amount)||amount<0)return alert('추가 비용은 확인된 0원 이상의 정수로 입력해 주세요.');if(d[key]!==null&&d[key]!==undefined&&String(d[key])!==''&&!(Number(d[key])===0&&d[key+'Pending']===true))return alert('기존에 입력된 비용은 수정할 수 없습니다.');d[key]=amount;supplements.push({field:key,value:amount,at:ts,by:u.name,byId:userId(u)})}if(supplements.length){i.reportDetails=d;for(const extra of supplements)historyPush(c,{action:'cost_added',by:u.name,at:ts,note:(extra.field==='medicalCost'?'치료비':'수리비')+' '+extra.value+'원 추가 입력'})}}c.actionDate=text(document.getElementById('prev429ActionDate')?.value);c.actionOwner=text(document.getElementById('prev429ActionOwner')?.value);c.additionalNotes=text(document.getElementById('prev429AdditionalNotes')?.value);if(status==='submitted'&&(!c.actionDate||!c.actionOwner||!actionPhotos.length))return alert('시행일, 조치 담당자와 사진 또는 PDF 증빙을 입력해 주세요.');c.actionDetail=detail;c.afterPhotos=persistAttachments(actionPhotos);c.status=status;c.actionBy=c.actionBy||u.name;c.actionById=c.actionById||userId(u);c.actionStartedAt=c.actionStartedAt||ts;c.actionUpdatedAt=ts;if(status==='submitted'){c.submittedBy=u.name;c.submittedById=userId(u);c.submittedAt=ts}historyPush(c,{action:status==='submitted'?'prevention_action_submitted':'prevention_action_draft',by:u.name,at:ts,note:detail});i.corrective=c;i.updatedAt=ts;if(!await window.enlCommitOrNotify(i))return;actionPhotos=[];closeModal();renderShell(u);alert(status==='submitted'?'재발방지조치를 안전관리자 확인대기로 제출했습니다.':'재발방지조치를 임시저장했습니다.')};
-    document.getElementById('prev429Draft')?.addEventListener('click',()=>save('in_progress'));document.getElementById('prev429FieldForm').onsubmit=e=>{e.preventDefault();if(!e.currentTarget.reportValidity())return;save('submitted')};
+    i=structuredClone(i);const c=i.corrective||{},previousCost=i.reportDetails||{};
+    if(!hasPlan(c))return alert('안전관리자가 재발방지계획을 등록한 뒤 조치할 수 있습니다.');
+    if(!isSiteManager(u)||['submitted','approved'].includes(c.status)||isFinalized(i))return openReadOnly(i,u);
+    actionPhotos=[...(c.afterPhotos||[])];
+    openModal(modalHead(i,'재발방지조치 작성')+cumulative(i,{through:'C'})+
+      `<form id="prev429FieldForm" data-enl432-action="1" class="report410-stage report410-active-orange" data-report-stage="D"><h3>D. 현장 재발방지조치</h3><p class="report410-current-note">위 계획에 따라 실제 실시한 조치와 증빙을 등록해 주세요.</p>${c.status==='rejected'?`<div class="prev429-reject"><b>보완요청 사항</b><p>${ex(c.reviewNote||'')}</p></div>`:''}<label class="lbl"><span>실제 실시한 재발방지조치 *</span><textarea id="prev429ActionDetail" rows="5" required>${ex(c.actionDetail||'')}</textarea></label><div class="formgrid"><label class="lbl"><span>실제 시행일 *</span><input id="prev429ActionDate" type="date" max="${targetDate(0)}" value="${ex(c.actionDate||'')}" required></label><label class="lbl"><span>실제 조치 완료일 *</span><input id="prev432CompletedDate" type="date" max="${targetDate(0)}" value="${ex(c.actionCompletedDate||c.completedDate||'')}" required></label><label class="lbl"><span>조치 담당자 *</span><input id="prev429ActionOwner" value="${ex(c.actionOwner||u.name||'')}" required></label></div><label class="lbl"><span>추가 확인사항</span><textarea id="prev429AdditionalNotes" rows="2">${ex(c.additionalNotes||'')}</textarea></label>${photoPickerHtml('action')}<div id="prev432EvidenceRequired" class="prev432-evidence-required"><b>조치 증빙 *</b><span>사진 또는 PDF 1개 이상 · <em data-prev432-count></em></span></div><details class="report410-history"><summary>사후 확인된 추가 비용</summary><div class="formgrid">${[['medicalCost','치료비'],['repairCost','수리비']].map(([k,label])=>`<label class="lbl"><span>${label} (원)</span><input id="prev429Extra-${k}" type="number" min="0" step="1" ${previousCost[k]!=null&&previousCost[k]!==''&&!(Number(previousCost[k])===0&&previousCost[k+'Pending']===true)?'disabled':''} value="${ex(previousCost[k]??'')}"></label>`).join('')}</div></details><div class="modal-actions"><button type="button" class="btn-gray" id="prev429Draft">임시저장</button><button type="submit" class="btn-blue">안전관리자 확인요청</button></div></form>`+historyHtml(c));
+    renderPhotoThumbs('action');bindPhotoButtons();mountDocument(i,'[data-report-stage="D"]');
+    const form=document.getElementById('prev429FieldForm'),draftStore=retainDraft(form,i,u,'action');
+    const save=async status=>{draftStore.capture();if(status==='submitted'&&!form.reportValidity())return;
+      const detail=text(form.querySelector('#prev429ActionDetail').value);if(!detail)return alert('실제 조치내용을 입력해 주세요.');
+      if(status==='submitted'&&!actionPhotos.length)return alert('사진 또는 PDF 증빙을 1개 이상 첨부해 주세요.');
+      const next=structuredClone(i),out={...c,status,actionDetail:detail,afterPhotos:persistAttachments(actionPhotos)};
+      for(const [k,id] of [['actionDate','prev429ActionDate'],['actionCompletedDate','prev432CompletedDate'],['actionOwner','prev429ActionOwner'],['additionalNotes','prev429AdditionalNotes']])out[k]=text(form.querySelector('#'+id).value);
+      if(status==='submitted'&&out.actionCompletedDate<out.actionDate)return alert('완료일은 시행일보다 빠를 수 없습니다.');
+      for(const k of ['medicalCost','repairCost']){const input=form.querySelector('#prev429Extra-'+k);if(input.disabled||!text(input.value))continue;const amount=Number(input.value);if(!Number.isSafeInteger(amount)||amount<0)return alert('비용은 0원 이상의 정수로 입력해 주세요.');next.reportDetails={...next.reportDetails,[k]:amount};}
+      next.corrective=out;next.updatedAt=now();if(await commitForm(form,next,u,()=>{draftStore.clear();actionPhotos=[];}))alert(status==='submitted'?'재발방지조치를 제출했습니다.':'재발방지조치를 임시저장했습니다.');
+    };
+    form.onsubmit=e=>{e.preventDefault();save('submitted')};document.getElementById('prev429Draft').onclick=()=>save('in_progress');
   }
 
   function openCorrectiveModal429(id,u=currentUser?.()){
@@ -297,5 +322,5 @@
   }
   function wrapShell(){const base=window.renderShell;if(typeof base!=='function'||base.__prevention429)return;const wrapped=function(u){const out=base.call(this,u);installRoutes();setTimeout(()=>reportUiRewrite(document),0);return out};wrapped.__prevention429=true;window.renderShell=wrapped;try{renderShell=wrapped}catch(e){}}
 
-  ensureCss();installGlobalLabels();installRoutes();wrapShell();cleanupSentinel();const observer=new MutationObserver(()=>reportUiRewrite(document));observer.observe(document.body,{childList:true,subtree:true});reportUiRewrite(document);window.enlPreventionPlanMissingCount=preventionPlanMissing;window.enlPreventionFlowV429={version:VERSION,hasPlan,statusText,open:openCorrectiveModal429,patchReportForm,cleanupSentinel};window.ENL_PREVENTION_FLOW_VERSION=VERSION;
+  ensureCss();installGlobalLabels();installRoutes();wrapShell();const observer=new MutationObserver(()=>reportUiRewrite(document));observer.observe(document.body,{childList:true,subtree:true});reportUiRewrite(document);window.enlPreventionPlanMissingCount=preventionPlanMissing;window.enlPreventionFlowV429={version:VERSION,hasPlan,statusText,open:openCorrectiveModal429};window.ENL_PREVENTION_FLOW_VERSION=VERSION;
 })();

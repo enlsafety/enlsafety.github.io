@@ -58,7 +58,7 @@ const assert=require('node:assert/strict'),crypto=require('node:crypto'),fs=requ
    const official=fs.readFileSync('official-records-v439.js','utf8'),excel=fs.readFileSync('incident-excel-v421.js','utf8');
    assert.equal(official.split("'분석상태: '+causeStatus").length-1,2,'official UI and printed PDF both show cause review status');checks++;
    assert.ok(official.includes("d.causeAnalysisNote?'기타·종합 원인: '"),'official record displays other confirmed cause');checks++;
-   for(const token of ["'원인분석 상태'","'기타·종합 원인'","'최근 분석·정정일시'"])assert.ok(excel.includes(token),'Excel cause evidence '+token);
+   for(const token of ["'분석상태 / 담당'","'기타·종합 원인'","stamp(d.causeAnalyzedBy,d.causeAnalyzedAt)"])assert.ok(excel.includes(token),'Excel cause evidence '+token);
    checks+=3;
    console.log('PASS safety cause analysis: '+checks+' checks, role isolation, mandatory review, pending approval, audited correction, DB re-read');
  }finally{await f.db.close();}

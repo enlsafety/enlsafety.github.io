@@ -123,7 +123,7 @@
     const worker=form.querySelector('#propertyWorker410');if(worker){worker.required=false;const sp=worker.closest('label')?.querySelector('span');if(sp)sp.textContent='작업자 성명 (확인된 경우)'}
     const immediateIds=['reportSite','occurredDate410','occurredTime410','incidentPlace410','eventType','workAction410','incidentHow410','immediateAction'];
     if(property)immediateIds.push('damagedItem410','damageDetail410');else immediateIds.push('injuredName','injuryDetail410');
-    immediateIds.forEach(id=>{const el=form.querySelector('#'+id);if(el){el.required=true;fieldState(el)}});
+    immediateIds.forEach(id=>{const el=form.querySelector('#'+id);if(el){el.required=el.dataset.allowExistingBlank!=='1';fieldState(el)}});
     const head=form.querySelector('.section-head');
     if(head&&!form.querySelector('.wf440-sla')){
       const box=document.createElement('div');box.className='wf440-sla';box.innerHTML='<b>즉시보고 원칙</b>사고 인지 후 <strong>30분 이내 또는 현장 이탈 전</strong>에 현재 확인 가능한 사실을 먼저 등록합니다.<small>30분 기준은 이앤엘 내부 보고 목표이며 법정 신고기한을 의미하지 않습니다. 진단·병원비·휴업일수·수리견적·최종 피해금액은 확인 후 보완할 수 있습니다.</small>';
@@ -361,9 +361,9 @@
       const message=panel.querySelector('[data-wf440-cause-message]');if(message)message.textContent='';
     });
   }
-  function collectCause({allowAutoDraft=false}={}){
+  function collectCause({allowAutoDraft=false,root=null}={}){
 
-    const box=document.querySelector('#modalRoot [data-wf440-cause]');if(!box){alert('원인분석 입력화면을 찾지 못했습니다. 사고를 다시 열어 주세요.');return null;}
+    const box=root||document.querySelector('#modalRoot [data-wf440-cause]');if(!box){alert('원인분석 입력화면을 찾지 못했습니다. 사고를 다시 열어 주세요.');return null;}
     const get=id=>text(box.querySelector('#'+id)?.value);
     const environmentCause=get('wf440EnvironmentCause'),behaviorCause=get('wf440BehaviorCause'),causeAnalysisNote=get('wf440CauseAnalysisNote');
     const pending=!!box.querySelector('#wf440CausePending')?.checked,feedback=box.querySelector('[data-wf440-cause-message]');
@@ -444,7 +444,7 @@
   }
 
   function decorateIncidentModal(id,override=null){
-    const i=override||incident(id),u=currentUser?.(),modal=document.querySelector('#modalRoot .modal');if(!i||!u||!modal)return;
+    const i=override||incident(id),u=currentUser?.(),modal=document.querySelector('#modalRoot .modal');if(!i||!u||!modal||modal.querySelector('#prev429PlanForm,#prev429FieldForm,#prev429ReviewForm'))return;
     activeId=String(i.id);modal.dataset.wf440Incident=activeId;
     const decorSig=[i.updatedAt||'',i.status||'',i.supplement?.status||'',i.corrective?.status||'',(i.acknowledgements||[]).length].join('|');
     if(modal.dataset.wf440DecorSig===decorSig)return;
@@ -465,7 +465,9 @@
         actions.querySelector('[data-wf440-supp]')?.addEventListener('click',()=>openSupplementRequest(i,u));
         actions.querySelector('[data-wf440-final]')?.addEventListener('click',()=>finalApprove(i,u));
         if(isOrdinaryCauseReview(i)){
-          const cause=causePanel(i);actions.insertAdjacentElement('beforebegin',cause);
+          const cause=causePanel(i),previous=modal.querySelector('[data-report-stage="B"]');
+          cause.dataset.reportStage='B';
+          if(previous)previous.replaceWith(cause);else actions.insertAdjacentElement('beforebegin',cause);
           bindCausePanel(cause,i);
           cause.querySelector('[data-wf440-cause-save]')?.addEventListener('click',()=>saveCause(i,u));
         }
@@ -521,6 +523,9 @@
   const mo=new MutationObserver(queuePatch);mo.observe(document.body,{childList:true,subtree:true});
   queuePatch();
 
+  window.enlCreateCauseEditor=i=>{const panel=causePanel(i);bindCausePanel(panel,i);return panel;};
+  window.enlCollectCause=collectCause;
+  window.enlBuildCauseDraft=buildCauseDraft;
   window.enlOpenIncidentSupplement=openSupplementForm;
   window.enlRequestIncidentSupplement=openSupplementRequest;
   window.ENL_INCIDENT_FLOW_VERSION=VERSION;

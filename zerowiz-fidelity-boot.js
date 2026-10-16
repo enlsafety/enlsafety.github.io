@@ -18,7 +18,7 @@ Object.defineProperty(window,"sessionStorage",{value:tab,configurable:false});
 if(window.localStorage!==local||window.sessionStorage!==tab)throw new Error("DEMO_STORAGE_SANDBOX_FAILED");
 window.ENL_DEMO_ISOLATED=true;
 window.ENL_STABLE_MODE=true;
-window.ENL_DEPLOY_VERSION="4.6.3-DEMO";
+window.ENL_DEPLOY_VERSION="4.7.0-DEMO";
 const SITES=[
 {id:"zw-site01",name:"가상 솔빛 골프장",site_type:"코스관리",region:"경기",active:true},
 {id:"zw-site02",name:"가상 푸른숲 골프장",site_type:"코스관리",region:"충청",active:true},
@@ -110,13 +110,28 @@ function patch(next,actor){
  if(actor.role!=="safety"){
   const d=old.reportDetails||{};
   incoming.reportDetails={...(incoming.reportDetails||{}),environmentCause:d.environmentCause||"",behaviorCause:d.behaviorCause||"",causeAnalysisNote:d.causeAnalysisNote||"",causeAnalysisStatus:d.causeAnalysisStatus||"not_reviewed"};
-  if(incoming.status==="approved"||incoming.status==="closed")return reject("safety_approval_required",403);
+  if(incoming.status!==old.status&&["approved","closed"].includes(incoming.status))return reject("safety_approval_required",403);
  }
  if(incoming.status==="approved"&&old.status!=="approved"&&old.status!=="closed"){
   if(actor.role!=="safety")return reject("safety_approval_required",403);
   const d=incoming.reportDetails||{};
   if(d.causeAnalysisStatus!=="investigating"&&!(d.causeAnalysisStatus==="analyzed"&&(d.environmentCause||d.behaviorCause||d.causeAnalysisNote)))return reject("cause_analysis_required",409);
   incoming.approvedBy=actor.name;incoming.approvedAt=new Date().toISOString();
+ }
+ const oldC=old.corrective||{},c=incoming.corrective,now=new Date().toISOString();
+ if(c&&JSON.stringify(c)!==JSON.stringify(oldC)){
+  if(actor.role==='safety'&&['planned','in_progress','rejected'].includes(c.status)&&oldC.status!=='submitted'){
+   c.planBy=oldC.planBy||actor.name;c.planById=oldC.planById||actor.id;c.planAt=oldC.planAt||now;c.planUpdatedAt=now;c.planUpdatedBy=actor.name;
+  }
+  if(actor.role==='field'&&c.status==='submitted'){
+   if(!c.actionDetail||!c.actionDate||!c.actionOwner||!c.afterPhotos?.length)return reject('action_evidence_required',409);
+   c.submittedBy=actor.name;c.submittedById=actor.id;c.submittedAt=now;
+   c.submissions=[...(oldC.submissions||[]),{actionDetail:c.actionDetail,actionDate:c.actionDate,actionCompletedDate:c.actionCompletedDate,actionOwner:c.actionOwner,afterPhotos:safeClone(c.afterPhotos),submittedBy:actor.name,submittedAt:now,requestNote:oldC.status==='rejected'?oldC.reviewNote||'':''}];
+  }
+  if(actor.role==='safety'&&['approved','rejected'].includes(c.status)&&oldC.status==='submitted'){
+   c.reviewedBy=actor.name;c.reviewedById=actor.id;c.reviewedAt=now;c.reviewHistory=[...(oldC.reviewHistory||[]),{action:c.status==='approved'?'prevention_action_confirmed':'prevention_action_rejected',by:actor.name,at:now,note:c.reviewNote||''}];
+   if(c.status==='approved'){incoming.status='closed';incoming.closedAt=now;}
+  }
  }
  incoming._syncVersion=Number(old._syncVersion||0)+1;
  const idx=db.incidents.indexOf(old);
@@ -143,7 +158,7 @@ function call(req) {
  if(action==="hq_list")return result({ok:true,users:USERS.filter(u=>["safety","manager","executive"].includes(u.role))});
  if(action==="personnel_pull")return result({ok:true,personnel:USERS.filter(u=>["field","worker"].includes(u.role)&&u.siteId===body.siteId).map(u=>({personnel_id:u.id,site_id:u.siteId,name:u.name,job_title:u.position,access_role:u.role,active:true}))});
  if(action==="revision_list")return result({ok:true,revisions:db.revisions.filter(r=>r.incident_id===body.incidentId).map(safeClone)});
- if(action==="historical_reauth")return result({ok:true,verified:true,reauthTicket:"DEMO-ONLY-PASSWORD-PROOF"});
+ if(action==="historical_reauth")return actor.role!=="safety"?reject("forbidden"):result({ok:true,verified:true,reauthTicket:"DEMO-ONLY-PASSWORD-PROOF",expiresAt:Date.now()+480000,incident:db.incidents.find(i=>i.id===body.incidentId)});
  if(action==="correct_closed"){
   const i=db.incidents.find(x=>x.id===body.incidentId);
   if(!i)return reject("not_found",404);
@@ -160,7 +175,7 @@ function call(req) {
   return result({ok:true,incident:safeClone(i)});
  }
  if(action==="export_snapshot")return result({ok:true,incident:db.incidents.find(i=>i.id===body.incidentId),snapshotHash:"a".repeat(64)});
- if(action==="export_completed")return result({ok:true});
+ if(action==="export_completed")return result({ok:true,generated:true});
  if(action==="acknowledge")return result({ok:true,incident:db.incidents.find(i=>i.id===body.incidentId)});
  if(action==="review_history"||action==="site_audit_pull")return result({ok:true,rows:[],audit:[]});
  if(action==="login_site"||action==="login_hq")return result({ok:false,message:"demo_login_use_role_selector"},401);
@@ -175,7 +190,7 @@ window.fetch=async(input,options={})=>{
   let body={};try{body=JSON.parse(String(options?.body||"{}"))}catch(e){}
   return call(body);
  }
- if(/(?:^|\/)version\.json(?:\?|$)/.test(url))return result({version:"4.6.3",currentStableVersion:"4.6.3",build:"DEMO"});
+ if(/(?:^|\/)version\.json(?:\?|$)/.test(url))return result({version:"4.7.0",currentStableVersion:"4.7.0",build:"DEMO"});
  db.blocked++;
  throw new Error("DEMO_NETWORK_BLOCKED:"+url.slice(0,100));
 };

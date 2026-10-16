@@ -73,8 +73,7 @@ function errorText(err){
  if(x.includes('contract_period_confirmation_required'))return '변경할 발생일의 계약기간 확인이 필요합니다. 사고자료를 확인한 후 다시 시도해 주세요.';
  return '서버 확인에 실패했습니다. 인터넷 연결 및 입력정보를 확인해 주세요.';
 }
-function inputs(i){
- const keys=[...common,...(i.category==='person'?damagePerson:damageProperty),...(i.historicalImport?.enabled?meta:[])];
+function inputs(i,keys=[...common,...(i.category==='person'?damagePerson:damageProperty),...(i.historicalImport?.enabled?meta:[])]){
  return keys.map(k=>{
   const label=labels[k]||k,initial=val(i,k)??'';
   const attr='data-historical461-field="'+e(k)+'"';
@@ -168,7 +167,8 @@ function open(i,viewer=user()){
   try{
    const r=await call(i,'historical_reauth',{reauthPassword:password},18000);
    if(!r?.verified||!r?.reauthTicket||!r?.incident)throw Error('server_unavailable');
-   edit(r.incident,r.reauthTicket,r.expiresAt);
+   if(window.enlEditIncidentInReportForm&&['person','property'].includes(r.incident.category))window.enlEditIncidentInReportForm(r.incident,viewer,{reauthTicket:r.reauthTicket,expiresAt:r.expiresAt});
+   else edit(r.incident,r.reauthTicket,r.expiresAt);
   }catch(err){hint.textContent=errorText(err);button.disabled=false;}
  };
  return true;
@@ -190,6 +190,8 @@ async function history(i){
  }catch(err){alert(errorText(err))}
 }
 window.enlIsHistoricalCorrectionSupported=eligible;
+window.enlHistoricalMetadataHtml=i=>inputs(i,[...(i.summary!==i.reportDetails?.generatedSummary?['summary']:[]),...(i.historicalImport?.enabled?meta:[])]);
+window.enlCollectHistoricalMetadata=collect;
 window.enlOpenHistoricalCorrection=open;
 window.enlShowHistoricalCorrectionHistory=history;
 window.ENL_HISTORICAL_CORRECTION_VERSION=VERSION;

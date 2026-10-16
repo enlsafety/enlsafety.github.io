@@ -6,8 +6,9 @@ const TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; c
  for(const profile of [{name:'desktop',engine:chromium,width:1360},{name:'iphone',engine:webkit,width:390}]){
   const browser=await profile.engine.launch({headless:true});let page;const unexpected=[],errors=[];
   try{
-   page=await browser.newPage({viewport:{width:profile.width,height:880},isMobile:profile.width<500,hasTouch:profile.width<500});
+   page=await browser.newPage({viewport:{width:profile.width,height:880},isMobile:profile.width<500,hasTouch:profile.width<500,timezoneId:'Asia/Seoul'});
    page.on('pageerror',e=>errors.push(String(e.message)));
+   page.on('dialog',d=>d.accept());
    page.on('request',r=>{const u=new URL(r.url());if(u.origin!==HOST)unexpected.push(r.url());});
    await page.route('**/*',route=>{
      const url=new URL(route.request().url());
@@ -30,6 +31,7 @@ const TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; c
    assert.equal(await page.locator('[data-zw-entry-role]').count(),5,'five demo roles available immediately after PIN');
    await page.locator('[data-zw-entry-role="zw-safety"]').click();
    const frame=page.frameLocator('iframe.frame');
+   const activate=async selector=>{const control=frame.locator(selector);if(profile.width<500)await control.tap();else await control.click();};
    await frame.locator('.app-shell.shell-v411').waitFor({timeout:20000});
    assert.equal(await frame.locator('#loginName411').count(),0,'production login is never shown in demo');
    const desktop=profile.width>620,tools=frame.locator('#zwRuntimeControls'),toggle=frame.locator('#zwRuntimeToggle');
@@ -82,13 +84,35 @@ const TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; c
    assert.ok(await frame.locator('#view').count()>0);
    await switchRole('zw-executive');
    await frame.locator('.app-shell.shell-v411').waitFor();
+   // Entire operational script stack, including its decorators, must retain one report.
+   await switchRole('zw-safety');
+   await frame.locator('body').evaluate(()=>{window.qaAlerts=[];window.qaFormEvents=[];window.alert=m=>qaAlerts.push(m);document.addEventListener('invalid',e=>qaFormEvents.push({event:'invalid',id:e.target.id,value:e.target.value,message:e.target.validationMessage}),true);document.addEventListener('click',e=>{qaFormEvents.push({event:'click',tag:e.target.tagName,id:e.target.id,type:e.target.type});qaFormEvents=qaFormEvents.slice(-20);},true)});
+   await frame.locator('body').evaluate(()=>openEditIncidentModal(data.incidents.find(i=>i.id==='ZW-005'),currentUser()));
+   await frame.locator('#incidentHow410').fill('QA 전체 앱에서 사고경위 정정');await frame.locator('#safetyFactEditReason').fill('QA 원자료 재확인');
+   await activate('#unifiedReportForm button[type=submit]');await frame.locator('#unifiedReportForm').waitFor({state:'detached'});
+   await frame.locator('body').evaluate(()=>openUnifiedCorrectiveModal('ZW-005',currentUser()));
+   await frame.locator('#prev429PlanDetail').fill('QA 안내표지 설치');await frame.locator('#prev429Owner').fill('데모 현장소장');await frame.locator('#prev429Due').fill('2026-10-25');
+   await activate('#prev429PlanForm button[type=submit]');await frame.locator('#prev429PlanForm').waitFor({state:'detached'});
+   await switchRole('zw-field');await frame.locator('body').evaluate(()=>openUnifiedCorrectiveModal('ZW-005',currentUser()));
+   await frame.locator('#prev429ActionDetail').fill('QA 안내표지 설치 완료');await frame.locator('#prev429ActionDate').fill('2026-10-14');await frame.locator('#prev432CompletedDate').fill('2026-10-14');
+   await frame.locator('#actionPhotoInput').setInputFiles({name:'qa-demo-evidence.png',mimeType:'image/png',buffer:fs.readFileSync('pwa-icon-192.png')});
+   await frame.locator('body').evaluate(()=>new Promise(resolve=>{const check=()=>actionPhotos.length?resolve():requestAnimationFrame(check);check();}));
+   await activate('#prev429FieldForm button[type=submit]');await frame.locator('#prev429FieldForm').waitFor({state:'detached'});
+   await switchRole('zw-safety');await frame.locator('body').evaluate(()=>openUnifiedCorrectiveModal('ZW-005',currentUser()));
+   assert.equal(await frame.locator('[data-report-stage="A"]').count(),1);assert.equal(await frame.locator('[data-report-stage="B"]').count(),1);
+   await frame.locator('#prev429Review').fill('QA 증빙 검토');await activate('#prev429Approve');await frame.locator('#prev429ReviewForm').waitFor({state:'detached'});
+   await frame.locator('body').evaluate(()=>enlOpenIncidentReview('ZW-005',true,currentUser()));
+   await frame.locator('[data-excel421-id="ZW-005"]').waitFor();
+   assert.equal(await frame.locator('body').evaluate(()=>data.incidents.find(i=>i.id==='ZW-005').status),'closed');
+   await page.screenshot({path:'qa-output/full-app-cumulative-'+profile.name+'.png'});
+   await frame.locator('body').evaluate(()=>closeModal());await switchRole('zw-executive');
    const state=await frame.locator('body').evaluate(()=>({role:window.ENL_ZEROWIZ_FIDELITY.getRole(),counts:window.ENL_ZEROWIZ_FIDELITY.getRecords().length,network:window.ENL_ZEROWIZ_FIDELITY.getNetworkBlocks()}));
    assert.equal(state.role,'zw-executive');assert.equal(state.counts,11);
    assert.deepEqual(unexpected,[],'must not send any request to operational Supabase or external URLs');
    assert.deepEqual(errors,[],'operational UI scripts execute without errors in demo sandbox');
    console.log('PASS zerowiz fidelity '+profile.name+' live application layouts, 5 roles, role switch, real accident form, offline sandbox, zero external requests, '+state.counts+' synthetic incidents');
   }catch(e){
-   console.error('DEMO UI DIAG',profile.name,String(e),{errors,unexpected},(await page?.locator('body')?.innerText().catch(()=>''))?.slice(0,1100));
+   console.error('ALERT DIAG',await page.frameLocator('iframe.frame').locator('body').evaluate(()=>({alerts:window.qaAlerts,events:window.qaFormEvents,invalid:[...document.querySelectorAll('input,select,textarea')].filter(el=>!el.validity.valid).map(el=>({id:el.id,value:el.value,message:el.validationMessage}))})));console.error('FRAME DIAG',await page.frameLocator('iframe.frame').locator('body').innerText().catch(()=>''));console.error('DEMO UI DIAG',profile.name,String(e),{errors,unexpected},(await page?.locator('body')?.innerText().catch(()=>''))?.slice(0,1100));
    throw e;
   }finally{await page?.close();await browser.close();}
  }

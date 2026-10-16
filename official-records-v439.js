@@ -123,7 +123,7 @@
 
   function decorateModal(){
     css();const modal=document.querySelector('#modalRoot .modal');if(!modal)return;
-    if(modal.querySelector('#historical461PasswordForm,#historical461EditForm,#historical461History'))return;
+    if(modal.querySelector('#historical461PasswordForm,#historical461EditForm,#historical461History,#prev429PlanForm,#prev429FieldForm,#prev429ReviewForm'))return;
     let i=currentIncidentId?incident(currentIncidentId):null;
     if(!i){const id=modal.querySelector('[data-lifecycle-final]')?.getAttribute('data-lifecycle-final');if(id)i=incident(id)}
     if(!i)return;

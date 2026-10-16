@@ -14,7 +14,6 @@ const version=JSON.parse(read('version.json'));
 assert.ok(!shell.includes('승인완료 사고 결재가 필요합니다.'));assert.ok(!shell.includes('결재하러 가기'));assert.ok(shell.includes('재발방지계획 수립대기'));
 
 for(const x of [
-  "4.4.43-safety-action-counts1",
   "preventionPlanMissing",
   "enlRefreshSafetyActionBadges",
   "existing=btn.querySelector('.prev429-nav-alert')",

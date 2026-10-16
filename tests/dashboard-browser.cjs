@@ -3,7 +3,7 @@ const {chromium,webkit}=require('playwright'),fs=require('node:fs'),assert=requi
 (async()=>{
 fs.mkdirSync('qa-output',{recursive:true});const browsers={chromium:await chromium.launch({headless:true}),webkit:await webkit.launch({headless:true})};
 let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:false},{engine:'chromium',width:390,touch:true},{engine:'chromium',width:820,touch:true},{engine:'webkit',width:390,touch:true},{engine:'webkit',width:820,touch:true}]){
- const {width,engine,touch}=profile,browser=browsers[engine],page=await browser.newPage({viewport:{width,height:900},hasTouch:touch,isMobile:touch}),errors=[];activePage=page;page.on('pageerror',e=>errors.push(e.message));
+ const {width,engine,touch}=profile,browser=browsers[engine],page=await browser.newPage({viewport:{width,height:900},hasTouch:touch,isMobile:touch,timezoneId:'Asia/Seoul'}),errors=[];activePage=page;page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/*',async route=>{
   const req=route.request();assert.equal(req.method(),'GET','No network mutation in QA');
   const path=new URL(req.url()).pathname.slice(1);
@@ -169,7 +169,8 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  for(const role of ['manager','executive','final']){
   await page.evaluate(role=>{qaUser={id:role,role,name:'본사 조회자'};currentView='stats';renderShell(qaUser)},role);
   await page.locator('[data-sd450-map]').waitFor();await page.waitForFunction(()=>window.enlDashboardMetrics?.()!==null);
-  await page.waitForFunction(()=>document.querySelector('[data-stats-filter="all"] b')?.textContent==='10건',{timeout:5000});
+  await page.locator('#stats426Year').selectOption(String(new Date().getFullYear()));
+  await page.waitForFunction(()=>document.querySelector('[data-stats-filter="all"] b')?.textContent==='10건',null,{timeout:5000});
   assert.equal(await page.locator('[data-sd450-map-site]').count(),33);assert.equal(await page.locator('.sd450-kpis').innerText(),safetyKpis,'same company metrics for HQ');assert.equal(await page.locator('[data-stats-filter=all] b').innerText(),'10건');await page.locator('[data-stats-filter=all]').click();assert.equal(await page.locator('[data-stats-inc]').count(),1,'aggregate-only rejected record must not disclose details');
   await openSite('s29');await page.locator('[data-sd450-open]').click();await page.locator('[data-sd450-info]').waitFor();
   assert.equal(await page.locator('[data-qa-table]').getAttribute('data-edit'),'false');
