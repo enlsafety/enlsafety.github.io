@@ -299,7 +299,7 @@ Deno.serve(async(req:Request)=>{
         if(actor.role!=="safety")return json({ok:false,message:"forbidden"},403);
         if(prev.status!=="closed"&&!(action==="correct_closed"&&prev.status==="approved"))return json({ok:false,message:"approved_or_closed_required"},409);
         const mutationId=clean(body.mutationId);if(!mutationId||mutationId.length>160)return json({ok:false,message:"mutation_id_required"},400);
-        const requestHash=await sha256Hex(JSON.stringify(canonicalValue({action,incidentId,expectedVersion:body.expectedVersion,changes:body.changes,reason:body.reason,contractConfirmed:body.contractConfirmed===true,record:body.record,snapshotId:body.snapshotId,fileHash:body.fileHash,filename:body.filename})));
+        const requestHash=await sha256Hex(JSON.stringify(canonicalValue({action,incidentId,expectedVersion:body.expectedVersion,changes:body.changes,reason:body.reason,...(body.contractConfirmed===true?{contractConfirmed:true}:{}),record:body.record,snapshotId:body.snapshotId,fileHash:body.fileHash,filename:body.filename})));
         const duplicate=await sql`select action,editor_id,details from public.enl_incident_operations where incident_id=${incidentId} and mutation_id=${mutationId}`;
         if(duplicate.length){
           const prior=duplicate[0];
