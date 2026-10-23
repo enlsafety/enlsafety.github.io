@@ -43,7 +43,15 @@
   },
   "stagingFixtureTablesRemaining": 0,
   "stagingEndpointRetired": true,
-  "productionDeployment": "pending",
+  "productionDeployment": {
+    "status": "deployed_verified",
+    "loginEdgeVersion": 12,
+    "personnelEdgeVersion": 8,
+    "runtimeCommit": "c3f92a6bc3b417d90ee60e2015b3d62938b46713",
+    "readOnlyChecks": 15,
+    "unchangedAccountDataTables": 5,
+    "unchangedAccountDataRows": 504
+  },
   "limitations": [
     "Previously exposed administrator credential has not been rotated; removing old public seed files does not invalidate cached or Git-history copies",
     "Existing Kokmatch shared group PIN authentication unchanged"

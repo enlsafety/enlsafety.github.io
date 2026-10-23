@@ -1,0 +1,30 @@
+{
+  "release": "4.7.2-r2",
+  "before": {
+    "databaseBytes": 74714259,
+    "storageBytes": 73303880,
+    "storageObjects": 83
+  },
+  "after": {
+    "databaseBytes": 60673171,
+    "storageBytes": 42063930,
+    "storageObjects": 52
+  },
+  "preserved": {
+    "auditRows": 70,
+    "revisions": 2,
+    "backups": 4
+  },
+  "conditionalForecast": {
+    "storageBudgetBytes": 1000000000,
+    "photosPerIncident": 6,
+    "additionalIncidentsBefore": 49,
+    "additionalIncidentsAfter": 51,
+    "actualPlanVerified": false,
+    "excludes": [
+      "PDF attachments",
+      "additional evidence attachments",
+      "other projects sharing an organization quota"
+    ]
+  }
+}

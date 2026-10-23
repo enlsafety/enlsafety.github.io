@@ -69,7 +69,7 @@
     "final-excel-browser",
     "historical-correction-v461"
   ],
-  "runtimeFilesShaVerified": 41,
+  "runtimeFilesShaVerified": 45,
   "productionPublicBrowserContexts": 4,
   "actualStagingLifecycleAttachmentReaderChecks": 53,
   "realBrowserUploadChecks": 44,
@@ -80,5 +80,7 @@
   "retestedSuite": "login-proof-browser",
   "retestReason": "Local loopback HTML followed by offline-only synthetic authentication test; both engines passed 18 groups",
   "authLiveStagingChecks": 30,
-  "productionR2Publication": "pending"
+  "productionR2Publication": "verified",
+  "runtimeCommit": "c3f92a6bc3b417d90ee60e2015b3d62938b46713",
+  "productionAuthReadOnlyChecks": 15
 }

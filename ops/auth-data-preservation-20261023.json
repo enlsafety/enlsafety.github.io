@@ -1,0 +1,31 @@
+{
+  "allBeforeAfterHashesMatch": true,
+  "productionWrites": 0,
+  "tables": [
+    {
+      "table_name": "enl_hq_users",
+      "row_count": 9,
+      "sha256": "7f02daf46dafc9c1d99922e76d2719d964f0ac392c8bc5b7e85c27dda5c0d22f"
+    },
+    {
+      "table_name": "enl_site_master",
+      "row_count": 34,
+      "sha256": "c183041aa34b54d40230c9f4625388102b86464d2fa7fa758e98b1b952b94106"
+    },
+    {
+      "table_name": "enl_site_personnel",
+      "row_count": 360,
+      "sha256": "112a2c71c77b243a89473c53a560a550a56dfec4301092e67f4dc1bcfa141d9f"
+    },
+    {
+      "table_name": "enl_personnel_audit",
+      "row_count": 88,
+      "sha256": "1ad5cd82e758891038685986bfeaab16c38df2fe4827fef5213918f96c0d632c"
+    },
+    {
+      "table_name": "enl_push_subscriptions",
+      "row_count": 13,
+      "sha256": "3d823c3ffda16d50b17e081998f50d4b4a25e95db442509d0e75595f37adc3de"
+    }
+  ]
+}

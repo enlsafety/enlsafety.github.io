@@ -32,13 +32,10 @@
   "retainedEnlTables": 27,
   "endpoint": {
     "name": "enl-storage-sign-cleanup-v472",
-    "tombstone": "pending root deployment"
-  },
-  "rollback": "No evidence or Storage objects deleted; only four newly-created synthetic fixture records removed.",
-  "temporaryEndpoint": {
-    "name": "enl-storage-sign-cleanup-v472",
     "version": 2,
     "getStatus": 410,
-    "postStatus": 410
-  }
+    "postStatus": 410,
+    "tombstone": "verified"
+  },
+  "rollback": "No evidence or Storage objects deleted; only four newly-created synthetic fixture records removed."
 }

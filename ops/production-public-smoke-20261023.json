@@ -1,0 +1,34 @@
+{
+  "readOnly": true,
+  "realIphoneHardware": false,
+  "results": [
+    {
+      "name": "chromium-desktop",
+      "passed": true,
+      "build": "4.7.2-r2",
+      "pageErrorCount": 0,
+      "cacheVerified": true
+    },
+    {
+      "name": "chromium-iphone",
+      "passed": true,
+      "build": "4.7.2-r2",
+      "pageErrorCount": 0,
+      "cacheVerified": true
+    },
+    {
+      "name": "webkit-desktop",
+      "passed": true,
+      "build": "4.7.2-r2",
+      "pageErrorCount": 0,
+      "cacheVerified": true
+    },
+    {
+      "name": "webkit-iphone",
+      "passed": true,
+      "build": "4.7.2-r2",
+      "pageErrorCount": 0,
+      "cacheVerified": true
+    }
+  ]
+}
