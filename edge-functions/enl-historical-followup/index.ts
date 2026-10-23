@@ -6,6 +6,31 @@ const cors={"Access-Control-Allow-Origin":ORIGIN,"Access-Control-Allow-Headers":
 const json=(body:any,status=200)=>new Response(JSON.stringify(body),{status,headers:cors});
 const clean=(v:any)=>String(v??"").trim();
 const roleNorm=(v:any)=>clean(v)==="final"?"manager":clean(v);
+const allowedMime=new Set(["image/jpeg","image/png","image/webp","image/heic","image/heif","application/pdf"]);
+async function fileHash(bytes:Uint8Array){return Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",bytes))).map(v=>v.toString(16).padStart(2,"0")).join("");}
+function optimizationInfo(v:any,size:number,hash:string){
+  if(!v||typeof v!=="object")return undefined;
+  const out:any={version:"1.0.0",outputBytes:size,sha256:hash,preservedOriginal:v.preservedOriginal===true,mode:v.preservedOriginal===true?"original":"full_resolution"};
+  for(const k of ["sourceBytes","sourceWidth","sourceHeight","width","height","targetBytes"]){const n=Number(v[k]);if(Number.isFinite(n)&&n>0&&n<=1024*1024*1024)out[k]=Math.round(n);}
+  if(/^[a-f0-9]{64}$/.test(v.sourceSha256||""))out.sourceSha256=v.sourceSha256;
+  if(allowedMime.has(v.sourceMime))out.sourceMime=v.sourceMime;
+  if(v.sourceColorProfile==="verified_srgb")out.sourceColorProfile="verified_srgb";
+  if(clean(v.originalName))out.originalName=clean(v.originalName).replace(/[\\/<>]/g,"_").slice(0,160);
+  if(typeof v.reason==="string")out.reason=v.reason.slice(0,80);
+  if(typeof v.targetMet==="boolean")out.targetMet=v.targetMet;
+  // Client quality measurements are descriptive, never an authorization or evidence guarantee.
+  if(v.metrics&&typeof v.metrics==="object"){out.metrics={passed:v.metrics.passed===true};for(const k of ["minTileSSIM","maxTileMAE","maxEdgeMAE","maxAlphaError","tiles"]){const n=Number(v.metrics[k]);if(Number.isFinite(n)&&n>=0)out.metrics[k]=Math.round(n*100000)/100000;}}
+  return out;
+}
+async function immutableUpload(storage:any,path:string,bytes:Uint8Array,mime:string,hash:string){
+  const {error}=await storage.upload(path,bytes,{contentType:mime,upsert:false,cacheControl:"3600"});
+  if(!error)return;
+  if(!["409","Duplicate"].includes(String(error.statusCode||error.error||""))&&!/already exists|duplicate/i.test(String(error.message||"")))throw error;
+  const existing=await storage.download(path);if(existing.error||!existing.data)throw existing.error||Error("attachment_verify_failed");
+  const original=new Uint8Array(await existing.data.arrayBuffer());
+  if(original.byteLength!==bytes.byteLength||await fileHash(original)!==hash)throw Error("attachment_integrity_mismatch");
+}
+
 const uuid=(v:any)=>/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(clean(v));
 function actorFrom(body:any){const a=body?.actor||{};return {id:clean(a.id),name:clean(a.name)||"사용자",role:roleNorm(a.role||body?.role),position:clean(a.position),siteId:clean(a.siteId||body?.siteId)};}
 async function verifyActor(sql:any,body:any,strong=false){
@@ -75,12 +100,15 @@ Deno.serve(async(req:Request)=>{
    const siteId=row?.siteId||clean(b.siteId),f=b.file||{},mime=clean(f.mime),size=Number(f.size);
    if(!["image/jpeg","image/png","image/webp","image/heic","image/heif","application/pdf"].includes(mime)||size<=0||size>8*1024*1024||clean(f.base64).length>12*1024*1024)throw Error("이미지·PDF만 8MB까지 첨부할 수 있습니다.");
    const bytes=Uint8Array.from(atob(f.base64),c=>c.charCodeAt(0));if(bytes.length!==size)throw Error("invalid_file");
-   const name=clean(f.name).replace(/[\\/<>]/g,"_").slice(0,160)||"첨부",path=`historical-followups/${b.id}/${crypto.randomUUID()}`;
-   const metadata={path,name,mime,size,kind:mime.startsWith("image/")?"image":"pdf"};
+   const hash=await fileHash(bytes);if(f.optimization?.sha256&&f.optimization.sha256!==hash)throw Error("invalid_file_hash");
+   const name=clean(f.name).replace(/[\\/<>]/g,"_").slice(0,160)||"첨부",path=`historical-followups/${b.id}/${encodeURIComponent(a.id)}/sha256-${hash}`;
+   const metadata={path,name,mime,size,sha256:hash,optimization:optimizationInfo(f.optimization,size,hash),kind:mime.startsWith("image/")?"image":"pdf"};
    const storage=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!).storage.from("enl-incident-files");
-   const r=await storage.upload(path,bytes,{contentType:mime,upsert:false});if(r.error)throw r.error;
-   await sql`insert into public.enl_historical_followup_files(path,followup_id,site_id,owner_id,metadata) values(${path},${b.id},${siteId},${a.id},${JSON.stringify(metadata)}::jsonb)`;
-   return json({ok:true,attachment:metadata});
+   await immutableUpload(storage,path,bytes,mime,hash);
+   await sql`insert into public.enl_historical_followup_files(path,followup_id,site_id,owner_id,metadata) values(${path},${b.id},${siteId},${a.id},${JSON.stringify(metadata)}::jsonb) on conflict(path) do nothing`;
+   const saved=await sql`select metadata,owner_id from public.enl_historical_followup_files where path=${path} and followup_id=${b.id} and site_id=${siteId}`;
+   if(!saved[0]||clean(saved[0].owner_id)!==a.id)throw Error("forbidden");
+   return json({ok:true,attachment:saved[0].metadata});
   }
   if(!uuid(b.mutationId))throw Error("invalid_mutation_id");
   const row=await sql.begin(async(t:any)=>{

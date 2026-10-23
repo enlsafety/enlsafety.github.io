@@ -5,7 +5,7 @@ import postgres from "npm:postgres@3.4.5";
 
 const ORIGIN="https://enlsafety.github.io";
 const APP="incident-report-v2";
-const VERSION="4.7.0-r1-cumulative-report";
+const VERSION="4.7.2-evidence-storage";
 const cors={"Access-Control-Allow-Origin":ORIGIN,"Access-Control-Allow-Headers":"content-type, x-client-info, apikey, authorization, x-enl-app","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:cors});
 const clean=(v:any)=>String(v??"").trim();
@@ -281,7 +281,7 @@ Deno.serve(async(req:Request)=>{
         }
         if(action==="revision_list"){
           if(!["safety","manager","executive"].includes(actor.role))return json({ok:false,message:"forbidden"},403);
-          const revisions=await sql`select revision,reason,editor_id,editor_name,created_at,changes,before_payload,after_payload from public.enl_incident_revisions where incident_id=${incidentId} order by revision desc`;
+          const revisions=await sql`select revision,reason,editor_id,editor_name,created_at,coalesce(changes,private.enl_evidence_get(changes_hash)) as changes,coalesce(before_payload,private.enl_evidence_get(before_hash)) as before_payload,coalesce(after_payload,private.enl_evidence_get(after_hash)) as after_payload from public.enl_incident_revisions where incident_id=${incidentId} order by revision desc`;
           // Reader access follows the same medical-information limits as pull.
           for(const r of revisions){if(actor.role!=="safety")r.changes=r.changes.map((d:any)=>d.field==='reportDetails'?{field:d.field,before:readerIncident({...r.before_payload,reportDetails:d.before})?.reportDetails,after:readerIncident({...r.after_payload,reportDetails:d.after})?.reportDetails}:d.field==='summary'?{...d,before:readerMedicalText(d.before,r.before_payload?.reportDetails),after:readerMedicalText(d.after,r.after_payload?.reportDetails)}:d);delete r.before_payload;delete r.after_payload;}
           return json({ok:true,revisions});

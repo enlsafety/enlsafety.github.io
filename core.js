@@ -70,11 +70,24 @@ function ensureAttachmentStyle(){if(document.getElementById('enlAttachmentStyle4
 function attachmentKind(a){if(typeof a==='string')return 'image';return a?.kind||(String(a?.mime||'').includes('pdf')?'pdf':'image')}
 function attachmentName(a,i=0){if(typeof a==='string')return `사진 ${i+1}`;return a?.name||`${attachmentKind(a)==='pdf'?'PDF':'사진'} ${i+1}`}
 function attachmentDirectUrl(a){if(typeof a==='string')return a;if(!a||typeof a!=='object')return '';return a.previewUrl||a.url||a.storageUrl||a.dataUrl||''}
-function persistAttachment(a){if(typeof a==='string')return a;if(!a||typeof a!=='object')return a;const {previewUrl,...rest}=a;return rest}
+function persistAttachment(a){if(typeof a==='string')return a;if(!a||typeof a!=='object')return a;const {previewUrl,previewExpiresAt,signedUrl,...rest}=a;if(rest.path){delete rest.url;delete rest.storageUrl;delete rest.dataUrl;delete rest.base64}return rest}
 function fileToBase64(file){return file.arrayBuffer().then(buf=>{const bytes=new Uint8Array(buf);let binary='';const chunk=0x8000;for(let i=0;i<bytes.length;i+=chunk)binary+=String.fromCharCode(...bytes.subarray(i,i+chunk));return btoa(binary)})}
 function inferMime(file){if(file.type)return file.type;const ext=String(file.name||'').split('.').pop()?.toLowerCase();if(ext==='pdf')return 'application/pdf';if(['heic','heif'].includes(ext))return `image/${ext}`;if(ext==='png')return 'image/png';if(ext==='webp')return 'image/webp';return 'image/jpeg'}
-async function uploadAttachment(file,scope){const actor=attachmentActor();if(!actor)throw new Error('로그인 정보를 확인하지 못했습니다.');if(file.size>MAX_ATTACHMENT_BYTES)throw new Error('파일은 8MB 이하만 등록할 수 있습니다.');const mime=inferMime(file);if(!(mime.startsWith('image/')||mime==='application/pdf'))throw new Error('사진 또는 PDF 파일만 등록할 수 있습니다.');const base64=await fileToBase64(file);const r=await fetch(ATTACHMENT_API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':ATTACHMENT_CLIENT},body:JSON.stringify({...attachmentProof(),action:'upload',actor,scope,file:{name:file.name||'file',mime,size:file.size,base64}}),cache:'no-store'});const j=await r.json().catch(()=>({}));if(!r.ok||j?.ok===false)throw new Error(j?.message==='file_too_large'?'파일은 8MB 이하만 등록할 수 있습니다.':'파일 업로드에 실패했습니다.');const a=j.attachment;if(a?.path){try{const urls=await signAttachments([a.path]);if(urls[a.path])a.previewUrl=urls[a.path]}catch(e){}}return a}
-async function signAttachments(paths){const actor=attachmentActor();if(!actor||!paths.length)return{};const r=await fetch(ATTACHMENT_API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':ATTACHMENT_CLIENT},body:JSON.stringify({...attachmentProof(),action:'sign',actor,paths}),cache:'no-store'});const j=await r.json().catch(()=>({}));return r.ok&&j?.ok!==false?(j.urls||{}):{}}
+async function attachmentRequest(body,timeout=60000){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeout);try{return await fetch(ATTACHMENT_API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':ATTACHMENT_CLIENT},body,cache:'no-store',signal:controller.signal})}finally{clearTimeout(timer)}}
+async function uploadAttachment(file,scope,options={}){
+  const actor=attachmentActor();if(!actor)throw new Error('로그인 정보를 확인하지 못했습니다.');
+  const mime=inferMime(file);if(!(mime.startsWith('image/')||mime==='application/pdf'))throw new Error('사진 또는 PDF 파일만 등록할 수 있습니다.');
+  const prepared=window.ENLImageOptimizer?await window.ENLImageOptimizer.prepare(file,options):{file,optimization:null},upload=prepared.file;
+  if(upload.size>MAX_ATTACHMENT_BYTES)throw new Error('화질을 유지한 파일이 8MB를 넘습니다. 원본을 별도 보관하고 8MB 이하의 파일을 선택해 주세요.');
+  const base64=await fileToBase64(upload),body=JSON.stringify({...attachmentProof(),action:'upload',actor,scope,file:{name:upload.name||'file',mime:inferMime(upload),size:upload.size,base64,optimization:prepared.optimization}});
+  let r;try{r=await attachmentRequest(body)}catch(e){throw new Error('파일 전송이 완료되지 않았습니다. 연결을 확인한 뒤 같은 파일을 다시 선택해 주세요.')}const j=await r.json().catch(()=>({}));
+  if(!r.ok||j?.ok===false)throw new Error(j?.message==='file_too_large'?'파일은 8MB 이하만 등록할 수 있습니다.':'파일 업로드에 실패했습니다. 같은 파일을 다시 선택해 재시도해 주세요.');
+  const a=j.attachment;if(!a?.path)throw new Error('첨부파일 저장 결과를 확인하지 못했습니다. 다시 시도해 주세요.');
+  if(prepared.optimization&&!a.optimization)a.optimization=prepared.optimization;
+  try{const urls=await signAttachments([a.path]);if(urls[a.path])a.previewUrl=urls[a.path]}catch(e){}
+  return a;
+}
+async function signAttachments(paths){const actor=attachmentActor();if(!actor||!paths.length)return{};const r=await attachmentRequest(JSON.stringify({...attachmentProof(),action:'sign',actor,paths}),20000);const j=await r.json().catch(()=>({}));return r.ok&&j?.ok!==false?(j.urls||{}):{}}
 function writeResponsiveImageViewer(w,url,name='사고사진'){
   if(!w)return false;
   const safeUrl=esc(url),safeName=esc(name||'사고사진');
@@ -86,7 +99,7 @@ function writeResponsiveImageViewer(w,url,name='사고사진'){
 }
 async function openAttachment(a){
   if(!a)return;
-  const kind=attachmentKind(a),name=attachmentName(a,0),direct=attachmentDirectUrl(a);
+  const kind=attachmentKind(a),name=attachmentName(a,0),direct=a?.path?'':attachmentDirectUrl(a);
   if(direct){
     const w=window.open('','_blank');
     if(kind==='image'){
@@ -102,7 +115,7 @@ async function openAttachment(a){
   try{
     const urls=await signAttachments([path]),url=urls[path];if(!url)throw new Error('sign_failed');
     if(kind==='image'){
-      if(w)return writeResponsiveImageViewer(w,url,name);
+      if(w){writeResponsiveImageViewer(w,url,name);const image=w.document.getElementById?.('photo');image?.addEventListener('error',async()=>{try{const fresh=await signAttachments([path]);if(fresh[path])image.src=fresh[path]}catch(e){}},{once:true});return true}
       return alert('원본 사진 창을 열지 못했습니다. 브라우저의 팝업 허용 설정을 확인해 주세요.');
     }
     if(w)w.location.replace(url);else window.location.href=url;
@@ -110,14 +123,35 @@ async function openAttachment(a){
 }
 function attachmentPreviewHtml(a,i=0){const kind=attachmentKind(a),name=attachmentName(a,i),preview=attachmentDirectUrl(a);if(kind==='image'&&preview)return `<img src="${esc(preview)}" alt="${esc(name)}">`;if(kind==='pdf'&&preview)return `<iframe class="attach-pdf-preview411" src="${esc(preview)}#toolbar=0&navpanes=0&scrollbar=0" title="${esc(name)} 미리보기" loading="lazy"></iframe>`;return `<div class="attach-file411"><span class="attach-icon411">${kind==='pdf'?'📄':'🖼️'}</span><b>${esc(name)}</b>${typeof a==='object'&&a?.size?`<span class="attach-meta411">${Math.max(1,Math.round(a.size/1024))}KB</span>`:''}<span class="attach-preview-loading411">${a?.path?'미리보기 불러오는 중…':'원본 미리보기'}</span></div>`}
 function attachmentCardHtml(a,i,{removable=false}={}){const name=attachmentName(a,i);return `<div class="attach-card411" data-attach-card="${i}"><div class="attach-preview411" data-attach-preview="${i}">${attachmentPreviewHtml(a,i)}</div><button type="button" class="attach-open411" data-attach-open="${i}" aria-label="${esc(name)} 원본 열기"></button>${removable?`<button type="button" class="attach-remove411" data-rm="${i}">×</button>`:''}</div>`}
-async function hydrateAttachmentPreviews(root,arr){const list=Array.isArray(arr)?arr:[],paths=[...new Set(list.filter(a=>a&&typeof a==='object'&&a.path&&!attachmentDirectUrl(a)).map(a=>a.path))];let urls={};if(paths.length){try{urls=await signAttachments(paths)}catch(e){urls={}}}list.forEach((a,i)=>{const box=root?.querySelector(`[data-attach-preview="${i}"]`);if(!box)return;const renderValue=a&&typeof a==='object'&&a.path&&urls[a.path]&&!attachmentDirectUrl(a)?{...a,previewUrl:urls[a.path]}:a;box.innerHTML=attachmentPreviewHtml(renderValue,i)})}
+async function hydrateAttachmentPreviews(root,arr){
+  const list=Array.isArray(arr)?arr:[],paths=[...new Set(list.filter(a=>a&&typeof a==='object'&&a.path).map(a=>a.path))];let urls={};
+  if(paths.length){try{urls=await signAttachments(paths)}catch(e){urls={}}}
+  list.forEach((a,i)=>{const box=root?.querySelector(`[data-attach-preview="${i}"]`);if(!box)return;const value=a&&typeof a==='object'&&a.path&&urls[a.path]?{...a,previewUrl:urls[a.path]}:a;box.innerHTML=attachmentPreviewHtml(value,i);
+    const img=box.querySelector('img');if(a?.path&&img)img.addEventListener('error',async()=>{try{const fresh=await signAttachments([a.path]);if(fresh[a.path]&&img.isConnected)img.src=fresh[a.path]}catch(e){}},{once:true});
+  });
+}
 function attachmentGalleryHtml(arr){const list=Array.isArray(arr)?arr:[];if(!list.length)return '';ensureAttachmentStyle();return `<div class="attach-grid411 attach-gallery411">${list.map((a,i)=>attachmentCardHtml(a,i)).join('')}</div>`}
 function bindAttachmentOpen(root,arr){const list=Array.isArray(arr)?arr:[];root?.querySelectorAll('[data-attach-open]').forEach(b=>b.onclick=()=>openAttachment(list[Number(b.dataset.attachOpen)]));hydrateAttachmentPreviews(root,list)}
-function photoPickerHtml(kind){ensureAttachmentStyle();return `<div class="photo-box"><div class="photo-head"><b>${kind==='incident'?'현장사진 / PDF':'개선조치 사진 / PDF'}</b><small id="${kind}PhotoCount">0 / ${MAX_PHOTOS}개</small></div><div class="photo-actions"><button type="button" class="secondary" id="${kind}PhotoBtn">사진·PDF 선택 / 촬영</button></div><div id="${kind}Thumbs" class="attach-grid411"></div></div>`}
+function photoPickerHtml(kind){ensureAttachmentStyle();return `<div class="photo-box"><div class="photo-head"><b>${kind==='incident'?'현장사진 / PDF':'개선조치 사진 / PDF'}</b><small id="${kind}PhotoCount">0 / ${MAX_PHOTOS}개</small></div><div class="photo-actions"><button type="button" class="secondary" id="${kind}PhotoBtn">사진 / PDF 선택 / 촬영</button></div><label style="display:flex;gap:7px;align-items:flex-start;font-size:13px;line-height:1.5;margin:8px 0"><input id="${kind}PreserveOriginal" type="checkbox" style="width:18px;min-width:18px;margin-top:2px">증빙 원본 그대로 보존 (작은 글씨, 균열, 상처 등의 정밀 확인용)</label><small style="display:block;color:#60788d;margin-bottom:8px">선택 전 체크하면 원본을 저장합니다. 일반 사진은 해상도를 유지해 자동 압축하며 PDF는 변경하지 않습니다.</small><div id="${kind}Thumbs" class="attach-grid411"></div></div>`}
 function bindPhotoButtons(){const a=document.getElementById('incidentPhotoBtn');if(a)a.onclick=()=>incidentPhotoInput.click();const b=document.getElementById('actionPhotoBtn');if(b)b.onclick=()=>actionPhotoInput.click()}
 incidentPhotoInput.onchange=async e=>{incidentPhotos=await addFiles(incidentPhotos,e.target.files,'incident');e.target.value='';renderPhotoThumbs('incident')};
 actionPhotoInput.onchange=async e=>{actionPhotos=await addFiles(actionPhotos,e.target.files,'action');e.target.value='';renderPhotoThumbs('action')};
-async function addFiles(list,fileList,kind='incident'){const left=MAX_PHOTOS-list.length;if(left<=0){alert('첨부파일은 최대 8개까지 등록할 수 있습니다.');return list}const next=[...list];for(const f of [...fileList].slice(0,left)){try{next.push(await uploadAttachment(f,kind==='action'?'action':'incident'))}catch(e){console.warn(e);alert(e?.message||'파일을 등록하지 못했습니다.')}}return next}
+const attachmentFormLocks=new WeakMap();
+function lockAttachmentForm(form){
+  if(!form)return()=>{};
+  let lock=attachmentFormLocks.get(form);
+  if(lock){lock.count++;return()=>unlockAttachmentForm(form)}
+  const buttons=[...form.querySelectorAll('button,input[type="submit"],input[type="file"]')].map(el=>({el,disabled:el.disabled})),guard=e=>{e.preventDefault();e.stopImmediatePropagation();alert('첨부파일 확인과 업로드가 끝난 뒤 저장해 주세요.')};
+  const status=document.createElement('p');status.setAttribute('role','status');status.textContent='사진 화질 확인 및 첨부파일 업로드 중입니다…';status.style.cssText='color:#315d7b;font-size:13px;line-height:1.5';form.appendChild(status);
+  lock={count:1,buttons,guard,status};attachmentFormLocks.set(form,lock);buttons.forEach(({el})=>el.disabled=true);form.addEventListener('submit',guard,true);form.setAttribute('aria-busy','true');
+  return()=>unlockAttachmentForm(form);
+}
+function unlockAttachmentForm(form){const lock=attachmentFormLocks.get(form);if(!lock||--lock.count>0)return;lock.buttons.forEach(({el,disabled})=>el.disabled=disabled);form.removeEventListener('submit',lock.guard,true);form.removeAttribute('aria-busy');lock.status.remove();attachmentFormLocks.delete(form)}
+async function addFiles(list,fileList,kind='incident',options={}){
+  const left=MAX_PHOTOS-list.length;if(left<=0){alert('첨부파일은 최대 8개까지 등록할 수 있습니다.');return list}
+  const next=[...list],control=document.getElementById(`${kind}PreserveOriginal`),preserveOriginal=options.preserveOriginal??(control?control.checked:true),form=options.form||document.getElementById(`${kind}PhotoBtn`)?.closest('form'),unlock=lockAttachmentForm(form);
+  try{for(const f of [...fileList].slice(0,left)){try{const attachment=await uploadAttachment(f,kind==='action'?'action':'incident',{preserveOriginal});if(!attachment.path||!next.some(item=>item?.path===attachment.path))next.push(attachment)}catch(e){console.warn(e);alert(e?.message||'파일을 등록하지 못했습니다.')}}return next}finally{unlock()}
+}
 function compressImage(file){return new Promise((resolve,reject)=>{const img=new Image(),url=URL.createObjectURL(file);img.onload=()=>{const max=1400,r=Math.min(1,max/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=Math.round(img.width*r);c.height=Math.round(img.height*r);c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);resolve(c.toDataURL('image/jpeg',.72))};img.onerror=reject;img.src=url})}
 function renderPhotoThumbs(kind){ensureAttachmentStyle();const arr=kind==='incident'?incidentPhotos:actionPhotos,root=document.getElementById(`${kind}Thumbs`),cnt=document.getElementById(`${kind}PhotoCount`);if(!root)return;root.innerHTML=arr.map((a,i)=>attachmentCardHtml(a,i,{removable:true})).join('');if(cnt)cnt.textContent=`${arr.length} / ${MAX_PHOTOS}개`;bindAttachmentOpen(root,arr);root.querySelectorAll('[data-rm]').forEach(b=>b.onclick=e=>{e.stopPropagation();arr.splice(Number(b.dataset.rm),1);if(kind==='incident')incidentPhotos=arr;else actionPhotos=arr;renderPhotoThumbs(kind)})}
 window.enlPersistAttachment=persistAttachment;window.enlAttachmentGalleryHtml=attachmentGalleryHtml;window.enlBindAttachmentOpen=bindAttachmentOpen;window.enlHydrateAttachmentPreviews=hydrateAttachmentPreviews;window.enlOpenAttachment=openAttachment;window.enlAttachmentKind=attachmentKind;

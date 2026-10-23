@@ -9,9 +9,10 @@ const TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; c
    page=await browser.newPage({viewport:{width:profile.width,height:880},isMobile:profile.width<500,hasTouch:profile.width<500,timezoneId:'Asia/Seoul'});
    page.on('pageerror',e=>errors.push(String(e.message)));
    page.on('dialog',d=>d.accept());
-   page.on('request',r=>{const u=new URL(r.url());if(u.origin!==HOST)unexpected.push(r.url());});
+   page.on('request',r=>{const u=new URL(r.url());if(!['blob:','data:'].includes(u.protocol)&&u.origin!==HOST)unexpected.push(r.url());});
    await page.route('**/*',route=>{
      const url=new URL(route.request().url());
+     if(['blob:','data:'].includes(url.protocol))return route.continue();
      if(url.origin!==HOST){unexpected.push(url.toString());return route.abort('blockedbyclient');}
      const rel=decodeURIComponent(url.pathname).slice(1);
      if(!rel||rel.includes('..')||!fs.existsSync(rel)||!fs.statSync(rel).isFile())return route.fulfill({status:404,body:'',contentType:'text/plain'});
@@ -74,6 +75,11 @@ const TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; c
    await frame.locator('[data-field-task="accident_report"]').click();
    await frame.locator('[data-report-type="property"]').click();
    await frame.locator('#unifiedReportForm').waitFor({timeout:10000});
+   const picker=frame.locator('#incidentPhotoBtn').locator('..').locator('..');
+   await picker.scrollIntoViewIfNeeded();
+   const pickerOverflow=await picker.evaluate(el=>({width:el.clientWidth,scrollWidth:el.scrollWidth}));
+   assert.ok(pickerOverflow.scrollWidth<=pickerOverflow.width+1,'photo controls fit the mobile/desktop form');
+   await picker.screenshot({path:'qa-output/full-app-photo-picker-'+profile.name+'.png'});
    assert.equal(await frame.locator('#environmentCause410,#behaviorCause410').count(),0,'actual field report excludes cause input');
    assert.ok(await frame.locator('.report410-section').count()>=3,'real report section styles and fields');
    await switchRole('zw-worker');
@@ -96,7 +102,7 @@ const TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; c
    await switchRole('zw-field');await frame.locator('body').evaluate(()=>openUnifiedCorrectiveModal('ZW-005',currentUser()));
    await frame.locator('#prev429ActionDetail').fill('QA 안내표지 설치 완료');await frame.locator('#prev429ActionDate').fill('2026-10-14');await frame.locator('#prev432CompletedDate').fill('2026-10-14');
    await frame.locator('#actionPhotoInput').setInputFiles({name:'qa-demo-evidence.png',mimeType:'image/png',buffer:fs.readFileSync('pwa-icon-192.png')});
-   await frame.locator('body').evaluate(()=>new Promise(resolve=>{const check=()=>actionPhotos.length?resolve():requestAnimationFrame(check);check();}));
+   await frame.locator('#actionPhotoCount').filter({hasText:'1 /'}).waitFor({timeout:20000});
    await activate('#prev429FieldForm button[type=submit]');await frame.locator('#prev429FieldForm').waitFor({state:'detached'});
    await switchRole('zw-safety');await frame.locator('body').evaluate(()=>openUnifiedCorrectiveModal('ZW-005',currentUser()));
    assert.equal(await frame.locator('[data-report-stage="A"]').count(),1);assert.equal(await frame.locator('[data-report-stage="B"]').count(),1);

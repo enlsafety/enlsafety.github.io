@@ -30,7 +30,7 @@ const server=http.createServer((req,res)=>{
     await page.waitForFunction(()=>!!navigator.serviceWorker.controller,{timeout:10000});
     await page.waitForFunction(async()=>{
       const cache=await caches.open('enl-pwa-4.6.0-r1');
-      return !!(await cache.match('/stable412.html?offline=1')) && !!(await cache.match('/core.js'));
+      return !!(await cache.match('/stable412.html?offline=1')) && !!(await cache.match('/core.js')) && !!(await cache.match('/attachment-image-v472.js'));
     },{timeout:15000});
     const swUrl=await page.evaluate(()=>navigator.serviceWorker.controller?.scriptURL||'');
     assert.ok(swUrl.includes('/sw-v418.js'),'startup cache service worker is not controlling the PWA page');
@@ -43,6 +43,11 @@ const server=http.createServer((req,res)=>{
     const elapsed=Date.now()-start;
     assert.ok(elapsed<2500,'cache-first startup waited for slow origin: '+elapsed+'ms');
     console.log('PASS: controlled PWA reload bypasses a 10s-slow origin via service-worker cache in '+elapsed+'ms');
+    await context.setOffline(true);
+    await page.reload({waitUntil:'domcontentloaded',timeout:3000});
+    await page.waitForSelector('.login-v411',{timeout:3000});
+    assert.equal(await page.evaluate(()=>typeof window.ENLImageOptimizer?.prepare),'function','offline PWA retains the current image optimizer');
+    console.log('PASS: fully offline PWA reload retains login and image optimizer from installed cache');
   }finally{
     await browser.close();
     await new Promise(resolve=>server.close(resolve));

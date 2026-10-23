@@ -5,7 +5,8 @@ const {PGlite}=require('@electric-sql/pglite');
 const read=f=>fs.readFileSync(f,'utf8').replace(/\r\n/g,'\n');
 async function fixture(){
  const db=new PGlite();await db.exec(`
- create role anon;create role authenticated;create schema private;
+ create role anon;create role authenticated;create role service_role;create schema private;
+ create table enl_incident_backups(backup_id uuid primary key default gen_random_uuid(),snapshot jsonb not null,reason text,created_at timestamptz default now());
  create table enl_incident_shared(incident_id text primary key,site_id text,payload jsonb,created_at timestamptz,updated_at timestamptz);
  create table enl_incident_audit(audit_id uuid primary key default gen_random_uuid(),incident_id text,site_id text,action text constraint enl_incident_audit_action_check check(action is not null),editor_id text,editor_name text,editor_role text,editor_position text,changed_at timestamptz,before_payload jsonb,after_payload jsonb);
  create table enl_hq_users(user_id text primary key,name text,role text,position text,department text,active boolean,password_hash text);
@@ -20,6 +21,7 @@ async function fixture(){
  `);
  for(const name of ['enl_incident_optimistic_sync_guard','enl_email_from_push_trigger'])await db.exec(read('tests/fixtures/final-lifecycle/'+name+'.sql'));
  await db.exec(read('supabase/migrations/20261013052400_final_safety_lifecycle.sql'));
+ await db.exec(read('tests/fixtures/evidence-storage-schema.sql'));
  await db.exec(`create trigger trg_enl_incident_optimistic_sync_guard before insert or update on enl_incident_shared for each row execute function enl_incident_optimistic_sync_guard();create trigger trg_enl_incident_push after insert or update on enl_incident_shared for each row execute function enl_incident_push_trigger();create trigger trg_enl_push_email_bridge after insert on enl_push_events for each row execute function enl_email_from_push_trigger();`);
  let handler,tx=null;
  const sql=async(parts,...args)=>{const query=parts.reduce((s,p,i)=>s+(i?'$'+i:'')+p,'');return (await(tx||db).query(query,args)).rows;};sql.json=JSON.stringify;sql.end=async()=>{};sql.begin=async f=>db.transaction(async t=>{tx=t;try{return await f(sql)}finally{tx=null}});

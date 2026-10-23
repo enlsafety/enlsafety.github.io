@@ -3,7 +3,7 @@ import postgres from "npm:postgres@3.4.5";
 
 const ORIGIN="https://enlsafety.github.io";
 const APP="incident-report-v2";
-const VERSION="4.5.4-bulk-preservation1";
+const VERSION="4.7.2-evidence-storage";
 const cors={
   "Access-Control-Allow-Origin":ORIGIN,
   "Access-Control-Allow-Headers":"content-type, x-enl-app",
@@ -72,7 +72,7 @@ Deno.serve(async(req:Request)=>{
 
     if(action==="audit_list"){
       const incidentId=clean(body.incidentId);if(!incidentId)return json({ok:false,message:"incident_required"},400);
-      const rows=await sql`select audit_id,incident_id,site_id,action,editor_id,editor_name,editor_role,editor_position,changed_at,before_payload,after_payload
+      const rows=await sql`select audit_id,incident_id,site_id,action,editor_id,editor_name,editor_role,editor_position,changed_at,coalesce(before_payload,private.enl_evidence_get(before_hash)) as before_payload,coalesce(after_payload,private.enl_evidence_get(after_hash)) as after_payload
         from public.enl_incident_audit where incident_id=${incidentId} order by changed_at desc limit 500`;
       return json({ok:true,audits:rows});
     }
@@ -108,7 +108,7 @@ Deno.serve(async(req:Request)=>{
 
     if(action==="backup_export"){
       const id=clean(body.backupId);if(!id)return json({ok:false,message:"backup_required"},400);
-      const rows=await sql`select backup_id,created_at,created_by_id,created_by_name,created_by_role,reason,incident_count,snapshot,source_version
+      const rows=await sql`select backup_id,created_at,created_by_id,created_by_name,created_by_role,reason,incident_count,coalesce(snapshot,private.enl_evidence_get(snapshot_hash)) as snapshot,source_version
         from public.enl_incident_backups where backup_id=${id}::uuid limit 1`;
       if(!rows[0])return json({ok:false,message:"not_found"},404);
       return json({ok:true,backup:rows[0]});
@@ -118,7 +118,7 @@ Deno.serve(async(req:Request)=>{
       const id=clean(body.backupId),reason=clean(body.reason);
       if(!id)return json({ok:false,message:"backup_required"},400);
       if(reason.length<2)return json({ok:false,message:"reason_required"},400);
-      const rows=await sql`select backup_id,snapshot from public.enl_incident_backups where backup_id=${id}::uuid limit 1`;
+      const rows=await sql`select backup_id,coalesce(snapshot,private.enl_evidence_get(snapshot_hash)) as snapshot from public.enl_incident_backups where backup_id=${id}::uuid limit 1`;
       const target=rows[0];if(!target)return json({ok:false,message:"not_found"},404);
       const snapshot=parsePayload(target.snapshot);
       if(!Array.isArray(snapshot))return json({ok:false,message:"invalid_backup"},409);

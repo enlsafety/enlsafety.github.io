@@ -90,7 +90,7 @@ Deno.serve(async(req:Request)=>{
  let b:any;try{const raw=await req.text();if(raw.length>18*1024*1024)return json({ok:false,message:'request_too_large'},413);b=JSON.parse(raw);if(!b||typeof b!=='object')throw Error()}catch{return json({ok:false,message:'invalid_json'},400)}
  // The automatic importer is retired. Preserve existing batches and originals
  // read-only for audit, but never accept uploads, analyses or registrations.
- if(!['list','get'].includes(clean(b.action)))
+ if(!['list','get','sign'].includes(clean(b.action)))
   return json({ok:false,message:'automatic_import_retired'},410);
  const sql=postgres(Deno.env.get('SUPABASE_DB_URL')!,{prepare:false,max:1,idle_timeout:2,connect_timeout:5});let a:any=null,owned=false;
  try{

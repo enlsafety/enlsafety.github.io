@@ -56,7 +56,12 @@ const assert=require('node:assert/strict'),crypto=require('node:crypto'),fs=requ
    r=await correct('safety',{causeAnalysisStatus:'investigating'},'재조사 착수',{expectedVersion:oldVersion});eq(r.status,409,'stale revision guarded');
    eq(Number((await f.db.query("select count(*)::int n from enl_incident_revisions")).rows[0].n),1,'conflicting attempt created no revision');
    const official=fs.readFileSync('official-records-v439.js','utf8'),excel=fs.readFileSync('incident-excel-v421.js','utf8');
-   assert.equal(official.split("'분석상태: '+causeStatus").length-1,2,'official UI and printed PDF both show cause review status');checks++;
+   assert.ok(official.includes("'분석상태: '+causeStatus"),'official UI shows cause review status');checks++;
+   // v4.7.1 exports XLSX rather than the retired popup PDF. Verify the actual workbook.
+   const vm=require('node:vm'),scope={window:{},TextEncoder,Uint8Array,Uint32Array,DataView,Blob,console};vm.createContext(scope);
+   for(const file of ['incident-excel-v421.js','incident-one-page-excel-v471.js'])vm.runInContext(fs.readFileSync(file,'utf8'),scope);
+   const workbook=Buffer.from(scope.window.enlBuildOnePageIncidentWorkbook(i));
+   for(const value of ['원인 검토 완료',newCause.environmentCause,newCause.behaviorCause,newCause.causeAnalysisNote]){assert.ok(workbook.includes(Buffer.from(value)),'downloaded XLSX preserves '+value);checks++;}
    assert.ok(official.includes("d.causeAnalysisNote?'기타·종합 원인: '"),'official record displays other confirmed cause');checks++;
    for(const token of ["'분석상태 / 담당'","'기타·종합 원인'","stamp(d.causeAnalyzedBy,d.causeAnalyzedAt)"])assert.ok(excel.includes(token),'Excel cause evidence '+token);
    checks+=3;

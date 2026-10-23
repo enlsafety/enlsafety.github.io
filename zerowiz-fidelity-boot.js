@@ -18,7 +18,7 @@ Object.defineProperty(window,"sessionStorage",{value:tab,configurable:false});
 if(window.localStorage!==local||window.sessionStorage!==tab)throw new Error("DEMO_STORAGE_SANDBOX_FAILED");
 window.ENL_DEMO_ISOLATED=true;
 window.ENL_STABLE_MODE=true;
-window.ENL_DEPLOY_VERSION="4.7.0-DEMO";
+window.ENL_DEPLOY_VERSION="4.7.2-DEMO";
 const SITES=[
 {id:"zw-site01",name:"가상 솔빛 골프장",site_type:"코스관리",region:"경기",active:true},
 {id:"zw-site02",name:"가상 푸른숲 골프장",site_type:"코스관리",region:"충청",active:true},
@@ -78,6 +78,7 @@ const examples=[
  incident("ZW-010","zw-site01","rejected","중복 등록된 가상 사고","property",{rejectionNote:"기존 가상 사고와 내용 중복"}),
  incident("ZW-011","zw-site03","reported","가상 물류 상자 전도 사고")
 ];
+const demoFiles=new Map();
 const db={users:USERS,sites:SITES,incidents:structuredClone(examples),audit:[],revisions:[],incoming:[],blocked:0};
 function safeClone(x){return structuredClone(x)}
 function result(obj,status=200){return new Response(JSON.stringify(obj),{status,headers:{"Content-Type":"application/json;charset=utf-8","Cache-Control":"no-store","Access-Control-Allow-Origin":"*"}})}
@@ -140,6 +141,19 @@ function patch(next,actor){
 }
 function call(req) {
  const body=req||{},action=String(body.action||""),actor=roleFor(body.actor)||USERS.find(u=>u.id===body.actor?.id)||USERS[0];
+ if(action==="upload"){
+  const file=body.file||{},mime=String(file.mime||""),base64=String(file.base64||"");
+  if(!["safety","field","worker"].includes(actor.role))return reject("reader_upload_forbidden");
+  if(!["image/jpeg","image/png","image/webp","image/heic","image/heif","application/pdf"].includes(mime)||!base64||Number(file.size)>8*1024*1024)return reject("invalid_demo_attachment",400);
+  const scope=body.scope==="action"?"action":"incident",url="data:"+mime+";base64,"+base64;
+  let path=[...demoFiles].find(([,value])=>value.url===url&&value.actorId===actor.id&&value.scope===scope)?.[0];
+  if(!path){path="demo/"+scope+"/"+actor.id+"/"+(demoFiles.size+1);demoFiles.set(path,{url,actorId:actor.id,scope});}
+  return result({ok:true,attachment:{storage:true,path,name:String(file.name||"가상 첨부"),mime,size:Number(file.size),kind:mime==="application/pdf"?"pdf":"image",optimization:file.optimization,previewUrl:url}});
+ }
+ if(action==="sign"){
+  const urls={};for(const path of Array.isArray(body.paths)?body.paths:[]){const file=demoFiles.get(path);if(file)urls[path]=file.url;}
+  return result({ok:true,urls});
+ }
  if(action==="health")return result({ok:true,version:"ZERO-WIZ-OFFLINE"});
  if(action==="pull")return result({ok:true,incidents:copyIncident(actor)});
  if(action==="push"){
@@ -199,5 +213,5 @@ window.WebSocket=function(){return block()};
 window.EventSource=function(){return block()};
 try{Object.defineProperty(navigator,"sendBeacon",{value:()=>false,configurable:false})}catch(e){}
 try{Object.defineProperty(navigator,"serviceWorker",{value:undefined,configurable:false})}catch(e){}
-window.ENL_ZEROWIZ_SANDBOX={db,users:USERS,sites:SITES,getRequests:()=>db.incoming.slice(),getNetworkBlocks:()=>db.blocked,reset:()=>{db.incidents=structuredClone(examples);db.revisions=[];db.incoming=[];db.blocked=0}};
+window.ENL_ZEROWIZ_SANDBOX={db,users:USERS,sites:SITES,getRequests:()=>db.incoming.slice(),getNetworkBlocks:()=>db.blocked,reset:()=>{db.incidents=structuredClone(examples);db.revisions=[];db.incoming=[];db.blocked=0;demoFiles.clear()}};
 })();

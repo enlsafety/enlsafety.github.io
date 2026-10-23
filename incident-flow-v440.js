@@ -223,7 +223,7 @@
     renderSupplementFiles(form);validateSupplementVisual(form);
     form.addEventListener('input',e=>fieldState(e.target),true);form.addEventListener('change',e=>fieldState(e.target),true);
     form.querySelector('#wf440SupplementFile').onchange=async e=>{
-      try{if(typeof addFiles==='function')supplementFiles=await addFiles(supplementFiles,e.target.files,'incident');else alert('첨부파일 처리기능을 불러오지 못했습니다.');}
+      try{if(typeof addFiles==='function')supplementFiles=await addFiles(supplementFiles,e.target.files,'incident',{preserveOriginal:true,form});else alert('첨부파일 처리기능을 불러오지 못했습니다.');}
       catch(err){alert('보완자료를 추가하지 못했습니다.')}e.target.value='';renderSupplementFiles(form);validateSupplementVisual(form);
     };
     form.onsubmit=async e=>{
