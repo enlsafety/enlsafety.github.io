@@ -43,6 +43,6 @@ ok(runtime.includes('window.enlRenderApp(u)'),'render actual app shell, not rede
 ok(runtime.includes('data.users=sandbox.users'),'full staff data replaced with synthetic data');
 ok(sw.includes("url.pathname.startsWith('/zerowiz-')"),'PWA will never cache any demo URL');
 ok(auth.includes('href="zerowiz-demo.html?v=2.0.0"'),'operator login links to updated vendor demo');
-ok(stable.includes('auth-v411.js?v=4.6.3-r2'),'login update cache busted');
+ok(stable.includes('auth-v411.js?v=4.7.2-r2'),'login update cache busted');
 new Function(boot);new Function(runtime);new Function(entry);
 console.log(JSON.stringify({passed,failed:0,kind:'opaque iframe UI-clone and backend isolation source audit'}));

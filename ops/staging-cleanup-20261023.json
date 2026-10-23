@@ -1,0 +1,60 @@
+{
+  "project": "zgwxzfvvpqgdedyobwmg",
+  "verifiedAt": "2026-10-23T07:04:14.659Z",
+  "independentReadOnlyVerification": true,
+  "remainingTargetRows": 0,
+  "retainedRowsAndHashesMatch": true,
+  "restoredExactTriggerDefinitions": true,
+  "securityFixtureTablesRemaining": 0,
+  "retainedDictionaryObjects": 671,
+  "retainedCounts": {
+    "enl_hq_users": 3,
+    "enl_push_events": 660,
+    "enl_site_master": 1,
+    "enl_email_events": 660,
+    "enl_document_views": 39,
+    "enl_incident_audit": 622,
+    "enl_site_personnel": 2,
+    "enl_incident_shared": 78,
+    "enl_evidence_objects": 671,
+    "enl_incident_backups": 0,
+    "enl_incident_revisions": 42,
+    "enl_incident_operations": 164
+  },
+  "removedCounts": {
+    "enl_push_events": 32,
+    "enl_email_events": 32,
+    "enl_document_views": 2,
+    "enl_incident_audit": 30,
+    "enl_incident_shared": 4,
+    "enl_incident_revisions": 2,
+    "enl_incident_operations": 8
+  },
+  "createdTaskIds": [
+    "qa-live-1792732387807",
+    "qa-live-1792737764906",
+    "qa-storage-1792732534118",
+    "qa-storage-1792737792884"
+  ],
+  "temporaryGuardFunctionsRemaining": 0,
+  "qaStorageObjectsRemaining": 0,
+  "dictionaryImmutableGuardEnabled": true,
+  "cleanupEndpointRetired": {
+    "verifiedAt": "2026-10-23T07:09:46.577Z",
+    "project": "zgwxzfvvpqgdedyobwmg",
+    "function": "enl-release-cleanup-v472",
+    "unauthenticated": true,
+    "requests": [
+      {
+        "method": "GET",
+        "status": 410,
+        "body": "{\"ok\":false,\"code\":\"maintenance_completed\"}"
+      },
+      {
+        "method": "POST",
+        "status": 410,
+        "body": "{\"ok\":false,\"code\":\"maintenance_completed\"}"
+      }
+    ]
+  }
+}

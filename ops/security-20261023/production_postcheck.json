@@ -1,0 +1,54 @@
+{
+  "project": "wjelumpbjklfrdjxbesj",
+  "date": "2026-10-23",
+  "all_five_content_hashes_unchanged": true,
+  "digests": [
+    {
+      "table_name": "kokmatch_v34_state_backup",
+      "row_count": 1,
+      "content_sha256": "2eb757826a8ba60753e4b8a6b28c5454ed9ad4466024fd0e0cd581de5913dfff"
+    },
+    {
+      "table_name": "kokmatch_v34_member_auth_backup",
+      "row_count": 2,
+      "content_sha256": "a238d91e1ec94f283e9a438e6a3085fd0cfb89488cda585178bde49ef3586361"
+    },
+    {
+      "table_name": "kokmatch_v34_auth_backup",
+      "row_count": 1,
+      "content_sha256": "e1bbf02cf357ce6a7c57910a409147d105a45efe456b273323c2f0ad56ab0587"
+    },
+    {
+      "table_name": "kokmatch_groups",
+      "row_count": 3,
+      "content_sha256": "564e22bdeb378dde00a0db1916fba3efb8fca95aa51d9bc7728b20a59120342f"
+    },
+    {
+      "table_name": "kokmatch_global_admins",
+      "row_count": 1,
+      "content_sha256": "7063d83aa83eda2a983a24326cb49e8c9debe9bd40a015e91d34e55617c682c2"
+    }
+  ],
+  "security_advisors": [
+    {
+      "name": "rls_enabled_no_policy",
+      "level": "INFO",
+      "count": 51
+    },
+    {
+      "name": "function_search_path_mutable",
+      "level": "WARN",
+      "count": 2
+    },
+    {
+      "name": "anon_security_definer_function_executable",
+      "level": "WARN",
+      "count": 1
+    },
+    {
+      "name": "authenticated_security_definer_function_executable",
+      "level": "WARN",
+      "count": 1
+    }
+  ]
+}

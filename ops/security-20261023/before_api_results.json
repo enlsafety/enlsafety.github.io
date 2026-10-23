@@ -1,0 +1,167 @@
+[
+  {
+    "test": "member_login",
+    "pass": true,
+    "detail": {
+      "status": 200,
+      "role": "member",
+      "error": null
+    }
+  },
+  {
+    "test": "manager_login",
+    "pass": true,
+    "detail": {
+      "status": 200,
+      "role": "manager",
+      "error": null
+    }
+  },
+  {
+    "test": "admin_login",
+    "pass": true,
+    "detail": {
+      "status": 200,
+      "role": "admin",
+      "error": null
+    }
+  },
+  {
+    "test": "member_state",
+    "pass": true,
+    "detail": {
+      "status": 200
+    }
+  },
+  {
+    "test": "member_memberships",
+    "pass": true,
+    "detail": {
+      "status": 200
+    }
+  },
+  {
+    "test": "member_group_admin_gate",
+    "pass": true,
+    "detail": {
+      "status": 403
+    }
+  },
+  {
+    "test": "manager_state",
+    "pass": true,
+    "detail": {
+      "status": 200
+    }
+  },
+  {
+    "test": "manager_memberships",
+    "pass": true,
+    "detail": {
+      "status": 200
+    }
+  },
+  {
+    "test": "manager_group_admin_gate",
+    "pass": true,
+    "detail": {
+      "status": 403
+    }
+  },
+  {
+    "test": "admin_state",
+    "pass": true,
+    "detail": {
+      "status": 200
+    }
+  },
+  {
+    "test": "admin_memberships",
+    "pass": true,
+    "detail": {
+      "status": 200
+    }
+  },
+  {
+    "test": "admin_group_admin_gate",
+    "pass": true,
+    "detail": {
+      "status": 200
+    }
+  },
+  {
+    "test": "unauthorized_groups-v47",
+    "pass": true,
+    "detail": {
+      "status": 401
+    }
+  },
+  {
+    "test": "unauthorized_auth-v38",
+    "pass": true,
+    "detail": {
+      "status": 401
+    }
+  },
+  {
+    "test": "unauthorized_multi-api?api=state",
+    "pass": true,
+    "detail": {
+      "status": 401
+    }
+  },
+  {
+    "test": "admin_update_group",
+    "pass": true,
+    "detail": {
+      "status": 200
+    }
+  },
+  {
+    "test": "admin_restore_fixture_name",
+    "pass": true,
+    "detail": {
+      "status": 200
+    }
+  },
+  {
+    "test": "anon_direct_kokmatch_groups",
+    "pass": true,
+    "detail": {
+      "status": 200,
+      "returned_bytes": 2
+    }
+  },
+  {
+    "test": "anon_direct_kokmatch_global_admins",
+    "pass": true,
+    "detail": {
+      "status": 200,
+      "returned_bytes": 2
+    }
+  },
+  {
+    "test": "anon_direct_kokmatch_v34_state_backup",
+    "pass": true,
+    "detail": {
+      "status": 200,
+      "returned_bytes": 2
+    }
+  },
+  {
+    "test": "anon_direct_kokmatch_v34_member_auth_backup",
+    "pass": true,
+    "detail": {
+      "status": 200,
+      "returned_bytes": 2
+    }
+  },
+  {
+    "test": "anon_direct_kokmatch_v34_auth_backup",
+    "pass": true,
+    "detail": {
+      "status": 200,
+      "returned_bytes": 2
+    }
+  }
+]

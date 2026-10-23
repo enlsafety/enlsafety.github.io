@@ -1,0 +1,44 @@
+{
+  "verifiedAt": "2026-10-23T07:29:28.013Z",
+  "project": "zgwxzfvvpqgdedyobwmg",
+  "inventoryUnchanged": true,
+  "retainedTableCount": 29,
+  "retainedMismatch": [],
+  "targetsRemaining": {},
+  "guards": {
+    "noDeleteTriggers": true,
+    "fixtureOwnerValid": true,
+    "safeDeleteTopology": true,
+    "noRetainedReferences": true
+  },
+  "storage": {
+    "objects": 41,
+    "buckets": 3,
+    "hashesUnchanged": true
+  },
+  "status": "complete",
+  "scope": "staging synthetic Storage-sign metadata fixtures only",
+  "removed": {
+    "public.enl_hq_users": 2,
+    "private.enl_historical_batches": 1,
+    "private.enl_historical_files": 1
+  },
+  "independentReview": "passed",
+  "isolatedHandlerTests": {
+    "passed": 85,
+    "failed": 0
+  },
+  "storageMutations": false,
+  "retainedEnlTables": 27,
+  "endpoint": {
+    "name": "enl-storage-sign-cleanup-v472",
+    "tombstone": "pending root deployment"
+  },
+  "rollback": "No evidence or Storage objects deleted; only four newly-created synthetic fixture records removed.",
+  "temporaryEndpoint": {
+    "name": "enl-storage-sign-cleanup-v472",
+    "version": 2,
+    "getStatus": 410,
+    "postStatus": 410
+  }
+}

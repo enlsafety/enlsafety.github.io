@@ -1,0 +1,27 @@
+[
+  {
+    "table": "kokmatch_groups",
+    "status": 200,
+    "pass": true
+  },
+  {
+    "table": "kokmatch_global_admins",
+    "status": 200,
+    "pass": true
+  },
+  {
+    "table": "kokmatch_v34_state_backup",
+    "status": 200,
+    "pass": true
+  },
+  {
+    "table": "kokmatch_v34_member_auth_backup",
+    "status": 200,
+    "pass": true
+  },
+  {
+    "table": "kokmatch_v34_auth_backup",
+    "status": 200,
+    "pass": true
+  }
+]

@@ -1,0 +1,187 @@
+{
+  "release": "4.7.2-r2",
+  "migration": "enl-storage-dedup-20261023-v472",
+  "scope": "Exact-byte duplicate import originals only; all historical metadata aliases retained",
+  "local": {
+    "suite": "storage-dedup-postgres-handler",
+    "passed": 25,
+    "failed": 0
+  },
+  "staging": {
+    "suite": "storage-dedup-live-staging",
+    "passed": 41,
+    "failed": 0,
+    "freshRun": true,
+    "duplicateRemoved": 1,
+    "normalSignedDownloadsVerifiedBeforeAndAfter": true,
+    "cleanupComplete": true,
+    "fixtureRowsRemaining": 0,
+    "fixtureObjectsRemaining": 0,
+    "scopeBaselineRestored": {
+      "metadataFiles": 6,
+      "batches": 3,
+      "storageObjects": 8,
+      "storageBytes": 5139
+    },
+    "earlierSignFixtureCleanup": "Completed: two synthetic users, one batch and one alias removed; all retained fingerprints and borrowed Storage object unchanged",
+    "scopeBucket": "enl-import-originals",
+    "finalHistoricalBaseline": {
+      "metadataFiles": 5,
+      "batches": 2,
+      "importStorageObjects": 8,
+      "importStorageBytes": 5139
+    }
+  },
+  "production": {
+    "status": "completed",
+    "before": {
+      "historicalMetadataRows": 55,
+      "importStorageObjects": 55,
+      "importStorageBytes": 56428285,
+      "allIncidentStorageObjects": 83,
+      "allIncidentStorageBytes": 73303880
+    },
+    "expectedAfter": {
+      "historicalMetadataRows": 55,
+      "importStorageObjects": 24,
+      "importStorageBytes": 25188335,
+      "allIncidentStorageObjects": 52,
+      "allIncidentStorageBytes": 42063930
+    },
+    "expectedRemoved": {
+      "exactDuplicateObjects": 31,
+      "bytes": 31239950,
+      "totalStorageReductionPercent": 42.617048374519875
+    },
+    "incidentBucket": {
+      "objects": 28,
+      "bytes": 16875595,
+      "action": "unchanged"
+    },
+    "uniqueEvidenceOriginalBytes": "preserved without recompression",
+    "durableBackupVerified": true,
+    "manifestSha256": "b2c5fee07b3ec3eab83ecf65362dd24c5d5537eb320f4bf73c9d310cfbc56522",
+    "after": {
+      "historicalMetadataRows": 55,
+      "importStorageObjects": 24,
+      "importStorageBytes": 25188335,
+      "allIncidentStorageObjects": 52,
+      "allIncidentStorageBytes": 42063930
+    },
+    "removed": {
+      "exactDuplicateObjects": 31,
+      "bytes": 31239950,
+      "totalStorageReductionPercent": 42.617048374519875
+    },
+    "independentPostflight": {
+      "phase": "completed",
+      "events": 35,
+      "importBytes": 25188335,
+      "metadataRows": 55,
+      "importObjects": 24,
+      "removalEvents": 31,
+      "manifestPinned": true,
+      "ledgerRlsTables": 2,
+      "manifestEntries": 55,
+      "ledgerClientGrants": 0,
+      "totalIncidentBytes": 42063930,
+      "verifiedAfterEvents": 1,
+      "removedPathsRecorded": 31,
+      "totalIncidentObjects": 52,
+      "verifiedBeforeEvents": 1,
+      "canonicalAliasesMatch": 55,
+      "immutableAuditTrigger": 1,
+      "canonicalObjectsPresent": 24,
+      "canonicalObjectSizesMatch": 24,
+      "duplicateObjectsRemaining": 0,
+      "originalMetadataHashesMatch": 55,
+      "removedPathsOutsideManifest": 0
+    },
+    "databaseAfter": {
+      "physicalDatabaseBytes": 60664979,
+      "sharedPhysicalBytes": 548864,
+      "auditPhysicalBytes": 81920,
+      "revisionsPhysicalBytes": 49152,
+      "operationsPhysicalBytes": 32768,
+      "backupsPhysicalBytes": 49152,
+      "evidenceDictionaryPhysicalBytes": 2703360,
+      "storageProvenancePhysicalBytes": 212992,
+      "initialBaselinePhysicalBytes": 74714259,
+      "physicalBytesReduced": 14049280,
+      "physicalReductionPercent": 18.804014371607433
+    },
+    "normalSignedAliasVerification": {
+      "beforeRemoval": {
+        "project": "wjelumpbjklfrdjxbesj",
+        "label": "before-removal",
+        "aliases": 55,
+        "verified": 55,
+        "verifiedBytes": 56428285,
+        "uniqueOriginals": 24,
+        "failures": []
+      },
+      "afterRemoval": {
+        "project": "wjelumpbjklfrdjxbesj",
+        "label": "after-removal",
+        "aliases": 55,
+        "verified": 55,
+        "verifiedBytes": 56428285,
+        "uniqueOriginals": 24,
+        "failures": []
+      }
+    }
+  },
+  "temporaryEndpoints": {
+    "retired": true,
+    "checks": [
+      {
+        "project": "wjelumpbjklfrdjxbesj",
+        "endpoint": "enl-storage-bootstrap-v472",
+        "method": "GET",
+        "status": 410
+      },
+      {
+        "project": "wjelumpbjklfrdjxbesj",
+        "endpoint": "enl-storage-bootstrap-v472",
+        "method": "POST",
+        "status": 410
+      },
+      {
+        "project": "wjelumpbjklfrdjxbesj",
+        "endpoint": "enl-storage-dedup-v472",
+        "method": "GET",
+        "status": 410
+      },
+      {
+        "project": "wjelumpbjklfrdjxbesj",
+        "endpoint": "enl-storage-dedup-v472",
+        "method": "POST",
+        "status": 410
+      },
+      {
+        "project": "zgwxzfvvpqgdedyobwmg",
+        "endpoint": "enl-storage-bootstrap-v472",
+        "method": "GET",
+        "status": 410
+      },
+      {
+        "project": "zgwxzfvvpqgdedyobwmg",
+        "endpoint": "enl-storage-bootstrap-v472",
+        "method": "POST",
+        "status": 410
+      },
+      {
+        "project": "zgwxzfvvpqgdedyobwmg",
+        "endpoint": "enl-storage-dedup-v472",
+        "method": "GET",
+        "status": 410
+      },
+      {
+        "project": "zgwxzfvvpqgdedyobwmg",
+        "endpoint": "enl-storage-dedup-v472",
+        "method": "POST",
+        "status": 410
+      }
+    ]
+  }
+}

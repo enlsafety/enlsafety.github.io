@@ -1,0 +1,56 @@
+[
+  {
+    "test": "prod_health",
+    "status": 200,
+    "expected": 200,
+    "pass": true
+  },
+  {
+    "test": "prod_state_denied",
+    "status": 401,
+    "expected": 401,
+    "pass": true
+  },
+  {
+    "test": "prod_groups_denied",
+    "status": 401,
+    "expected": 401,
+    "pass": true
+  },
+  {
+    "test": "prod_auth_denied",
+    "status": 401,
+    "expected": 401,
+    "pass": true
+  },
+  {
+    "test": "prod_absent_user_probe",
+    "status": 401,
+    "expected": 401,
+    "pass": true
+  },
+  {
+    "test": "retired_login-v33",
+    "status": 410,
+    "expected": 410,
+    "pass": true
+  },
+  {
+    "test": "retired_multi-api",
+    "status": 410,
+    "expected": 410,
+    "pass": true
+  },
+  {
+    "test": "retired_auth-v38",
+    "status": 410,
+    "expected": 410,
+    "pass": true
+  },
+  {
+    "test": "retired_groups-v47",
+    "status": 410,
+    "expected": 410,
+    "pass": true
+  }
+]

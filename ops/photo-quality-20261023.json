@@ -1,0 +1,28 @@
+{
+  "sampleUniquePhotos": 11,
+  "beforeTotalBytes": 34383113,
+  "afterTotalBytes": 34325165,
+  "beforeMeanBytes": 3125738,
+  "afterMeanBytes": 3120470,
+  "weightedSavingsPercent": 0.16853622299993604,
+  "compressedPhotos": 2,
+  "preservedOriginals": 9,
+  "preservationReasons": {
+    "colorProfile": 8,
+    "quality": 1
+  },
+  "browsers": [
+    "Chromium",
+    "WebKit"
+  ],
+  "productionOriginalsLossilyReplaced": 0,
+  "visualReview": [
+    "native resolution",
+    "same display size",
+    "200 percent zoom",
+    "small Korean text",
+    "equipment labels",
+    "structural damage"
+  ],
+  "limitation": "Representative sample only; actual iPhone hardware not tested."
+}

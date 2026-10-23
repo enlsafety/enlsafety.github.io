@@ -1,0 +1,51 @@
+{
+  "passed": 30,
+  "failed": 0,
+  "project": "zgwxzfvvpqgdedyobwmg",
+  "productionWrites": 0,
+  "syntheticTablesRemoved": 5,
+  "checks": [
+    "test endpoint requires private gate",
+    "isolated five-table setup",
+    "normal HQ login",
+    "invalid HQ password",
+    "normal field login",
+    "HQ list ID-only denied",
+    "HQ list wrong proof denied",
+    "HQ list valid proof",
+    "HQ mutation ID-only denied",
+    "verified synthetic HQ creation",
+    "login ID-only denied personnel_pull",
+    "login wrong proof denied personnel_pull",
+    "login normal field personnel_pull",
+    "login ID-only denied personnel_upsert",
+    "login wrong proof denied personnel_upsert",
+    "login normal field personnel_upsert",
+    "login cross-site denied",
+    "login valid safety personnel read",
+    "personnel ID-only denied personnel_pull",
+    "personnel wrong proof denied personnel_pull",
+    "personnel normal field personnel_pull",
+    "personnel ID-only denied personnel_upsert",
+    "personnel wrong proof denied personnel_upsert",
+    "personnel normal field personnel_upsert",
+    "personnel cross-site denied",
+    "personnel valid safety personnel read",
+    "delete ID-only denied",
+    "delete wrong proof denied",
+    "verified synthetic worker delete",
+    "only five synthetic tables cleaned"
+  ],
+  "release": "4.7.2-r2",
+  "isolatedHandlerChecks": {
+    "login": 35,
+    "personnel": 27
+  },
+  "stagingFixtureTablesRemaining": 0,
+  "stagingEndpointRetired": true,
+  "productionDeployment": "pending",
+  "limitations": [
+    "Previously exposed administrator credential has not been rotated; removing old public seed files does not invalidate cached or Git-history copies",
+    "Existing Kokmatch shared group PIN authentication unchanged"
+  ]
+}

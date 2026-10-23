@@ -26,9 +26,9 @@
 
   function syncLocalPassword(newHash){
     try{
-      const u=currentUser?.();if(u){u.passwordHash=newHash;u.updatedAt=new Date().toISOString()}
-      if(session?.manager&&String(session.manager.id||'')===String(u?.id||''))session.manager.passwordHash=newHash;
-      if(session?.worker&&String(session.worker.id||'')===String(u?.id||''))session.worker.passwordHash=newHash;
+      const u=currentUser?.(),isField=roleNorm(u?.role)==='field';if(u){u.passwordHash=newHash;if(isField)u.pinHash=newHash;u.updatedAt=new Date().toISOString()}
+      if(session?.manager&&String(session.manager.id||'')===String(u?.id||'')){session.manager.passwordHash=newHash;if(isField)session.manager.pinHash=newHash;}
+      if(session?.worker&&String(session.worker.id||'')===String(u?.id||'')){session.worker.passwordHash=newHash;if(isField)session.worker.pinHash=newHash;}
       if(typeof saveSession==='function')saveSession();if(typeof saveData==='function')saveData();
     }catch(e){}
   }

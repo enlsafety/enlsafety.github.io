@@ -23,11 +23,25 @@
   function actor(u=currentUser?.()){return u?{id:u.id||u.personnelId||u.username||'',name:u.name||'',role:roleNorm(u.role),position:u.position||u.jobTitle||'',siteId:u.siteId||''}:null}
   window.enlCurrentActor=actor;
 
+  function withActorProof(body){
+    if(!['hq_list','hq_upsert','personnel_pull','personnel_upsert','personnel_delete'].includes(body?.action))return body;
+    const u=currentUser?.(),id=String(body?.actor?.id||'');
+    if(!id||String(u?.id||u?.personnelId||'')!==id)return body;
+    let stored=null,local=null;
+    try{const candidate=session?.manager||session?.worker;if(String(candidate?.id||candidate?.personnelId||'')===id)stored=candidate}catch(e){}
+    try{local=(data?.users||[]).find(x=>String(x?.id||'')===id)}catch(e){}
+    const passwordHash=String(u?.passwordHash||stored?.passwordHash||local?.passwordHash||'').trim();
+    const pinHash=String(u?.pinHash||stored?.pinHash||local?.pinHash||(roleNorm(u?.role)==='field'?passwordHash:'')).trim();
+    return {...body,actorPasswordHash:body.actorPasswordHash||passwordHash||undefined,actorPinHash:body.actorPinHash||pinHash||undefined};
+  }
+
+  window.enlAuthWithActorProof=withActorProof;
+
   async function api(body,timeout=18000){
     const ctl=typeof AbortController!=='undefined'?new AbortController():null;
     const timer=ctl?setTimeout(()=>ctl.abort(),timeout):null;
     try{
-      const r=await fetch(LOGIN_API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify(body),signal:ctl?.signal,cache:'no-store'});
+      const r=await fetch(LOGIN_API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify(withActorProof(body)),signal:ctl?.signal,cache:'no-store'});
       const j=await r.json().catch(()=>({}));
       if(!r.ok||j?.ok===false){const err=new Error(j?.message||`http_${r.status}`);err.status=r.status;throw err}
       return j;

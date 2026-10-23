@@ -1,0 +1,64 @@
+{
+  "release": "4.7.2",
+  "verifiedAt": "2026-10-23T06:48:25.518Z",
+  "project": "wjelumpbjklfrdjxbesj",
+  "productionVerificationWrites": 0,
+  "preservedRecords": {
+    "audit": 70,
+    "revisions": 2,
+    "backups": 4,
+    "completeOriginalRowSha256Matches": 76
+  },
+  "apiVerification": {
+    "auditRows": 70,
+    "auditSnapshots": 130,
+    "backupExports": 4,
+    "revisionRows": 2,
+    "allContentAndMetadataMatch": true
+  },
+  "dictionary": {
+    "objects": 92,
+    "allHashesValid": true,
+    "physicalBytes": 2703360,
+    "logicalJsonBytes": 2661968
+  },
+  "physicalStorage": {
+    "databaseBytesBefore": 74714259,
+    "databaseBytesAfter": 60370067,
+    "databaseBytesReclaimed": 14344192,
+    "databaseReductionPercent": 19.199,
+    "tablesAfterBytes": {
+      "audit": 81920,
+      "revisions": 49152,
+      "backups": 49152,
+      "dictionary": 2703360
+    }
+  },
+  "logicalPayloadEstimate": {
+    "beforeBytes": 15577564,
+    "afterBytes": 2678891,
+    "reductionPercent": 82.803,
+    "basis": "Offline verified production rows; includes dictionary JSON, reference hashes and estimated dictionary metadata."
+  },
+  "preservation": {
+    "allWholeRowHashesStillMatchAfterVacuum": true,
+    "immutableGuardsEnabled": true,
+    "originalDocumentsDeleted": 0
+  },
+  "temporaryActivationEndpoints": {
+    "production": {
+      "httpStatus": 410,
+      "code": "maintenance_completed",
+      "version": 2
+    },
+    "staging": {
+      "httpStatus": 410,
+      "code": "maintenance_completed",
+      "version": 2
+    }
+  },
+  "limitations": [
+    "Physical database total compares the initial release baseline with the measured result after evidence compaction and VACUUM FULL SKIP_LOCKED.",
+    "Unique legacy embedded image bytes remain losslessly preserved in private dictionary; evidence originals were not discarded."
+  ]
+}

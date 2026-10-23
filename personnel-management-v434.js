@@ -2,7 +2,7 @@
 (function(){
   'use strict';
 
-  const VERSION='4.4.12-hq-rank-align1';
+  const VERSION='4.7.2-personnel-proof1';
   const PERSONNEL_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-personnel-v434';
   const CLIENT='incident-report-v2';
   const FIELD_TITLES=['현장소장','파트장','서무'];
@@ -22,7 +22,8 @@
     const ctl=typeof AbortController!=='undefined'?new AbortController():null;
     const timer=ctl?setTimeout(()=>ctl.abort(),timeout):null;
     try{
-      const r=await fetch(PERSONNEL_API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify(body||{}),signal:ctl?.signal,cache:'no-store'});
+      const payload=typeof window.enlAuthWithActorProof==='function'?window.enlAuthWithActorProof(body||{}):(body||{});
+      const r=await fetch(PERSONNEL_API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify(payload),signal:ctl?.signal,cache:'no-store'});
       const j=await r.json().catch(()=>({}));
       if(!r.ok||j?.ok===false){const e=new Error(j?.message||`http_${r.status}`);e.status=r.status;throw e}
       return j;
