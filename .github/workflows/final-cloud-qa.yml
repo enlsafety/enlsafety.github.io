@@ -76,6 +76,7 @@ jobs:
           node --check sw-v418.js
           node tests/cause-auto-draft.cjs
           node tests/final-cache.cjs
+          node tests/one-page-excel.cjs
       - run: node tests/final-production-readonly.cjs
       - uses: actions/upload-artifact@v4
         if: always()

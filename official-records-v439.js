@@ -1,7 +1,7 @@
-/* E&L Accident Report App v4.3.9 - official approval, audit, PDF, backup UI */
+/* E&L Accident Report App v4.3.9 - official approval, audit, Excel, backup UI */
 (function(){
   'use strict';
-  const VERSION='4.4.39-statutory-record1';
+  const VERSION='4.7.1-one-page-excel';
   const API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-incident-compliance-v439';
   const CLIENT='incident-report-v2';
   let currentIncidentId='',patchQueued=false;
@@ -90,35 +90,9 @@
   function attachments(i){
     return [...(Array.isArray(i?.photos)?i.photos:[]),...(Array.isArray(i?.corrective?.afterPhotos)?i.corrective.afterPhotos:[])];
   }
-  function printReport(i){
-    const d=i.reportDetails||{},c=i.corrective||{},h=i.historicalImport||{},isHist=historical(i),person=String(i.category||'')==='person';
-    const worker=person?[d.injuredName||i.injuredName||'',d.job||i.job||''].filter(Boolean).join(' · '):[d.workerName||'',d.job||i.job||''].filter(Boolean).join(' · ');
-    const causeStatus=d.causeAnalysisStatus==='investigating'?'조사 중 · 원인 미확정':d.causeAnalysisStatus==='analyzed'?'분석 완료':'원인분석 상태 미기록';
-    const cause=[
-      '분석상태: '+causeStatus,
-      c.rootCause?'재발방지 원인분석: '+c.rootCause:'',
-      d.environmentCause?'환경적 요인: '+d.environmentCause:'',
-      d.behaviorCause?'행동적 요인: '+d.behaviorCause:'',
-      d.causeAnalysisNote?'기타·종합 원인: '+d.causeAnalysisNote:''
-    ].filter(Boolean).join(' / ');
-    const process=[d.workAction||'',d.incidentHow||i.summary||''].filter(Boolean).join(' → ');
-    const rows=isHist?[
-      ['사업장',site(i.siteId)],['근로자 인적사항',worker||'-'],['재해 발생 일시',occurrenceText(i)],['재해 발생 장소',d.place||'-'],
-      ['재해 발생 원인 및 과정',[cause,process].filter(Boolean).join('\n')||'-'],['재해 재발방지 계획',h.existingActionNote||h.additionalActionNote||'과거 ERP 자료 기준 별도 확인']
-    ]:[
-      ['사업장',site(i.siteId)],['근로자 인적사항',worker||'-'],['재해 발생 일시',occurrenceText(i)],['재해 발생 장소',d.place||'-'],
-      ['재해 발생 원인 및 과정',[cause,process].filter(Boolean).join('\n')||'-'],['재해 재발방지 계획',c.planDetail||d.preventionPlan||'-']
-    ];
-    if(isBulkImported(i))rows.push(i.externalInitialApproval?.state==='unverifiable'?['기존 결재 확인상태',`미검증 · ${i.externalInitialApproval.basis==='pre_erp'?'ERP 도입 전':'입사 전 결재자료 조회 불가'} / ${i.externalInitialApproval.reason||''}`]:['최초 사고보고 결재',`ERP 기결재 / ${i.externalInitialApproval.documentNo||'확인자료 참조'} / ${i.externalInitialApproval.approvalDate||'결재일 미기재'}`]);
-    const w=window.open('','_blank','noopener,noreferrer,width=900,height=900');if(!w)return alert('팝업이 차단되어 PDF 출력창을 열지 못했습니다.');
-    const title='사고기록_'+String(i.id||'').replace(/[^a-zA-Z0-9가-힣_-]/g,'_');
-    w.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${esc(title)}</title><style>
-      @page{size:A4;margin:14mm}body{font-family:"Malgun Gothic",sans-serif;color:#222;font-size:11px}h1{text-align:center;font-size:22px;margin:0 0 16px}.meta{display:flex;justify-content:space-between;border-bottom:2px solid #333;padding-bottom:7px;margin-bottom:12px}.grid{display:grid;grid-template-columns:145px 1fr;border-top:1px solid #777;border-left:1px solid #777}.grid b,.grid span{padding:8px;border-right:1px solid #777;border-bottom:1px solid #777;white-space:pre-wrap}.grid b{background:#f1f3f5}.foot{margin-top:18px;font-size:9px;color:#555;border-top:1px solid #aaa;padding-top:8px}@media print{button{display:none}}</style></head><body>
-      <h1>산업재해 사고기록</h1><div class="meta"><b>이앤엘 사고보고앱 법정 보존용 출력본</b><span>출력 ${esc(fmt(new Date().toISOString()))}</span></div>
-      <div class="grid">${rows.map(r=>`<b>${esc(r[0])}</b><span>${esc(r[1])}</span>`).join('')}</div>
-      <div class="foot">산업안전보건법 제57조제2항 및 시행규칙 제72조의 산업재해 기록 항목을 중심으로 출력한 자료입니다. 산업재해조사표 제출대상은 별도 법정 서식을 확인해야 합니다.</div>
-      <script>setTimeout(()=>window.print(),250)<\/script></body></html>`);
-    w.document.close();
+  function printReport(i,button){
+    if(typeof window.enlDownloadOnePageIncidentExcel!=='function')return alert('엑셀 출력 기능을 불러오지 못했습니다. 앱을 새로고침해 주세요.');
+    return window.enlDownloadOnePageIncidentExcel(i?.id,button);
   }
 
   function decorateModal(){
@@ -136,7 +110,7 @@
     }
     const actions=modal.querySelector('.modal-actions');
     if(actions){
-      if(!actions.querySelector('[data-official439-pdf]')){const b=document.createElement('button');b.type='button';b.dataset.official439Pdf='1';b.className='official439-btn';b.textContent='PDF 보고서 출력';b.onclick=()=>printReport(i);actions.appendChild(b)}
+      if(!actions.querySelector('[data-official439-excel]')){const b=document.createElement('button');b.type='button';b.dataset.official439Excel='1';b.className='official439-btn';b.textContent='엑셀 사고보고서 출력';b.title='A4 세로 1장 엑셀 파일 다운로드';b.onclick=()=>printReport(incident(i.id)||i,b);actions.appendChild(b)}
     }
   }
 

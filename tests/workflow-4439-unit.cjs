@@ -18,7 +18,7 @@ for(const x of ['4.4.43-safety-action-counts1','enl424-nav-count','safetyActionC
 assert.ok(reader.includes('enl424-nav-dot'),'simple confirmation red-dot behavior must remain');
 assert.ok(!stable.includes('reader-ack-ux-v423.js'));
 
-for(const x of ['4.4.39-statutory-record1','법정 사고기록','근로자 인적사항','재해 발생 일시','재해 발생 장소','재해 발생 원인 및 과정','재해 재발방지 계획']) assert.ok(official.includes(x),x);
+for(const x of ['4.7.1-one-page-excel','법정 사고기록','근로자 인적사항','재해 발생 일시','재해 발생 장소','재해 발생 원인 및 과정','재해 재발방지 계획']) assert.ok(official.includes(x),x);
 for(const bad of ['공식 사고기록 · 확인이력','사고보고 무결성 해시','최종 기록 해시','data-official439-audit','사고 변경·확인 감사로그','enlOfficialAuditOpen']) assert.ok(!official.includes(bad),bad);
 assert.ok(official.includes('backup_restore'));
 assert.ok(official.includes('공식기록 · 백업/복원'));
