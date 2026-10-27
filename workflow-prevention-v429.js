@@ -260,6 +260,7 @@
   }
   async function commitForm(form,i,u,onSuccess){
     if(form.dataset.saving==='1')return false;form.dataset.saving='1';
+    i=window.enlStableSaveAttempt?.(form,i,['closedAt'])||i;
     const buttons=[...form.querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);
     try{if(!await window.enlCommitOrNotify(i))return false;onSuccess?.();closeModal();renderShell(u);return true;}
     finally{form.dataset.saving='0';buttons.forEach(b=>b.disabled=false);}

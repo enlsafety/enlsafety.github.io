@@ -173,7 +173,8 @@
       if(!fields.length&&!note)return alert('보완이 필요한 항목을 하나 이상 선택하거나 보완요청 메모를 입력해 주세요.');
       const ts=now();i.status='supplement';i.supplement={...(i.supplement||{}),status:'waiting',requestedFields:fields,requestNote:note||defs.filter(([k])=>fields.includes(k)).map(([,label])=>label).join(', ')+' 자료를 보완해 주세요.',requestedBy:u.name,requestedById:uid(u),requestedAt:ts,submittedAt:null};
       const w=workflow(i);w.phase='supplement_waiting';w.supplementRequestedAt=ts;w.supplementRequestedBy=u.name;i.updatedAt=ts;
-      if(!await window.enlCommitOrNotify(i))return;closeModal();renderShell(u);alert('사고보고를 보완대기로 전환했습니다. 현장관리자에게 보완요청이 전달됩니다.');
+      const attempt=window.enlStableSaveAttempt?.(e.currentTarget,i,['supplement.requestedAt','reportWorkflow.supplementRequestedAt'])||i;
+      if(!await window.enlCommitOrNotify(attempt))return;closeModal();renderShell(u);alert('사고보고를 보완대기로 전환했습니다. 현장관리자에게 보완요청이 전달됩니다.');
     };
   }
 
@@ -237,7 +238,8 @@
       }
       const ts=now();i.reportDetails=d;i.status='supplement_submitted';i.supplement={...(i.supplement||{}),status:'submitted',attachments:persistAttachments(supplementFiles),submittedBy:u.name,submittedById:uid(u),submittedAt:ts};
       const w=workflow(i);w.phase='supplement_review';w.supplementSubmittedAt=ts;w.supplementSubmittedBy=u.name;i.updatedAt=ts;
-      if(!await window.enlCommitOrNotify(i))return;supplementFiles=[];closeModal();renderShell(u);alert('보완자료를 안전관리자 검토대기로 제출했습니다.');
+      const attempt=window.enlStableSaveAttempt?.(form,i,['supplement.submittedAt','reportWorkflow.supplementSubmittedAt'])||i;
+      if(!await window.enlCommitOrNotify(attempt))return;supplementFiles=[];closeModal();renderShell(u);alert('보완자료를 안전관리자 검토대기로 제출했습니다.');
     };
   }
 
@@ -403,7 +405,8 @@
     applySafetyFields(i,u);const ts=now();i.status='approved';i.approvedBy=u.name;i.approvedAt=ts;i.rejectionNote='';
     if(i.supplement)i.supplement={...i.supplement,status:'accepted',approvedBy:u.name,approvedById:uid(u),approvedAt:ts};
     const w=workflow(i);w.phase='report_approved';w.finalApprovedAt=ts;w.finalApprovedBy=u.name;w.finalApprovedById=uid(u);i.updatedAt=ts;
-    if(!await window.enlCommitOrNotify(i))return;closeModal();renderShell(u);alert('사고보고를 최종승인했습니다. 이제 재발방지계획을 수립할 수 있습니다.');
+    const attempt=window.enlStableSaveAttempt?.(document.querySelector('#modalRoot .modal'),i,['approvedAt','prioritySetAt','supplement.approvedAt','reportWorkflow.finalApprovedAt'])||i;
+    if(!await window.enlCommitOrNotify(attempt))return;closeModal();renderShell(u);alert('사고보고를 최종승인했습니다. 이제 재발방지계획을 수립할 수 있습니다.');
   }
 
   async function pushApi(action,extra={}){

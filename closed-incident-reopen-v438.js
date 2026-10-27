@@ -13,7 +13,7 @@
  const val=(i,k)=>k.split('.').reduce((a,b)=>a?.[b],i);
  function failure(err){
   const msg=String(err?.message||err||'');
-  if(msg.includes('enl_sync_conflict_version'))return '다른 사용자가 먼저 수정했습니다. 최신 사고기록을 다시 열고 변경해 주세요.';
+  if(msg.includes('enl_sync_conflict'))return '서버 자료 버전이 변경되어 저장하지 못했습니다. 작성 내용은 유지했습니다. 변경사항을 비교한 뒤 다시 검토해 주세요.';
   if(msg.includes('auth_proof_required')||msg.includes('session_auth_expired'))return '로그인 인증이 만료되었습니다. 다시 로그인해 주세요.';
   if(msg.includes('revision_field_forbidden'))return '서버가 허용하지 않는 수정 항목이 포함되어 있습니다. 변경 항목을 다시 확인해 주세요.';
   if(msg.includes('revision_reason_required'))return '수정 사유를 입력해 주세요.';

@@ -190,7 +190,8 @@
         existing.resubmittedBy=u.name;existing.resubmittedById=u.personnelId||u.id||'';existing.resubmittedAt=nowISO();
         existing.reviewHistory.push({action:previousStatus==='reported'?'withdrawn_and_resubmitted':'resubmitted',by:u.name,at:existing.resubmittedAt});
       }
-      if(!await window.enlCommitOrNotify(existing))return;
+      const attempt=window.enlStableSaveAttempt?.(e.currentTarget,existing,['prioritySetAt','resubmittedAt','reviewHistory.'+(existing.reviewHistory.length-1)+'.at'])||existing;
+      if(!await window.enlCommitOrNotify(attempt))return;
       incidentPhotos=[];activeType=null;activeEditId=null;
       alert(bySafety?'안전관리자 수정사항이 저장되었습니다. 기존 검토상태는 유지됩니다.':'수정된 사고보고서가 다시 제출되었습니다.');
       currentView='incidents';return renderShell(u);

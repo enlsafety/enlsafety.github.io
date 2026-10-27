@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const { chromium }=require('playwright');
 
 (async()=>{
-  const source=fs.readFileSync('admin.js','utf8');
+  const source=fs.readFileSync('admin.js','utf8').replace(/\r\n/g,'\n');
   const start=source.indexOf('function openModal(html)');
   const end=source.indexOf('\n\ntry{const bc=',start);
   assert.ok(start>=0&&end>start,'openModal/closeModal block not found');

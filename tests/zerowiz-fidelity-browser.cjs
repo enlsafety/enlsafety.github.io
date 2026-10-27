@@ -68,6 +68,17 @@ const TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; c
    assert.equal(intro.origin,'null','demo must run with opaque sandbox origin');
    assert.equal(intro.active,'zw-safety');
    assert.equal(intro.api,'2.0.2');
+   // The embedded demo intentionally disallows native modal dialogs.
+   await frame.locator('body').evaluate(()=>{window.qaAlerts=[];window.alert=m=>qaAlerts.push(m);});
+   await frame.locator('[data-shell-view="incidents"]').click();
+   await frame.locator('[data-inc-id]').filter({hasText:'카트 이동 중 가상 안전표지판 접촉'}).click();
+   await frame.locator('#editInc').click();
+   await frame.locator('#incidentHow410').fill('가상 수정 저장 회귀시험');
+   await frame.locator('#damagedItem410').fill('가상 안전표지판');
+   await frame.locator('#safetyFactEditReason').fill('가상 저장 안정성 확인');
+   await frame.getByRole('button',{name:'수정사항 저장',exact:true}).click();
+   await frame.locator('#unifiedReportForm').waitFor({state:'detached'});
+   assert.ok(await frame.locator('body').evaluate(()=>ENL_ZEROWIZ_FIDELITY.getRecords().some(i=>i.reportDetails?.incidentHow==='가상 수정 저장 회귀시험')),'single-user full report edit saves without a false conflict');
    await switchRole('zw-field');
    await frame.locator('.app-shell.shell-v411').waitFor();
    const fieldView=await frame.locator('body').innerText();
@@ -82,6 +93,10 @@ const TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; c
    await picker.screenshot({path:'qa-output/full-app-photo-picker-'+profile.name+'.png'});
    assert.equal(await frame.locator('#environmentCause410,#behaviorCause410').count(),0,'actual field report excludes cause input');
    assert.ok(await frame.locator('.report410-section').count()>=3,'real report section styles and fields');
+   await frame.locator('#incidentHow410').fill('가상 입력 보존 회귀시험');
+   await frame.locator('body').evaluate(()=>{saveData();const channel=new BroadcastChannel('enl_safety_v3');channel.postMessage('update');channel.close();});
+   await page.waitForTimeout(400);
+   assert.equal(await frame.locator('#incidentHow410').inputValue(),'가상 입력 보존 회귀시험','own save and another tab cache message preserve the active report');
    await switchRole('zw-worker');
    await frame.locator('.app-shell.shell-v411').waitFor();
    assert.equal(await frame.locator('#zwRuntimeRoleSelect').inputValue(),'zw-worker');
