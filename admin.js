@@ -26,8 +26,8 @@ function openPasswordModal(){const u=currentUser();openModal(`<div class="modal-
 function openModal(html){const r=document.getElementById('modalRoot');r.innerHTML=`<div class="modal-bg"><div class="modal">${html}</div></div>`;r.querySelectorAll('[data-close]').forEach(b=>b.onclick=closeModal);const bg=r.querySelector('.modal-bg');let backdropPress=null;bg?.addEventListener('pointerdown',e=>{backdropPress=e.target===bg?{id:e.pointerId,x:e.clientX,y:e.clientY}:null});bg?.addEventListener('pointerup',e=>{const s=backdropPress;backdropPress=null;if(!s||s.id!==e.pointerId||e.target!==bg)return;if(Math.hypot(e.clientX-s.x,e.clientY-s.y)<=8)closeModal()});bg?.addEventListener('pointercancel',()=>{backdropPress=null})}
 function closeModal(){const r=document.getElementById('modalRoot');if(r)r.innerHTML=''}
 
-try{const bc=new BroadcastChannel('enl_safety_v3');bc.onmessage=()=>{data=loadData();render()}}catch(e){}
-window.addEventListener('storage',e=>{if([DB_KEY,SESSION_KEY].includes(e.key)){data=loadData();session=loadSession();render()}});
+try{const bc=window.enlDataBroadcastChannel=window.enlDataBroadcastChannel||new BroadcastChannel('enl_safety_v3');bc.onmessage=()=>{if(window.enlRefreshSharedData)return window.enlRefreshSharedData();data=loadData();render()}}catch(e){}
+window.addEventListener('storage',e=>{if([DB_KEY,SESSION_KEY].includes(e.key)){if(e.key===SESSION_KEY)session=loadSession();if(window.enlRefreshSharedData)return window.enlRefreshSharedData(e.key===SESSION_KEY);data=loadData();render()}});
 
 render();
 setTimeout(()=>{const u=currentUser();if(u?.role==='field'&&currentView==='report')renderFieldMini(u)},0);

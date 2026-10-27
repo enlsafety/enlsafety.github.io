@@ -5,7 +5,7 @@ import postgres from "npm:postgres@3.4.5";
 
 const ORIGIN="https://enlsafety.github.io";
 const APP="incident-report-v2";
-const VERSION="4.7.2-evidence-storage";
+const VERSION="4.7.3-sync-order";
 const cors={"Access-Control-Allow-Origin":ORIGIN,"Access-Control-Allow-Headers":"content-type, x-client-info, apikey, authorization, x-enl-app","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:cors});
 const clean=(v:any)=>String(v??"").trim();
@@ -372,6 +372,10 @@ Deno.serve(async(req:Request)=>{
         const rr=await sql`select incident_id,site_id,payload,created_at from public.enl_incident_shared where incident_id=${id} limit 1 for update`,row=rr[0],prev=parsePayload(row?.payload);
         if(prev&&clean(raw0._syncMutationId)&&clean(raw0._syncMutationId)===clean(prev._syncMutationId)){savedIncidents.push(prev);ignored++;continue;}
         if(prev&&comparableIncident(raw0)===comparableIncident(prev)){savedIncidents.push(prev);ignored++;continue;}
+        // Check the locked row's version before comparing server-managed fields.
+        // Otherwise an ordinary stale draft is misreported as record tampering.
+        const baseVersion=Object.prototype.hasOwnProperty.call(raw0,"_syncBaseVersion")?versionOf(raw0._syncBaseVersion):versionOf(raw0._syncVersion);
+        if(baseVersion!==versionOf(prev?._syncVersion))rejectWrite("enl_sync_conflict_version",409);
         const policy=validateLifecycle(prev,raw0,actor,now);
         if(bulkInactive(prev)){ignored++;continue;} // A stale client may still hold a now-invalidated incident.
         if(!prev&&isBulkImported(raw0))rejectWrite("bulk_registration_requires_import_api",409);

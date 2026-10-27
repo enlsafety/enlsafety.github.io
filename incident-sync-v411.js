@@ -1,19 +1,9 @@
-/* E&L Incident shared sync v4.1.1 - authoritative server sync */
+/* E&L incident sync: per-record serialization and in-memory draft preservation. */
 (function(){
   'use strict';
   const API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-incident-sync-v411';
   const CLIENT='incident-report-v2';
-  let committing=false;
-  const authoritative=new Map();
-  let applyingRemote=false,syncing=false,pending=false,serverReady=false,dirty=false;
-  let syncTimer=null;
-  const deferredDeletedIds=new Set();
-  let lastIds=new Set((data.incidents||[]).map(x=>x.id));
-  let lastSig=signature(data.incidents||[]);
-  const baseSaveData=saveData;
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
-
-  function signature(items){return JSON.stringify((items||[]).map(i=>[String(i.id),i]).sort((a,b)=>a[0].localeCompare(b[0])))}
 
   function actor(){const u=currentUser();return u?{id:u.id||u.personnelId||u.username||'',name:u.name||'',role:roleNorm(u.role),position:u.position||u.jobTitle||'',siteId:u.siteId||''}:null}
   function authProof(){
@@ -27,191 +17,225 @@
     if(!passwordHash&&u?.id){try{const local=(data?.users||[]).find(x=>String(x?.id||'')===String(u.id));passwordHash=String(local?.passwordHash||'').trim()}catch(e){}}
     return {actorPasswordHash:passwordHash||undefined,actorPinHash:pinHash||undefined};
   }
-  let authProofExpiredNotified=false;
-  function requireFreshLogin(){
-    if(!authProofExpiredNotified){
-      authProofExpiredNotified=true;
-      alert('로그인 인증정보가 만료되었습니다. 다시 로그인하면 방금 작성한 사고기록이 자동으로 서버에 반영됩니다.');
-    }
-    try{window.enlClearRefreshSession?.('auth_proof_required')}catch(e){}
-    setTimeout(()=>{try{window.enlRenderLogin?.()}catch(e){try{renderLogin?.()}catch(_){}}},0);
+  // One queue per incident. Pulls may observe versions, but never advance the
+  // base of a draft silently; only this tab's confirmed writes can be rebased.
+  const authoritative=new Map(),history=new Map(),ownWrites=new Map();
+  const queues=new Map(),inflight=new Map(),retryWrites=new Map(),failures=new Map(),drafts=new Map();
+  const notices=new Map();
+  let applyingRemote=false,syncing=false,pending=false,serverReady=false,dirty=false,syncTimer=null,pullSequence=0;
+  let sessionKey='',lastPersisted='';
+  const baseSaveData=saveData;
+  const version=i=>Number(i?._syncVersion||0);
+  const clone=v=>structuredClone(v);
+  const stable=v=>Array.isArray(v)?v.map(stable):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().filter(k=>v[k]!==undefined).map(k=>[k,stable(v[k])])):v;
+  const metadata=['_pendingCommitId','_syncBaseVersion','_syncVersion','_syncMutationId','updatedAt','lastModifiedAt','lastModifiedBy','lastModifiedRole','lastModifiedPosition'];
+  function comparable(i){const x=clone(i||{});for(const k of metadata)delete x[k];if(x.corrective)for(const k of metadata.filter(k=>k.startsWith('lastModified')))delete x.corrective[k];return x;}
+  const signature=v=>JSON.stringify(stable(v));
+  const contentSignature=i=>signature(comparable(i));
+  const same=(a,b)=>contentSignature(a)===contentSignature(b);
+  const find=id=>(data.incidents||[]).find(i=>String(i.id)===String(id));
+  const key=a=>a?[a.id,a.role,a.siteId].join('|'):'';
+  function scope(){const k=key(actor());if(k!==sessionKey){sessionKey=k;authoritative.clear();history.clear();ownWrites.clear();retryWrites.clear();failures.clear();drafts.clear();notices.clear();serverReady=false;for(const i of data.incidents||[])remember(i);}return k;}
+  function remember(i){
+    if(!i?.id)return false;const id=String(i.id),old=authoritative.get(id);
+    if(old&&version(old)>version(i))return false;
+    if(!history.has(id))history.set(id,new Map());const h=history.get(id);h.set(version(i),clone(i));
+    while(h.size>16)h.delete(h.keys().next().value);
+    authoritative.set(id,clone(i));return true;
+  }
+  function locallyChanged(i){return !!i&&!same(i,history.get(String(i.id))?.get(version(i))||authoritative.get(String(i.id)));}
+  function hasDraft(id){return drafts.has(id)||failures.has(id)||!!queues.get(id)||locallyChanged(find(id));}
+  function refreshDirty(){dirty=(data.incidents||[]).some(i=>!i.workerPublicOnly&&locallyChanged(i));return dirty;}
+  function persistConfirmed(){
+    // Keep unsent medical/incident drafts only in memory. Other app data still
+    // uses its existing persistence implementation.
+    const visible=data.incidents;data.incidents=[...authoritative.values()].map(clone);applyingRemote=true;
+    try{const next=signature(data);if(next!==lastPersisted){baseSaveData();lastPersisted=next;}}finally{data.incidents=visible;applyingRemote=false;}
+  }
+  function uiWriteBusy(){return !!document.querySelector('#unifiedReportForm,#reportForm,.modal');}
+  function canAutoRender(){try{if(window.enlUiModalBusy?.())return false}catch(e){}return !uiWriteBusy()&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName||'');}
+  function errorOf(message,status=0){const e=new Error(message);e.status=status;return e;}
+  const isConflict=e=>String(e?.message||'').includes('enl_sync_conflict');
+  function errorMessage(e){
+    const m=String(e?.message||'');
+    if(isConflict(e))return '서버 자료 버전이 변경되어 저장하지 못했습니다. 작성 내용은 유지했습니다. 변경사항을 비교한 뒤 다시 검토해 주세요.';
+    if(m==='session_auth_expired'||m==='session_changed')return '로그인 인증을 다시 확인해야 합니다. 작성 내용은 현재 화면에 유지했습니다. 다시 로그인한 뒤 저장을 재시도해 주세요.';
+    if(e?.status===403||/forbidden|permission|read_only/.test(m))return '이 내용을 저장할 권한이 없습니다. 작성 내용은 유지했습니다. 계정과 사업장 권한을 확인해 주세요.';
+    if(m==='save_in_progress')return '이 사고의 저장을 처리 중입니다. 완료될 때까지 잠시 기다려 주세요.';
+    return '서버 저장을 확인하지 못했습니다. 작성 내용은 현재 화면에 유지했습니다. 연결 상태를 확인한 뒤 저장을 다시 시도해 주세요.';
+  }
+  function notifyFailure(e,id='',candidate){
+    const noticeKey=[sessionKey,id,e.message].join('|');if(Date.now()-(notices.get(noticeKey)||0)<10000)return;
+    notices.set(noticeKey,Date.now());const detail={id,error:e.message,status:e.status,message:errorMessage(e),draft:clone(candidate||drafts.get(id)||find(id)||{}),latest:clone(authoritative.get(id)||null)};
+    const event=new CustomEvent('enl-incident-write-error',{detail,cancelable:true});window.dispatchEvent(event);
+    if(!event.defaultPrevented)alert(detail.message);
   }
   async function call(body,timeout=9000){
     const controller=typeof AbortController!=='undefined'?new AbortController():null;
     const timer=controller?setTimeout(()=>controller.abort(),timeout):null;
     try{
-      const payload={...body,...authProof()};
-      const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify(payload),signal:controller?.signal,cache:'no-store'});
+      const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify({...body,...authProof()}),signal:controller?.signal,cache:'no-store'});
       const j=await r.json().catch(()=>({}));
-      if((!r.ok||j?.ok===false)&&j?.message==='auth_proof_required'){
-        requireFreshLogin();
-        throw new Error('session_auth_expired');
-      }
-      if(!r.ok||j?.ok===false)throw new Error(j?.message||`sync_http_${r.status}`);
+      if(!r.ok||j?.ok===false)throw errorOf(j?.message==='auth_proof_required'||r.status===401?'session_auth_expired':j?.message||`sync_http_${r.status}`,r.status);
       return j;
     }finally{if(timer)clearTimeout(timer)}
   }
-
-  function persistRemote(next){
-    for(const i of next||[])authoritative.set(String(i.id),structuredClone(i));
-    data.incidents=[...(next||[])].sort((x,y)=>new Date(y.occurredAt||0)-new Date(x.occurredAt||0));
-    applyingRemote=true;try{baseSaveData()}finally{applyingRemote=false}
-    lastIds=new Set(data.incidents.map(x=>x.id));lastSig=signature(data.incidents);dirty=false;
-    try{window.enlAuditSnapshotRefresh?.()}catch(e){}
-  }
-
-  function scopedRemote(remote,a){
-    if(!Array.isArray(remote))return [];
-    if(['safety','manager','executive'].includes(a?.role))return remote.filter(r=>r?.id);
-    if(a?.role==='field'||a?.role==='worker')return remote.filter(r=>r?.id&&String(r.siteId||'')===String(a.siteId||''));
-    return [];
-  }
-
-  function replaceFromServer(remote){
-    const a=actor();if(!a)return false;
-    const next=scopedRemote(remote,a);
-    for(const i of next)authoritative.set(String(i.id),structuredClone(i));
-    const before=signature(data.incidents||[]),after=signature(next);
-    if(before!==after){persistRemote(next);return true}
-    lastIds=new Set(next.map(x=>x.id));lastSig=after;dirty=false;return false;
-  }
-
-  const retryWrites=new Map();
-  function contentSignature(i){const x=structuredClone(i||{});for(const k of ['_pendingCommitId','_syncBaseVersion','_syncVersion','_syncMutationId','updatedAt','lastModifiedAt','lastModifiedBy','lastModifiedRole','lastModifiedPosition'])delete x[k];return JSON.stringify(x)}
-  async function push(deletedIds=[]){
-    const a=actor();if(!a||!serverReady||['manager','executive'].includes(a.role))return;
-    if(deletedIds.length)throw new Error('delete_requires_compliance_api');
-    const incidents=[];
-    for(const local of data.incidents||[]){
-      if(['field','worker'].includes(a.role)&&String(local.siteId)!==String(a.siteId)||local.workerPublicOnly)continue;
-      const id=String(local.id),before=authoritative.get(id),signature=contentSignature(local);
-      if(before&&signature===contentSignature(before))continue;
-      const candidate=structuredClone(local),prior=retryWrites.get(id),base=Number(before?._syncVersion||0);
-      const mutation=prior&&prior.signature===signature&&prior.base===base?prior.mutation:crypto.randomUUID();retryWrites.set(id,{signature,base,mutation});
-      candidate._syncBaseVersion=base;candidate._syncMutationId=mutation;delete candidate._pendingCommitId;incidents.push(candidate);
-    }
-    if(!incidents.length)return;
-    const result=await call({action:'push',actor:a,incidents,deletedIds:[]});
-    for(const saved of result.incidents||[]){
-      const id=String(saved.id),sent=retryWrites.get(id),local=data.incidents.find(x=>String(x.id)===id);
-      if(local&&sent&&contentSignature(local)===sent.signature){acceptSaved(saved);retryWrites.delete(id);}
-      else{authoritative.set(id,structuredClone(saved));if(local)local._syncVersion=saved._syncVersion;dirty=true;}
-    }
-  }
-
-  function uiWriteBusy(){
-    return !!document.querySelector('#unifiedReportForm,#reportForm,.modal');
-  }
-  function canAutoRender(){
-    try{if(window.enlUiModalBusy?.())return false}catch(e){}
-    return !uiWriteBusy()&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName||'')
-  }
+  function scopedRemote(items,a){return (Array.isArray(items)?items:[]).filter(i=>i?.id&&(['safety','manager','executive'].includes(a?.role)||['field','worker'].includes(a?.role)&&String(i.siteId)===String(a.siteId)));}
   async function pull(renderIfChanged=true){
-    const a=actor();if(!a)return false;
+    const a=actor();if(!a)return false;const owner=scope(),sequence=++pullSequence,started=new Map([...authoritative].map(([id,i])=>[id,version(i)]));
     const res=await call({action:'pull',actor:a,role:a.role,siteId:a.siteId});
-    // Never apply a remote snapshot over an unsent local edit or an actively
-    // edited report form. Applying the pull here can reset filled fields and,
-    // for report edits, detach the object the submit handler is editing.
-    if(dirty||uiWriteBusy()){serverReady=true;return false}
-    const changed=replaceFromServer(res?.incidents||[]);serverReady=true;
-    if(changed&&renderIfChanged&&canAutoRender())setTimeout(()=>{try{renderShell(currentUser())}catch(e){}},0);
+    if(owner!==key(actor())||owner!==sessionKey)return false;
+    const remote=scopedRemote(res.incidents,a),busy=uiWriteBusy();let changed=false;
+    for(const saved of remote){
+      const id=String(saved.id),protectedDraft=hasDraft(id),local=find(id);
+      if(!remember(saved))continue;
+      if(busy||protectedDraft)continue;
+      if(!local||signature(local)!==signature(saved)){const idx=data.incidents.indexOf(local);if(idx<0)data.incidents.push(clone(saved));else data.incidents[idx]=clone(saved);changed=true;}
+    }
+    // Only the newest complete snapshot may remove records from the visible list.
+    if(!busy&&!refreshDirty()&&sequence===pullSequence){const ids=new Set(remote.map(i=>String(i.id)));data.incidents=(data.incidents||[]).filter(i=>{const id=String(i.id);if(ids.has(id)||hasDraft(id)||started.get(id)!==version(authoritative.get(id)))return true;authoritative.delete(id);history.delete(id);changed=true;return false;});}
+    serverReady=true;refreshDirty();persistConfirmed();
+    if(changed&&renderIfChanged&&canAutoRender())setTimeout(()=>{if(canAutoRender())try{renderShell(currentUser())}catch(e){}},0);
     return changed;
   }
-
-  function acceptSaved(i){
-    const otherDirty=dirty&&(data.incidents||[]).some(x=>String(x.id)!==String(i.id)&&JSON.stringify(x)!==JSON.stringify(authoritative.get(String(x.id))));
-    authoritative.set(String(i.id),structuredClone(i));
-    const idx=(data.incidents||[]).findIndex(x=>String(x.id)===String(i.id));
-    if(idx<0)data.incidents.unshift(i);else data.incidents[idx]=i;
-    applyingRemote=true;try{baseSaveData()}finally{applyingRemote=false}
-    lastIds=new Set(data.incidents.map(x=>x.id));lastSig=signature(data.incidents);dirty=otherDirty;
-    if(dirty)scheduleSync(500);
-    window.dispatchEvent(new CustomEvent('enl-incident-saved',{detail:i}));
-    return i;
+  function acceptSaved(saved,sent,visibleBefore){
+    const id=String(saved.id),local=find(id),before=authoritative.get(id),unedited=!locallyChanged(local);
+    if(!remember(saved))return authoritative.get(id);
+    if(!local||unedited||visibleBefore&&same(local,visibleBefore)||same(local,sent||before)||same(local,saved)){
+      const idx=data.incidents.indexOf(local);if(idx<0)data.incidents.unshift(clone(saved));else data.incidents[idx]=clone(saved);
+    }
+    refreshDirty();persistConfirmed();window.dispatchEvent(new CustomEvent('enl-incident-saved',{detail:clone(saved)}));return saved;
   }
-  async function commitIncident(i){
-    if(committing)throw new Error('save_in_progress');
-    committing=true;
-    const a=actor(),id=String(i.id),candidate=structuredClone(i);
-    candidate._syncBaseVersion=Number(i._syncVersion||0);
-    candidate._syncMutationId=i._pendingCommitId||(i._pendingCommitId=crypto.randomUUID());
-    delete candidate._pendingCommitId;
-    try{
-      const start=Date.now();while(syncing){if(Date.now()-start>12000)throw new Error('sync_busy');await new Promise(r=>setTimeout(r,50));}
-      const result=await call({action:'push',actor:a,incidents:[candidate],deletedIds:[]},20000);
-      const saved=result.incidents?.find(x=>String(x.id)===id);if(!saved)throw new Error('save_not_confirmed');
-      delete i._pendingCommitId;return acceptSaved(saved);
-    }catch(error){
-      const original=authoritative.get(id);if(original){const idx=data.incidents.findIndex(x=>String(x.id)===id);if(idx>=0)data.incidents[idx]=structuredClone(original);}
-      throw error;
-    }finally{committing=false;}
+  function enqueue(id,fn){
+    const previous=queues.get(id)||Promise.resolve();
+    const result=previous.catch(()=>{}).then(fn),tail=result.catch(()=>{});queues.set(id,tail);
+    tail.then(()=>{if(queues.get(id)===tail)queues.delete(id);});return result;
+  }
+  function ownChain(id,from,to){let v=from;for(const step of ownWrites.get(id)||[])if(step.from===v&&step.to>v)v=step.to;return v===to;}
+  function rebase(id,wanted,base,current){
+    if(!base||!current||!ownChain(id,version(base),version(current)))throw errorOf('enl_sync_conflict_version',409);
+    // Only ordinary factual text changes before approval may follow this tab's
+    // earlier write. Workflow, evidence, approval and final records never merge.
+    if(!['reported','rejected','supplement','supplement_submitted'].includes(current.status)||current.status!==base.status)throw errorOf('enl_sync_conflict_version',409);
+    const old=comparable(base),draft=comparable(wanted),next=clone(current);
+    const allowed=new Set(['summary','immediateAction','eventType','injuredName','job','occurredAt','safetyNote']);
+    for(const field of new Set([...Object.keys(old),...Object.keys(draft)])){
+      if(signature(old[field])===signature(draft[field]))continue;
+      if(field==='reportDetails'){
+        for(const k of new Set([...Object.keys(old[field]||{}),...Object.keys(draft[field]||{})])){
+          if(signature(old[field]?.[k])===signature(draft[field]?.[k]))continue;
+          if(draft[field]?.[k]&&typeof draft[field][k]==='object')throw errorOf('enl_sync_conflict_version',409);
+          next.reportDetails={...(next.reportDetails||{})};if(draft[field]?.[k]===undefined)delete next.reportDetails[k];else next.reportDetails[k]=draft[field][k];
+        }
+      }else if(allowed.has(field)){if(draft[field]===undefined)delete next[field];else next[field]=clone(draft[field]);}
+      else throw errorOf('enl_sync_conflict_version',409);
+    }
+    return next;
+  }
+  function confirmWrite(id,sent,saved){
+    if(version(saved)<version(sent))throw errorOf('save_not_confirmed');
+    const steps=ownWrites.get(id)||[];steps.push({from:Number(sent._syncBaseVersion||0),to:version(saved)});ownWrites.set(id,steps.slice(-16));
+    retryWrites.delete(id);failures.delete(id);drafts.delete(id);notices.delete([sessionKey,id,'enl_sync_conflict_version'].join('|'));
+    return acceptSaved(saved,sent);
+  }
+  async function send(id,sent,a,owner){
+    const result=await call({action:'push',actor:a,incidents:[sent],deletedIds:[]},20000);
+    if(owner!==key(actor())||owner!==sessionKey)throw errorOf('session_changed');
+    const saved=result.incidents?.find(i=>String(i.id)===id);if(!saved)throw errorOf('save_not_confirmed');
+    return confirmWrite(id,sent,saved);
+  }
+  function commitIncident(input,{background=false}={}){
+    const owner=scope(),a=actor(),id=String(input.id),wanted=clone(input),visibleBefore=clone(find(id)||null),sig=contentSignature(wanted),dedupe=owner+'|'+id+'|'+sig;
+    if(inflight.has(dedupe))return inflight.get(dedupe);
+    const base=clone(history.get(id)?.get(version(wanted))||authoritative.get(id)&&version(authoritative.get(id))===version(wanted)&&authoritative.get(id)||null);
+    drafts.set(id,clone(wanted));
+    const task=enqueue(id,async()=>{
+      try{
+        if(!a||owner!==key(actor())||owner!==sessionKey)throw errorOf('session_changed');
+        if(!serverReady)await pull(false);
+        const uncertain=retryWrites.get(id);
+        if(uncertain){
+          // Replay exactly the uncertain operation first, even when the user has
+          // edited again. A reused ID must never describe a different payload.
+          const saved=await send(id,uncertain.sent,a,owner);
+          if(same(wanted,uncertain.sent)){acceptSaved(saved,wanted,visibleBefore);return saved;}
+        }
+        let candidate=clone(wanted);const latest=authoritative.get(id);
+        if(latest&&same(candidate,latest)){failures.delete(id);drafts.delete(id);return acceptSaved(latest,wanted,visibleBefore);}
+        if(latest&&version(candidate)!==version(latest))candidate=rebase(id,candidate,base||history.get(id)?.get(version(candidate)),latest);
+        if(latest&&same(candidate,latest)){failures.delete(id);drafts.delete(id);return acceptSaved(latest,wanted,visibleBefore);}
+        candidate._syncBaseVersion=version(candidate);candidate._syncMutationId=crypto.randomUUID();delete candidate._pendingCommitId;
+        if(!history.has(id))history.set(id,new Map());if(!history.get(id).has(version(wanted)))history.get(id).set(version(wanted),clone(wanted));
+        retryWrites.set(id,{sent:clone(candidate)});
+        const saved=await send(id,candidate,a,owner);acceptSaved(saved,wanted,visibleBefore);return saved;
+      }catch(error){
+        if(owner!==sessionKey)throw error;
+        // A definitive rejection cannot have committed this request. Uncertain
+        // network/5xx results retain their exact mutation ID for replay.
+        if(error.status>=400&&error.status<500)retryWrites.delete(id);
+        drafts.set(id,clone(wanted));failures.set(id,{error,signature:sig});refreshDirty();
+        if(isConflict(error))try{await pull(false)}catch(e){}
+        if(background)notifyFailure(error,id,wanted);throw error;
+      }
+    });
+    inflight.set(dedupe,task);task.then(()=>{if(inflight.get(dedupe)===task)inflight.delete(dedupe)},()=>{if(inflight.get(dedupe)===task)inflight.delete(dedupe)});return task;
+  }
+  const controlLocks=new WeakMap();
+  function lockEditor(){
+    const root=document.querySelector('#unifiedReportForm,#reportForm,#modalRoot .modal');
+    const controls=[...(root?.querySelectorAll?.('input,textarea,select,button')||[])];
+    controls.forEach(el=>{const state=controlLocks.get(el)||{count:0,disabled:el.disabled};state.count++;controlLocks.set(el,state);el.disabled=true;});
+    return ()=>controls.forEach(el=>{const state=controlLocks.get(el);if(state&&!--state.count){el.disabled=state.disabled;controlLocks.delete(el);}});
   }
   window.enlCommitIncident=commitIncident;window.enlAcceptSavedIncident=acceptSaved;
-  window.enlCommitOrNotify=async i=>{try{await commitIncident(i);return true}catch(e){alert(String(e.message).includes('conflict')?'다른 사용자가 먼저 수정했습니다. 최신 자료를 다시 확인한 뒤 제출해 주세요.':'서버 저장을 확인하지 못했습니다. 입력한 내용은 화면에 남아 있습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.');return false}};
-
-  async function acknowledge(incidentId,u=currentUser(),documentType='incident_report'){
-    const a=u?{id:u.id||u.personnelId||u.username||'',name:u.name||'',role:roleNorm(u.role),position:u.position||u.jobTitle||'',siteId:u.siteId||''}:actor();
-    if(!a||!['field','safety','manager','executive'].includes(a.role))throw new Error('forbidden');
-    const res=await call({action:'acknowledge',actor:a,role:a.role,incidentId,documentType},10000);
-    if(res?.incident){const next=(data.incidents||[]).map(i=>String(i.id)===String(incidentId)?res.incident:i);persistRemote(next)}else await pull(false);
-    return res;
-  }
-
-  function scheduleSync(delay=250,deletedIds=[]){
-    (deletedIds||[]).forEach(id=>{if(id)deferredDeletedIds.add(id)});
-    if(syncTimer)clearTimeout(syncTimer);
-    syncTimer=setTimeout(()=>{syncTimer=null;syncNow([])},delay);
-  }
-
-  async function syncNow(deletedIds=[]){
-    const a=actor();if(!a)return;
-    (deletedIds||[]).forEach(id=>{if(id)deferredDeletedIds.add(id)});
-    if(syncTimer){clearTimeout(syncTimer);syncTimer=null}
-    if(syncing||committing){pending=true;return}
-    syncing=true;
-    const queuedDeletes=[...deferredDeletedIds];deferredDeletedIds.clear();
-    let failed=false;
-    try{
-      if(!serverReady){
-        await pull(true);serverReady=true;
-        if(['manager','executive'].includes(a.role)){dirty=false;return}
-        // A local save may have happened while the first pull was in flight.
-        // Preserve and flush it instead of clearing dirty and losing the edit.
-        if(dirty||queuedDeletes.length){await push(queuedDeletes);dirty=(data.incidents||[]).some(i=>contentSignature(i)!==contentSignature(authoritative.get(String(i.id))));await pull(true)}
-        return;
-      }
-      if(['manager','executive'].includes(a.role)){dirty=false;await pull(true);return}
-      if(dirty||queuedDeletes.length){await push(queuedDeletes);dirty=(data.incidents||[]).some(i=>contentSignature(i)!==contentSignature(authoritative.get(String(i.id))));await pull(true)}
-      else await pull(true);
-    }catch(e){failed=true;queuedDeletes.forEach(id=>deferredDeletedIds.add(id));console.warn('incident sync skipped',e)}
-    finally{
-      syncing=false;
-      if(pending){pending=false;scheduleSync(500)}
-      else if(!failed&&deferredDeletedIds.size)scheduleSync(250)
+  window.enlIncidentSaveErrorMessage=errorMessage;
+  // Retry the same user action with its original generated timestamps. This
+  // reuses a request snapshot; it never merges approval or evidence records.
+  const formAttempts=new WeakMap();
+  window.enlStableSaveAttempt=(form,candidate,volatilePaths=[])=>{if(!form)return candidate;const intent=comparable(candidate);for(const path of volatilePaths){const parts=path.split('.'),last=parts.pop(),parent=parts.reduce((x,k)=>x?.[k],intent);if(parent)delete parent[last];}const sig=signature(intent),prior=formAttempts.get(form);if(prior?.sig===sig)return clone(prior.candidate);formAttempts.set(form,{sig,candidate:clone(candidate)});return candidate;};
+  window.enlOpenLatestIncident=async id=>{id=String(id);await pull(false);const latest=authoritative.get(id);if(!latest)throw errorOf('incident_not_found');drafts.delete(id);failures.delete(id);retryWrites.delete(id);const local=find(id),idx=data.incidents.indexOf(local);if(idx<0)data.incidents.unshift(clone(latest));else data.incidents[idx]=clone(latest);refreshDirty();persistConfirmed();window.closeModal?.();currentView='incidents';renderShell(currentUser());};
+  window.enlCommitOrNotify=async i=>{const unlock=lockEditor();try{await commitIncident(i);return true}catch(e){notifyFailure(e,String(i.id),i);return false}finally{unlock()}};
+  async function push(){
+    const a=actor();if(!a||!serverReady||['manager','executive'].includes(a.role))return;
+    const tasks=[];for(const local of data.incidents||[]){
+      const id=String(local.id);if(local.workerPublicOnly||['field','worker'].includes(a.role)&&String(local.siteId)!==String(a.siteId)||!locallyChanged(local)||same(local,authoritative.get(id))||failures.has(id)||drafts.has(id))continue;
+      tasks.push(commitIncident(local,{background:true}));
     }
+    await Promise.allSettled(tasks);refreshDirty();
   }
-
-  saveData=function(){
-    baseSaveData();if(applyingRemote)return;
-    const a=actor(),nowIds=new Set((data.incidents||[]).map(x=>x.id)),deleted=[...lastIds].filter(id=>!nowIds.has(id)),sig=signature(data.incidents||[]);
-    const changed=sig!==lastSig||deleted.length>0;lastIds=nowIds;lastSig=sig;
-    if(a&&['manager','executive'].includes(a.role)){dirty=false;return}
-    if(changed)dirty=true;
-    if(changed&&currentUser())scheduleSync(250,deleted);
-  };
-
-  window.enlIncidentApi=call;window.enlIncidentAuthProof=authProof;
-  window.enlIncidentSyncNow=()=>syncNow([]);
-  window.enlIncidentPullNow=()=>pull(true);
-  window.enlIncidentAcknowledge=acknowledge;
+  function scheduleSync(delay=250){if(syncTimer)clearTimeout(syncTimer);syncTimer=setTimeout(()=>{syncTimer=null;syncNow()},delay);}
+  async function syncNow(){
+    if(!actor())return;scope();if(syncing){pending=true;return;}if(syncTimer){clearTimeout(syncTimer);syncTimer=null;}syncing=true;
+    try{if(!serverReady)await pull(false);if(dirty)await push();await pull(true);}catch(e){console.warn('incident sync deferred',e.message);}finally{syncing=false;if(pending){pending=false;scheduleSync(500);}}
+  }
+  saveData=function(){if(applyingRemote)return baseSaveData();scope();refreshDirty();persistConfirmed();if(dirty&&currentUser())scheduleSync();};
+  // Explicit correction/export operations share the queue but retain their
+  // original expectedVersion: protected records cannot be silently rebased.
+  async function api(body,timeout){
+    if(!body?.incidentId||!['correct_closed','erp_record','export_snapshot','export_completed'].includes(body.action))return call(body,timeout);
+    const owner=scope(),id=String(body.incidentId),request=clone(body),visibleBefore=clone(find(id)||null),unlock=lockEditor();
+    try{return await enqueue(id,async()=>{if(owner!==key(actor()))throw errorOf('session_changed');const result=await call(request,timeout);if(owner!==key(actor()))throw errorOf('session_changed');if(result.incident)acceptSaved(result.incident,undefined,visibleBefore);return result;});}
+    catch(e){if(isConflict(e)){try{await pull(false)}catch(_){}const candidate=clone(find(id)||{});for(const [k,v]of Object.entries(request.changes||{}))candidate[k]=v&&typeof v==='object'&&!Array.isArray(v)?{...(candidate[k]||{}),...v}:v;notifyFailure(e,id,candidate);}throw e;}finally{unlock();}
+  }
+  window.enlIncidentApi=api;window.enlIncidentAuthProof=authProof;
+  window.enlIncidentSyncNow=()=>syncNow();window.enlIncidentPullNow=pull;
+  window.enlIncidentAcknowledge=async(incidentId,u=currentUser(),documentType='incident_report')=>call({action:'acknowledge',actor:actor(),incidentId,documentType});
   window.enlIncidentServerReady=()=>serverReady;
-
+  window.enlIncidentPendingWrites=()=>queues.size;
+  window.enlRefreshSharedData=(sessionChanged=false)=>{
+    // A local-cache notification is not an authoritative incident response.
+    // Keep this tab's records/drafts and fetch through the version-aware path.
+    const incidents=data.incidents;data={...loadData(),incidents};
+    if(sessionChanged&&key(actor())!==sessionKey){data.incidents=[];scope();render();}
+    else if(canAutoRender())render();
+    if(actor())scheduleSync(120);
+  };
+  scope();
   let firstForegroundSync=true;
-  function syncOnForeground(){if(!currentUser())return;const delay=firstForegroundSync?700:120;firstForegroundSync=false;scheduleSync(delay)}
+  function syncOnForeground(){if(!currentUser())return;scope();const delay=firstForegroundSync?700:120;firstForegroundSync=false;scheduleSync(delay);}
   if(currentUser())scheduleSync(700);
-  setInterval(()=>{if(!currentUser()||document.visibilityState==='hidden'||syncing||syncTimer)return;if(dirty||deferredDeletedIds.size)syncNow([]);else pull(true).catch(()=>{})},15000);
-  window.addEventListener('online',()=>{if(currentUser())scheduleSync(500)});
-  window.addEventListener('pageshow',syncOnForeground);
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncOnForeground()});
-  window.ENL_INCIDENT_SYNC_VERSION='4.4.34-proof-reuse1';
+  setInterval(()=>{if(!currentUser()||document.visibilityState==='hidden'||syncing||syncTimer)return;syncNow();},15000);
+  window.addEventListener('online',()=>{for(const [id,f]of failures)if(!f.error.status||f.error.status>=500){failures.delete(id);drafts.delete(id);}if(currentUser())scheduleSync(500);});
+  window.addEventListener('pageshow',syncOnForeground);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')syncOnForeground();});
+  window.ENL_INCIDENT_SYNC_VERSION='4.7.3-serialized-writes';
 })();

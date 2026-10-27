@@ -2,9 +2,9 @@
 const fs=require('node:fs'),assert=require('node:assert/strict');
 const {PGlite}=require('@electric-sql/pglite');
 const activationPath='supabase/migrations/20261023064500_evidence_storage_activate.sql';
-const migration=fs.readFileSync(activationPath,'utf8');
-const reviewed=fs.readFileSync('tests/fixtures/evidence-storage-activate.sql','utf8');
-const schema=fs.readFileSync('supabase/migrations/20261023053224_enl_evidence_storage_schema_20261023.sql','utf8');
+const migration=fs.readFileSync(activationPath,'utf8').replace(/\r\n/g,'\n');
+const reviewed=fs.readFileSync('tests/fixtures/evidence-storage-activate.sql','utf8').replace(/\r\n/g,'\n');
+const schema=fs.readFileSync('supabase/migrations/20261023053224_enl_evidence_storage_schema_20261023.sql','utf8').replace(/\r\n/g,'\n');
 const baselineSql=fs.readFileSync('tests/fixtures/evidence-storage-baseline.sql','utf8');
 const setup=fs.readFileSync('tests/evidence-storage.cjs','utf8').match(/await db\.exec\(`([\s\S]*?)`\);/)[1];
 async function fixture(){
@@ -19,7 +19,7 @@ const baseline=async db=>(await db.query(baselineSql)).rows[0].baseline;
 const count=async db=>Number((await db.query('select count(*) n from private.enl_evidence_objects')).rows[0].n);
 async function fails(db,error){try{await assert.rejects(()=>db.exec(migration),error)}finally{await db.exec('rollback')}}
 (async()=>{let checks=0;const check=(v,m)=>{assert.ok(v,m);checks++};
- const embedded=migration.split('execute $reviewed_evidence_activation$\n')[1].split('$reviewed_evidence_activation$;')[0];assert.equal(embedded,reviewed);checks++;assert.equal(schema,fs.readFileSync('tests/fixtures/evidence-storage-schema.sql','utf8'));checks++;
+ const embedded=migration.split('execute $reviewed_evidence_activation$\n')[1].split('$reviewed_evidence_activation$;')[0];assert.equal(embedded,reviewed);checks++;assert.equal(schema,fs.readFileSync('tests/fixtures/evidence-storage-schema.sql','utf8').replace(/\r\n/g,'\n'));checks++;
  let db=await fixture();try{
   const before=await baseline(db);await db.exec(migration);assert.deepEqual(await baseline(db),before);checks++;
   check(await count(db)>0,'first apply compacts evidence');

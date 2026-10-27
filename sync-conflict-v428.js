@@ -1,82 +1,38 @@
-/* E&L Accident Report App v4.2.8 - optimistic incident edit conflict handling */
+/* Save feedback only. The incident sync engine owns versions and requests. */
 (function(){
   'use strict';
-  const VERSION='4.2.8-sync-conflict1';
-  const SYNC_API_FRAGMENT='/functions/v1/enl-incident-sync-v411';
-  const BASE_KEY='_syncBaseVersion';
-  const VERSION_KEY='_syncVersion';
-  const MUTATION_KEY='_syncMutationId';
-  const baseline=new Map();
-  const taggedAt=new Map();
-  let conflictBusy=false;
-
-  const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
-  const actor=()=>{try{return window.enlCurrentActor?.()||(()=>{const u=currentUser?.();return u?{id:u.id||u.personnelId||u.username||'',name:u.name||'',role:roleNorm(u.role),siteId:u.siteId||''}:null})()}catch(e){return null}};
-  const num=v=>{const n=Number(v);return Number.isFinite(n)&&n>=0?Math.trunc(n):0};
-  const newMutationId=(a,id)=>`${String(a?.id||'user')}:${String(id||'incident')}:${Date.now()}:${globalThis.crypto?.randomUUID?.()||Math.random().toString(36).slice(2)}`;
-
-  function absorb(list){
-    if(!Array.isArray(list))return;
-    for(const i of list){
-      if(!i?.id)continue;
-      baseline.set(String(i.id),{updatedAt:String(i.updatedAt||''),version:num(i[VERSION_KEY])});
-      taggedAt.delete(String(i.id));
+  const labels={summary:'사고 요약',immediateAction:'사고 직후 조치',status:'처리 상태',eventType:'사고유형',injuredName:'피해 직원명',occurredAt:'사고 발생일시',safetyNote:'검토 의견',reportDetails:'사고 상세',corrective:'재발방지·조치',photos:'첨부자료',supplement:'보완자료',officialRecord:'승인·종결기록',reviewHistory:'검토이력',place:'발생 장소',workAction:'당시 작업',incidentHow:'사고경위',preventionPlan:'최초 예방대책',specialNote:'특이사항',diagnosis:'진단명',injuryDetail:'부상 내용',doctorOpinion:'의사 소견',medicalCost:'치료비',repairCost:'수리비',causeAnalysisNote:'원인분석',environmentCause:'환경적 요인',behaviorCause:'행동적 요인'};
+  const omit=k=>k.startsWith('_')||['updatedAt','lastModifiedAt','lastModifiedBy','lastModifiedRole','lastModifiedPosition','recordedAt'].includes(k);
+  const canonical=v=>JSON.stringify(v&&typeof v==='object'&&!Array.isArray(v)?Object.fromEntries(Object.keys(v).sort().filter(k=>!omit(k)).map(k=>[k,canonical(v[k])])):v);
+  function rows(a,b,path=[]){
+    const out=[];for(const k of new Set([...Object.keys(a||{}),...Object.keys(b||{})])){
+      if(omit(k)||canonical(a?.[k])===canonical(b?.[k]))continue;
+      const av=a?.[k],bv=b?.[k],p=[...path,k];
+      if(av&&bv&&typeof av==='object'&&typeof bv==='object'&&!Array.isArray(av)&&!Array.isArray(bv))out.push(...rows(av,bv,p));
+      else out.push({label:p.map(x=>labels[x]||x).join(' · '),server:av,draft:bv});
+    }return out;
+  }
+  function display(v){if(v==null||v==='')return '(없음)';if(Array.isArray(v))return v.map(x=>typeof x==='object'?(x.name||x.note||x.action||'첨부·이력 항목'):x).join('\n')||'(없음)';return typeof v==='object'?JSON.stringify(v,null,2):String(v);}
+  function element(tag,text,parent){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(parent)parent.appendChild(el);return el;}
+  window.addEventListener('enl-incident-write-error',event=>{
+    const d=event.detail,root=document.querySelector('#unifiedReportForm,#reportForm,#modalRoot .modal')||document.getElementById('app');if(!root)return;
+    let panel=root.querySelector('[data-enl-save-feedback]');if(!panel){panel=element('section',undefined,root);panel.dataset.enlSaveFeedback='';panel.style.cssText='margin:14px 0;padding:14px;border:1px solid #b76129;border-radius:10px;background:#fff8ee;color:#422b1b;overflow-wrap:anywhere';}
+    panel.replaceChildren();panel.dataset.incidentId=d.id;panel.setAttribute('role','alert');
+    element('strong','저장되지 않았습니다',panel);element('p',d.message,panel);
+    if(String(d.error).includes('enl_sync_conflict')&&d.latest){
+      const details=element('details',undefined,panel);details.open=true;element('summary','최신 서버 내용과 작성 내용 비교',details);
+      for(const row of rows(d.latest,d.draft).slice(0,40)){
+        const item=element('div',undefined,details);item.style.cssText='padding:10px 0;border-top:1px solid #dfd1bd';element('strong',row.label,item);
+        element('p','서버: '+display(row.server),item).style.whiteSpace='pre-wrap';element('p','작성: '+display(row.draft),item).style.whiteSpace='pre-wrap';
+      }
+      element('p','자동으로 덮어쓰지 않았습니다. 필요한 작성 내용을 복사해 두고 최신 저장본을 열어 다시 수정해 주세요.',panel);
+      const button=element('button','최신 저장본 열기',panel);button.type='button';button.onclick=async()=>{
+        if(!confirm('작성 내용을 복사해 두셨나요? 현재 편집을 닫고 서버의 최신 저장본을 표시합니다.'))return;
+        button.disabled=true;try{await window.enlOpenLatestIncident?.(d.id);}catch(e){element('p','최신 자료를 불러오지 못했습니다. 현재 작성 내용은 유지했습니다.',panel);button.disabled=false;}
+      };
     }
-  }
-  absorb(data?.incidents||[]);
-  window.addEventListener('enl-incident-saved',e=>absorb([e.detail]));
-
-  const previousSave=window.saveData;
-  if(typeof previousSave==='function'){
-    window.saveData=function(){
-      try{
-        const a=actor();
-        if(a&&!['manager','executive'].includes(roleNorm(a.role))){
-          for(const i of data?.incidents||[]){
-            if(!i?.id||i.workerPublicOnly)continue;
-            const id=String(i.id),stamp=String(i.updatedAt||''),base=baseline.get(id);
-            const changed=!base||stamp!==base.updatedAt;
-            if(!changed)continue;
-            if(taggedAt.get(id)===stamp&&i[MUTATION_KEY])continue;
-            i[BASE_KEY]=base?num(base.version):num(i[VERSION_KEY]);
-            i[MUTATION_KEY]=newMutationId(a,id);
-            taggedAt.set(id,stamp);
-          }
-        }
-      }catch(e){console.warn('incident sync version tagging skipped',e)}
-      return previousSave.apply(this,arguments);
-    };
-    try{saveData=window.saveData}catch(e){}
-  }
-
-  async function resolveConflict(message){
-    if(conflictBusy)return;
-    conflictBusy=true;
-    try{
-      alert('같은 사고를 다른 사용자가 먼저 수정했습니다. 최신 저장내용을 다시 불러옵니다. 화면을 확인한 뒤 필요한 내용을 다시 수정해 주세요.');
-      await window.enlIncidentPullNow?.();
-    }catch(e){console.warn('incident conflict refresh failed',e,message)}
-    finally{conflictBusy=false}
-  }
-
-  const previousFetch=window.fetch.bind(window);
-  window.fetch=async function(input,init){
-    const url=typeof input==='string'?input:String(input?.url||'');
-    let body=null;
-    if(url.includes(SYNC_API_FRAGMENT))try{body=JSON.parse(init?.body||'null')}catch(e){}
-    const res=await previousFetch(input,init);
-    if(!url.includes(SYNC_API_FRAGMENT)||!body?.action)return res;
-
-    if(body.action==='pull'&&res.ok){
-      try{const j=await res.clone().json();absorb(j?.incidents||[])}catch(e){}
-    }else if(body.action==='push'&&!res.ok){
-      try{
-        const j=await res.clone().json(),m=String(j?.message||'');
-        if(m.includes('enl_sync_conflict'))setTimeout(()=>resolveConflict(m),0);
-      }catch(e){}
-    }
-    return res;
-  };
-
-  window.ENL_SYNC_CONFLICT_VERSION=VERSION;
+    event.preventDefault();panel.scrollIntoView?.({block:'nearest'});
+  });
+  window.addEventListener('enl-incident-saved',event=>{for(const el of document.querySelectorAll('[data-enl-save-feedback]'))if(el.dataset.incidentId===String(event.detail?.id))el.remove();});
+  window.ENL_SYNC_CONFLICT_VERSION='4.7.3-preserved-draft-feedback';
 })();
