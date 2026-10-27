@@ -21,6 +21,12 @@ jobs:
         with:
           node-version: '24'
       - run: npm install --no-save --package-lock=false @electric-sql/pglite@0.3.10 playwright@1.51.1 pdfjs-dist@3.11.174 sharp@0.35.5
+      - name: Use official Ubuntu mirror for browser dependencies
+        run: |
+          for source in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+            [ -f "$source" ] || continue
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source"
+          done
       - run: npx playwright install --with-deps chromium webkit
       - run: pip install openpyxl==3.1.5 pillow==11.1.0
       - name: Actual Edge, isolated database, role and browser regressions
@@ -46,13 +52,19 @@ jobs:
   staging:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
       - run: npm install --no-save --package-lock=false playwright@1.51.1 sharp@0.35.5
+      - name: Use official Ubuntu mirror for browser dependencies
+        run: |
+          for source in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+            [ -f "$source" ] || continue
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source"
+          done
       - run: npx playwright install --with-deps chromium webkit
       - run: |
           mkdir -p qa-output
