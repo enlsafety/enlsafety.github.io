@@ -83,7 +83,7 @@ const TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; c
    assert.equal(await frame.locator('#environmentCause410,#behaviorCause410').count(),0,'actual field report excludes cause input');
    assert.ok(await frame.locator('.report410-section').count()>=3,'real report section styles and fields');
    await frame.locator('#incidentHow410').fill('가상 입력 보존 회귀시험');
-   await frame.evaluate(()=>{saveData();const channel=new BroadcastChannel('enl_safety_v3');channel.postMessage('update');channel.close();});
+   await frame.locator('body').evaluate(()=>{saveData();const channel=new BroadcastChannel('enl_safety_v3');channel.postMessage('update');channel.close();});
    await page.waitForTimeout(400);
    assert.equal(await frame.locator('#incidentHow410').inputValue(),'가상 입력 보존 회귀시험','own save and another tab cache message preserve the active report');
    await switchRole('zw-worker');
