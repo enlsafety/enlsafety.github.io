@@ -68,6 +68,8 @@ const TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; c
    assert.equal(intro.origin,'null','demo must run with opaque sandbox origin');
    assert.equal(intro.active,'zw-safety');
    assert.equal(intro.api,'2.0.2');
+   // The embedded demo intentionally disallows native modal dialogs.
+   await frame.locator('body').evaluate(()=>{window.qaAlerts=[];window.alert=m=>qaAlerts.push(m);});
    await frame.locator('[data-shell-view="incidents"]').click();
    await frame.locator('[data-inc-id]').filter({hasText:'카트 이동 중 가상 안전표지판 접촉'}).click();
    await frame.locator('#editInc').click();
