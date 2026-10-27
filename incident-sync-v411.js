@@ -50,7 +50,7 @@
     // Keep unsent medical/incident drafts only in memory. Other app data still
     // uses its existing persistence implementation.
     const visible=data.incidents;data.incidents=[...authoritative.values()].map(clone);applyingRemote=true;
-    try{const next=signature(data);if(next!==lastPersisted){baseSaveData();lastPersisted=next;}}finally{data.incidents=visible;applyingRemote=false;}
+    try{const next=signature(data);if(next!==lastPersisted){baseSaveData();lastPersisted=next;}}catch(e){console.warn('confirmed incident cache unavailable',e.name);}finally{data.incidents=visible;applyingRemote=false;}
   }
   function uiWriteBusy(){return !!document.querySelector('#unifiedReportForm,#reportForm,.modal');}
   function canAutoRender(){try{if(window.enlUiModalBusy?.())return false}catch(e){}return !uiWriteBusy()&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName||'');}
@@ -196,7 +196,7 @@
   window.enlOpenLatestIncident=async id=>{id=String(id);await pull(false);const latest=authoritative.get(id);if(!latest)throw errorOf('incident_not_found');drafts.delete(id);failures.delete(id);retryWrites.delete(id);const local=find(id),idx=data.incidents.indexOf(local);if(idx<0)data.incidents.unshift(clone(latest));else data.incidents[idx]=clone(latest);refreshDirty();persistConfirmed();window.closeModal?.();currentView='incidents';renderShell(currentUser());};
   window.enlCommitOrNotify=async i=>{const unlock=lockEditor();try{await commitIncident(i);return true}catch(e){notifyFailure(e,String(i.id),i);return false}finally{unlock()}};
   async function push(){
-    const a=actor();if(!a||!serverReady||['manager','executive'].includes(a.role))return;
+    const a=actor();if(!a||!serverReady||uiWriteBusy()||['manager','executive'].includes(a.role))return;
     const tasks=[];for(const local of data.incidents||[]){
       const id=String(local.id);if(local.workerPublicOnly||['field','worker'].includes(a.role)&&String(local.siteId)!==String(a.siteId)||!locallyChanged(local)||same(local,authoritative.get(id))||failures.has(id)||drafts.has(id))continue;
       tasks.push(commitIncident(local,{background:true}));

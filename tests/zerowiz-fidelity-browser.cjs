@@ -68,6 +68,15 @@ const TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; c
    assert.equal(intro.origin,'null','demo must run with opaque sandbox origin');
    assert.equal(intro.active,'zw-safety');
    assert.equal(intro.api,'2.0.2');
+   await frame.locator('[data-shell-view="incidents"]').click();
+   await frame.locator('[data-inc-id]').filter({hasText:'카트 이동 중 가상 안전표지판 접촉'}).click();
+   await frame.locator('#editInc').click();
+   await frame.locator('#incidentHow410').fill('가상 수정 저장 회귀시험');
+   await frame.locator('#damagedItem410').fill('가상 안전표지판');
+   await frame.locator('#safetyFactEditReason').fill('가상 저장 안정성 확인');
+   await frame.getByRole('button',{name:'수정사항 저장',exact:true}).click();
+   await frame.locator('#unifiedReportForm').waitFor({state:'detached'});
+   assert.ok(await frame.locator('body').evaluate(()=>ENL_ZEROWIZ_FIDELITY.getRecords().some(i=>i.reportDetails?.incidentHow==='가상 수정 저장 회귀시험')),'single-user full report edit saves without a false conflict');
    await switchRole('zw-field');
    await frame.locator('.app-shell.shell-v411').waitFor();
    const fieldView=await frame.locator('body').innerText();
