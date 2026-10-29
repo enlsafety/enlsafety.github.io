@@ -16,7 +16,9 @@ const TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; c
      if(url.origin!==HOST){unexpected.push(url.toString());return route.abort('blockedbyclient');}
      const rel=decodeURIComponent(url.pathname).slice(1);
      if(!rel||rel.includes('..')||!fs.existsSync(rel)||!fs.statSync(rel).isFile())return route.fulfill({status:404,body:'',contentType:'text/plain'});
-     const body=fs.readFileSync(rel),ct=TYPES[path.extname(rel)]||'application/octet-stream';
+     // Exercise preserved demo source only inside this network-isolated test.
+     const source=['zerowiz-demo.html','zerowiz-demo-app.html'].includes(rel)?'docs/disabled-demo/'+rel+'.txt':rel;
+     const body=fs.readFileSync(source),ct=TYPES[path.extname(rel)]||'application/octet-stream';
      return route.fulfill({status:200,body,contentType:ct});
    });
    await page.goto(HOST+'/zerowiz-demo.html',{waitUntil:'domcontentloaded'});

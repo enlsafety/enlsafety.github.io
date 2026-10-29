@@ -1,8 +1,8 @@
 'use strict';
 const fs=require('node:fs'),assert=require('node:assert/strict');
 const toolbarStyle=fs.readFileSync('zerowiz-fidelity.css','utf8');
-const parent=fs.readFileSync('zerowiz-demo.html','utf8'),
- child=fs.readFileSync('zerowiz-demo-app.html','utf8'),
+const parent=fs.readFileSync('docs/disabled-demo/zerowiz-demo.html.txt','utf8'),
+ child=fs.readFileSync('docs/disabled-demo/zerowiz-demo-app.html.txt','utf8'),
  entry=fs.readFileSync('zerowiz-demo-entry.js','utf8'),
  boot=fs.readFileSync('zerowiz-fidelity-boot.js','utf8'),
  map=fs.readFileSync('zerowiz-fidelity-dashboard.js','utf8'),
@@ -42,7 +42,7 @@ ok(runtime.includes('id="zwRuntimeToggle"')&&runtime.includes('setToolbarOpen(fa
 ok(runtime.includes('window.enlRenderApp(u)'),'render actual app shell, not redesigned simulator');
 ok(runtime.includes('data.users=sandbox.users'),'full staff data replaced with synthetic data');
 ok(sw.includes("url.pathname.startsWith('/zerowiz-')"),'PWA will never cache any demo URL');
-ok(auth.includes('href="zerowiz-demo.html?v=2.0.0"'),'operator login links to updated vendor demo');
-ok(stable.includes('auth-v411.js?v=4.7.2-r2'),'login update cache busted');
+ok(auth.includes('const DEMO_ENABLED=false;')&&auth.includes('${DEMO_ENABLED?'),'operator login omits the retained demo entry');
+ok(stable.includes('auth-v411.js?v=4.7.3-r2'),'login update cache busted');
 new Function(boot);new Function(runtime);new Function(entry);
 console.log(JSON.stringify({passed,failed:0,kind:'opaque iframe UI-clone and backend isolation source audit'}));

@@ -1,73 +1,13 @@
 <!doctype html>
-<html lang="ko"><head>
+<html lang="ko">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="robots" content="noindex,nofollow,noarchive">
-<meta name="referrer" content="no-referrer">
-<meta http-equiv="Cache-Control" content="no-store,max-age=0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; frame-src 'self'; connect-src 'none'; img-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
-<title>제로위즈 ERP 기술검토 · 이앤엘 데모 진입</title>
-<style>
-*{box-sizing:border-box}
-html,body{margin:0;width:100%;height:100%;font-family:"Malgun Gothic",Arial,sans-serif;background:#e9f4fb;color:#16446a}
-[hidden]{display:none!important}
-.frame-head{height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 13px;gap:12px;border-bottom:1px solid #b9d3e4;background:#f2f9fd}
-.frame-head b{font-size:12px;color:#1c5784}.frame-head span{font-size:10px;color:#5a7891}
-.frame-head a{color:#245c85;text-decoration:none;font-size:11px;font-weight:800;white-space:nowrap;border:1px solid #bbd5e7;background:#fff;border-radius:7px;padding:5px 9px}
-.entry{height:calc(100dvh - 40px);display:grid;place-items:center;padding:22px 12px;overflow-y:auto}
-.entry-card{width:min(540px,100%);background:#fff;border:1px solid #cfe2ef;border-radius:22px;padding:26px;box-shadow:0 15px 40px rgba(32,87,128,.12)}
-.brand{display:flex;align-items:center;gap:14px;margin-bottom:20px}
-.brand-logo{width:60px;height:60px;flex:0 0 60px;display:grid;place-items:center;border-radius:16px;background:#1e5d91;color:white;font-size:23px;font-weight:900}
-h1{margin:0;font-size:23px;line-height:1.3;color:#174d78}
-.subtitle{margin:6px 0 0;font-size:13px;line-height:1.5;color:#698297}
-.intro{font-weight:850;font-size:16px;margin:12px 0 14px}
-.entry label{display:block;margin-bottom:7px;font-size:14px;font-weight:850}
-#zwPin{width:100%;height:55px;border:1.5px solid #99bed8;border-radius:12px;font:800 21px "Malgun Gothic",Arial,sans-serif;letter-spacing:3px;text-align:center;outline:none}
-#zwPin:focus{border-color:#1e5d91;box-shadow:0 0 0 3px rgba(30,93,145,.14)}
-.submit{margin-top:12px;width:100%;height:52px;border:0;border-radius:12px;background:#1e5d91;color:#fff;font-weight:900;font-size:16px;cursor:pointer}
-.submit:disabled{opacity:.65;cursor:wait}
-.status{min-height:23px;margin-top:9px;font-size:12px;font-weight:750;color:#ad3142}
-.note{margin-top:14px;font-size:11px;line-height:1.7;color:#678195}
-.role-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
-.role{min-height:90px;padding:14px 12px;text-align:left;border:1.5px solid #bad8eb;border-radius:13px;background:#f9fcff;color:#16446a;cursor:pointer}
-.role:hover,.role:focus-visible{border-color:#1e5d91;background:#eaf6ff}
-.role strong{display:block;font-size:15px}.role small{display:block;margin-top:7px;color:#6c879c;font-size:11px}
-.loading{height:calc(100dvh - 40px);display:grid;place-content:center;gap:12px;text-align:center;font-size:15px;font-weight:850;color:#1e5d91}
-.loading small{font-size:12px;font-weight:500;color:#6c879c}
-.loading button{padding:10px;border:1px solid #aacbdf;border-radius:10px;background:#fff;color:#19547b;font-weight:850;cursor:pointer}
-.frame{border:0;width:100%;height:calc(100dvh - 40px);display:block;background:#fff}
-@media(max-width:600px){.frame-head{height:44px;padding:0 9px}.frame-head b{font-size:11px}.frame-head span{display:none}.entry,.loading{height:calc(100dvh - 44px)}.frame{height:calc(100dvh - 44px)}.entry-card{padding:19px 16px}.brand-logo{width:52px;height:52px;flex-basis:52px}h1{font-size:20px}.role{min-height:88px;padding:11px}.role strong{font-size:14px}}
-</style>
-</head><body>
-<div class="frame-head"><div><b>ZERO-WIZ DEMO · 운영 앱과 동일한 화면</b> <span>실제 운영서버·사업장·사고정보 접근 차단</span></div><a href="stable412.html" rel="noreferrer">운영 로그인으로</a></div>
-<main id="zwEntry" class="entry">
-  <section class="entry-card">
-    <div class="brand"><div class="brand-logo">E&amp;L</div><div><h1>사고보고앱 데모</h1><p class="subtitle">제로위즈 ERP 기술검토 전용 · 가상 자료만 제공</p></div></div>
-    <form id="zwPinForm" autocomplete="off">
-      <p class="intro">데모 접속 비밀번호를 입력해 주세요.</p>
-      <label for="zwPin">4자리 비밀번호</label>
-      <input id="zwPin" type="password" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" autocomplete="off" required autofocus aria-describedby="zwPinStatus">
-      <button class="submit" type="submit">데모 입장</button>
-      <div id="zwPinStatus" class="status" role="alert" aria-live="polite"></div>
-    </form>
-    <section id="zwRolePanel" hidden aria-label="데모 역할 선택">
-      <p class="intro">체험할 역할을 선택해 주세요.</p>
-      <div class="role-grid">
-        <button type="button" class="role" data-zw-entry-role="zw-safety"><strong>안전관리자</strong><small>사고 검토·승인 및 재발방지</small></button>
-        <button type="button" class="role" data-zw-entry-role="zw-field"><strong>현장관리자</strong><small>사고보고·보완 및 현장조치</small></button>
-        <button type="button" class="role" data-zw-entry-role="zw-worker"><strong>현장근무자</strong><small>사고보고·조회</small></button>
-        <button type="button" class="role" data-zw-entry-role="zw-manager"><strong>본사관리자</strong><small>전사 사고조회</small></button>
-        <button type="button" class="role" data-zw-entry-role="zw-executive"><strong>경영진</strong><small>사고 현황·진행 확인</small></button>
-      </div>
-    </section>
-    <p class="note">운영 자료와 완전히 분리된 가상 데모야. 실제 사고·직원 정보를 입력하지 마세요. 이 4자리 암호는 간편 진입 확인용이며 서버 인증을 대체하지 않아.</p>
-  </section>
-</main>
-<div id="zwLoading" class="loading" hidden role="status" aria-live="polite">
-  <strong>선택한 데모 화면을 준비하고 있어요.</strong>
-  <small>기존 운영 로그인창은 표시되지 않아.</small>
-  <button type="button" id="zwRetry" hidden>역할 다시 선택</button>
-</div>
-<iframe id="zwFrame" class="frame" title="이앤엘 사고보고 운영UI 격리 기술검토 데모" sandbox="allow-scripts allow-downloads" referrerpolicy="no-referrer" loading="eager" hidden></iframe>
-<script src="zerowiz-demo-entry.js?v=2.0.2"></script>
-</body></html>
+<meta name="robots" content="noindex,nofollow">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="refresh" content="0;url=stable412.html?entry=login&amp;build=473-r2">
+<title>이앤엘 사고보고앱</title>
+<script>location.replace('stable412.html?entry=login&build=473-r2');</script>
+</head>
+<body><p><a href="stable412.html?entry=login&amp;build=473-r2">이앤엘 사고보고앱 로그인으로 이동</a></p></body>
+</html>
