@@ -31,7 +31,7 @@
     if(typeof window.openIncidentModal==='function')return window.openIncidentModal(id,false,u);
   }
 
-  function stateLabel(i){if(isHistorical(i))return '과거사고 이관종결';const s=String(i?.status||'');return s==='reported'?'즉시보고 검토대기':s==='supplement'?'보완대기':s==='supplement_submitted'?'보완검토대기':s==='approved'?'사고보고 최종승인':s==='closed'?'종결':'진행중'}
+  function stateLabel(i){if(i.executiveApproval?.state==='pending')return '경영진 결재대기';if(isHistorical(i))return '과거사고 이관종결';const s=String(i?.status||'');return s==='reported'?'즉시보고 검토대기':s==='supplement'?'보완대기':s==='supplement_submitted'?'보완검토대기':s==='approved'?'사고보고 최종승인':s==='closed'?'종결':'진행중'}
   function renderReaderHome(u){
     const root=document.getElementById('view');if(!root||!isReader(u))return;if(typeof window.enlRenderHqHome==='function')return window.enlRenderHqHome(root,u);
     const d=readerData(),recent=[...d.all].sort((a,b)=>new Date(b.updatedAt||b.occurredAt||0)-new Date(a.updatedAt||a.occurredAt||0)).slice(0,7);

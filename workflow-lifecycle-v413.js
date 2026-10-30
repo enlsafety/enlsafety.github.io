@@ -93,7 +93,7 @@
 
   try{
     actionStatusName=actionStatus;
-    actionBadge=function(i){if(historicalClosed(i))return badge('p-done','이관종결');const report=String(i?.status||''),s=String(i?.corrective?.status||'');if(!['approved','closed'].includes(report))return badge('p-normal','사고조치 보고승인 대기');if(!s)return badge('p-normal','사고조치 미작성');return badge(s==='approved'?'p-done':s==='rejected'?'p-rejected':'p-review',actionStatus(s))};
+    actionBadge=function(i){if(i.executiveApproval?.state==='pending')return badge('p-review','경영진 결재대기');if(historicalClosed(i))return badge('p-done','이관종결');const report=String(i?.status||''),s=String(i?.corrective?.status||'');if(!['approved','closed'].includes(report))return badge('p-normal','사고조치 보고승인 대기');if(!s)return badge('p-normal','사고조치 미작성');return badge(s==='approved'?'p-done':s==='rejected'?'p-rejected':'p-review',actionStatus(s))};
   }catch(e){}
 
   function rewriteLabels(root=document){
