@@ -62,6 +62,7 @@
     if(m==='session_auth_expired'||m==='session_changed')return '로그인 인증을 다시 확인해야 합니다. 작성 내용은 현재 화면에 유지했습니다. 다시 로그인한 뒤 저장을 재시도해 주세요.';
     if(e?.status===403||/forbidden|permission|read_only/.test(m))return '이 내용을 저장할 권한이 없습니다. 작성 내용은 유지했습니다. 계정과 사업장 권한을 확인해 주세요.';
     if(m==='save_in_progress')return '이 사고의 저장을 처리 중입니다. 완료될 때까지 잠시 기다려 주세요.';
+    if(m==='president_approver_required')return '최종결재를 받을 사장 계정이 1명이어야 합니다. 본사 사용자 설정에서 활성 경영진의 직급을 확인해 주세요. 작성 내용은 유지했습니다.';
     return '서버 저장을 확인하지 못했습니다. 작성 내용은 현재 화면에 유지했습니다. 연결 상태를 확인한 뒤 저장을 다시 시도해 주세요.';
   }
   function notifyFailure(e,id='',candidate){

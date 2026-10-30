@@ -5,13 +5,15 @@
  const e=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const time=v=>v?new Date(v).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',hour12:false}):'-';
  const actor=()=>{const u=currentUser();return {id:u.id||u.personnelId,role:u.role,siteId:u.siteId||''}};
- const signatures=i=>{const a=i.executiveApproval;if(!a)return '<p>기존 종결 기록</p>';return '<table class="exec-signatures"><thead><tr><th>결재자</th><th>결재 상태 / 일시</th></tr></thead><tbody>'+a.roster.map(u=>{const s=a.signatures.find(x=>x.id===u.id);return '<tr><td>'+e(u.name+' '+(u.position||''))+'</td><td>'+e(s?'결재 완료 / '+time(s.at):'결재대기')+(s?.note?'<br>'+e(s.note):'')+'</td></tr>'}).join('')+'</tbody></table>'};
- const error=err=>String(err?.message||'').includes('conflict')?'다른 결재자가 처리했습니다. 사고를 다시 열고 확인해 주세요.':String(err?.message||'').includes('auth')?'다시 로그인한 뒤 처리해 주세요.':'처리를 완료하지 못했습니다. 사고를 다시 열어 상태를 확인해 주세요.';
+ const policy=()=>window.ENLExecutiveApproval;
+ const stageLabel=a=>policy().describe(a).stage==='president'?'사장 최종결재대기':'경영진 병렬결재 진행 중';
+ const signatures=i=>{const a=i.executiveApproval;if(!a)return '<p>기존 종결 기록</p>';const p=policy().describe(a),staged=a.mode==='parallel_then_president'||a.state==='pending',roster=staged&&p.valid?[...p.parallel,p.president]:a.roster;return '<table class="exec-signatures"><thead><tr><th>결재자</th><th>결재 구분</th><th>결재 상태 / 일시</th></tr></thead><tbody>'+roster.map(u=>{const s=a.signatures.find(x=>x.id===u.id),final=staged&&p.president?.id===u.id;return '<tr><td>'+e(u.name+' '+(u.position||''))+'</td><td>'+e(staged?(final?'사장 최종결재':'병렬결재'):'기존 결재')+'</td><td>'+e(s?'결재 완료 / '+time(s.at):final&&p.stage==='parallel'?'병렬결재 완료 후 진행':'결재대기')+(s?.note?'<br>'+e(s.note):'')+'</td></tr>'}).join('')+'</tbody></table>'};
+ const error=err=>err?.message==='approval_turn_not_ready'?'아직 결재 차례가 아닙니다. 사장 최종결재는 병렬결재가 모두 완료된 후 가능합니다.':err?.message==='president_approver_required'?'최종결재 사장 계정 설정을 확인해 주세요.':String(err?.message||'').includes('conflict')?'결재 단계가 변경되었습니다. 사고를 다시 열고 확인해 주세요.':String(err?.message||'').includes('auth')?'다시 로그인한 뒤 처리해 주세요.':'처리를 완료하지 못했습니다. 사고를 다시 열어 상태를 확인해 주세요.';
  async function decide(i,decision,button){
   const note=decision==='reject'?prompt('반려 사유를 입력해 주세요.'):'';if(decision==='reject'&&!note?.trim())return;
   if(!confirm(decision==='approve'?'사고보고와 재발방지조치를 확인하고 결재할까요?':'반려하고 안전관리자에게 재검토를 요청할까요?'))return;
   button.disabled=true;const requestActor=actor();
-  try{const r=await window.enlIncidentApi({action:'executive_decide',incidentId:i.id,expectedVersion:i._syncVersion,actor:requestActor,decision,note:note||''});if(currentUser()?.id!==requestActor.id)return;window.enlAcceptSavedIncident(r.incident);closeModal();renderShell(currentUser());alert(r.incident.status==='closed'?'모든 결재가 완료되어 종결되었습니다. 문서번호: '+r.incident.officialRecord.documentNumber:decision==='reject'?'안전관리자에게 재검토를 요청했습니다.':'결재를 완료했습니다. 남은 결재자의 결재를 기다립니다.');}catch(err){alert(error(err));}finally{button.disabled=false;}
+  try{const r=await window.enlIncidentApi({action:'executive_decide',incidentId:i.id,expectedVersion:i._syncVersion,approvalRound:i.executiveApproval.round,actor:requestActor,decision,note:note||''});if(currentUser()?.id!==requestActor.id)return;window.enlAcceptSavedIncident(r.incident);closeModal();renderShell(currentUser());alert(r.incident.status==='closed'?'사장 최종결재가 완료되어 종결되었습니다. 문서번호: '+r.incident.officialRecord.documentNumber:decision==='reject'?'안전관리자에게 재검토를 요청했습니다.':r.incident.executiveApproval.stage==='president'?'병렬결재가 모두 완료되어 사장 최종결재를 요청했습니다.':'결재를 완료했습니다. 남은 병렬결재자의 결재를 기다립니다.');}catch(err){alert(error(err));}finally{button.disabled=false;}
  }
  async function printDocument(i){
   const win=window.open('','_blank');if(!win)return alert('팝업을 허용한 뒤 다시 눌러 주세요.');win.document.body.textContent='서버의 종결 기록을 불러오는 중입니다.';
@@ -35,19 +37,20 @@
   queued=false;const u=currentUser?.();if(!u)return;
   const root=document.querySelector('#view');
   if(root&&u.role==='executive'){
-   const list=(data.incidents||[]).filter(i=>i.executiveApproval?.state==='pending'&&i.executiveApproval.roster.some(x=>x.id===u.id)&&!i.executiveApproval.signatures.some(x=>x.id===u.id));
-   const sig=JSON.stringify(list.map(i=>[i.id,i._syncVersion]));let box=root.querySelector('[data-executive-queue]');
+   const assigned=(data.incidents||[]).filter(i=>i.executiveApproval?.state==='pending'&&i.executiveApproval.roster.some(x=>x.id===u.id)&&!i.executiveApproval.signatures.some(x=>x.id===u.id));
+   const list=assigned.filter(i=>policy().canDecide(i.executiveApproval,u.id)),waiting=assigned.filter(i=>!policy().canDecide(i.executiveApproval,u.id));
+   const sig=JSON.stringify(assigned.map(i=>[i.id,i._syncVersion]));let box=root.querySelector('[data-executive-queue]');
    if(!box){box=document.createElement('section');box.dataset.executiveQueue='';box.className='panel';root.prepend(box)}
-   if(box.dataset.signature!==sig){box.dataset.signature=sig;box.innerHTML='<h2>내 결재대기 '+list.length+'건</h2>'+list.map(i=>'<button type="button" data-exec-open="'+e(i.id)+'">'+e(siteName(i.siteId))+' / '+e(i.eventType)+' / 결재하기</button>').join('');box.querySelectorAll('[data-exec-open]').forEach(b=>b.onclick=()=>openIncidentModal(b.dataset.execOpen));}
+   if(box.dataset.signature!==sig){box.dataset.signature=sig;box.innerHTML='<h2>내 결재대기 '+list.length+'건</h2>'+list.map(i=>'<button type="button" data-exec-open="'+e(i.id)+'">'+e(siteName(i.siteId))+' / '+e(i.eventType)+' / '+(policy().describe(i.executiveApproval).stage==='president'?'최종결재하기':'결재하기')+'</button>').join('')+(waiting.length?'<p>병렬결재 완료 후 최종결재 예정 '+waiting.length+'건</p>'+waiting.map(i=>'<button type="button" data-exec-open="'+e(i.id)+'">'+e(siteName(i.siteId))+' / '+e(i.eventType)+' / 진행상태 보기</button>').join(''):'');box.querySelectorAll('[data-exec-open]').forEach(b=>b.onclick=()=>openIncidentModal(b.dataset.execOpen));}
   }
   const modal=document.querySelector('#modalRoot .modal');if(!modal)return;
   const id=modal.dataset.cumulativeIncident||modal.dataset.wf440Incident||modal.querySelector('[data-lifecycle-final]')?.dataset.lifecycleFinal;
   const i=(data.incidents||[]).find(x=>String(x.id)===String(id));if(!i)return;
   const sig=i.id+':'+i._syncVersion+':'+u.id;if(modal.dataset.executiveSignature===sig)return;modal.dataset.executiveSignature=sig;
   modal.querySelector('[data-executive-record]')?.remove();const box=document.createElement('section');box.dataset.executiveRecord='';box.className='panel';const a=i.executiveApproval;
-  box.innerHTML=(a?'<h3>'+(a.state==='pending'?'경영진 결재대기':a.state==='rejected'?'경영진 반려 / 안전관리자 재검토':'경영진 결재 완료')+'</h3>'+signatures(i)+(a.rejection&&a.state==='rejected'?'<p>반려 사유: '+e(a.rejection.note)+'</p>':''):'')+(i.officialRecord?.documentNumber?'<p>문서번호: <b>'+e(i.officialRecord.documentNumber)+'</b></p>':'');
-  if(a?.state==='pending'&&u.role==='executive'&&a.roster.some(x=>x.id===u.id)&&!a.signatures.some(x=>x.id===u.id)){
-   for(const [d,label] of [['approve','결재 승인'],['reject','반려']]){const b=document.createElement('button');b.textContent=label;b.className=d==='approve'?'primary':'secondary';b.onclick=()=>decide(i,d,b);box.appendChild(b)}
+  box.innerHTML=(a?'<h3>'+(a.state==='pending'?stageLabel(a):a.state==='rejected'?'경영진 반려 / 안전관리자 재검토':'경영진 결재 완료')+'</h3>'+signatures(i)+(a.state==='pending'&&policy().describe(a).stage==='parallel'?'<p>사장을 제외한 경영진은 순서 없이 결재합니다. 전원 완료 후 사장이 최종결재합니다.</p>':'')+(a.rejection&&a.state==='rejected'?'<p>반려 사유: '+e(a.rejection.note)+'</p>':''):'')+(i.officialRecord?.documentNumber?'<p>문서번호: <b>'+e(i.officialRecord.documentNumber)+'</b></p>':'');
+  if(u.role==='executive'&&policy().canDecide(a,u.id)){
+   for(const [d,label] of [['approve',policy().describe(a).stage==='president'?'사장 최종결재':'결재 승인'],['reject','반려']]){const b=document.createElement('button');b.textContent=label;b.className=d==='approve'?'primary':'secondary';b.onclick=()=>decide(i,d,b);box.appendChild(b)}
   }
   if(i.status==='closed'&&['manager','executive','safety','final'].includes(u.role)){const b=document.createElement('button');b.textContent='종결보고서 PDF 출력';b.onclick=()=>printDocument(i);box.appendChild(b)}
   if((i.acknowledgements||[]).length){const old=document.createElement('details');old.dataset.priorApprovals='';old.innerHTML='<summary>과거 결재기록 (읽기 전용)</summary>'+i.acknowledgements.map(s=>'<p>'+e(s.name)+' / '+e(s.ackAt||s.readAt||'')+'</p>').join('');box.appendChild(old)}

@@ -1,11 +1,12 @@
 import "./site-contract-v451.js";
+import "./executive-approval-v482.js";
 import { validateLifecycle, correctedIncident, isHistoricalEditable } from "./lifecycle-policy.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import postgres from "npm:postgres@3.4.5";
 
 const ORIGIN="https://enlsafety.github.io";
 const APP="incident-report-v2";
-const VERSION="4.8.0-executive-closure";
+const VERSION="4.8.2-parallel-president-approval";
 const cors={"Access-Control-Allow-Origin":ORIGIN,"Access-Control-Allow-Headers":"content-type, x-client-info, apikey, authorization, x-enl-app","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:cors});
 const clean=(v:any)=>String(v??"").trim();
@@ -286,20 +287,29 @@ Deno.serve(async(req:Request)=>{
         if(!['approve','reject'].includes(decision)||note.length>2000||(decision==='reject'&&!note))return json({ok:false,message:"decision_reason_required"},400);
         if(ap.signatures?.some((u:any)=>u.id===actor.id)&&decision==='approve')return json({ok:true,duplicate:true,incident:readerIncident(prev)});
         if(ap.state!=="pending"||prev.status!=="approved"||prev.corrective?.status!=="approved")return json({ok:false,message:"not_pending_approval"},409);
-        if(body.expectedVersion===undefined||versionOf(body.expectedVersion)!==versionOf(prev._syncVersion))return json({ok:false,message:"enl_sync_conflict_version"},409);
+        const plan=(globalThis as any).ENLExecutiveApproval.describe(ap);
+        if(!plan.valid)return json({ok:false,message:"president_approver_required"},409);
+        if(!(globalThis as any).ENLExecutiveApproval.canDecide(ap,actor.id))return json({ok:false,message:"approval_turn_not_ready"},409);
+        // The pending round locks all report edits. Independent signatures can
+        // therefore accept an older version within the SAME explicitly named round.
+        const expected=versionOf(body.expectedVersion),current=versionOf(prev._syncVersion);
+        if(body.expectedVersion===undefined||expected<1||expected>current||(expected!==current&&body.approvalRound!==ap.round)||(body.approvalRound!==undefined&&body.approvalRound!==ap.round))return json({ok:false,message:"enl_sync_conflict_version"},409);
         const next=structuredClone(prev),a=next.executiveApproval;
         const signature={id:actor.id,name:actor.name,position:actor.position,role:actor.role,at:now,note,decision};
         if(decision==='reject'){
-          a.state='rejected';a.history=[...(a.history||[]),{round:a.round,requestedAt:a.requestedAt,roster:a.roster,signatures:a.signatures,rejection:signature}];a.rejection=signature;
+          a.state='rejected';a.history=[...(a.history||[]),{round:a.round,requestedAt:a.requestedAt,mode:a.mode,stage:a.stage,finalApproverId:a.finalApproverId,finalRequestedAt:a.finalRequestedAt,roster:a.roster,signatures:a.signatures,rejection:signature}];a.rejection=signature;
           next.corrective.status='submitted';next.corrective.reviewNote=note;
         }else{
           a.signatures=[...(a.signatures||[]),signature];
-          if(a.roster.every((u:any)=>a.signatures.some((v:any)=>v.id===u.id))){
+          const updated=(globalThis as any).ENLExecutiveApproval.describe(a);
+          a.stage=updated.stage;
+          if(updated.stage==='president'&&!a.finalRequestedAt)a.finalRequestedAt=now;
+          if(actor.id===updated.president.id&&a.roster.every((u:any)=>updated.approved(u.id))){
             a.state='approved';a.completedAt=now;next.status='closed';next.closedAt=now;
             const year=new Date(Date.parse(now)+9*3600000).getUTCFullYear();
             const seq=await sql`insert into public.enl_document_counters(year,last_number) values(${year},1) on conflict(year) do update set last_number=enl_document_counters.last_number+1 returning last_number`;
             const documentNumber=`ENL-ACC-${year}-${String(seq[0].last_number).padStart(5,'0')}`;
-            next.officialRecord={...next.officialRecord,documentNumber,finalApproval:{id:actor.id,name:actor.name,role:actor.role,at:now,method:'all_assigned_executives',signatures:a.signatures}};
+            next.officialRecord={...next.officialRecord,documentNumber,finalApproval:{id:actor.id,name:actor.name,role:actor.role,at:now,method:'parallel_then_president',signatures:a.signatures}};
           }
         }
         next._syncBaseVersion=versionOf(prev._syncVersion);next._syncMutationId='executive:'+crypto.randomUUID();next.updatedAt=now;next.lastModifiedAt=now;next.lastModifiedBy=actor.name;next.lastModifiedRole=actor.role;
@@ -501,8 +511,10 @@ Deno.serve(async(req:Request)=>{
         if(clean(next.corrective?.status)==="approved"&&clean(prev?.corrective?.status)!=="approved"&&!isHistoricalTransfer(next)){
           const roster=await sql`select user_id as id,name,position from public.enl_hq_users where active=true and role='executive' order by name`;
           if(!roster.length)rejectWrite("executive_roster_empty");
+          const presidents=roster.filter((globalThis as any).ENLExecutiveApproval.isPresident);
+          if(presidents.length!==1)rejectWrite("president_approver_required");
           next.status="approved";next.closedAt=null;
-          next.executiveApproval={state:"pending",round:Number(prev?.executiveApproval?.round||0)+1,requestedAt:now,requestedBy:actor.id,roster,signatures:[],history:prev?.executiveApproval?.history||[]};
+          next.executiveApproval={state:"pending",mode:"parallel_then_president",stage:roster.length>1?"parallel":"president",finalApproverId:presidents[0].id,finalRequestedAt:roster.length>1?null:now,round:Number(prev?.executiveApproval?.round||0)+1,requestedAt:now,requestedBy:actor.id,roster,signatures:[],history:prev?.executiveApproval?.history||[]};
           official.safetyActionApproval={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now,proof:actor.proof};
         }
         if(isHistoricalTransfer(next)){const hm=historicalMeta(next);official.transferClosure={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now,source:"erp",erpApproved:true,erpApprovalDate:hm.erpApprovalDate,erpReference:hm.erpReference,existingActionEvidence:hm.existingActionEvidence,followUpType:hm.followType,closeReason:hm.closeReason||"ERP 기결재 과거사고 이력관리 목적 이관종결"};}
