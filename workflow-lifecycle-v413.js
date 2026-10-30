@@ -50,11 +50,8 @@
         if(!wasLegacyInvalid){i.status=i.approvedAt?'approved':'reported';i.closedAt=null}
       }
 
-      // Corrective approval is the only normal path to final closure.
-      if(String(i.status)==='approved'&&String(i.corrective?.status)==='approved'){
-        i.status='closed';i.closedAt=i.corrective?.reviewedAt||ts;
-        pushHistory(i,{action:'auto_closed',at:i.closedAt,by:i.corrective?.reviewedBy||'안전관리자'});
-      }
+      // Final closure is exclusively returned by the authenticated executive endpoint.
+
     }
   }
 
@@ -63,11 +60,11 @@
     saveData=function(){normalizeLifecycle();const r=baseSave();snapshot();return r};
   }
 
-  // The old manual close control is intentionally disabled. Corrective approval closes the incident automatically.
+  // The old manual close control is intentionally disabled. Executive approval closes the incident.
   const style=document.createElement('style');style.id='lifecycle413Css';style.textContent=`
     #closeInc{display:none!important}.lifecycle413-final{margin-top:12px;border:2px solid #b9d6c8;border-radius:13px;background:#f7fcf9;overflow:hidden}.lifecycle413-final>h3{margin:0;padding:11px 13px;background:#eaf6ef;color:#245d43;font-size:15px}.lifecycle413-final-body{padding:12px;display:grid;gap:9px}.lifecycle413-final-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.lifecycle413-final-grid>div{padding:10px;border:1px solid #d7e8df;border-radius:10px;background:#fff}.lifecycle413-final-grid b{display:block;font-size:11px;color:#658071;margin-bottom:4px}.lifecycle413-final-grid span{display:block;font-size:13px;color:#294b3a;white-space:pre-wrap;line-height:1.5}.lifecycle413-closed-list{display:grid;gap:10px}.lifecycle413-closed-card{width:100%;border:1.5px solid #cddfd5;border-radius:14px;background:#fff;padding:13px;text-align:left;color:inherit}.lifecycle413-closed-card h3{margin:7px 0;color:#174d78;font-size:16px}.lifecycle413-closed-action{margin-top:9px;padding:10px;border-radius:10px;background:#f4faf6;border:1px solid #d9e8df;color:#395d49;font-size:12px;line-height:1.5}.lifecycle413-nav{border-color:#87ab97!important}.lifecycle413-nav.on{background:#2e6d4e!important;border-color:#2e6d4e!important;color:#fff!important}@media(max-width:560px){.lifecycle413-final-grid{grid-template-columns:1fr}}
   `;document.head.appendChild(style);
-  document.addEventListener('click',e=>{const b=e.target?.closest?.('#closeInc');if(!b)return;e.preventDefault();e.stopImmediatePropagation();alert('사고보고와 사고조치가 모두 승인되면 자동으로 종결됩니다. 별도 수동 종결은 하지 않습니다.')},true);
+  document.addEventListener('click',e=>{const b=e.target?.closest?.('#closeInc');if(!b)return;e.preventDefault();e.stopImmediatePropagation();alert('안전관리자 확인 후 경영진 결재가 모두 완료되면 종결됩니다. 별도 수동 종결은 하지 않습니다.')},true);
 
   function finalActionSection(i){
     if(historicalClosed(i))return '';

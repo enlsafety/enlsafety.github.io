@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict'),crypto=require('node:crypto');const {fixture}=require('./final-lifecycle.cjs');
-(async()=>{const f=await fixture();let passed=0;const check=(a,b,label)=>{assert.equal(a,b,label);passed++};
+(async()=>{const f=await fixture();await f.db.exec(require("node:fs").readFileSync("supabase/migrations/20261030004902_executive_closure.sql","utf8"));let passed=0;const check=(a,b,label)=>{assert.equal(a,b,label);passed++};
 try{
  let r=await f.call('field',{action:'push',incidents:[{id:'qa-security',siteId:'qa-site',status:'reported',category:'person',summary:'가상 보안사고 / 진단명: 비공개진단 / 의사 소견: 비공개의견',occurredAt:'2026-10-12T01:00:00Z',reportDetails:{diagnosis:'비공개진단',doctorOpinion:'비공개의견',medicalCostDetail:'비공개상세',medicalCost:null},photos:[],corrective:null,_syncBaseVersion:0,_syncMutationId:'security-create'}]});check(r.status,200,'create');let i=r.body.incidents[0];
  const push=async(who,edit)=>{const n=structuredClone(i);edit(n);n._syncBaseVersion=i._syncVersion;n._syncMutationId=crypto.randomUUID();const r=await f.call(who,{action:'push',incidents:[n]});if(r.status===200&&r.body.incidents[0])i=r.body.incidents[0];return r};
@@ -10,6 +10,7 @@ try{
  check((await push('safety',x=>x.corrective={status:'planned',rootCause:'가상 원인',planDetail:'가상 계획',ownerName:'QA 현장',dueDate:'2026-10-20'})).status,200,'plan');
  check((await push('field',x=>Object.assign(x.corrective,{status:'submitted',actionDetail:'가상 조치',actionDate:'2026-10-13',actionOwner:'QA 현장',afterPhotos:[{path:'action/site-qa-site/qa.pdf',name:'QA.pdf',mime:'application/pdf'}]}))).status,200,'evidence');
  check((await push('safety',x=>{x.corrective.status='approved';x.status='closed'})).status,200,'close');
+ r=await f.call('executive',{action:'executive_decide',incidentId:i.id,expectedVersion:i._syncVersion,decision:'approve'});check(r.status,200,'executive closes');i=r.body.incident;
  const stamps={approvedAt:i.approvedAt,closedAt:i.closedAt};const op=async(action,extra={},who='safety')=>f.call(who,{action,incidentId:i.id,expectedVersion:i._syncVersion,mutationId:crypto.randomUUID(),...extra});
  r=await op('correct_closed',{reason:'가상 유형 및 의료기록 정정',changes:{category:'property',reportDetails:{...i.reportDetails,diagnosis:'정정진단',doctorOpinion:'정정의견'}}});check(r.status,200,'person to property');i=r.body.incident;
  for(const who of ['manager','executive']){r=await op('revision_list',{},who);const text=JSON.stringify(r.body);check(/비공개진단|비공개의견|정정진단|정정의견/.test(text),false,'medical history must remain private after category change');const v=(await f.call(who,{action:'pull'})).body.incidents[0];check(v.reportDetails.diagnosis,undefined,'property retains medical redaction')}

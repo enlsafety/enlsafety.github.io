@@ -15,6 +15,8 @@ async function call(who,body){const r=await fetch(URL,{signal:AbortSignal.timeou
  await push('field',x=>Object.assign(x.corrective,{status:'submitted',actionDetail:'가상 표지 설치 완료',actionDate:'2026-10-13',actionCompletedDate:'2026-10-13',actionOwner:'QA 현장',afterPhotos:[{name:'가상증빙.pdf',path:'action/site-qa-site/qa.pdf',mime:'application/pdf'}]}),'submit');
  await push('safety',x=>Object.assign(x.corrective,{status:'rejected',reviewNote:'가상 보완요청'}),'action revision');await push('field',x=>x.corrective.status='submitted','action resubmit');await push('safety',x=>{x.corrective.status='approved';x.status='closed'},'closure');
  assert.equal(i.corrective.submissions.length,2);assert.equal(i.corrective.actionCompletedDate,'2026-10-13');
+ if(i.executiveApproval?.state==='pending'){r=await call('executive',{action:'executive_decide',incidentId:id,expectedVersion:i._syncVersion,decision:'approve'});i=check(r,200,'executive closes').incident;}
+ assert.equal(i.status,'closed');
  const stamps={approvedAt:i.approvedAt,closedAt:i.closedAt};
  const op=async(action,extra={},code=200,who='safety')=>{const res=await call(who,{action,incidentId:id,expectedVersion:i._syncVersion,mutationId:crypto.randomUUID(),...extra});check(res,code,action);if(res.body.incident)i=res.body.incident;return res;};
  await op('erp_record',{record:{submitted:true,documentNumber:'QA-ONLY',draftedAt:'2026-10-13'},reason:'가상 기록'});

@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict'),{fixture}=require('./final-lifecycle.cjs');
-(async()=>{const f=await fixture();let checks=0;
+(async()=>{const f=await fixture();await f.db.exec(require("node:fs").readFileSync("supabase/migrations/20261030004902_executive_closure.sql","utf8"));let checks=0;
 const eq=(a,b,message)=>{assert.equal(a,b,message);checks++;};
 const push=(who,i,change={})=>f.call(who,{action:'push',incidents:[{...structuredClone(i),...change,_syncBaseVersion:i._syncVersion||0,_syncMutationId:crypto.randomUUID()}]});
 try{
@@ -23,6 +23,7 @@ try{
  r=await push('safety',i,{corrective:{...i.corrective,planDetail:'QA revised instruction'}});eq(r.status,200,'plan correction during supplement retains D');i=r.body.incidents[0];
  r=await push('field',i,{corrective:{...i.corrective,status:'submitted',actionDetail:'QA resubmission',afterPhotos:[...i.corrective.afterPhotos,{name:'QA2.pdf',path:'action/site-qa-site/qa2.pdf',mime:'application/pdf'}]}});eq(r.status,200,'resubmission');i=r.body.incidents[0];assert.deepEqual(i.corrective.submissions[0],originalSubmission);checks++;eq(i.corrective.submissions[1].requestNote,'QA additional evidence','request preserved with new response');
  r=await push('safety',i,{status:'closed',corrective:{...i.corrective,status:'approved',reviewNote:'QA verified'}});eq(r.status,200,'close');i=r.body.incidents[0];
+ r=await f.call('executive',{action:'executive_decide',incidentId:i.id,expectedVersion:i._syncVersion,decision:'approve'});eq(r.status,200,'executive closes');i=r.body.incident;
  const c=structuredClone(i.corrective),closedAt=i.closedAt;
  r=await f.call('safety',{action:'correct_closed',incidentId:i.id,expectedVersion:i._syncVersion,mutationId:crypto.randomUUID(),reason:'QA factual correction',changes:{reportDetails:{incidentHow:'QA corrected after close'}}});eq(r.status,200,'post closure factual correction');i=r.body.incident;assert.deepEqual(i.corrective,c);checks++;eq(i.approvedAt,approval,'approval timestamp preserved');eq(i.closedAt,closedAt,'closure timestamp preserved');eq(i.reportDetails.environmentCause,'QA environment','environment retained');eq(i.reportDetails.behaviorCause,'QA behavior','behavior retained');eq(i.reportDetails.causeAnalysisNote,'QA note','combined cause retained');
  const fetched=(await f.call('safety',{action:'pull'})).body.incidents.find(x=>x.id===i.id);assert.deepEqual(fetched.corrective,c);checks++;

@@ -177,7 +177,7 @@
 
   function flowHtml(i){
     const c=i?.corrective||{},accepted=reportAccepted(i),plan=hasPlan(c),fieldDone=['submitted','rejected','approved'].includes(String(c.status||'')),closed=isFinalized(i);
-    const steps=[['접수완료',accepted],['재발방지계획',plan],['재발방지조치 등록',fieldDone],['안전관리자 확인',String(c.status||'')==='approved'],['종결',closed]];
+    const steps=[['접수완료',accepted],['재발방지계획',plan],['재발방지조치 등록',fieldDone],['안전관리자 확인',String(c.status||'')==='approved'],['경영진 결재',i.executiveApproval?.state==='approved'],['종결',closed]];
     let currentFound=false;
     return `<div class="prev429-flow">${steps.map(([label,done])=>{let cls=done?'done':'';if(!done&&!currentFound){cls='on';currentFound=true}return `<span class="${cls}">${ex(label)}</span>`}).join('')}</div>`;
   }
@@ -274,11 +274,11 @@
     if(c.status==='approved'||isFinalized(i))return openReadOnly(i,u);
     if(c.status==='submitted'){
       openModal(modalHead(i,'재발방지조치 검토')+cumulative(i,{through:'D',highlight:'D'})+historyHtml(c)+
-        `<form id="prev429ReviewForm" class="report410-stage report410-active-blue" data-report-stage="E"><h3>E. 안전관리자 확인</h3><label class="lbl"><span>확인의견 / 보완요청 사유</span><textarea id="prev429Review" rows="3" placeholder="보완이 필요한 항목과 사유를 구체적으로 입력해 주세요."></textarea></label><div class="modal-actions"><button type="button" class="btn-reject" id="prev429Reject">보완요청</button><button type="submit" class="btn-green" id="prev429Approve">최종 확인·종결</button></div></form>`);
+        `<form id="prev429ReviewForm" class="report410-stage report410-active-blue" data-report-stage="E"><h3>E. 안전관리자 확인</h3><label class="lbl"><span>확인의견 / 보완요청 사유</span><textarea id="prev429Review" rows="3" placeholder="보완이 필요한 항목과 사유를 구체적으로 입력해 주세요."></textarea></label><div class="modal-actions"><button type="button" class="btn-reject" id="prev429Reject">보완요청</button><button type="submit" class="btn-green" id="prev429Approve">승인 후 경영진 결재요청</button></div></form>`);
       mountDocument(i,'[data-report-stage="D"]');const form=document.getElementById('prev429ReviewForm');
       const review=async approved=>{const note=text(form.querySelector('#prev429Review').value);if(!approved&&!note)return alert('보완요청 사유를 입력해 주세요.');
-        const next=structuredClone(i),ts=now();Object.assign(next.corrective,{status:approved?'approved':'rejected',reviewNote:note});next.updatedAt=ts;if(approved){next.status='closed';next.closedAt=ts;}
-        if(await commitForm(form,next,u))alert(approved?'최종 확인이 완료되어 사고가 종결되었습니다.':'현장에 보완을 요청했습니다. 기존 제출내용과 증빙은 유지됩니다.');
+        const next=structuredClone(i),ts=now();Object.assign(next.corrective,{status:approved?'approved':'rejected',reviewNote:note});next.updatedAt=ts;if(approved){next.status='approved';next.closedAt=null;}
+        if(await commitForm(form,next,u))alert(approved?'조치 확인이 완료되어 경영진 결재를 요청했습니다.':'현장에 보완을 요청했습니다. 기존 제출내용과 증빙은 유지됩니다.');
       };
       form.onsubmit=e=>{e.preventDefault();review(true)};document.getElementById('prev429Reject').onclick=()=>review(false);return;
     }

@@ -64,7 +64,7 @@ function setVapid(c:any){webpush.setVapidDetails(c.vapid_subject,c.vapid_public_
 function payload(title:string,body:string,tag:string,data:any){return JSON.stringify({title,body,tag,data:{...(data||{}),url:"https://enlsafety.github.io/"}})}
 async function send(c:any,s:any,p:any){setVapid(c);return await webpush.sendNotification({endpoint:s.endpoint,keys:{p256dh:s.p256dh,auth:s.auth}},p,{TTL:600,urgency:"high"} as any)}
 function prefKey(kind:string){
-  if(["incident_new","incident_resubmitted","incident_supplement_requested","incident_supplement_submitted","incident_approved","incident_rejected","incident_closed"].includes(kind))return "incident_progress";
+  if(["executive_approval_requested","executive_approval_rejected","incident_new","incident_resubmitted","incident_supplement_requested","incident_supplement_submitted","incident_approved","incident_rejected","incident_closed"].includes(kind))return "incident_progress";
   if(["prevention_plan_assigned","action_submitted","action_resubmitted","action_approved","action_rejected"].includes(kind))return "action_progress";
   if(["inquiry_new","inquiry_answered"].includes(kind))return "inquiry";
   if(["management_view_report","management_view_action"].includes(kind))return "management_views";
@@ -187,10 +187,17 @@ async function dispatchCoreLocked(sql:any,c:any){
     }
     const subs=await sql`select id,endpoint,p256dh,auth,role,preferences from public.enl_push_subscriptions where user_id=${ev.user_id}`;
     const prof=await notificationProfile(sql,clean(ev.user_id));
-    // Temporarily suspend HQ completion push notifications.
-    if(["action_approved","incident_closed"].includes(clean(ev.kind))&&["manager","executive"].includes(prof?.role||"")){
-      await sql`update public.enl_push_events set sent_at=now(),last_error='final_hq_notification_suspended' where id=${ev.id}`;
+    // Enforce role-specific incident push notifications.
+    if((["manager","final"].includes(prof?.role||"")&&!["incident_new","urgent_incident","incident_closed"].includes(clean(ev.kind)))||(prof?.role==="executive"&&!["incident_new","urgent_incident","executive_approval_requested"].includes(clean(ev.kind)))){
+      await sql`update public.enl_push_events set sent_at=now(),last_error='role_event_policy' where id=${ev.id}`;
       continue;
+    }
+    if(ev.kind==='executive_approval_requested'){
+      const rows=await sql`select payload from public.enl_incident_shared where incident_id=${ev.incident_id} limit 1`;
+      const a=rows[0]?.payload?.executiveApproval;
+      if(prof?.role!=='executive'||a?.state!=='pending'||!a.roster?.some((x:any)=>x.id===ev.user_id)||a.signatures?.some((x:any)=>x.id===ev.user_id)||(ev.data?.approvalRound&&ev.data.approvalRound!==a.round)){
+        await sql`update public.enl_push_events set sent_at=now(),last_error='approval_no_longer_required' where id=${ev.id}`;continue;
+      }
     }
     const eligible=(subs||[]).filter((s:any)=>allowed(s,ev.kind,prof?.pushEnabled!==false));
     if(!eligible.length){
