@@ -73,7 +73,7 @@
 <script src="historical-correction-v461.js?v=4.7.0-r1"></script>
 <script src="incident-one-page-excel-v471.js?v=4.7.1-r1"></script><script src="official-records-v439.js?v=4.7.1-r1&amp;legacy=1"></script>
 <script src="incident-flow-v440.js?v=4.7.3-r1"></script>
-<script src="management-approval-v448.js?v=4.6.0-r1"></script>
+<script src="approval-sheet-v486.js?v=4.8.6-r1"></script><script src="management-approval-v448.js?v=4.6.0-r1"></script>
 <script src="historical-transfer-v449.js?v=4.6.0-r2"></script>
 <script src="required-fields-v453.js?v=4.7.0-r1"></script>
 <script src="zerowiz-fidelity-dashboard.js?v=2.0.0"></script>

@@ -118,7 +118,7 @@ async function approvalDetail(engine){
       window.enlIncidentPullNow=async()=>{};
       window.enlOpenIncidentReview=id=>{document.getElementById('modalRoot').innerHTML='<div class="modal" data-wf440-incident="'+id+'"><div class="modal-head"><div><h2>사고 상세</h2></div><button class="x" data-close>×</button></div></div>'};
     });
-    await page.addScriptTag({content:fs.readFileSync('executive-approval-v482.js','utf8')});await page.addScriptTag({content:fs.readFileSync('management-approval-v448.js','utf8')});
+    await page.addScriptTag({content:fs.readFileSync('executive-approval-v482.js','utf8')});for(const file of ['approval-sheet-v486.js','management-approval-v448.js'])await page.addScriptTag({content:fs.readFileSync(file,'utf8')});
     await page.evaluate(()=>window.enlOpenIncidentReview('inc-approved'));
     await page.waitForTimeout(300);
     const text=await page.locator('#modalRoot').innerText();

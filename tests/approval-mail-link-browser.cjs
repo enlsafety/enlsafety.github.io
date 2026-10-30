@@ -37,7 +37,7 @@ async function run(engine,width){
    });
    for(const file of ['style.css','report-v410.css'])await page.addStyleTag({content:fs.readFileSync(file,'utf8')});
    if(process.env.QA_FONT_FILE)await page.addStyleTag({content:'@font-face{font-family:QA;src:url(data:font/woff2;base64,'+fs.readFileSync(process.env.QA_FONT_FILE).toString('base64')+')}body{font-family:QA,sans-serif!important}'});
-   for(const file of ['auth-v411.js','incidents-v410.js','incident-sync-v411.js','report-v410.js','workflow-lifecycle-v413.js','push-session-v425.js','incident-flow-v440.js','executive-approval-v482.js','management-approval-v448.js','incident-view-v485.js'])await page.addScriptTag({content:fs.readFileSync(file,'utf8')});
+   for(const file of ['auth-v411.js','incidents-v410.js','incident-sync-v411.js','report-v410.js','workflow-lifecycle-v413.js','push-session-v425.js','incident-flow-v440.js','executive-approval-v482.js','approval-sheet-v486.js','management-approval-v448.js','incident-view-v485.js'])await page.addScriptTag({content:fs.readFileSync(file,'utf8')});
    await page.evaluate(()=>enlRenderLogin());assert.equal(await page.locator('[data-executive-record]').count(),0,'no report before login');
    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('enl_pending_push_incident_v425')).incidentId),id);
    await page.fill('#loginName411',user.name);await page.locator('#loginPassword411').waitFor();await page.fill('#loginPassword411','qa-password');await page.click('#loginSubmit411');
