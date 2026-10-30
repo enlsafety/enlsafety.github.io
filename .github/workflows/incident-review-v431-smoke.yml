@@ -23,16 +23,14 @@ jobs:
           cleanup=Path('production-cleanup-v431.js').read_text(encoding='utf-8')
           html=Path('stable412.html').read_text(encoding='utf-8')
           required=[
-            'signAttachments(paths)',
-            'review431-thumb',
             'border-top:1px solid #d8ebf7',
-            'window.enlBindAttachmentOpen=enhancedBind',
-            '미리보기 불러오는 중',
           ]
           for x in required: assert x in review,x
+          assert 'signAttachments(' not in review, 'core is the only attachment hydration owner'
+          assert 'window.enlBindAttachmentOpen=' not in review, 'review must not wrap the gallery binder'
           for x in ['u-field-demo','u-safety-demo','u-final-demo','enl_accident_demo_v1','테스트 경영진','테스트 관리자','테스트 안전관리자']:
             assert x in cleanup,x
-          assert 'incident-review-v431.js?v=4.1.2-r31&amp;fix=review-preview1' in html
+          assert 'incident-review-v431.js?v=4.8.4-r1' in html
           assert 'production-cleanup-v431.js?v=4.4.38-r1&amp;fix=test-hq-cleanup1' in html
           assert html.index('workflow-prevention-v429.js') < html.index('incident-review-v431.js') < html.index('production-cleanup-v431.js')
-          print('OK: stored incident images hydrate to thumbnails, detail rows are separated, legacy local demo records are purged')
+          print('OK: attachment preview rendering has one owner, detail rows are separated, legacy local demo records are purged')
