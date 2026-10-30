@@ -58,7 +58,7 @@ async function run(engine,width){
    await page.waitForFunction(selector=>[...document.querySelectorAll(selector+' img')].every(i=>i.complete&&i.naturalWidth>0),selector);
    const cards=await page.locator(selector+' [data-attach-card]').evaluateAll(xs=>xs.map(card=>{
     const images=[...card.querySelectorAll('img')],box=card.getBoundingClientRect();
-    return {count:images.length,iframes:card.querySelectorAll('iframe').length,sources:images.map(i=>i.src),inside:images.every(i=>{
+    return {count:images.length,height:box.height,iframes:card.querySelectorAll('iframe').length,sources:images.map(i=>i.src),fullImage:images.every(i=>getComputedStyle(i).objectFit==='contain'),inside:images.every(i=>{
      const r=i.getBoundingClientRect();return r.width>0&&r.height>0&&r.left>=box.left-1&&r.right<=box.right+1&&r.top>=box.top-1&&r.bottom<=box.bottom+1;
     })};
    }));
@@ -66,8 +66,9 @@ async function run(engine,width){
    cards.forEach((card,n)=>{
     assert.equal(card.count,expected[n]==='pdf'?0:1,label+' exactly one image per attachment: '+JSON.stringify(card));
     assert.equal(card.iframes,expected[n]==='pdf'?1:0,label+' PDF remains separate');
-    if(expected[n]!=='pdf'){assert.ok(card.sources[0].includes(expected[n]),label+' correct image');assert.ok(card.inside,label+' preview stays within its card');}
+    if(expected[n]!=='pdf'){assert.ok(card.sources[0].includes(expected[n]),label+' correct image');assert.ok(card.inside,label+' preview stays within its card');assert.ok(card.fullImage,label+' whole photo remains visible');}
    });
+   assert.ok(cards.every(card=>Math.abs(card.height-cards[0].height)<1),label+' portrait photos must not stretch adjacent thumbnails');
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,label+' no horizontal overflow');
   };
   const files=[stored('front')];

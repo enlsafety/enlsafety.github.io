@@ -8,7 +8,7 @@ assert.ok(html.includes("incident-one-page-excel-v471.js?v=4.7.1-r1") && sw.incl
 for(const page of [html,fs.readFileSync('docs/disabled-demo/zerowiz-demo-app.html.txt','utf8')]){assert.ok(page.includes('attachment-image-v472.js?v=4.7.2-r2'),'image optimizer loaded');assert.ok(page.indexOf('attachment-image-v472.js')<page.indexOf('core.js?v='),'optimizer loads before upload pipeline');}
 assert.ok(sw.includes('/attachment-image-v472.js'),'optimizer precached for PWA');
 
-for(const file of ["core.js","admin.js","incident-sync-v411.js", "sync-conflict-v428.js", "closed-incident-reopen-v438.js", "report-v410.js", "incident-flow-v440.js", "workflow-prevention-v429.js"]){for(const page of [html,fs.readFileSync("docs/disabled-demo/zerowiz-demo-app.html.txt","utf8")])assert.ok(page.includes(file+"?v="+(page===html&&["report-v410.js","workflow-prevention-v429.js","incident-sync-v411.js","sync-conflict-v428.js","incident-flow-v440.js"].includes(file)?"4.8.2-r1":"4.7.3-r1")),file+" stability release cache key");}
+for(const file of ["core.js","admin.js","incident-sync-v411.js", "sync-conflict-v428.js", "closed-incident-reopen-v438.js", "report-v410.js", "incident-flow-v440.js", "workflow-prevention-v429.js"]){for(const page of [html,fs.readFileSync("docs/disabled-demo/zerowiz-demo-app.html.txt","utf8")])assert.ok(page.includes(file+"?v="+(page===html&&file==="core.js"?"4.8.4-r1":page===html&&["report-v410.js","workflow-prevention-v429.js","incident-sync-v411.js","sync-conflict-v428.js","incident-flow-v440.js"].includes(file)?"4.8.2-r1":"4.7.3-r1")),file+" stability release cache key");}
 
 for(const file of ['legal-review-v435.js','ui-stability-v422.js'])assert.ok(html.includes(file+'?v=4.8.2-r1'),file+' HQ settings fix cache key');
 
