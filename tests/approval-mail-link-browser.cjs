@@ -23,6 +23,7 @@ async function run(engine,width){
     else if(b.action==='login_hq')r=b.passwordHash===proof?{status:200,body:{ok:true,user}}:{status:403,body:{ok:false}};
     else if(b.action==='hq_list')r={status:200,body:{ok:true,users}};
     else r={status:200,body:{ok:true}};
+    if(b.action==='view'&&r.status===200)await page.evaluate(()=>window.qaViewSaved=true);
     return route.fulfill({status:r.status,contentType:'application/json',body:JSON.stringify(r.body),headers:{'access-control-allow-origin':'*'}});
    });
    await page.goto(url);
@@ -36,7 +37,7 @@ async function run(engine,width){
    });
    for(const file of ['style.css','report-v410.css'])await page.addStyleTag({content:fs.readFileSync(file,'utf8')});
    if(process.env.QA_FONT_FILE)await page.addStyleTag({content:'@font-face{font-family:QA;src:url(data:font/woff2;base64,'+fs.readFileSync(process.env.QA_FONT_FILE).toString('base64')+')}body{font-family:QA,sans-serif!important}'});
-   for(const file of ['auth-v411.js','incidents-v410.js','incident-sync-v411.js','report-v410.js','workflow-lifecycle-v413.js','push-session-v425.js','incident-flow-v440.js','executive-approval-v482.js','management-approval-v448.js'])await page.addScriptTag({content:fs.readFileSync(file,'utf8')});
+   for(const file of ['auth-v411.js','incidents-v410.js','incident-sync-v411.js','report-v410.js','workflow-lifecycle-v413.js','push-session-v425.js','incident-flow-v440.js','executive-approval-v482.js','management-approval-v448.js','incident-view-v485.js'])await page.addScriptTag({content:fs.readFileSync(file,'utf8')});
    await page.evaluate(()=>enlRenderLogin());assert.equal(await page.locator('[data-executive-record]').count(),0,'no report before login');
    assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('enl_pending_push_incident_v425')).incidentId),id);
    await page.fill('#loginName411',user.name);await page.locator('#loginPassword411').waitFor();await page.fill('#loginPassword411','qa-password');await page.click('#loginSubmit411');
@@ -44,6 +45,7 @@ async function run(engine,width){
    assert.equal(await page.locator('#modalRoot .modal').getAttribute('data-cumulative-incident'),id,'correct report opens after real login handler and authenticated pull');
    const expected=user.id==='qa-parallel'&&stage==='parallel'?'결재 승인':user.id==='qa-executive'&&stage==='president'?'사장 최종결재':null;
    assert.equal(await page.getByRole('button',{name:'결재 승인',exact:true}).count(),expected==='결재 승인'?1:0);assert.equal(await page.getByRole('button',{name:'사장 최종결재',exact:true}).count(),expected==='사장 최종결재'?1:0);
+   if(user.role==='executive'){await page.waitForFunction(()=>window.qaViewSaved===true);assert.ok(requests.some(x=>x.action==='view'&&x.incidentId===id&&x.actorPasswordHash===proof),'login deep link records authenticated view');}
    const position=await page.locator('[data-executive-record]').boundingBox();assert.ok(position.y<900&&position.y+position.height>0,'approval area visible');
    assert.equal(await page.evaluate(()=>localStorage.getItem('enl_pending_push_incident_v425')),null);assert.ok(requests.some(x=>x.action==='pull'&&x.actorPasswordHash===proof));assert.ok(!requests.some(x=>x.action==='executive_decide'),'opening a link never approves');assert.deepEqual(errors,[]);
    if(user.role==='safety'){await page.evaluate(()=>document.fonts.ready);fs.mkdirSync('qa-output',{recursive:true});await page.screenshot({path:'qa-output/approval-link-'+engine.name()+'-'+width+'-'+stage+'.png'});}

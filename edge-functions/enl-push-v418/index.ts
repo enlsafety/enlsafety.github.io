@@ -5,7 +5,7 @@ import webpush from "npm:web-push@3.6.7";
 
 const ORIGIN="https://enlsafety.github.io";
 const CLIENT="incident-report-v2";
-const VERSION="4.8.2-parallel-president-approval";
+const VERSION="4.8.5-first-incident-view";
 const FIELD_TITLES=["현장소장","파트장","서무"];
 const cors={"Access-Control-Allow-Origin":ORIGIN,"Access-Control-Allow-Headers":"content-type, x-enl-app, x-enl-internal","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:cors});
@@ -75,7 +75,9 @@ function prefKey(kind:string){
 function allowed(sub:any,kind:string,pushEnabled=true){
   if(kind==="urgent_incident"&&["safety","manager","executive"].includes(clean(sub.role)))return true;
   if(pushEnabled===false)return false;
-  const k=prefKey(kind),p=sub.preferences&&typeof sub.preferences==="object"?sub.preferences:{};
+  let p=sub.preferences;try{if(typeof p==="string")p=JSON.parse(p)}catch{p={}}
+  if(!p||typeof p!=="object")p={};
+  const k=prefKey(kind);
   return p[k]!==false;
 }
 async function subscribe(sql:any,body:any){
@@ -137,25 +139,11 @@ async function managementView(sql:any,body:any){
   const status=clean(row.payload?.status),actionStatus=clean(row.payload?.corrective?.status);
   if(documentType==="incident_report"&&!["reported","supplement","supplement_submitted","approved","closed"].includes(status))return json({ok:false,message:"not_viewable"},409);
   if(documentType==="corrective_action"&&actionStatus!=="approved")return json({ok:false,message:"action_not_approved"},409);
-  const ex=await sql`select id from public.enl_document_views where incident_id=${incidentId} and document_type=${documentType} and viewer_id=${u.id} limit 1`;
-  if(ex[0])return json({ok:true,first:false});
-  const now=new Date().toISOString();
-  await sql`insert into public.enl_document_views(incident_id,document_type,viewer_id,viewer_name,viewer_role,first_viewed_at)
-    values(${incidentId},${documentType},${u.id},${u.name},${u.role},${now})
-    on conflict(incident_id,document_type,viewer_id) do nothing`;
-  const inserted=await sql`select id from public.enl_document_views where incident_id=${incidentId} and document_type=${documentType} and viewer_id=${u.id} limit 1`;
-  if(!inserted[0])return json({ok:true,first:false});
-  const kind=documentType==="incident_report"?"management_view_report":"management_view_action",label=documentType==="incident_report"?"사고보고":"재발방지조치",viewer=[u.name,u.position].filter(Boolean).join(" "),tok=`view:${incidentId}:${documentType}:${u.id}`;
-  if(["manager","executive"].includes(u.role)){
-    const safety=await sql`select user_id from public.enl_hq_users where active=true and role='safety'`;
-    for(const s of safety||[]){
-      const eventKey=`${tok}:${s.user_id}`;
-      await sql`insert into public.enl_push_events(event_key,incident_id,site_id,user_id,kind,title,body,data)
-        values(${eventKey},${incidentId},${row.site_id},${s.user_id},${kind},${`[조회 확인] ${label}를 확인했습니다.`},${`${viewer||"관리자"}가 ${label}를 최초 확인했습니다.`},${JSON.stringify({view:documentType==="incident_report"?"incident":"action",viewerId:u.id,viewerName:u.name})}::jsonb)
-        on conflict(event_key) do nothing`;
-    }
-  }
-  return json({ok:true,first:true});
+  const inserted=await sql`insert into public.enl_document_views(incident_id,document_type,viewer_id,viewer_name,viewer_role,first_viewed_at)
+    values(${incidentId},${documentType},${u.id},${u.name},${u.role},${new Date().toISOString()})
+    on conflict(incident_id,document_type,viewer_id) do nothing returning id`;
+  // The database owns first-view notifications for this API, sync views and final PDFs.
+  return json({ok:true,first:inserted.length>0});
 }
 async function viewList(sql:any,body:any){
   const u=await verifiedActor(sql,body.actor,body);if(!u||!["field","safety","manager","executive"].includes(u.role))return json({ok:false,message:"forbidden"},403);
