@@ -26,7 +26,7 @@ const migration='supabase/migrations/20261030043218_safety_approval_email_test_c
  const ctx={Deno:{env:{get:()=> 'qa-only'},serve(){}},postgres:()=>sql,Request,Response,crypto,console,fetch:async(url,init)=>{if(url.endsWith('/senders'))return new Response(JSON.stringify({senders:[{id:1,active:true,name:'이앤엘 사고보고',email:'qa@example.invalid'}]}));assert.ok(url.endsWith('/smtp/email'));sent.push(JSON.parse(init.body));return new Response(JSON.stringify({messageId:'qa-only'}));}};
  vm.createContext(ctx);vm.runInContext(fs.readFileSync('executive-approval-v482.js','utf8'),ctx);vm.runInContext(stripTypeScriptTypes(fs.readFileSync('edge-functions/enl-email-v441/index.ts','utf8').replace(/^import .*;\r?\n/gm,''))+';globalThis.flushMail=flush;globalThis.createMail=mailContent;',ctx);
  assert.equal((await ctx.flushMail(sql)).sent,1,'safety receives copy even when every executive email is OFF');
- assert.equal(sent[0].to[0].email,'qa-safety@example.invalid');assert.match(sent[0].subject,/테스트 참조.*병렬결재/);
+ assert.equal(sent[0].to[0].email,'qa-safety@example.invalid');assert.match(sent[0].subject,/테스트 참조.*경영진 결재/);
  const link=sent[0].textContent.match(/https:\/\/enlsafety\.github\.io\/\S+/)[0];assert.equal(new URL(link).searchParams.get('kind'),'executive_approval_requested');
  assert.ok(ctx.createMail(incident,'QA 가상 사업장',false,'executive_approval_requested').text.includes(link),'copy and original use identical link');
  assert.match(sent[0].htmlContent,/사고보고 결재화면 열기/);assert.match(sent[0].textContent,/경영진 결재권한이 부여되지는 않습니다/);

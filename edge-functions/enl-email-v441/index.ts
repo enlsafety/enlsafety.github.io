@@ -5,7 +5,7 @@ import postgres from "npm:postgres@3.4.5";
 const ORIGIN="https://enlsafety.github.io";
 const CLIENT="incident-report-v2";
 const BREVO_BASE="https://api.brevo.com/v3";
-const VERSION="4.8.3-safety-approval-test-copy";
+const VERSION="4.8.6-approval-wording";
 const cors={"Access-Control-Allow-Origin":ORIGIN,"Access-Control-Allow-Headers":"content-type, x-enl-app, x-enl-internal","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:cors});
 const clean=(v:any)=>String(v??"").trim();
@@ -82,7 +82,7 @@ function mailContent(incident:any,siteName:string,urgent:boolean,kind:string){
     action_approved:"사고종결/조치승인",
     incident_closed:"사고종결"
   };
-  const label=kind==='executive_approval_requested'?(incident?.executiveApproval?.stage==='president'?'사장 최종결재 요청':'경영진 병렬결재 요청'):labelMap[kind]||"사고보고";
+  const label=kind==='executive_approval_requested'?(incident?.executiveApproval?.stage==='president'?'사장 최종결재 요청':'경영진 결재 요청'):labelMap[kind]||"사고보고";
   const subjectLabel=subjectMap[kind]||label;
   const subject=`[${subjectLabel}] ${siteName||"사업장"} | ${typeShort} | ${subjectWhen}`;
 
@@ -96,7 +96,7 @@ function mailContent(incident:any,siteName:string,urgent:boolean,kind:string){
     ["사고유형",type],
     ["사고장소",place],
     ["사고내용",content],
-    ["현재 상태",incident?.executiveApproval?.state==="pending"?(incident.executiveApproval.stage==='president'?'사장 최종결재대기':'경영진 병렬결재 진행 중'):state],
+    ["현재 상태",incident?.executiveApproval?.state==="pending"?(incident.executiveApproval.stage==='president'?'사장 최종결재대기':'경영진 결재 진행 중'):state],
     ["긴급조치 내용",immediate]
   ];
   if(kind==="incident_supplement_requested")rows.push(["보완 요청사항",clean(s.requestNote)||"앱에서 보완 요청내용을 확인해 주세요."]);

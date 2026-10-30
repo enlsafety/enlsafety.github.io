@@ -19,7 +19,7 @@ async function run(engine,width){
    window.openModal=html=>modalRoot.innerHTML='<div class="modal-bg"><section class="modal">'+html+'</section></div>';window.closeModal=()=>modalRoot.innerHTML='';window.renderShell=()=>document.getElementById('view').innerHTML='';window.enlPushFlush=()=>{window.qaFlushes=(window.qaFlushes||0)+1};window.enlIncidentApi=b=>qaAPI(b);window.saveData=()=>{};
   },incidents);
   for(const file of ['style.css','report-v410.css'])await page.addStyleTag({content:fs.readFileSync(file,'utf8')});
-  for(const file of ['incidents-v410.js','report-v410.js','reader-ui-v414.js','push-session-v425.js','executive-approval-v482.js','management-approval-v448.js','incident-view-v485.js'])await page.addScriptTag({content:fs.readFileSync(file,'utf8')});
+  for(const file of ['incidents-v410.js','report-v410.js','reader-ui-v414.js','push-session-v425.js','executive-approval-v482.js','approval-sheet-v486.js','management-approval-v448.js','incident-view-v485.js'])await page.addScriptTag({content:fs.readFileSync(file,'utf8')});
   const waitSaved=async(id,viewer)=>{await page.waitForFunction(({id,viewer})=>window.qaSaved?.includes(id+':'+viewer),{id,viewer});};
   await page.evaluate(()=>{const base=enlIncidentApi;window.enlIncidentApi=async b=>{const r=await base(b);(window.qaSaved??=[]).push(b.incidentId+':'+b.actor.id);return r};});
   assert.equal(calls.length,0,'list loaded without detail does not count');

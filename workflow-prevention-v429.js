@@ -293,16 +293,36 @@
       next.corrective=out;next.updatedAt=now();if(await commitForm(form,next,u,()=>draftStore.clear()))alert(plan?'재발방지계획을 수정했습니다.':'재발방지계획을 등록했습니다.');
     };
   }
+  // Do not invoke native validation bubbles: mobile browsers can leave them over later screens.
+  function validateFieldAction(form,submitted){
+    const today=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+    const fail=(input,message)=>{input?.classList.add('enl432-required-empty');input?.scrollIntoView({block:'center'});input?.focus({preventScroll:true});alert(message);return false;};
+    for(const [id,label] of [['prev429ActionDate','실제 시행일'],['prev432CompletedDate','실제 조치 완료일']]){
+      const input=form.querySelector('#'+id),value=text(input?.value);if(input)input.max=today;
+      if(input?.validity.badInput)return fail(input,label+'을 올바른 날짜로 입력해 주세요.');
+      if(value&&(!/^\d{4}-\d{2}-\d{2}$/.test(value)||!Number.isFinite(Date.parse(value+'T00:00:00Z'))))return fail(input,label+'을 올바른 날짜로 입력해 주세요.');
+      if(value>today)return fail(input,label+'은 오늘 이후 날짜로 입력할 수 없습니다.');
+      if(submitted&&!value)return fail(input,label+'을 입력해 주세요.');
+    }
+    const start=form.querySelector('#prev429ActionDate'),end=form.querySelector('#prev432CompletedDate');
+    if(start?.value&&end?.value&&end.value<start.value)return fail(end,'실제 조치 완료일은 시행일보다 빠를 수 없습니다.');
+    if(submitted){
+      for(const input of form.querySelectorAll('[required]:not([disabled])')){
+        if(!text(input.value))return fail(input,(input.closest('label')?.querySelector('span')?.textContent||'필수항목').replace(/\s*\*$/,'')+'을 입력해 주세요.');
+      }
+    }
+    return true;
+  }
   function openFieldActionModal(i,u){
     i=structuredClone(i);const c=i.corrective||{},previousCost=i.reportDetails||{};
     if(!hasPlan(c))return alert('안전관리자가 재발방지계획을 등록한 뒤 조치할 수 있습니다.');
     if(!isSiteManager(u)||['submitted','approved'].includes(c.status)||isFinalized(i))return openReadOnly(i,u);
     actionPhotos=[...(c.afterPhotos||[])];
     openModal(modalHead(i,'재발방지조치 작성')+cumulative(i,{through:'C'})+
-      `<form id="prev429FieldForm" data-enl432-action="1" class="report410-stage report410-active-orange" data-report-stage="D"><h3>D. 현장 재발방지조치</h3><p class="report410-current-note">위 계획에 따라 실제 실시한 조치와 증빙을 등록해 주세요.</p>${c.status==='rejected'?`<div class="prev429-reject"><b>보완요청 사항</b><p>${ex(c.reviewNote||'')}</p></div>`:''}<label class="lbl"><span>실제 실시한 재발방지조치 *</span><textarea id="prev429ActionDetail" rows="5" required>${ex(c.actionDetail||'')}</textarea></label><div class="formgrid"><label class="lbl"><span>실제 시행일 *</span><input id="prev429ActionDate" type="date" max="${targetDate(0)}" value="${ex(c.actionDate||'')}" required></label><label class="lbl"><span>실제 조치 완료일 *</span><input id="prev432CompletedDate" type="date" max="${targetDate(0)}" value="${ex(c.actionCompletedDate||c.completedDate||'')}" required></label><label class="lbl"><span>조치 담당자 *</span><input id="prev429ActionOwner" value="${ex(c.actionOwner||u.name||'')}" required></label></div><label class="lbl"><span>추가 확인사항</span><textarea id="prev429AdditionalNotes" rows="2">${ex(c.additionalNotes||'')}</textarea></label>${photoPickerHtml('action')}<div id="prev432EvidenceRequired" class="prev432-evidence-required"><b>조치 증빙 *</b><span>사진 또는 PDF 1개 이상 · <em data-prev432-count></em></span></div><details class="report410-history"><summary>사후 확인된 추가 비용</summary><div class="formgrid">${[['medicalCost','치료비'],['repairCost','수리비']].map(([k,label])=>`<label class="lbl"><span>${label} (원)</span><input id="prev429Extra-${k}" type="number" min="0" step="1" ${previousCost[k]!=null&&previousCost[k]!==''&&!(Number(previousCost[k])===0&&previousCost[k+'Pending']===true)?'disabled':''} value="${ex(previousCost[k]??'')}"></label>`).join('')}</div></details><div class="modal-actions"><button type="button" class="btn-gray" id="prev429Draft">임시저장</button><button type="submit" class="btn-blue">안전관리자 확인요청</button></div></form>`+historyHtml(c));
+      `<form id="prev429FieldForm" novalidate data-enl432-action="1" class="report410-stage report410-active-orange" data-report-stage="D"><h3>D. 현장 재발방지조치</h3><p class="report410-current-note">위 계획에 따라 실제 실시한 조치와 증빙을 등록해 주세요.</p>${c.status==='rejected'?`<div class="prev429-reject"><b>보완요청 사항</b><p>${ex(c.reviewNote||'')}</p></div>`:''}<label class="lbl"><span>실제 실시한 재발방지조치 *</span><textarea id="prev429ActionDetail" rows="5" required>${ex(c.actionDetail||'')}</textarea></label><div class="formgrid"><label class="lbl"><span>실제 시행일 *</span><input id="prev429ActionDate" type="date" max="${targetDate(0)}" value="${ex(c.actionDate||'')}" required></label><label class="lbl"><span>실제 조치 완료일 *</span><input id="prev432CompletedDate" type="date" max="${targetDate(0)}" value="${ex(c.actionCompletedDate||c.completedDate||'')}" required></label><label class="lbl"><span>조치 담당자 *</span><input id="prev429ActionOwner" value="${ex(c.actionOwner||u.name||'')}" required></label></div><label class="lbl"><span>추가 확인사항</span><textarea id="prev429AdditionalNotes" rows="2">${ex(c.additionalNotes||'')}</textarea></label>${photoPickerHtml('action')}<div id="prev432EvidenceRequired" class="prev432-evidence-required"><b>조치 증빙 *</b><span>사진 또는 PDF 1개 이상 · <em data-prev432-count></em></span></div><details class="report410-history"><summary>사후 확인된 추가 비용</summary><div class="formgrid">${[['medicalCost','치료비'],['repairCost','수리비']].map(([k,label])=>`<label class="lbl"><span>${label} (원)</span><input id="prev429Extra-${k}" type="number" min="0" step="1" ${previousCost[k]!=null&&previousCost[k]!==''&&!(Number(previousCost[k])===0&&previousCost[k+'Pending']===true)?'disabled':''} value="${ex(previousCost[k]??'')}"></label>`).join('')}</div></details><div class="modal-actions"><button type="button" class="btn-gray" id="prev429Draft">임시저장</button><button type="submit" class="btn-blue">안전관리자 확인요청</button></div></form>`+historyHtml(c));
     renderPhotoThumbs('action');bindPhotoButtons();mountDocument(i,'[data-report-stage="D"]');
     const form=document.getElementById('prev429FieldForm'),draftStore=retainDraft(form,i,u,'action');
-    const save=async status=>{draftStore.capture();if(status==='submitted'&&!form.reportValidity())return;
+    const save=async status=>{draftStore.capture();if(!validateFieldAction(form,status==='submitted'))return;
       const detail=text(form.querySelector('#prev429ActionDetail').value);if(!detail)return alert('실제 조치내용을 입력해 주세요.');
       if(status==='submitted'&&!actionPhotos.length)return alert('사진 또는 PDF 증빙을 1개 이상 첨부해 주세요.');
       const next=structuredClone(i),out={...c,status,actionDetail:detail,afterPhotos:persistAttachments(actionPhotos)};
