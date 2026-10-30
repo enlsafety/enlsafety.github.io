@@ -11,7 +11,6 @@
   let healthCache=null;
   let swReg=null;
   let renderQueued=false;
-  let lastReaderIncidentId='';
   const flushedUsers=new Set();
   const repairedUsers=new Set();
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
@@ -47,7 +46,7 @@
     const r=roleNorm(u?.role),rows=[];
     if(r==='worker')rows.push(['incident_progress','내 사고 진행 알림','내 사고보고 승인·반려·종결'],['action_progress','내 재발방지조치 알림','내가 제출한 재발방지조치 승인·보완요청'],['inquiry','문의 답변 알림','안전관리자 답변 등록']);
     else if(r==='field')rows.push(['incident_progress','사업장 사고보고 알림','즉시보고·보완요청·최종승인·반려·종결'],['action_progress','사업장 재발방지조치 알림','제출·재제출·승인·반려'],['inquiry','문의 답변 알림','내 문의 답변 등록']);
-    else if(r==='safety')rows.push(['incident_progress','사고보고 진행 알림','즉시보고·보완완료·재제출·최종승인'],['action_progress','재발방지조치 제출 알림','최초 제출·반려 후 재제출'],['inquiry','안전문의 알림','새 문의 등록'],['management_views','관리자·경영진 조회 알림','사고경위서·재발방지조치 최초 조회']);
+    else if(r==='safety')rows.push(['incident_progress','사고보고 진행 알림','즉시보고·보완완료·재제출·최종승인'],['action_progress','재발방지조치 제출 알림','최초 제출·반려 후 재제출'],['inquiry','안전문의 알림','새 문의 등록'],['management_views','본사실무자 및 경영진 조회 알림','사용자별 사고 최초 조회']);
     else if(r==='executive')rows.push(['incident_progress','사고발생 및 결재요청','사고발생 시와 내 결재요청 시'],['urgent','긴급 사고 알림','긴급사고 발생 시']);
     else if(r==='manager')rows.push(['incident_progress','사고발생 및 종결 알림','사고발생 시와 최종 종결 시'],['urgent','긴급 사고 알림','긴급사고 발생 시']);
     else rows.push(['incident_progress','사고보고 진행 알림','즉시보고·보완·최종승인·종결'],['action_progress','승인 재발방지조치 알림','승인된 재발방지조치'],['inquiry','문의 답변 알림','내 문의 답변 등록'],['urgent','긴급 사고 알림','긴급·중대 가능 사고는 검토단계부터']);
@@ -136,19 +135,10 @@
     const res=await rawFetch(input,init);
     try{
       const action=String(body?.action||''),u=actor();
-      if(res.ok&&u&&((url.includes('/functions/v1/enl-incident-sync-v411')&&['push','executive_decide'].includes(action))||(url.includes('/functions/v1/enl-workflow-v412')&&mutatingWorkflow.has(action))))setTimeout(flush,140);
-      if(res.ok&&u&&['manager','executive'].includes(roleNorm(u.role))&&url.includes('/functions/v1/enl-incident-sync-v411')&&action==='acknowledge'){
-        const incidentId=String(body?.incidentId||'');if(incidentId){lastReaderIncidentId=incidentId;setTimeout(()=>api('management_view',{actor:u,incidentId,documentType:'incident_report'}).then(flush).catch(()=>{}),120)}
-      }
+      if(res.ok&&u&&((url.includes('/functions/v1/enl-incident-sync-v411')&&['push','executive_decide','final_document'].includes(action))||(url.includes('/functions/v1/enl-workflow-v412')&&mutatingWorkflow.has(action))))setTimeout(flush,140);
     }catch(e){}
     return res;
   };
-
-  document.addEventListener('click',e=>{
-    const u=actor();if(!u||!['manager','executive'].includes(roleNorm(u.role)))return;const t=e.target?.closest?.('button,a,summary');if(!t)return;
-    const open=t.closest?.('[data-reader-open],[data-inc-id]');if(open){const id=String(open.dataset.readerOpen||open.dataset.incId||'');if(id){lastReaderIncidentId=id;setTimeout(()=>api('management_view',{actor:u,incidentId:id,documentType:'incident_report'}).then(flush).catch(()=>{}),80)}return}
-    if(lastReaderIncidentId&&document.getElementById('modalRoot')?.contains(t)&&/사고\s*조치|조치\s*보고|개선\s*조치/.test(String(t.textContent||''))){setTimeout(()=>api('management_view',{actor:u,incidentId:lastReaderIncidentId,documentType:'corrective_action'}).then(flush).catch(()=>{}),80)}
-  },true);
 
   window.enlOpenPwaNotificationSettings=()=>openModal();
   window.ENL_PWA_PUSH_VERSION=VERSION;
