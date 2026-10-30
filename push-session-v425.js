@@ -1,10 +1,10 @@
 /* E&L Accident Report App v4.2.5 - push ownership + post-login deep links */
 (function(){
   'use strict';
-  const VERSION='4.4.36-subscription-repair1';
+  const VERSION='4.8.3-approval-mail-link';
   const CLAIM_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-claim-v425';
   const CLIENT='incident-report-v2';
-  const SW_URL='/sw-v418.js?v=4.2.5-pwa4-confirm1';
+  const SW_URL='/sw-v418.js?v=4.8.3-r1';
   const PREF_PREFIX='enl_push_preferences_v1_';
   const PENDING_KEY='enl_pending_push_incident_v425';
   const PENDING_TTL=30*60*1000;
@@ -66,7 +66,7 @@
   function pending(){
     try{const p=JSON.parse(localStorage.getItem(PENDING_KEY)||'null');if(!p?.incidentId)return null;if(Date.now()-Number(p.at||0)>PENDING_TTL){localStorage.removeItem(PENDING_KEY);return null}return p}catch(e){return null}
   }
-  function clearPending(){try{localStorage.removeItem(PENDING_KEY)}catch(e){}}
+  function clearPending(id){try{if(!id||pending()?.incidentId===id)localStorage.removeItem(PENDING_KEY)}catch(e){}}
   function incidents(){try{return typeof data!=='undefined'&&Array.isArray(data?.incidents)?data.incidents:(Array.isArray(window.data?.incidents)?window.data.incidents:[])}catch(e){return []}}
   function incidentById(id){return incidents().find(x=>String(x?.id||'')===String(id))||null}
   function siteName(id){try{return typeof siteById==='function'?siteById(id)?.name||id||'-':window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}}
@@ -103,21 +103,37 @@
     else alert(`${title}\n${detail}\n\n${message}`);
   }
 
+  function focusApproval(id){
+    let observer,timer;
+    const focus=()=>{
+      const modal=document.querySelector('#modalRoot .modal');
+      if(!modal||![modal.dataset.cumulativeIncident,modal.dataset.wf440Incident].includes(String(id)))return false;
+      const panel=modal.querySelector('[data-executive-record]');if(!panel)return false;
+      observer?.disconnect();clearTimeout(timer);panel.tabIndex=-1;
+      panel.scrollIntoView({block:'start'});panel.focus({preventScroll:true});return true;
+    };
+    if(focus())return;
+    observer=new MutationObserver(focus);observer.observe(document.getElementById('modalRoot')||document.body,{childList:true,subtree:true});
+    timer=setTimeout(()=>observer.disconnect(),2000);
+  }
   async function openPendingIncident(){
     if(openBusy)return;const p=pending(),u=actor();if(!p||!u)return;
     openBusy=true;
     try{
-      try{await claimForCurrentUser(false)}catch(e){}
       try{await window.enlIncidentPullNow?.()}catch(e){}
+      if(userId(actor())!==userId(u))return;
       const i=incidentById(p.incidentId);if(!i)return;
       const r=roleNorm(u.role);
-      clearPending();primeWorkflowIncident(i.id);
-      setTimeout(()=>{
-        try{
-          if(typeof window.enlOpenIncidentReview==='function')window.enlOpenIncidentReview(i.id,r==='safety',window.currentUser?.()||u);
-          else if(typeof window.openIncidentModal==='function')window.openIncidentModal(i.id,r==='safety',window.currentUser?.()||u);
-        }catch(e){console.warn('push incident open failed',e)}
-      },80);
+      primeWorkflowIncident(i.id);
+      await new Promise(resolve=>setTimeout(resolve,80));
+      if(userId(actor())!==userId(u))return;
+      try{
+        const open=window.enlOpenIncidentReview||window.openIncidentModal;if(typeof open!=='function')return;
+        open(i.id,r==='safety',window.currentUser?.()||u);
+        if(!document.querySelector('#modalRoot .modal'))return;
+        clearPending(p.incidentId);
+        if(p.kind==='executive_approval_requested')focusApproval(i.id);
+      }catch(e){console.warn('push incident open failed',e)}
     }finally{openBusy=false}
   }
 

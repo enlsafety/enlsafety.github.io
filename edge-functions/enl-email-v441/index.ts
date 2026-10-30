@@ -5,7 +5,7 @@ import postgres from "npm:postgres@3.4.5";
 const ORIGIN="https://enlsafety.github.io";
 const CLIENT="incident-report-v2";
 const BREVO_BASE="https://api.brevo.com/v3";
-const VERSION="4.8.2-parallel-president-approval";
+const VERSION="4.8.3-safety-approval-test-copy";
 const cors={"Access-Control-Allow-Origin":ORIGIN,"Access-Control-Allow-Headers":"content-type, x-enl-app, x-enl-internal","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:cors});
 const clean=(v:any)=>String(v??"").trim();
@@ -87,7 +87,7 @@ function mailContent(incident:any,siteName:string,urgent:boolean,kind:string){
   const subject=`[${subjectLabel}] ${siteName||"사업장"} | ${typeShort} | ${subjectWhen}`;
 
   const incidentId=clean(incident?.id);
-  const link=`https://enlsafety.github.io/stable412.html?push=1&incident=${encodeURIComponent(incidentId)}`;
+  const link=`https://enlsafety.github.io/stable412.html?push=1&incident=${encodeURIComponent(incidentId)}${kind==='executive_approval_requested'?'&kind=executive_approval_requested':''}`;
 
   const summary=`${siteName||"사업장"} · ${typeShort} · ${place} · ${content}`;
   const rows:any[]=[
@@ -127,7 +127,7 @@ function mailContent(incident:any,siteName:string,urgent:boolean,kind:string){
       ${rows.map(([a,b])=>`<tr><th style="width:145px;text-align:left;padding:10px;border:1px solid #d8e3eb;background:#eef7fd">${esc(a)}</th><td style="padding:10px;border:1px solid #d8e3eb;line-height:1.55">${esc(b)}</td></tr>`).join("")}
     </table>
     <p style="margin:16px 0 10px;color:#617b8d">사고보고앱에서 상세내용과 결재상태를 확인해 주세요.</p>
-    <a href="${link}" style="display:inline-block;background:#1e5d91;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700">사고보고 확인하기</a>
+    <a href="${esc(link)}" style="display:inline-block;background:#1e5d91;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700">${kind==='executive_approval_requested'?'사고보고 결재화면 열기':'사고보고 확인하기'}</a>
     <p style="margin-top:16px;font-size:12px;color:#8192a0">진단서·영수증·사진·PDF 등 민감한 첨부자료는 이메일에 포함하지 않습니다.</p>
   </div>`;
 
@@ -213,16 +213,30 @@ async function flush(sql:any){
     }
     const rr=await sql`select payload,site_id from public.enl_incident_shared where incident_id=${ev.incident_id} limit 1`;
     const row=rr[0];if(!row?.payload){await finishEvent(sql,ev.id,{sent_at:new Date().toISOString(),last_error:"incident_missing"});skipped++;continue}
-    if(ev.kind==='executive_approval_requested'){
+    const testCopy=ev.kind==='executive_approval_test_copy';
+    if(ev.kind==='executive_approval_requested'||testCopy){
       const source=await sql`select data from public.enl_push_events where id=${ev.source_push_event_id}`;
       const a=row.payload.executiveApproval,round=source[0]?.data?.approvalRound,stage=source[0]?.data?.approvalStage;
-      if(p.role!=='executive'||!(globalThis as any).ENLExecutiveApproval.canDecide(a,ev.user_id)||(round&&round!==a.round)||(stage&&stage!==(globalThis as any).ENLExecutiveApproval.describe(a).stage)){
+      const policy=(globalThis as any).ENLExecutiveApproval,plan=policy.describe(a);
+      let eligible=p.role==='executive'&&policy.canDecide(a,ev.user_id);
+      if(testCopy){
+        const cfg=await sql`select approval_email_test_copy_enabled from public.enl_push_config where id=1`;
+        eligible=cfg[0]?.approval_email_test_copy_enabled===true&&p.role==='safety'&&a?.state==='pending'&&plan.valid&&round===a.round&&['parallel','president'].includes(stage);
+      }
+      if(!eligible||(round&&round!==a?.round)||(stage&&stage!==plan.stage)){
         await finishEvent(sql,ev.id,{sent_at:new Date().toISOString(),last_error:'approval_no_longer_required'});skipped++;continue;
       }
     }
     const sr=await sql`select site_name from public.enl_site_master where site_id=${row.site_id} limit 1`;
     try{
-      await sendBrevo(sql,p.email,mailContent(row.payload,clean(sr[0]?.site_name)||clean(row.site_id),urgent,clean(ev.kind)),false);
+      const content=mailContent(row.payload,clean(sr[0]?.site_name)||clean(row.site_id),urgent,testCopy?'executive_approval_requested':clean(ev.kind));
+      if(testCopy){
+        const notice='결재요청 메일 링크 확인을 위한 안전관리자 임시 참조입니다. 로그인한 계정의 권한으로 열리며, 안전관리자에게 경영진 결재권한이 부여되지는 않습니다.';
+        content.subject='[테스트 참조] '+content.subject;
+        content.text=notice+'\n\n'+content.text;
+        content.html='<p style="font-family:Arial,\'Malgun Gothic\',sans-serif;color:#617b8d">'+esc(notice)+'</p>'+content.html;
+      }
+      await sendBrevo(sql,p.email,content,false);
       await finishEvent(sql,ev.id,{sent_at:new Date().toISOString(),last_error:null});sent++;
     }catch(e:any){
       const terminal=Number(ev.attempt_count||0)>=5;
