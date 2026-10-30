@@ -15,8 +15,8 @@
  function render(i,users=[]){
   const c=i.corrective||{},a=i.executiveApproval;
   // Existing approvals always use the immutable roster/signature snapshot.
-  const configured=users.filter(u=>u.active!==false&&u.role==='executive');
-  const roster=Array.isArray(a?.roster)?a.roster:i.status==='closed'?[]:configured.length?configured:planned;
+  // Before the server creates a roster, display layout slots rather than cached accounts.
+  const roster=Array.isArray(a?.roster)?a.roster:i.status==='closed'?[]:planned;
   const final=roster.filter(u=>u.id&&u.id===a?.finalApproverId||key(u.position)==='사장');
   const exec=roster.filter(u=>!final.includes(u)).slice().sort((x,y)=>rank(x)-rank(y)||key(x.name).localeCompare(key(y.name),'ko'));
   const reviewIsCurrent=!!c.reviewedAt&&(!c.submittedAt||Date.parse(c.reviewedAt)>=Date.parse(c.submittedAt));
