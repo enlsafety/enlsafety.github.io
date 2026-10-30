@@ -54,12 +54,6 @@
     return changed;
   }
 
-  function normalizeAll(){
-    let changed=false;
-    for(const i of data?.incidents||[])if(normalizeIncident(i))changed=true;
-    return changed;
-  }
-
   function isReviewRequired(i){return reviewReasons(i?.category,i?.severity,i?.leaveEstimate).length>0}
   function isReviewed(i){return isReviewRequired(i)&&String(i?.legalReviewStatus||'')==='reviewed'}
 
@@ -71,12 +65,9 @@
     return typeof badge==='function'?badge('p-review','법정 보고 검토 필요'):'<span class="pill p-review">법정 보고 검토 필요</span>';
   };
 
-  // Ensure new reports and edits persist the same legal-review metadata without adding another user input.
-  const baseSave=typeof saveData==='function'?saveData:null;
-  if(baseSave){
-    saveData=function(){normalizeAll();return baseSave()};
-  }
-  normalizeAll();
+  // Compute badges from the report without changing saved records. Older approved
+  // reports can lack these fields; backfilling them during startup/account saves
+  // creates an unauthorized incident edit. Only explicit review actions write them.
 
   function ensureCss(){
     if(document.getElementById('legal435Css'))return;

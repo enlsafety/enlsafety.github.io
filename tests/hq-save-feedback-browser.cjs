@@ -11,6 +11,8 @@ const {chromium}=require('playwright'),{fixture}=require('./final-lifecycle.cjs'
  try{
   const base={id:'qa-view-only',siteId:'qa-site',category:'property',status:'approved',summary:'가상 사고',eventType:'접촉',occurredAt:'2026-10-01T01:00:00Z',registeredAt:'2026-10-14T01:00:00Z',createdAt:'2026-10-14T01:00:00Z',approvedAt:'2026-10-14T01:00:00Z',approvedBy:'QA 안전',reportDetails:{place:'QA'},photos:[],corrective:null,reportWorkflow:{phase:'report_approved',initialApprovalSource:'SAFETY_MANUAL_ARCHIVE'},recordMode:'historical_manual',historicalImport:{enabled:true,erpApproved:false,workflowExempt:false},_syncVersion:1};
   await f.db.query('insert into enl_incident_shared(incident_id,site_id,payload) values($1,$2,$3)',[base.id,base.siteId,JSON.stringify(base)]);
+  const legacyWrite=await f.call('safety',{action:'push',incidents:[{...base,legalReview:false,legalReviewReasons:[],legalReviewSignature:'property||',legalReviewStatus:'not_required',legalReviewedBy:'',_syncBaseVersion:1,_syncMutationId:'legacy-background-normalization'}]});
+  assert.equal(legacyWrite.status,409);assert.equal(legacyWrite.body.message,'approved_record_locked','old implicit legal backfill explains the background save rejection');
   const page=await browser.newPage(),errors=[],requests=[];let fail=false;
   page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.accept());
   await page.route('**/*',async r=>{
@@ -31,7 +33,8 @@ const {chromium}=require('playwright'),{fixture}=require('./final-lifecycle.cjs'
    window.qaAccountRequests=[];window.qaAccountFailure=false;
    window.enlAuthApi=async body=>{qaAccountRequests.push(body);if(qaAccountFailure)throw Error('network');return {ok:true,user:body.user}};
   },base);
-  for(const file of ['incident-sync-v411.js','ui-stability-v422.js','sync-conflict-v428.js','incident-flow-v440.js'])await page.addScriptTag({content:fs.readFileSync(file,'utf8')});
+  for(const file of ['incident-sync-v411.js','ui-stability-v422.js','sync-conflict-v428.js','legal-review-v435.js','incident-flow-v440.js'])await page.addScriptTag({content:fs.readFileSync(file,'utf8')});
+  assert.deepEqual(await page.evaluate(()=>structuredClone(data.incidents)),[base],'startup must not backfill legal metadata on approved records');
   await page.evaluate(()=>enlIncidentPullNow(false));
   const before=await page.evaluate(()=>structuredClone(data.incidents));
   await page.evaluate(()=>openIncidentModal(data.incidents[0].id));await page.locator('.wf440-stage').waitFor();
