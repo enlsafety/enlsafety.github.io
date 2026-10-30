@@ -25,8 +25,8 @@
    const urls=paths.length?await signAttachments(paths):{};
    const groups={photos:record.photos||[],supplement:record.supplement?.attachments||[],action:record.corrective?.afterPhotos||[]};
    for(const group of win.document.querySelectorAll('[data-report-files]')){const all=groups[group.dataset.reportFiles]||[];const cards=[...group.querySelectorAll('.attach-card411')];
-   cards.forEach((card,n)=>{const file=all[n];if(!file)return;const url=typeof file==='string'?file:(urls[file.path]||file.dataUrl||file.url);if(url&&(!file.mime||file.mime.startsWith('image/'))){card.textContent='';const img=win.document.createElement('img');img.src=url;img.alt=file.name||'첨부사진';card.appendChild(img)}});}
-   await Promise.all([...win.document.images].map(img=>img.complete?Promise.resolve():new Promise(resolve=>{img.onload=img.onerror=resolve;setTimeout(resolve,10000)})));
+   cards.forEach((card,n)=>{const file=all[n];if(!file)return;const url=typeof file==='string'?file:(urls[file.path]||file.dataUrl||file.url);const kind=window.enlAttachmentKind?.(file)||(file.mime==='application/pdf'||/\.pdf(?:[?#]|$)/i.test(file.name||url||'')?'pdf':'image');card.textContent='';if(url&&kind==='image'){const img=win.document.createElement('img');img.src=url;img.alt=file.name||'첨부사진';img.onerror=()=>{card.textContent=(file.name||'첨부사진')+': 사진을 불러오지 못했습니다.'};card.appendChild(img)}else{card.textContent=(file.name||'첨부파일')+(kind==='pdf'?' (PDF 원본 별도 확인)':' (사진을 불러오지 못했습니다.)')}});}
+   await Promise.all([...win.document.images].map(img=>img.complete?Promise.resolve():new Promise(resolve=>{img.addEventListener('load',resolve,{once:true});img.addEventListener('error',resolve,{once:true});setTimeout(resolve,10000)})));
    const print=win.document.getElementById('print');print.disabled=false;print.textContent='인쇄 / PDF로 저장';
   }catch(err){win.document.body.textContent='종결 기록을 불러오지 못했습니다. '+error(err)}
  }
