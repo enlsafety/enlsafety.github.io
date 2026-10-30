@@ -50,7 +50,7 @@
    for(const [d,label] of [['approve','결재 승인'],['reject','반려']]){const b=document.createElement('button');b.textContent=label;b.className=d==='approve'?'primary':'secondary';b.onclick=()=>decide(i,d,b);box.appendChild(b)}
   }
   if(i.status==='closed'&&['manager','executive','safety','final'].includes(u.role)){const b=document.createElement('button');b.textContent='종결보고서 PDF 출력';b.onclick=()=>printDocument(i);box.appendChild(b)}
-  if((i.acknowledgements||[]).length){const old=document.createElement('details');old.innerHTML='<summary>과거 결재기록 (읽기 전용)</summary>'+i.acknowledgements.map(s=>'<p>'+e(s.name)+' / '+e(s.ackAt||s.readAt||'')+'</p>').join('');box.appendChild(old)}
+  if((i.acknowledgements||[]).length){const old=document.createElement('details');old.dataset.priorApprovals='';old.innerHTML='<summary>과거 결재기록 (읽기 전용)</summary>'+i.acknowledgements.map(s=>'<p>'+e(s.name)+' / '+e(s.ackAt||s.readAt||'')+'</p>').join('');box.appendChild(old)}
   if(box.childNodes.length)modal.appendChild(box);
   if(!viewed.has(sig)){viewed.add(sig);window.enlIncidentApi?.({action:'view',incidentId:i.id,actor:actor()}).catch(()=>viewed.delete(sig))}
  }
