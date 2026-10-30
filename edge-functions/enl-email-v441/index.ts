@@ -1,10 +1,11 @@
+import "./executive-approval-v482.js";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import postgres from "npm:postgres@3.4.5";
 
 const ORIGIN="https://enlsafety.github.io";
 const CLIENT="incident-report-v2";
 const BREVO_BASE="https://api.brevo.com/v3";
-const VERSION="4.4.27-historical-followup1";
+const VERSION="4.8.2-parallel-president-approval";
 const cors={"Access-Control-Allow-Origin":ORIGIN,"Access-Control-Allow-Headers":"content-type, x-enl-app, x-enl-internal","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:cors});
 const clean=(v:any)=>String(v??"").trim();
@@ -81,7 +82,7 @@ function mailContent(incident:any,siteName:string,urgent:boolean,kind:string){
     action_approved:"사고종결/조치승인",
     incident_closed:"사고종결"
   };
-  const label=labelMap[kind]||"사고보고";
+  const label=kind==='executive_approval_requested'?(incident?.executiveApproval?.stage==='president'?'사장 최종결재 요청':'경영진 병렬결재 요청'):labelMap[kind]||"사고보고";
   const subjectLabel=subjectMap[kind]||label;
   const subject=`[${subjectLabel}] ${siteName||"사업장"} | ${typeShort} | ${subjectWhen}`;
 
@@ -95,7 +96,7 @@ function mailContent(incident:any,siteName:string,urgent:boolean,kind:string){
     ["사고유형",type],
     ["사고장소",place],
     ["사고내용",content],
-    ["현재 상태",incident?.executiveApproval?.state==="pending"?"경영진 결재대기":state],
+    ["현재 상태",incident?.executiveApproval?.state==="pending"?(incident.executiveApproval.stage==='president'?'사장 최종결재대기':'경영진 병렬결재 진행 중'):state],
     ["긴급조치 내용",immediate]
   ];
   if(kind==="incident_supplement_requested")rows.push(["보완 요청사항",clean(s.requestNote)||"앱에서 보완 요청내용을 확인해 주세요."]);
@@ -214,8 +215,8 @@ async function flush(sql:any){
     const row=rr[0];if(!row?.payload){await finishEvent(sql,ev.id,{sent_at:new Date().toISOString(),last_error:"incident_missing"});skipped++;continue}
     if(ev.kind==='executive_approval_requested'){
       const source=await sql`select data from public.enl_push_events where id=${ev.source_push_event_id}`;
-      const a=row.payload.executiveApproval,round=source[0]?.data?.approvalRound;
-      if(p.role!=='executive'||a?.state!=='pending'||!a.roster?.some((x:any)=>x.id===ev.user_id)||a.signatures?.some((x:any)=>x.id===ev.user_id)||(round&&round!==a.round)){
+      const a=row.payload.executiveApproval,round=source[0]?.data?.approvalRound,stage=source[0]?.data?.approvalStage;
+      if(p.role!=='executive'||!(globalThis as any).ENLExecutiveApproval.canDecide(a,ev.user_id)||(round&&round!==a.round)||(stage&&stage!==(globalThis as any).ENLExecutiveApproval.describe(a).stage)){
         await finishEvent(sql,ev.id,{sent_at:new Date().toISOString(),last_error:'approval_no_longer_required'});skipped++;continue;
       }
     }

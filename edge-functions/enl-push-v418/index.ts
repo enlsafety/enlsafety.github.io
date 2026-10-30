@@ -1,10 +1,11 @@
+import "./executive-approval-v482.js";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import postgres from "npm:postgres@3.4.5";
 import webpush from "npm:web-push@3.6.7";
 
 const ORIGIN="https://enlsafety.github.io";
 const CLIENT="incident-report-v2";
-const VERSION="4.6.0-r1";
+const VERSION="4.8.2-parallel-president-approval";
 const FIELD_TITLES=["현장소장","파트장","서무"];
 const cors={"Access-Control-Allow-Origin":ORIGIN,"Access-Control-Allow-Headers":"content-type, x-enl-app, x-enl-internal","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:cors});
@@ -195,7 +196,7 @@ async function dispatchCoreLocked(sql:any,c:any){
     if(ev.kind==='executive_approval_requested'){
       const rows=await sql`select payload from public.enl_incident_shared where incident_id=${ev.incident_id} limit 1`;
       const a=rows[0]?.payload?.executiveApproval;
-      if(prof?.role!=='executive'||a?.state!=='pending'||!a.roster?.some((x:any)=>x.id===ev.user_id)||a.signatures?.some((x:any)=>x.id===ev.user_id)||(ev.data?.approvalRound&&ev.data.approvalRound!==a.round)){
+      if(prof?.role!=='executive'||!(globalThis as any).ENLExecutiveApproval.canDecide(a,ev.user_id)||(ev.data?.approvalRound&&ev.data.approvalRound!==a.round)||(ev.data?.approvalStage&&ev.data.approvalStage!==(globalThis as any).ENLExecutiveApproval.describe(a).stage)){
         await sql`update public.enl_push_events set sent_at=now(),last_error='approval_no_longer_required' where id=${ev.id}`;continue;
       }
     }

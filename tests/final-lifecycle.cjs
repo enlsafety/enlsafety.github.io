@@ -15,7 +15,7 @@ async function fixture(){
  create table enl_document_views(id bigint generated always as identity primary key,incident_id text,document_type text,viewer_id text,viewer_name text,viewer_role text,first_viewed_at timestamptz,unique(incident_id,document_type,viewer_id));
  create table enl_push_events(id bigint generated always as identity primary key,event_key text unique,incident_id text,site_id text,user_id text,kind text,title text,body text,data jsonb,created_at timestamptz default now(),sent_at timestamptz,last_error text);
  create table enl_email_events(id bigint generated always as identity primary key,source_push_event_id bigint unique,event_key text unique,incident_id text,site_id text,user_id text,kind text);
- insert into enl_hq_users values('qa-safety','QA 안전','safety','안전관리자','QA',true,'qa-proof'),('qa-manager','QA 본사','manager','본사','QA',true,'qa-proof'),('qa-executive','QA 경영','executive','경영진','QA',true,'qa-proof');
+ insert into enl_hq_users values('qa-safety','QA 안전','safety','안전관리자','QA',true,'qa-proof'),('qa-manager','QA 본사','manager','본사','QA',true,'qa-proof'),('qa-executive','QA 경영','executive','사장','QA',true,'qa-proof');
  insert into enl_site_personnel values('qa-field','qa-site','QA 현장','현장소장','field',true,'qa-proof'),('qa-other','other-site','QA 타현장','현장소장','field',true,'qa-proof');
  insert into enl_site_master(site_id,site_name,active,start_date) values('qa-site','QA 가상 사업장',true,'2020-01-01');
  `);
@@ -27,6 +27,7 @@ async function fixture(){
  const sql=async(parts,...args)=>{const query=parts.reduce((s,p,i)=>s+(i?'$'+i:'')+p,'');return (await(tx||db).query(query,args)).rows;};sql.json=JSON.stringify;sql.end=async()=>{};sql.begin=async f=>db.transaction(async t=>{tx=t;try{return await f(sql)}finally{tx=null}});
  const ctx={Deno:{env:{get:()=> 'isolated'},serve:h=>handler=h},postgres:()=>sql,Request,Response,TextEncoder,crypto,structuredClone,console};vm.createContext(ctx);
  vm.runInContext(read('edge-functions/enl-incident-sync-v411/site-contract-v451.js'),ctx);
+ vm.runInContext(read('executive-approval-v482.js'),ctx);
  vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/lifecycle-policy.ts').replace(/export /g,'')),ctx);
  // Put the endpoint in an inner scope because each imported file has its own module scope.
  vm.runInContext('{'+stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/index.ts').replace(/^import .*;\r?\n/gm,''))+'}',ctx);
