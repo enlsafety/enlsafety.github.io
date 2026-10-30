@@ -5,7 +5,7 @@ import postgres from "npm:postgres@3.4.5";
 
 const ORIGIN="https://enlsafety.github.io";
 const APP="incident-report-v2";
-const VERSION="4.7.3-sync-order";
+const VERSION="4.8.0-executive-closure";
 const cors={"Access-Control-Allow-Origin":ORIGIN,"Access-Control-Allow-Headers":"content-type, x-client-info, apikey, authorization, x-enl-app","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:cors});
 const clean=(v:any)=>String(v??"").trim();
@@ -63,7 +63,7 @@ async function verifyHistoricalTicket(raw:any,actorId:string,incidentId:string,v
 }
 
 function canonicalValue(v:any):any{if(Array.isArray(v))return v.map(canonicalValue);if(v&&typeof v==="object"){const o:any={};for(const k of Object.keys(v).sort())o[k]=canonicalValue(v[k]);return o;}return v}
-function reportForHash(i:any){if(!i||typeof i!=="object")return {};const x=structuredClone(i);for(const k of ["status","priority","prioritySource","prioritySetBy","prioritySetAt","legalReview","safetyNote","approvedBy","approvedAt","rejectedBy","rejectedAt","rejectionNote","closedAt","corrective","readReceipts","acknowledgements","reportWorkflow","reviewHistory","lifecycleHistory","officialRecord","updatedAt","lastModifiedBy","lastModifiedRole","lastModifiedPosition","lastModifiedAt","resubmittedBy","resubmittedById","resubmittedAt","reopenedBy","reopenedAt","reopenReason","_syncBaseVersion","_syncVersion","_syncMutationId"])delete x[k];return canonicalValue(x)}
+function reportForHash(i:any){if(!i||typeof i!=="object")return {};const x=structuredClone(i);for(const k of ["executiveApproval","status","priority","prioritySource","prioritySetBy","prioritySetAt","legalReview","safetyNote","approvedBy","approvedAt","rejectedBy","rejectedAt","rejectionNote","closedAt","corrective","readReceipts","acknowledgements","reportWorkflow","reviewHistory","lifecycleHistory","officialRecord","updatedAt","lastModifiedBy","lastModifiedRole","lastModifiedPosition","lastModifiedAt","resubmittedBy","resubmittedById","resubmittedAt","reopenedBy","reopenedAt","reopenReason","_syncBaseVersion","_syncVersion","_syncMutationId"])delete x[k];return canonicalValue(x)}
 async function reportHash(i:any){return sha256Hex(JSON.stringify(reportForHash(i)))}
 function finalForHash(i:any){const x=structuredClone(i||{});if(x.officialRecord){x.officialRecord={...x.officialRecord};delete x.officialRecord.reportHash;delete x.officialRecord.finalHash;}for(const k of ["updatedAt","lastModifiedAt","readReceipts","acknowledgements","_syncBaseVersion","_syncVersion","_syncMutationId"])delete x[k];return canonicalValue(x)}
 async function finalHash(i:any){return sha256Hex(JSON.stringify(finalForHash(i)))}
@@ -225,7 +225,7 @@ function normalizeLifecycle(prev:any,next:any,actor:any,now:string){
     next.closedAt=hm.closedAt||clean(next.closedAt)||now;
     return next;
   }
-  const cs=clean(next?.corrective?.status);if(clean(next.status)==="closed"&&cs!=="approved"){next.status=clean(next.approvedAt)?"approved":"reported";next.closedAt=null;}if(clean(next.status)==="approved"&&cs==="approved"){next.status="closed";next.closedAt=clean(next.corrective?.reviewedAt)||now;}return next;
+  const cs=clean(next?.corrective?.status);if(clean(next.status)==="closed"&&cs!=="approved"){next.status=clean(next.approvedAt)?"approved":"reported";next.closedAt=null;}return next;
 }
 
 Deno.serve(async(req:Request)=>{
@@ -263,6 +263,54 @@ Deno.serve(async(req:Request)=>{
       if(actor.role==="worker"){const incidents:any[]=[];for(const i of raw){if(isMine(i,actor)){const mine={...i};if(reportApproved(i)&&(clean(i.approvedAt)||isBulkImported(i)))mine.workerPublic=publicSummary(i);incidents.push(mine);}else{const pub=publicIncident(i);if(pub)incidents.push(pub);}}incidents.sort((a,b)=>new Date(b.occurredAt||0).getTime()-new Date(a.occurredAt||0).getTime());return json({ok:true,incidents,workerPublicMode:true});}
       if(["manager","executive"].includes(actor.role))return json({ok:true,incidents:raw.map(readerIncident).filter(Boolean)});
       return json({ok:true,incidents:raw});
+    }
+
+    if(action==="executive_decide"||action==="final_document"){
+      if(!["safety","manager","executive"].includes(actor.role))return json({ok:false,message:"forbidden"},403);
+      const incidentId=clean(body.incidentId);
+      return await sql.begin(async(sql:any)=>{
+        await sql`select set_config('enl.actor',${JSON.stringify({id:actor.id,role:actor.role})},true)`;
+        const rr=await sql`select site_id,payload from public.enl_incident_shared where incident_id=${incidentId} for update`,row=rr[0],prev=parsePayload(row?.payload);
+        if(!prev)return json({ok:false,message:"not_found"},404);
+        if(action==="final_document"){
+          if(prev.status!=="closed")return json({ok:false,message:"closed_required"},409);
+          const records=await sql`select payload,document_number from public.enl_final_documents where incident_id=${incidentId}`;
+          const record=records[0]?.payload||prev;
+          await sql`insert into public.enl_document_views(incident_id,document_type,viewer_id,viewer_name,viewer_role,first_viewed_at) values(${incidentId},'final_pdf',${actor.id},${actor.name},${actor.role},${now}) on conflict do nothing`;
+          return json({ok:true,incident:actor.role==='safety'?record:readerIncident(record),documentNumber:records[0]?.document_number||null,archived:!!records.length});
+        }
+        if(actor.role!=="executive")return json({ok:false,message:"forbidden"},403);
+        const ap=prev.executiveApproval;
+        if(!ap?.roster?.some((u:any)=>u.id===actor.id))return json({ok:false,message:"not_assigned_approver"},403);
+        const decision=clean(body.decision),note=clean(body.note);
+        if(!['approve','reject'].includes(decision)||note.length>2000||(decision==='reject'&&!note))return json({ok:false,message:"decision_reason_required"},400);
+        if(ap.signatures?.some((u:any)=>u.id===actor.id)&&decision==='approve')return json({ok:true,duplicate:true,incident:readerIncident(prev)});
+        if(ap.state!=="pending"||prev.status!=="approved"||prev.corrective?.status!=="approved")return json({ok:false,message:"not_pending_approval"},409);
+        if(body.expectedVersion===undefined||versionOf(body.expectedVersion)!==versionOf(prev._syncVersion))return json({ok:false,message:"enl_sync_conflict_version"},409);
+        const next=structuredClone(prev),a=next.executiveApproval;
+        const signature={id:actor.id,name:actor.name,position:actor.position,role:actor.role,at:now,note,decision};
+        if(decision==='reject'){
+          a.state='rejected';a.history=[...(a.history||[]),{round:a.round,requestedAt:a.requestedAt,roster:a.roster,signatures:a.signatures,rejection:signature}];a.rejection=signature;
+          next.corrective.status='submitted';next.corrective.reviewNote=note;
+        }else{
+          a.signatures=[...(a.signatures||[]),signature];
+          if(a.roster.every((u:any)=>a.signatures.some((v:any)=>v.id===u.id))){
+            a.state='approved';a.completedAt=now;next.status='closed';next.closedAt=now;
+            const year=new Date(Date.parse(now)+9*3600000).getUTCFullYear();
+            const seq=await sql`insert into public.enl_document_counters(year,last_number) values(${year},1) on conflict(year) do update set last_number=enl_document_counters.last_number+1 returning last_number`;
+            const documentNumber=`ENL-ACC-${year}-${String(seq[0].last_number).padStart(5,'0')}`;
+            next.officialRecord={...next.officialRecord,documentNumber,finalApproval:{id:actor.id,name:actor.name,role:actor.role,at:now,method:'all_assigned_executives',signatures:a.signatures}};
+          }
+        }
+        next._syncBaseVersion=versionOf(prev._syncVersion);next._syncMutationId='executive:'+crypto.randomUUID();next.updatedAt=now;next.lastModifiedAt=now;next.lastModifiedBy=actor.name;next.lastModifiedRole=actor.role;
+        if(next.status==='closed')next.officialRecord.finalHash=await finalHash(next);
+        await sql`select set_config('enl.executive_decision','1',true)`;
+        const saved=await sql`update public.enl_incident_shared set payload=${sql.json(next)}::jsonb,updated_at=${now} where incident_id=${incidentId} returning payload`;
+        const after=parsePayload(saved[0].payload);
+        if(after.status==='closed')await sql`insert into public.enl_final_documents(incident_id,document_number,payload,created_at) values(${incidentId},${after.officialRecord.documentNumber},${sql.json(after)}::jsonb,${now})`;
+        await writeAudit(sql,incidentId,clean(row.site_id),after.status==='closed'?'final_approval':'acknowledge',actor,prev,after,now);
+        return json({ok:true,incident:readerIncident(after)});
+      });
     }
 
     if(action==="acknowledge"||action==="approval_roster")return json({ok:false,message:"approval_retired_read_only"},410);
@@ -408,6 +456,7 @@ Deno.serve(async(req:Request)=>{
         next=preserveWorkflow(prev,next,actor);
         const requestedStatus=clean(raw0.status),prevReportHash=prev?await reportHash(prev):"",candidateHash=await reportHash(next);
         next=normalizeLifecycle(prev,next,actor,now);
+        if(!prev)delete next.executiveApproval;
         const official:any=structuredClone(prev?.officialRecord||next?.officialRecord||{});
         if(!prev){
           if(incomingHistorical){
@@ -449,11 +498,12 @@ Deno.serve(async(req:Request)=>{
           official.approval={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now,proof:actor.proof};
           official.reportHash=await reportHash(next);official.approvalInvalidatedAt=null;official.approvalInvalidatedBy="";
         }
-        if(clean(next.status)==="approved"&&clean(next?.corrective?.status)==="approved"){next.status="closed";next.closedAt=clean(next.corrective?.reviewedAt)||now;}
-        if(clean(next.status)==="closed"&&clean(prev?.status)!=="closed"&&actor.role==="safety"&&!isHistoricalTransfer(next)){
-          next.closedAt=now;
-          if(next.corrective&&typeof next.corrective==="object"){next.corrective={...next.corrective,status:"approved",reviewedBy:actor.name,reviewedAt:now};}
-          official.finalApproval={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now,proof:actor.proof};
+        if(clean(next.corrective?.status)==="approved"&&clean(prev?.corrective?.status)!=="approved"&&!isHistoricalTransfer(next)){
+          const roster=await sql`select user_id as id,name,position from public.enl_hq_users where active=true and role='executive' order by name`;
+          if(!roster.length)rejectWrite("executive_roster_empty");
+          next.status="approved";next.closedAt=null;
+          next.executiveApproval={state:"pending",round:Number(prev?.executiveApproval?.round||0)+1,requestedAt:now,requestedBy:actor.id,roster,signatures:[],history:prev?.executiveApproval?.history||[]};
+          official.safetyActionApproval={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now,proof:actor.proof};
         }
         if(isHistoricalTransfer(next)){const hm=historicalMeta(next);official.transferClosure={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now,source:"erp",erpApproved:true,erpApprovalDate:hm.erpApprovalDate,erpReference:hm.erpReference,existingActionEvidence:hm.existingActionEvidence,followUpType:hm.followType,closeReason:hm.closeReason||"ERP 기결재 과거사고 이력관리 목적 이관종결"};}
         official.lastModified={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now};

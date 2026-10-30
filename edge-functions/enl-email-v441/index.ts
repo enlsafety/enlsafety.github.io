@@ -60,7 +60,7 @@ function mailContent(incident:any,siteName:string,urgent:boolean,kind:string){
   }catch(_){}
 
   const labelMap:any={
-    incident_new:"즉시 사고보고",urgent_incident:"긴급 즉시 사고보고",incident_resubmitted:"사고보고 재제출",
+    executive_approval_requested:"사고 종결 결재요청",executive_approval_rejected:"경영진 결재 반려",incident_new:"즉시 사고보고",urgent_incident:"긴급 즉시 사고보고",incident_resubmitted:"사고보고 재제출",
     incident_supplement_requested:"사고보고 보완요청",incident_supplement_submitted:"사고보고 보완완료",
     incident_approved:"사고보고 승인",incident_rejected:"사고보고 반려",prevention_plan_assigned:"재발방지계획 하달",
     action_submitted:"재발방지조치 제출",action_resubmitted:"재발방지조치 재제출",
@@ -95,7 +95,7 @@ function mailContent(incident:any,siteName:string,urgent:boolean,kind:string){
     ["사고유형",type],
     ["사고장소",place],
     ["사고내용",content],
-    ["현재 상태",state],
+    ["현재 상태",incident?.executiveApproval?.state==="pending"?"경영진 결재대기":state],
     ["긴급조치 내용",immediate]
   ];
   if(kind==="incident_supplement_requested")rows.push(["보완 요청사항",clean(s.requestNote)||"앱에서 보완 요청내용을 확인해 주세요."]);
@@ -187,9 +187,9 @@ async function flush(sql:any){
     const age=Date.now()-new Date(ev.created_at).getTime();
     if(age>24*60*60*1000){await finishEvent(sql,ev.id,{sent_at:new Date().toISOString(),last_error:"expired"});skipped++;continue}
     const p=await profile(sql,clean(ev.user_id)),urgent=clean(ev.kind)==="urgent_incident"&&["safety","manager","executive"].includes(p?.role||"");
-    // Temporarily suspend HQ completion emails.
-    if(["action_approved","incident_closed"].includes(clean(ev.kind))&&["manager","executive"].includes(p?.role||"")){
-      await finishEvent(sql,ev.id,{sent_at:new Date().toISOString(),last_error:"final_hq_notification_suspended"});
+    // Enforce role-specific incident emails.
+    if((["manager","final"].includes(p?.role||"")&&!["incident_new","urgent_incident","incident_closed"].includes(clean(ev.kind)))||(p?.role==="executive"&&!["incident_new","urgent_incident","executive_approval_requested"].includes(clean(ev.kind)))){
+      await finishEvent(sql,ev.id,{sent_at:new Date().toISOString(),last_error:"role_event_policy"});
       skipped++;continue;
     }
     if(!p?.email){await finishEvent(sql,ev.id,{sent_at:new Date().toISOString(),last_error:"email_missing"});skipped++;continue}
@@ -212,6 +212,13 @@ async function flush(sql:any){
     }
     const rr=await sql`select payload,site_id from public.enl_incident_shared where incident_id=${ev.incident_id} limit 1`;
     const row=rr[0];if(!row?.payload){await finishEvent(sql,ev.id,{sent_at:new Date().toISOString(),last_error:"incident_missing"});skipped++;continue}
+    if(ev.kind==='executive_approval_requested'){
+      const source=await sql`select data from public.enl_push_events where id=${ev.source_push_event_id}`;
+      const a=row.payload.executiveApproval,round=source[0]?.data?.approvalRound;
+      if(p.role!=='executive'||a?.state!=='pending'||!a.roster?.some((x:any)=>x.id===ev.user_id)||a.signatures?.some((x:any)=>x.id===ev.user_id)||(round&&round!==a.round)){
+        await finishEvent(sql,ev.id,{sent_at:new Date().toISOString(),last_error:'approval_no_longer_required'});skipped++;continue;
+      }
+    }
     const sr=await sql`select site_name from public.enl_site_master where site_id=${row.site_id} limit 1`;
     try{
       await sendBrevo(sql,p.email,mailContent(row.payload,clean(sr[0]?.site_name)||clean(row.site_id),urgent,clean(ev.kind)),false);

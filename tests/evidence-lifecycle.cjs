@@ -1,7 +1,7 @@
 'use strict';
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),{fixture}=require('./final-lifecycle.cjs');
 (async()=>{
- const f=await fixture();let checks=0;
+ const f=await fixture();await f.db.exec(require("node:fs").readFileSync("supabase/migrations/20261030004902_executive_closure.sql","utf8"));let checks=0;
  try{
   await f.db.transaction(async t=>t.exec(fs.readFileSync('tests/fixtures/evidence-storage-activate.sql','utf8')));
   let apiChecks=0;

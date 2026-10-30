@@ -12,7 +12,7 @@ const fieldTitles=["현장소장","파트장","서무"];
 const isFieldTitle=(v:any)=>fieldTitles.includes(clean(v));
 const hqRole=(v:any)=>{const r=clean(v);return r==="final"?"manager":r};
 const hqAllowed=(v:any)=>["safety","manager","executive"].includes(hqRole(v));
-const roleLabel=(v:any)=>hqRole(v)==="safety"?"안전관리자":hqRole(v)==="executive"?"경영진":"관리자";
+const roleLabel=(v:any)=>hqRole(v)==="safety"?"안전관리자":hqRole(v)==="executive"?"경영진":"본사실무자";
 const sha256=async(v:string)=>{const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")};
 
 Deno.serve(async(req:Request)=>{

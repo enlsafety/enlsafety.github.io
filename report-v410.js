@@ -90,7 +90,7 @@
       reportRow('검토의견',i.safetyNote)+reportRow('사고보고 승인',[i.approvedBy,i.approvedAt&&fmt(i.approvedAt)].filter(Boolean).join(' · ')));
     if(c.planDetail||c.planAt)add('C','안전관리자 재발방지계획',reportRow('원인 분석',c.rootCause)+reportRow('재발방지계획',c.planDetail)+reportRow('조치 담당자 / 완료예정일',[c.ownerName,c.dueDate].filter(Boolean).join(' · '))+reportRow('계획 수립',[c.planBy,c.planAt&&fmt(c.planAt)].filter(Boolean).join(' · ')));
     if(c.actionDetail||c.submittedAt)add('D','현장 재발방지조치 및 증빙',reportRow('실제 조치내용',c.actionDetail)+reportRow('시행일 / 완료일',[c.actionDate,c.actionCompletedDate||c.completedDate].filter(Boolean).join(' / '))+reportRow('조치 담당자',c.actionOwner)+reportRow('추가 확인사항',c.additionalNotes)+reportRow('제출자 / 일시',[c.submittedBy,c.submittedAt&&fmt(c.submittedAt)].filter(Boolean).join(' · '))+reportFiles('action',c.afterPhotos));
-    if(c.reviewNote||c.reviewedAt||i.closedAt)add('E','안전관리자 최종 확인·종결',reportRow('처리 상태',i.status==='closed'?'종결':c.status==='rejected'?'보완요청':'검토 중')+reportRow('확인 / 보완요청 의견',c.reviewNote)+reportRow('확인자 / 일시',[c.reviewedBy,c.reviewedAt&&fmt(c.reviewedAt)].filter(Boolean).join(' · '))+reportRow('종결 일시',i.closedAt&&fmt(i.closedAt)));
+    if(c.reviewNote||c.reviewedAt||i.closedAt)add('E','안전관리자 조치 확인',reportRow('처리 상태',i.status==='closed'?'종결':i.executiveApproval?.state==='pending'?'경영진 결재대기':c.status==='rejected'?'보완요청':'검토 중')+reportRow('확인 / 보완요청 의견',c.reviewNote)+reportRow('확인자 / 일시',[c.reviewedBy,c.reviewedAt&&fmt(c.reviewedAt)].filter(Boolean).join(' · '))+reportRow('종결 일시',i.closedAt&&fmt(i.closedAt)));
     return `<article class="report410-cumulative" data-report-id="${esc(i.id)}">${parts.join('')}</article>`;
   }
   function bindCumulativeReport(root,i){

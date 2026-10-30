@@ -35,7 +35,7 @@ async function fixture(){
  const call=(who,body)=>raw({actor:actors[who],actorPasswordHash:'qa-proof',actorPinHash:'qa-proof',...body});
  return {db,call,raw,actors};
 }
-async function run(){const f=await fixture();let checks=0;const check=(condition,label)=>{assert.ok(condition,label);checks++;};
+async function run(){const f=await fixture();await f.db.exec(read("supabase/migrations/20261030004902_executive_closure.sql"));let checks=0;const check=(condition,label)=>{assert.ok(condition,label);checks++;};
  const base={id:'qa-final-normal',siteId:'qa-site',status:'reported',category:'property',summary:'가상 카트 접촉 사고',eventType:'충돌',occurredAt:'2026-10-12T01:00:00Z',reportDetails:{incidentHow:'가상 사고경위',repairCost:null},corrective:null,photos:[],_syncBaseVersion:0,_syncMutationId:'first'};
  let r=await f.call('field',{action:'push',incidents:[base]});assert.equal(r.status,200,JSON.stringify(r));let i=r.body.incidents[0];check(i._syncVersion===1,'initial report persisted');
  const push=async(who,edit)=>{const next=structuredClone(i);edit(next);next._syncBaseVersion=i._syncVersion;next._syncMutationId=crypto.randomUUID();const result=await f.call(who,{action:'push',incidents:[next]});if(result.status===200)i=result.body.incidents[0];return result;};
@@ -62,10 +62,11 @@ async function run(){const f=await fixture();let checks=0;const check=(condition
  r=await push('field',x=>{x.corrective.status='approved';x.status='closed'});check(r.status===403||r.status===409,'field cannot close');
  r=await push('safety',x=>{x.corrective.status='rejected';x.corrective.reviewNote='사진 보완'});check(r.status===200,'action supplement request');
  r=await push('field',x=>{x.corrective.status='submitted';x.corrective.afterPhotos.push({name:'QA사진.png',mime:'image/png',path:'action/site-qa-site/QA.png'})});check(r.status===200,'action resubmission');
- r=await push('safety',x=>{x.corrective.status='approved';x.status='closed'});assert.equal(r.status,200,JSON.stringify(r));check(i.status==='closed'&&i.corrective.reviewedBy==='QA 안전','safety alone closes');
+ r=await push('safety',x=>{x.corrective.status='approved';x.status='closed'});assert.equal(r.status,200,JSON.stringify(r));check(i.status==='approved'&&i.corrective.reviewedBy==='QA 안전','safety submits for executive approval');
+ r=await f.call('executive',{action:'executive_decide',incidentId:i.id,decision:'approve',expectedVersion:i._syncVersion});assert.equal(r.status,200,JSON.stringify(r));i=(await f.call('safety',{action:'pull'})).body.incidents[0];check(i.status==='closed','executive closes');
  const closed=structuredClone(i);
- check(await count("select count(*)::int n from enl_push_events where kind in ('action_approved','incident_closed') and user_id in ('qa-manager','qa-executive','qa-safety')")===0,'no HQ closure push events');
- check(await count("select count(*)::int n from enl_email_events where kind in ('action_approved','incident_closed') and user_id in ('qa-manager','qa-executive','qa-safety')")===0,'no HQ closure email');
+ check(await count("select count(*)::int n from enl_push_events where kind in ('action_approved','incident_closed') and user_id in ('qa-manager','qa-executive','qa-safety')")===1,'staff receives closure push');
+ check(await count("select count(*)::int n from enl_email_events where kind in ('action_approved','incident_closed') and user_id in ('qa-manager','qa-executive','qa-safety')")===1,'staff receives closure email');
  r=await push('safety',x=>{x.status='approved';x.corrective=null});check(r.status===409,'destructive reopen blocked');
  const op=async(action,extra={},who='safety')=>f.call(who,{action,incidentId:i.id,expectedVersion:i._syncVersion,mutationId:crypto.randomUUID(),...extra});
  r=await op('erp_record',{record:{submitted:true,documentNumber:'QA-ERP-1',draftedAt:'2026-10-13'},reason:'가상 수동기안 기록'});assert.equal(r.status,200,JSON.stringify(r));i=r.body.incident;check(i.status==='closed','ERP independent of closure');

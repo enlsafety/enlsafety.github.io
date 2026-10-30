@@ -62,7 +62,7 @@ for(const t of ['historical-bulk-core-v454.js','historical-bulk-extract-v454.js'
 }
 assert.match(read('edge-functions/enl-historical-bulk-v454/index.ts'),/automatic_import_retired/);
 assert.match(read('incident-excel-v421.js'),/put\('재발방지계획',c\.planDetail/);
-assert.match(read('edge-functions/enl-email-v441/index.ts'),/final_hq_notification_suspended/);
-assert.match(read('edge-functions/enl-push-v418/index.ts'),/final_hq_notification_suspended/);
-assert.match(read('management-approval-v448.js'),/과거 결재기록 · 읽기 전용/);assert.doesNotMatch(read('management-approval-v448.js'),/action:'acknowledge'|data-enl448-sign/);
+assert.match(read('edge-functions/enl-email-v441/index.ts'),/role_event_policy/);
+assert.match(read('edge-functions/enl-push-v418/index.ts'),/role_event_policy/);
+assert.match(read('management-approval-v448.js'),/과거 결재기록 \(읽기 전용\)/);assert.doesNotMatch(read('management-approval-v448.js'),/action:'acknowledge'|data-enl448-sign/);
 console.log('PASS manual archive safety authorization, locked original narrative, additive cost, reviewed closure, retired auto import, final workbook and HQ notice suppression');

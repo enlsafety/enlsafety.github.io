@@ -48,6 +48,8 @@
     if(r==='worker')rows.push(['incident_progress','내 사고 진행 알림','내 사고보고 승인·반려·종결'],['action_progress','내 재발방지조치 알림','내가 제출한 재발방지조치 승인·보완요청'],['inquiry','문의 답변 알림','안전관리자 답변 등록']);
     else if(r==='field')rows.push(['incident_progress','사업장 사고보고 알림','즉시보고·보완요청·최종승인·반려·종결'],['action_progress','사업장 재발방지조치 알림','제출·재제출·승인·반려'],['inquiry','문의 답변 알림','내 문의 답변 등록']);
     else if(r==='safety')rows.push(['incident_progress','사고보고 진행 알림','즉시보고·보완완료·재제출·최종승인'],['action_progress','재발방지조치 제출 알림','최초 제출·반려 후 재제출'],['inquiry','안전문의 알림','새 문의 등록'],['management_views','관리자·경영진 조회 알림','사고경위서·재발방지조치 최초 조회']);
+    else if(r==='executive')rows.push(['incident_progress','사고발생 및 결재요청','사고발생 시와 내 결재요청 시'],['urgent','긴급 사고 알림','긴급사고 발생 시']);
+    else if(r==='manager')rows.push(['incident_progress','사고발생 및 종결 알림','사고발생 시와 최종 종결 시'],['urgent','긴급 사고 알림','긴급사고 발생 시']);
     else rows.push(['incident_progress','사고보고 진행 알림','즉시보고·보완·최종승인·종결'],['action_progress','승인 재발방지조치 알림','승인된 재발방지조치'],['inquiry','문의 답변 알림','내 문의 답변 등록'],['urgent','긴급 사고 알림','긴급·중대 가능 사고는 검토단계부터']);
     return rows.map(([k,t,d])=>`<label class="enl418-pref"><span><b>${esc(t)}</b><small>${esc(d)}</small></span><input type="checkbox" data-enl-pref="${k}" ${p[k]!==false?'checked':''} ${(k==='urgent'&&(r==='manager'||r==='executive'))?'disabled':''}></label>`).join('');
   }
@@ -134,7 +136,7 @@
     const res=await rawFetch(input,init);
     try{
       const action=String(body?.action||''),u=actor();
-      if(res.ok&&u&&((url.includes('/functions/v1/enl-incident-sync-v411')&&action==='push')||(url.includes('/functions/v1/enl-workflow-v412')&&mutatingWorkflow.has(action))))setTimeout(flush,140);
+      if(res.ok&&u&&((url.includes('/functions/v1/enl-incident-sync-v411')&&['push','executive_decide'].includes(action))||(url.includes('/functions/v1/enl-workflow-v412')&&mutatingWorkflow.has(action))))setTimeout(flush,140);
       if(res.ok&&u&&['manager','executive'].includes(roleNorm(u.role))&&url.includes('/functions/v1/enl-incident-sync-v411')&&action==='acknowledge'){
         const incidentId=String(body?.incidentId||'');if(incidentId){lastReaderIncidentId=incidentId;setTimeout(()=>api('management_view',{actor:u,incidentId,documentType:'incident_report'}).then(flush).catch(()=>{}),120)}
       }

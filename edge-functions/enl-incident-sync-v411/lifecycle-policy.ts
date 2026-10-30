@@ -49,7 +49,7 @@ function normalizeCause(prev:any,next:any,actor:any,now:string){
 }
 const costKeys = ['medicalCost','repairCost','damageAmount'];
 const planKeys = ['rootCause','causeStatus','planDetail','ownerName','dueDate','planBy','planById','planAt','planUpdatedBy','planUpdatedAt'];
-const managedKeys = ['officialRecord','acknowledgements','readReceipts','historicalOrigin','externalInitialApproval','bulkInvalidation','recordMode','historicalImport','historicalTransfer'];
+const managedKeys = ['officialRecord','executiveApproval','acknowledgements','readReceipts','historicalOrigin','externalInitialApproval','bulkInvalidation','recordMode','historicalImport','historicalTransfer'];
 const stampKeys = ['approvedBy','approvedAt','closedAt','registeredAt','reporterId','reporterName'];
 const envelopeKeys = ['_syncBaseVersion','_syncVersion','_syncMutationId','updatedAt','lastModifiedBy','lastModifiedRole','lastModifiedPosition','lastModifiedAt'];
 const workflowKeys = ['corrective','reportWorkflow','reviewHistory','lifecycleHistory','safetyNote','priority','prioritySource','prioritySetBy','prioritySetAt','legalReview'];
@@ -70,6 +70,7 @@ export function validateLifecycle(prev:any,next:any,actor:any,now:string){
   for(const key of managedKeys)if(!equal(prev[key],next[key]))fail('server_record_locked');
   for(const key of stampKeys)if(!equal(prev[key],next[key])&&!(['approvedBy','approvedAt','closedAt'].includes(key)&&actor.role==='safety'&&prev.status!=='closed'))fail('approval_history_locked');
   if(prev.status==='closed')fail('closed_revision_required');
+  if(prev.executiveApproval?.state==='pending')fail('executive_review_in_progress');
   normalizeCause(prev,next,actor,now);
   if(actor.role==='safety'&&!accepted(prev)&&next.status==='approved'&&!isHistoricalEditable(next)&&!isCauseReady(next.reportDetails))fail('cause_analysis_required',409);
   const costChanges:any[]=[];
@@ -137,7 +138,7 @@ export function validateLifecycle(prev:any,next:any,actor:any,now:string){
       if(c.status==='approved'||next.status==='closed'){
         if(oldC.status!=='submitted'||!text(oldC.actionDetail)||!(oldC.afterPhotos||[]).length)fail('submitted_action_required');
         for(const key of [...planKeys,...actionFields])if(!equal(oldC[key],c[key]))fail('submitted_evidence_locked');
-        c.reviewedBy=actor.name;c.reviewedById=actor.id;c.reviewedAt=now;next.status='closed';next.closedAt=now;appendHistory('prevention_action_confirmed',text(c.reviewNote));
+        c.reviewedBy=actor.name;c.reviewedById=actor.id;c.reviewedAt=now;next.status='approved';next.closedAt=null;appendHistory('prevention_action_confirmed',text(c.reviewNote));
       }else if(c.status==='rejected'&&oldC.status==='submitted'){
         if(oldC.status!=='submitted'||!text(c.reviewNote))fail('action_review_reason_required');
         for(const key of [...planKeys,...actionFields])if(!equal(oldC[key],c[key]))fail('submitted_evidence_locked');
@@ -158,6 +159,7 @@ export function correctedIncident(prev:any,changes:any,reason:string,actor:any,n
   if(actor.role!=='safety')fail('forbidden',403);
   const historical=isHistoricalEditable(prev);
   if(!accepted(prev))fail('approved_or_closed_required');
+  if(prev.executiveApproval?.state==='pending')fail('executive_review_in_progress');
   if(!text(reason)||text(reason).length>2000)fail('revision_reason_required',400);
   const allowed=new Set(['summary','occurredAt','eventType','category','injuredName','injuredAge','injuredGender','injuredPart','injuryType','job','severity','potentialMajor','leaveEstimate','immediateAction','reportDetails','photos','corrective',...(historical?['historicalImport']:[])]);
   const correctiveAllowed=new Set(['rootCause','causeStatus','planDetail','ownerName','dueDate','actionDetail','actionDate','actionOwner','additionalNotes','afterPhotos']);

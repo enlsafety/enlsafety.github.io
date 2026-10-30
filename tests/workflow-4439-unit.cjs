@@ -27,7 +27,7 @@ assert.ok(workflow.includes("4.4.39-comment-empty1"));
 assert.ok(workflow.includes("target.innerHTML=list.length?list.map(c=>commentHtml(c,safety)).join(''):'<div class=\"wf412-empty\">-</div>'"));
 assert.ok(!workflow.includes('의견을 불러오지 못했습니다.'));
 
-for(const x of ['4.6.0-readonly','과거 결재기록 · 읽기 전용','action:\'view\'']) assert.ok(approval.includes(x),x);
+for(const x of ['4.8.0-executive-closure','과거 결재기록 (읽기 전용)','action:\'view\'']) assert.ok(approval.includes(x),x);
 assert.ok(!approval.includes('enl448OwnPulse'));
 assert.ok(!approval.includes('transform:scale('));
 
