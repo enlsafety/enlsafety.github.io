@@ -94,21 +94,8 @@
     return i.reportWorkflow;
   }
 
-  function normalizeWorkflows(){
-    let changed=false;
-    for(const i of data?.incidents||[]){
-      if(!i||['approved','closed'].includes(i.status)||!['person','property'].includes(String(i.category||'')))continue;
-      const before=JSON.stringify(i.reportWorkflow||null);workflow(i);if(before!==JSON.stringify(i.reportWorkflow||null))changed=true;
-    }
-    return changed;
-  }
-
-  const priorSave=typeof saveData==='function'?saveData:null;
-  if(priorSave&&!priorSave.__wf440){
-    const wrapped=function(){normalizeWorkflows();return priorSave.apply(this,arguments)};wrapped.__wf440=true;
-    saveData=wrapped;
-  }
-  normalizeWorkflows();
+  // Workflow fields are written only by explicit report actions below.
+  // Reading a report or saving an account must never manufacture incident edits.
 
   function fieldState(el){
     if(!el||!el.required||el.disabled||el.type==='hidden')return;
@@ -417,7 +404,7 @@
     }catch(e){return null}
   }
   function stageBanner(i){
-    const s=String(i.status||''),w=workflow(i),delay=Number(w.immediateDelayMinutes);
+    const s=String(i.status||''),w=i.reportWorkflow||{},delay=w.immediateDelayMinutes==null?NaN:Number(w.immediateDelayMinutes);
     const sla=Number.isFinite(delay)?` · 발생 후 약 ${delay}분에 최초보고`:'';
     const desc=s==='reported'?'안전관리자가 즉시보고 내용을 검토 중입니다.':s==='supplement'?'진단·병원비·견적 등 사후 확인자료 보완을 기다리고 있습니다.':s==='supplement_submitted'?'현장에서 보완자료를 제출하여 안전관리자 최종검토를 기다리고 있습니다.':s==='approved'?'사고보고 내용이 최종승인되어 재발방지계획 단계로 진행합니다.':s==='closed'?'사고보고와 재발방지조치 확인이 완료되어 종결되었습니다.':'사고 진행상태를 확인합니다.';
     return `<section class="wf440-stage ${s.includes('supplement')?'supplement':['approved','closed'].includes(s)?'approved':''}"><b>${ex(stateLabel(i))}</b>${ex(desc)}<small>${ex(sla)}</small></section>`;

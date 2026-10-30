@@ -16,10 +16,19 @@
   function display(v){if(v==null||v==='')return '(없음)';if(Array.isArray(v))return v.map(x=>typeof x==='object'?(x.name||x.note||x.action||'첨부·이력 항목'):x).join('\n')||'(없음)';return typeof v==='object'?JSON.stringify(v,null,2):String(v);}
   function element(tag,text,parent){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(parent)parent.appendChild(el);return el;}
   window.addEventListener('enl-incident-write-error',event=>{
-    const d=event.detail,root=document.querySelector('#unifiedReportForm,#reportForm,#modalRoot .modal')||document.getElementById('app');if(!root)return;
-    let panel=root.querySelector('[data-enl-save-feedback]');if(!panel){panel=element('section',undefined,root);panel.dataset.enlSaveFeedback='';panel.style.cssText='margin:14px 0;padding:14px;border:1px solid #b76129;border-radius:10px;background:#fff8ee;color:#422b1b;overflow-wrap:anywhere';}
+    const d=event.detail,modal=document.querySelector('#modalRoot .modal');
+    const editor=document.querySelector('#unifiedReportForm,#reportForm')||(modal&&[modal.dataset.wf440Incident,modal.dataset.cumulativeIncident].includes(String(d.id))?modal:null);
+    const root=editor||document.getElementById('view')||document.getElementById('app');if(!root)return;
+    let panel=[...root.querySelectorAll('[data-enl-save-feedback]')].find(el=>el.dataset.incidentId===String(d.id));if(!panel){panel=element('section',undefined,root);panel.dataset.enlSaveFeedback='';panel.style.cssText='margin:14px 0;padding:14px;border:1px solid #b76129;border-radius:10px;background:#fff8ee;color:#422b1b;overflow-wrap:anywhere';}
     panel.replaceChildren();panel.dataset.incidentId=d.id;panel.setAttribute('role','alert');
-    element('strong','저장되지 않았습니다',panel);element('p',d.message,panel);
+    element('strong',editor?'저장되지 않았습니다':'사고자료 저장 확인 필요',panel);
+    if(!editor){
+      element('p','이 안내는 사고자료 저장에 관한 것입니다. 본사 사용자 정보 저장 결과와는 별개입니다.',panel);
+      const i=d.draft||d.latest||{},site=typeof siteById==='function'?siteById(i.siteId)?.name:'';
+      element('p','대상 사고: '+[site,String(i.occurredAt||'').slice(0,10),i.eventType||i.id||d.id].filter(Boolean).join(' / '),panel);
+      const button=element('button','사고 내용 확인',panel);button.type='button';button.onclick=()=>{const u=currentUser?.();if(window.enlOpenIncidentReview)window.enlOpenIncidentReview(d.id,u?.role==='safety',u);else window.openIncidentModal?.(d.id)};
+    }
+    element('p',d.message,panel);
     if(String(d.error).includes('enl_sync_conflict')&&d.latest){
       const details=element('details',undefined,panel);details.open=true;element('summary','최신 서버 내용과 작성 내용 비교',details);
       for(const row of rows(d.latest,d.draft).slice(0,40)){
