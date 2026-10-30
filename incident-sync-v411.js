@@ -209,6 +209,9 @@
     try{if(!serverReady)await pull(false);if(dirty)await push();await pull(true);}catch(e){console.warn('incident sync deferred',e.message);}finally{syncing=false;if(pending){pending=false;scheduleSync(500);}}
   }
   saveData=function(){if(applyingRemote)return baseSaveData();scope();refreshDirty();persistConfirmed();if(dirty&&currentUser())scheduleSync();};
+  // Account API responses are already saved. Cache them without running legacy
+  // incident normalizers or scheduling unrelated incident writes.
+  window.enlPersistAppData=()=>{scope();persistConfirmed();};
   // Explicit correction/export operations share the queue but retain their
   // original expectedVersion: protected records cannot be silently rebased.
   async function api(body,timeout){
