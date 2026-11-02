@@ -11,7 +11,6 @@
   const UPDATE_LABEL='최신버전으로 업데이트';
   const REFRESH_LABEL='새로고침';
   const CONTROL_POLL_MS=60000;
-  const POST_LOGIN_GRACE_MS=15000;
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   window.ENL_DEPLOY_VERSION=VERSION;window.ENL_STABLE_MODE=true;
 
@@ -38,34 +37,17 @@
     return false;
   }
   function newest(meta){
-    const entry=String(meta?.stableEntry||'stable412.html').trim()||'stable412.html';
-    let build=String(meta?.build||CURRENT_BUILD).trim()||CURRENT_BUILD;
-    let ver=String(meta?.currentStableVersion||VERSION).trim()||VERSION;
-    if(versionOlder(ver,VERSION)){ver=VERSION;build=CURRENT_BUILD}
-    return {entry,build,ver};
+    const ver=String(meta?.currentStableVersion||''),build=String(meta?.build||'');
+    if(!/^\d+\.\d+\.\d+$/.test(ver)||!/^stable-\d+-r\d+$/.test(build)||build.split('-')[1]!==ver.replace(/\./g,'')||meta.stableEntry!=='stable412.html')throw new Error('invalid_version_metadata');
+    return {entry:'stable412.html',build,ver};
   }
-  function clearLoginForUpdate(reason='manual_update'){
-    let clearedBySessionModule=false;
-    try{
-      if(typeof window.enlClearRefreshSession==='function'){
-        window.enlClearRefreshSession(reason);
-        clearedBySessionModule=true;
-      }
-    }catch(e){}
-    if(!clearedBySessionModule){
-      try{session=null;if(typeof saveSession==='function')saveSession()}catch(e){try{localStorage.removeItem('enl_safety_session_v3')}catch(_){} }
-      try{localStorage.removeItem('enl_safety_session_refresh_v412')}catch(e){}
-      try{localStorage.removeItem('enl_safety_view_refresh_v412')}catch(e){}
-      try{localStorage.removeItem('enl_safety_report_draft_v412')}catch(e){}
-      try{document.cookie='enl_safety_session_refresh_v412=; Path=/; Max-Age=0; SameSite=Lax; Secure'}catch(e){}
-    }
-    try{currentView='';accountMenuOpen=false}catch(e){}
+  function isNewer(target){
+    if(target.ver!==VERSION)return versionOlder(VERSION,target.ver);
+    return Number(target.build.split('-r').pop())>Number(CURRENT_BUILD.split('-r').pop());
   }
   function rememberCurrentBuild(){try{localStorage.setItem(BUILD_KEY,CURRENT_BUILD)}catch(e){}}
   function readEpoch(){try{return Number(localStorage.getItem(CONTROL_KEY)||0)||0}catch(e){return 0}}
   function saveEpoch(v){try{localStorage.setItem(CONTROL_KEY,String(Number(v)||0))}catch(e){}}
-  function loginAgeMs(){const t=Date.parse(session?.loggedAt||'');return Number.isFinite(t)&&t>0?Math.max(0,Date.now()-t):Infinity}
-  function sameStableVersion(target){return String(target?.ver||'').trim()===String(VERSION).trim()}
   rememberCurrentBuild();
 
   function goLatest(t){
@@ -84,32 +66,38 @@
       return j;
     }finally{if(timer)clearTimeout(timer)}
   }
-  let applyingGlobal=false,checkingGlobal=false;
-  async function applyGlobalUpdate(control,target=null){
-    if(applyingGlobal)return false;applyingGlobal=true;
-    saveEpoch(control?.epoch);
-    clearLoginForUpdate('global_update');
-    let next=target||{entry:'stable412.html',build:String(control?.version||CURRENT_BUILD),ver:VERSION};
-    if(!target)try{next=newest(await latestMeta())}catch(e){}
-    goLatest(next);return true;
+  let checkingGlobal=false,checkedEpoch=null,pendingUpdate=null,deferredBuild='';
+  function updateBusy(){
+    return document.visibilityState==='hidden'||!!document.querySelector('#unifiedReportForm,#reportForm,.modal,dialog[open]')||
+      !!window.enlUiModalBusy?.()||!!window.enlIncidentHasUnsavedChanges?.();
+  }
+  function refreshUpdateNotice(){
+    const existing=document.getElementById('enlUpdateNotice');
+    if(!pendingUpdate||!currentUser?.()||updateBusy()||deferredBuild===pendingUpdate.build){existing?.remove();return}
+    if(existing)return;
+    const panel=document.createElement('aside');panel.id='enlUpdateNotice';panel.setAttribute('aria-label','앱 업데이트');
+    panel.innerHTML='<strong role="status">새 버전이 있습니다</strong><p>로그인은 유지됩니다. 지금 업데이트하면 현재 화면을 다시 엽니다.</p><div><button type="button" data-update-later>나중에</button><button type="button" data-update-now>지금 업데이트</button></div>';
+    panel.querySelector('[data-update-later]').onclick=()=>{deferredBuild=pendingUpdate.build;panel.remove();refreshControls()};
+    panel.querySelector('[data-update-now]').onclick=()=>{
+      if(!currentUser?.()||updateBusy()){refreshUpdateNotice();return}
+      window.enlSaveBackgroundState?.();goLatest(pendingUpdate);
+    };
+    document.body.appendChild(panel);
   }
   async function checkGlobalControl(){
-    if(checkingGlobal||applyingGlobal||!currentUser?.()||document.visibilityState==='hidden')return false;
+    if(checkingGlobal||!currentUser?.()||document.visibilityState==='hidden')return false;
     checkingGlobal=true;
     try{
-      const r=await globalCall('GET');const epoch=Number(r.epoch||0)||0,seen=readEpoch();
-      if(!seen){saveEpoch(epoch);return false}
-      if(epoch>seen){
-        let target=null;try{target=newest(await latestMeta())}catch(e){}
-        // A stale global-refresh epoch can survive on a device after the app is already current.
-        // Mark that epoch as seen without clearing a freshly created login session.
-        if(target&&sameStableVersion(target)){saveEpoch(epoch);try{sessionStorage.setItem('enl_global_epoch_skip_reason','already_current')}catch(e){}return false}
-        // Do not tear down a login that was just created while update metadata is temporarily unavailable.
-        if(!target&&loginAgeMs()<POST_LOGIN_GRACE_MS)return false;
-        await applyGlobalUpdate(r,target);return true
+      const r=await globalCall('GET'),epoch=Number(r.epoch);
+      if(!Number.isSafeInteger(epoch)||epoch<=0||epoch<readEpoch())return false;
+      if(epoch!==checkedEpoch){
+        const target=newest(await latestMeta());
+        if(!currentUser?.()||epoch<readEpoch())return false;
+        // Recheck metadata on the next poll if publication and its signal differ.
+        if(target.build===r.version)checkedEpoch=epoch;
+        pendingUpdate=isNewer(target)?target:null;saveEpoch(epoch);
       }
-      if(epoch<seen)saveEpoch(epoch);
-      return false;
+      refreshUpdateNotice();return !!pendingUpdate;
     }catch(e){return false}finally{checkingGlobal=false}
   }
 
@@ -141,13 +129,14 @@
 
   async function safetyGlobalUpdate(){
     const u=currentUser?.(),a=actor(u);if(!u||a?.role!=='safety'){alert('최신버전 전체 업데이트는 안전관리자만 실행할 수 있습니다.');return false}
-    if(!confirm('전체 사용자를 로그아웃하고 최신 버전으로 업데이트할까요?\n현재 접속 중인 사용자는 자동으로 새 버전을 적용한 뒤 로그인 화면으로 이동합니다.'))return false;
+    if(!confirm('전체 사용자에게 최신 버전 업데이트를 요청할까요?'))return false;
     const pw=prompt('전체 업데이트 권한 확인을 위해 안전관리자 로그인 비밀번호를 입력해 주세요.');if(!pw)return false;
     const btn=document.querySelector('[data-enl-global-update]');if(btn){btn.disabled=true;btn.textContent='전체 업데이트 중…'}
     try{
-      let target={entry:'stable412.html',build:CURRENT_BUILD,ver:VERSION};try{target=newest(await latestMeta())}catch(e){}
+      const target=newest(await latestMeta());
       const r=await globalCall('POST',{action:'global-refresh',actor:a,passwordHash:await sha256(pw),version:target.build});
-      saveEpoch(r.epoch);clearLoginForUpdate('manual_global_update');goLatest(target);return true;
+      saveEpoch(r.epoch);pendingUpdate=isNewer(target)?target:null;deferredBuild='';refreshUpdateNotice();
+      if(!pendingUpdate)alert('업데이트를 요청했습니다. 이 기기는 이미 최신 버전입니다.');return true;
     }catch(e){
       const m=String(e?.message||'');
       alert(m==='invalid_password'
@@ -164,6 +153,7 @@
   window.enlCheckLatestVersion=()=>Promise.resolve(false);
 
   function style(){if(document.getElementById('enlStableControlStyle410'))return;const s=document.createElement('style');s.id='enlStableControlStyle410';s.textContent=`
+    #enlUpdateNotice{position:fixed;z-index:1000;right:12px;bottom:max(12px,env(safe-area-inset-bottom));width:min(340px,calc(100% - 24px));box-sizing:border-box;padding:16px;border:1px solid #adc2d0;border-radius:12px;background:white;color:#142f45;box-shadow:0 4px 24px #18324c33}#enlUpdateNotice p{margin:6px 0 12px;line-height:1.45}#enlUpdateNotice div{display:flex;justify-content:flex-end;gap:8px}#enlUpdateNotice button{padding:9px 12px;border:1px solid #9fb5c7;border-radius:8px;background:white;color:#173e60}#enlUpdateNotice [data-update-now]{background:#174d78;color:white}
     html,body{overscroll-behavior-y:none}.header-update-control{display:flex;align-items:center;gap:5px;margin-left:auto;margin-right:6px;white-space:nowrap}.header-version{font-size:10px;font-weight:900;color:#174d78;background:#eef8ff;border:1px solid #c9dfed;border-radius:999px;padding:6px 8px}.header-refresh-btn,.header-global-update-btn{border:1px solid #1e5d91;background:#fff;color:#174d78;border-radius:9px;padding:7px 9px;font-size:11px;font-weight:900;cursor:pointer}.header-global-update-btn{background:#1e5d91;color:#fff}.header-refresh-btn:disabled,.header-global-update-btn:disabled{opacity:.65;cursor:wait}@media(max-width:720px){.header-update-control{gap:3px;margin-right:2px}.header-version{padding:5px 6px;font-size:9px}.header-refresh-btn,.header-global-update-btn{padding:6px 7px;font-size:9px}}`;
     document.head.appendChild(s)
   }
@@ -172,14 +162,18 @@
     const u=currentUser?.(),top=document.querySelector('.topbar'),user=document.querySelector('.topbar .user-wrap');if(!u||!top||!user)return;
     const safety=roleNorm(u.role)==='safety';let box=document.getElementById('headerUpdateControl');
     if(!box){box=document.createElement('div');box.id='headerUpdateControl';box.className='header-update-control';top.insertBefore(box,user)}
-    const wanted=`<span class="header-version">v${VERSION}</span><button type="button" class="header-refresh-btn" data-enl-refresh>${REFRESH_LABEL}</button>${safety?`<button type="button" class="header-global-update-btn" data-enl-global-update>${UPDATE_LABEL}</button>`:''}`;
-    if(box.dataset.mode!==(safety?'safety':'user')){box.innerHTML=wanted;box.dataset.mode=safety?'safety':'user'}
+    const postponed=pendingUpdate&&deferredBuild===pendingUpdate.build;
+    const versionLabel=postponed?'<button type="button" class="header-refresh-btn" data-resume-update>새 버전</button>':`<span class="header-version">v${VERSION}</span>`;
+    const wanted=`${versionLabel}<button type="button" class="header-refresh-btn" data-enl-refresh>${REFRESH_LABEL}</button>${safety?`<button type="button" class="header-global-update-btn" data-enl-global-update>${UPDATE_LABEL}</button>`:''}`;
+    const mode=[safety,!!postponed].join('/');
+    if(box.dataset.mode!==mode){box.innerHTML=wanted;box.dataset.mode=mode}
+    const resume=box.querySelector('[data-resume-update]');if(resume)resume.onclick=()=>{deferredBuild='';refreshControls()};
     const refresh=box.querySelector('[data-enl-refresh]');if(refresh)refresh.onclick=refreshData;
     const update=box.querySelector('[data-enl-global-update]');if(update)update.onclick=safetyGlobalUpdate;
   }
   function removeLoginUpdate(){document.getElementById('loginLatestBtn')?.remove()}
   function footer(){const f=document.querySelector('.footer-note');const text=`이앤엘 사고보고앱 v${VERSION}`;if(f&&f.textContent!==text)f.textContent=text}
-  function refreshControls(){try{removeLoginUpdate();if(currentUser?.())injectHeader();else document.getElementById('headerUpdateControl')?.remove();footer()}catch(e){console.warn('update control render skipped',e)}}
+  function refreshControls(){try{removeLoginUpdate();if(currentUser?.())injectHeader();else document.getElementById('headerUpdateControl')?.remove();footer();refreshUpdateNotice()}catch(e){console.warn('update control render skipped',e)}}
   let queued=false;
   const observer=new MutationObserver(()=>{if(queued)return;queued=true;queueMicrotask(()=>{queued=false;refreshControls()})});
   observer.observe(document.getElementById('app')||document.body,{childList:true,subtree:true});
@@ -193,5 +187,5 @@
   setInterval(checkGlobalControl,CONTROL_POLL_MS);
   window.addEventListener('pageshow',()=>scheduleForegroundControl(100));
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')scheduleForegroundControl(100)});
-  window.ENL_UPDATE_CONTROL_VERSION=`${CURRENT_BUILD}-update8-server-fix`;
+  window.ENL_UPDATE_CONTROL_VERSION=`${CURRENT_BUILD}-session-continuity`;
 })();

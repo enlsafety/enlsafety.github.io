@@ -16,44 +16,8 @@ jobs:
           node --check session-refresh-v412.js
           node --check app-control-v410.js
           node tests/session-proof-reuse.cjs
-      - name: Mobile persistence rules
-        shell: python
+      - name: Tablet background, update, authentication and logout behavior
         run: |
-          from pathlib import Path
-          session=Path('session-refresh-v412.js').read_text(encoding='utf-8')
-          control=Path('app-control-v410.js').read_text(encoding='utf-8')
-          html=Path('stable412.html').read_text(encoding='utf-8')
-          for x in [
-            "SESSION_TTL_MS=12*60*60*1000",
-            "mobile WebView can transiently lose the in-memory session",
-            "pageshow",
-            "visibilitychange",
-            "freeze",
-            "resume",
-            "enlRestoreForegroundSession",
-            "enlClearRefreshSession",
-            "clearSessionExplicit('logout')",
-            "4.4.34-proof-reuse1",
-            "envelope(v,at,true)",
-            "envelope(v,at,false)",
-            "mergeLocalProof",
-          ]: assert x in session,x
-          for x in [
-            "function clearLoginForUpdate(reason='manual_update')",
-            "window.enlClearRefreshSession(reason)",
-            "clearedBySessionModule",
-            "clearLoginForUpdate('manual_global_update')",
-            "clearLoginForUpdate('global_update')",
-            "POST_LOGIN_GRACE_MS=15000",
-            "function sameStableVersion(target)",
-            "if(target&&sameStableVersion(target)){saveEpoch(epoch)",
-            "enl_global_epoch_skip_reason",
-            "function scheduleForegroundControl(delay=100)",
-            "window.addEventListener('pageshow',()=>scheduleForegroundControl(100))",
-            "document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')scheduleForegroundControl(100)})",
-          ]: assert x in control,x
-          assert control.count('clearLoginForUpdate(')==3,control.count('clearLoginForUpdate(')
-          assert 'session-refresh-v412.js?v=4.4.34-r1&amp;fix=proof-reuse1' in html
-          assert 'app-control-v410.js?v=4.4.32-r1&amp;fix=startup-defer1' in html
-          assert html.index('session-refresh-v412.js') < html.index('auth-v411.js')
-          print('OK: login proof survives local session restore without entering cookie backup; update/session controls preserved')
+          npm install --no-save --package-lock=false playwright@1.51.1
+          npx playwright install --with-deps chromium webkit
+          node tests/tablet-session-browser.cjs
