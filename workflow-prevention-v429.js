@@ -266,6 +266,7 @@
     finally{form.dataset.saving='0';buttons.forEach(b=>b.disabled=false);}
   }
   function openReadOnly(i,u){
+    if(u?.role==='executive'&&window.enlOpenIncidentReview)return window.enlOpenIncidentReview(i.id,false,u);
     openModal(modalHead(i,'누적 사고보고서')+cumulative(i)+historyHtml(i.corrective||{}));
     mountDocument(i,i.corrective?.actionDetail?'[data-report-stage="D"]':'[data-report-stage="C"]');
   }

@@ -187,6 +187,19 @@
       });
       sheets.push({name:'내용 전문',xml:full.xml(r-1,false),end:r-1});
     }
+    // The printable cover remains one page. Read the A–E rows from the same
+    // record model as the final workbook, independently of the approval UI.
+    const cumulative=sheetBuilder(e),records=codec.reportModel(i).rows;
+    records.forEach((record,index)=>{
+      const r=index+1,[label,value]=record.cells;
+      if(record.merge)cumulative.put(1,r,12,r,index===0?'사고보고 누적기록':label.v,index===0?1:2,'',false);
+      else{
+        cumulative.put(1,r,3,r,label.v,3,'',false);
+        cumulative.put(4,r,12,r,value.v,typeof value.v==='number'?7:4,'',false);
+      }
+      cumulative.heights.set(r,Math.max(record.height,record.merge?28:8+16*Math.max(wrap(label.v,3).length,wrap(value.v,9).length)));
+    });
+    sheets.push({name:'단계별 누적기록',xml:cumulative.xml(records.length,false),end:records.length});
     const files = [
       {name:'[Content_Types].xml',data:XML+`<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((s,n)=>`<Override PartName="/xl/worksheets/sheet${n+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>`},
       {name:'_rels/.rels',data:XML+`<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${REL}/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
@@ -197,7 +210,7 @@
     ];
     return codec.zipStore(files);
   }
-  function download(id, button) {
+  async function download(id, button) {
     if (button?.disabled) return;
     let url, anchor;
     try {
@@ -205,7 +218,16 @@
       const user = window.currentUser?.();
       if (!i || !user || !window.enlCanViewIncidentOriginal?.(i,user)) throw new Error('이 사고보고서를 열람할 권한이 없습니다.');
       if (button) { button.disabled = true; button.textContent = '엑셀 파일 생성 중…'; }
-      const bytes = buildWorkbook(i);
+      let source=i;
+      if (['executive','manager','final'].includes(user.role)) {
+        // Use the server's reader projection, including its medical/attachment limits.
+        const actor=window.enlCurrentActor(user);
+        const result=await window.enlIncidentApi({action:'pull',actor,role:actor.role,siteId:actor.siteId});
+        source=result.incidents?.find(record=>String(record.id)===String(id));
+        const active=window.currentUser?.();
+        if (!source || active?.id!==user.id || active?.role!==user.role || !window.enlCanViewIncidentOriginal(source,active)) throw new Error('현재 계정으로 이 사고보고서를 출력할 수 없습니다.');
+      }
+      const bytes = buildWorkbook(source);
       url = URL.createObjectURL(new Blob([bytes], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
       anchor = document.createElement('a'); anchor.href = url;
       const safe = value => text(value,'미확인').replace(/[\\/:*?"<>|\u0000-\u001f]/g,'_').slice(0,48);

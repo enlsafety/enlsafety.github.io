@@ -9,7 +9,11 @@ const primary='enl_safety_session_v3',backup='enl_safety_session_refresh_v412';
 const actor={id:'qa-exec',name:'시험 임원',role:'executive',position:'상무',active:true,passwordHash:'synthetic-proof'};
 const roster=[actor,...['상무','전무','부사장','사장'].map((position,i)=>({id:'qa-'+i,name:'시험'+i,position}))];
 const incident={id:'qa-case',siteId:'qa-site',status:'approved',category:'property',occurredAt:'2026-10-30T02:00:00Z',
-  eventType:'검수 사고',summary:'결재 화면 테스트',reportDetails:{},photos:[],corrective:{status:'approved'},_syncVersion:1,
+  eventType:'작업차량 접촉',summary:'가상 사고',reporterName:'검수 소장',immediateAction:'통행 중지 및 현장 확인',
+  reportDetails:{place:'작업로 입구',workerName:'검수 직원',workAction:'차량 이동',incidentHow:'후진 중 안내판에 접촉함',
+    damagedItem:'안내판',damageDetail:'지지대 파손',repairCost:125000,causeAnalysisStatus:'investigating',environmentCause:'후방 시야 제한'},
+  photos:[{name:'현장 검수 사진.png',mime:'image/png'}],
+  corrective:{status:'approved',planDetail:'통행로 분리',actionDetail:'차량 유도선 설치 완료',actionOwner:'검수 반장',actionCompletedDate:'2026-10-31',reviewNote:'조치 현장 확인'},_syncVersion:1,
   executiveApproval:{mode:'parallel_then_president',state:'pending',stage:'parallel',round:1,roster,finalApproverId:'qa-3',signatures:[]}};
 // Same ordinary badges, different approval turns. Compare them in the real accident list.
 const waiting={...incident,id:'qa-waiting',executiveApproval:{...incident.executiveApproval,finalApproverId:actor.id,
@@ -73,6 +77,43 @@ async function verifyIncidentCardBadges(page){
   await page.locator('[data-shell-view="home"]').click();
   console.log('PASS accident list keeps three native pills separate from the pending circle at six widths');
 }
+async function verifyExecutiveReport(page,engine){
+  const report=page.locator('[data-executive-summary]'),table=report.getByRole('table',{name:'사고 경위서'});
+  await table.waitFor();
+  const modal=page.locator('#modalRoot .modal');
+  assert.equal(await modal.locator('[data-report-stage],.inc411-overview,[data-official439-box]').count(),0);
+  for(const value of ['후진 중 안내판에 접촉함','125,000원','원인 (조사 중)','통행로 분리','차량 유도선 설치 완료','조치 현장 확인'])assert.ok((await table.innerText()).includes(value),value);
+  const attachments=report.locator('details');
+  assert.equal(await attachments.getAttribute('open'),null);
+  await attachments.locator('summary').click();
+  await attachments.locator('[data-report-files="photos"]').waitFor();
+  await attachments.locator('summary').click();
+  for(const width of [320,390,820,1280]){
+    await page.setViewportSize({width,height:900});
+    assert.ok(await table.evaluate(t=>t.scrollWidth<=t.clientWidth+1&&t.getBoundingClientRect().right<=innerWidth+1),'summary width '+width);
+  }
+  await page.setViewportSize({width:820,height:1180});
+  const sparse=await page.evaluate(()=>{
+    const div=document.createElement('div');
+    div.innerHTML=enlExecutiveSummaryHtml({category:'person',occurredDate:'2026-10-30',occurrenceTimeKnown:false,summary:'이관된 경위',
+      reportDetails:{injuryDetail:'발목 부상',diagnosis:'비공개 진단',doctorOpinion:'비공개 소견'},supplement:{attachments:[{name:'비공개 진단서.pdf'}]}});
+    return div.textContent;
+  });
+  assert.match(sparse,/시간 미상/);assert.match(sparse,/이관된 경위/);assert.match(sparse,/발목 부상/);
+  assert.doesNotMatch(sparse,/비공개|미입력|복구 예상비|현장 조치 결과|보고자|첨부자료/);
+  const downloadEvent=page.waitForEvent('download');
+  await modal.getByRole('button',{name:'엑셀 사고보고서 출력'}).click();
+  const download=await downloadEvent;
+  fs.mkdirSync('qa-output',{recursive:true});
+  const file='qa-output/executive-summary-'+engine.name()+'.xlsx';
+  await download.saveAs(file);
+  const bytes=fs.readFileSync(file);
+  let last=-1;
+  for(const heading of ['A. 현장 최초 사고보고','B. 안전관리자 원인분석 및 검토','C. 안전관리자 재발방지계획','D. 현장 재발방지조치 및 증빙','E. 안전관리자 최종 확인']){
+    const pos=bytes.indexOf(heading);assert.ok(pos>last,'cumulative export '+heading);last=pos;
+  }
+  console.log('PASS executive approval table, attachments, sparse personal record, 4 widths and downloaded A–E workbook');
+}
 async function run(engine){
   const local=engine===chromium&&process.env.CHROME_EXE;
   const browser=await engine.launch(local?{executablePath:local,args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu']}:{});
@@ -121,6 +162,7 @@ async function run(engine){
     await verifyIncidentCardBadges(page);
     await page.locator('[data-exec-open="qa-case"]').click();
     await page.getByRole('button',{name:'결재 승인',exact:true}).waitFor();
+    await verifyExecutiveReport(page,engine);
     await page.evaluate(()=>{
       const original=Date.now;Date.now=()=>original()+3*86400000;
       try{document.dispatchEvent(new Event('resume'));window.dispatchEvent(new Event('pageshow'))}finally{Date.now=original}
