@@ -29,7 +29,9 @@ const server=http.createServer((req,res)=>{
     await page.reload({waitUntil:'domcontentloaded',timeout:15000});
     await page.waitForFunction(()=>!!navigator.serviceWorker.controller,{timeout:10000});
     await page.waitForFunction(async()=>{
-      const cache=await caches.open('enl-pwa-4.6.0-r1');
+      const registration=await navigator.serviceWorker.ready;
+      const build=new URL(registration.active.scriptURL).searchParams.get('v');
+      const cache=await caches.open('enl-pwa-'+build);
       return !!(await cache.match('/stable412.html?offline=1')) && !!(await cache.match('/core.js')) && !!(await cache.match('/attachment-image-v472.js'));
     },{timeout:15000});
     const swUrl=await page.evaluate(()=>navigator.serviceWorker.controller?.scriptURL||'');

@@ -1,17 +1,18 @@
 /* E&L Accident Report App v4.1.2 - mobile background-safe login session */
 (function(){
   'use strict';
-  const VERSION='4.4.34-proof-reuse1';
+  const VERSION='4.8.9-session-continuity';
   const BACKUP_KEY='enl_safety_session_refresh_v412';
   const COOKIE_KEY='enl_safety_session_refresh_v412';
   const VIEW_KEY='enl_safety_view_refresh_v412';
   const DRAFT_KEY='enl_safety_report_draft_v412';
-  const SESSION_TTL_MS=12*60*60*1000;
-  const COOKIE_MAX_AGE=Math.floor(SESSION_TTL_MS/1000);
+  const COOKIE_MAX_AGE=12*60*60;
+  const LOGOUT_KEY='enl_explicit_logout_v489';
   const DRAFT_MAX_AGE=12*60*60*1000;
   const VALID_VIEWS=new Set(['home','dashboard','report','incidents','actions','more','field-inquiry','personnel']);
   let explicitClearArmed=false;
-  let lastActiveAt=Date.now();
+  function logoutGeneration(){try{return localStorage.getItem(LOGOUT_KEY)||''}catch(e){return ''}}
+  let observedLogout=logoutGeneration(),wasSignedIn=!!session;
 
   function validSession(v){
     if(!v||typeof v!=='object')return false;
@@ -53,7 +54,6 @@
     }
     return null;
   }
-  function isExpired(row){return !!row&&row.savedAt>0&&Date.now()-row.savedAt>SESSION_TTL_MS}
   function parseStored(text){try{return normalizeStored(JSON.parse(text||'null'))}catch(e){return null}}
   function readCookieRow(){
     try{
@@ -67,17 +67,14 @@
   }
   function readBackup(){
     const local=readLocalRow(),cookie=readCookieRow();
-    const rows=[local,cookie].filter(Boolean).sort((a,b)=>(b.savedAt||0)-(a.savedAt||0));
-    if(!rows.length)return {session:null,expired:false,savedAt:0};
-    const row=rows[0];
-    if(isExpired(row))return {session:null,expired:true,savedAt:row.savedAt};
-    const localProof=local&&!isExpired(local)?local.session:null;
-    return {session:localProof?mergeLocalProof(row.session,localProof):row.session,expired:false,savedAt:row.savedAt};
+    // The verified local copy survives app suspension and upgrades. A cookie is
+    // only a short-lived fallback and never contains a password or PIN proof.
+    if(local)return local.session;
+    return cookie&&cookie.savedAt>Date.now()-COOKIE_MAX_AGE*1000?cookie.session:null;
   }
-  function persistBackup(v,touch=true){
-    const at=touch?Date.now():lastActiveAt;
-    const localRow=envelope(v,at,true),cookieRow=envelope(v,at,false);if(!localRow||!cookieRow)return false;
-    lastActiveAt=localRow.savedAt;
+  function persistBackup(v){
+    const at=Date.now(),localRow=envelope(v,at,true),cookieRow=envelope(v,at,false);
+    if(!localRow||!cookieRow)return false;
     try{localStorage.setItem(BACKUP_KEY,JSON.stringify(localRow))}catch(e){}
     try{document.cookie=`${COOKIE_KEY}=${encodeURIComponent(JSON.stringify(cookieRow))}; Path=/; Max-Age=${COOKIE_MAX_AGE}; SameSite=Lax; Secure`}catch(e){}
     return true;
@@ -87,10 +84,6 @@
     try{localStorage.removeItem(VIEW_KEY)}catch(e){}
     if(draft)try{localStorage.removeItem(DRAFT_KEY)}catch(e){}
     try{document.cookie=`${COOKIE_KEY}=; Path=/; Max-Age=0; SameSite=Lax; Secure`}catch(e){}
-  }
-  function sessionLoggedAtExpired(v){
-    const t=Date.parse(v?.loggedAt||'');
-    return Number.isFinite(t)&&t>0&&Date.now()-t>SESSION_TTL_MS;
   }
   function actorId(){
     try{const u=currentUser?.();if(u)return String(u.id||u.personnelId||u.username||'')}catch(e){}
@@ -136,44 +129,65 @@
 
   const originalSave=typeof saveSession==='function'?saveSession:null;
   function writePrimary(){try{originalSave?.()}catch(e){console.warn('primary session save skipped',e)}}
-  function expireSession(){
-    explicitClearArmed=true;
-    session=null;currentView='';
-    writePrimary();clearBackup({draft:true});
-    explicitClearArmed=false;
-  }
   function clearSessionExplicit(reason='logout'){
     explicitClearArmed=true;
     session=null;currentView='';
-    writePrimary();clearBackup({draft:true});
+    wasSignedIn=false;clearBackup({draft:true});writePrimary();
+    try{localStorage.setItem(LOGOUT_KEY,String(Date.now())+'-'+Math.random());observedLogout=logoutGeneration()}catch(e){}
     try{sessionStorage.setItem('enl_last_session_clear_reason',String(reason))}catch(e){}
     explicitClearArmed=false;
     return true;
   }
 
-  // Restore before authentication and app-shell modules boot. A 12-hour inactivity window is local-only;
-  // returning from the phone home screen does not call the server just to keep the login alive.
+  // Restore before the shell boots. A cached login still has to pass the
+  // server's actor/proof checks for reads, writes and approvals.
   const bootStored=readBackup();
   if(session){
-    const ageBase=bootStored.savedAt||Date.parse(session.loggedAt||'')||Date.now();
-    if((bootStored.expired&&!bootStored.session)||(Date.now()-ageBase>SESSION_TTL_MS&&sessionLoggedAtExpired(session)))expireSession();
-    else {lastActiveAt=Math.max(ageBase,Date.now());persistBackup(session,true);restoreView()}
-  }else if(bootStored.session){
-    session=bootStored.session;lastActiveAt=bootStored.savedAt||Date.now();writePrimary();restoreView();persistBackup(session,true);
-  }else if(bootStored.expired){clearBackup({draft:true})}
+    // Only supplement a missing proof, never replace one from a newer login.
+    const u=session.worker||session.manager;
+    if(u&&!u.passwordHash&&!u.pinHash)session=mergeLocalProof(session,bootStored);
+    persistBackup(session);restoreView();
+  }else if(bootStored){
+    session=bootStored;writePrimary();restoreView();persistBackup(session);
+  }
+
+  wasSignedIn=!!session;
+  function adoptPeerLogout(){
+    const generation=logoutGeneration();
+    if(generation===observedLogout)return false;
+    observedLogout=generation;
+    session=loadSession();currentView='';
+    if(wasSignedIn&&!session)showReason('다른 탭에서 로그아웃하여 이 탭의 로그인도 종료됐습니다.');
+    wasSignedIn=!!session;
+    if(document.readyState!=='loading'){
+      if(typeof window.enlRefreshSharedData==='function')window.enlRefreshSharedData(true);
+      else window.render?.();
+    }
+    return true;
+  }
+  function showReason(message){
+    const show=()=>{if(document.visibilityState==='hidden')return;document.removeEventListener('visibilitychange',show);if(!session)window.alert(message)};
+    if(document.visibilityState==='hidden')document.addEventListener('visibilitychange',show);
+    else setTimeout(show,0);
+  }
+  try{
+    const reason=sessionStorage.getItem('enl_last_session_clear_reason');
+    sessionStorage.removeItem('enl_last_session_clear_reason');
+    if(!session&&['global_update','manual_global_update'].includes(reason)){
+      showReason('이전 버전이 업데이트되면서 로그인이 종료됐습니다. 한 번 다시 로그인해 주세요.');
+    }
+  }catch(e){}
 
   if(originalSave){
     saveSession=function(){
       if(session){
-        writePrimary();persistBackup(session,true);return;
+        wasSignedIn=true;observedLogout=logoutGeneration();writePrimary();persistBackup(session);return;
       }
-      if(explicitClearArmed){writePrimary();clearBackup({draft:true});explicitClearArmed=false;return}
-      // A mobile WebView can transiently lose the in-memory session while backgrounding/recreating a page.
-      // Do not treat that transient null as a user logout; recover the durable local session instead.
-      const stored=readBackup();
-      if(stored.session){session=stored.session;lastActiveAt=stored.savedAt||Date.now();writePrimary();restoreView();return}
+      if(!explicitClearArmed){
+        const stored=readBackup();
+        if(stored){session=stored;writePrimary();restoreView();return}
+      }
       writePrimary();
-      if(stored.expired)clearBackup({draft:true});
     };
   }
 
@@ -182,24 +196,20 @@
 
   let draftTimer=null;
   function keepCurrent(){
-    if(!session||explicitClearArmed)return;
-    lastActiveAt=Date.now();persistBackup(session,true);persistView();saveDraft();
+    if(explicitClearArmed||adoptPeerLogout()||!session)return;
+    persistView();saveDraft();
   }
   function restoreForeground(){
-    if(explicitClearArmed)return;
-    const stored=readBackup();
-    const freshest=Math.max(Number(stored.savedAt||0),Number(lastActiveAt||0));
-    if((stored.expired&&!session)||(session&&freshest&&Date.now()-freshest>SESSION_TTL_MS)){
-      expireSession();
-      setTimeout(()=>{try{window.render?.()}catch(e){}},0);
-      return;
-    }
-    if(!session&&stored.session){
-      session=stored.session;lastActiveAt=stored.savedAt||Date.now();writePrimary();restoreView();
+    if(explicitClearArmed||adoptPeerLogout())return;
+    if(!session){
+      const stored=(typeof loadSession==='function'&&loadSession())||readBackup();
+      if(!stored)return;
+      session=stored;writePrimary();restoreView();
       setTimeout(()=>{try{window.render?.()}catch(e){}},0);
     }
-    if(session){lastActiveAt=Date.now();persistBackup(session,true);persistView()}
+    persistView();
   }
+  window.addEventListener('storage',e=>{if(e.key===LOGOUT_KEY)adoptPeerLogout()});
 
   document.addEventListener('input',e=>{if(!e.target?.closest?.('#unifiedReportForm'))return;clearTimeout(draftTimer);draftTimer=setTimeout(saveDraft,250)},true);
   document.addEventListener('change',e=>{if(e.target?.closest?.('#unifiedReportForm'))saveDraft()},true);
@@ -236,6 +246,5 @@
   window.enlClearRefreshSession=clearSessionExplicit;
   window.enlSaveBackgroundState=keepCurrent;
   window.enlRestoreForegroundSession=restoreForeground;
-  window.ENL_SESSION_IDLE_TTL_MS=SESSION_TTL_MS;
   window.ENL_SESSION_REFRESH_VERSION=VERSION;
 })();

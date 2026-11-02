@@ -71,12 +71,22 @@
     const event=new CustomEvent('enl-incident-write-error',{detail,cancelable:true});window.dispatchEvent(event);
     if(!event.defaultPrevented)alert(detail.message);
   }
+  let warnedLogin='';
   async function call(body,timeout=9000){
     const controller=typeof AbortController!=='undefined'?new AbortController():null;
     const timer=controller?setTimeout(()=>controller.abort(),timeout):null;
     try{
-      const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify({...body,...authProof()}),signal:controller?.signal,cache:'no-store'});
+      const proof=authProof(),owner=key(actor()),login=session?.loggedAt;
+      const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify({...body,...proof}),signal:controller?.signal,cache:'no-store'});
       const j=await r.json().catch(()=>({}));
+      if(body.action==='pull'&&key(body.actor)===owner&&owner&&key(actor())===owner&&login===session?.loggedAt&&signature(proof)===signature(authProof())){
+        const noticeKey=owner+'|'+login;
+        if(r.ok&&j?.ok!==false)warnedLogin='';
+        else if(r.status===403&&j?.message==='auth_proof_required'&&warnedLogin!==noticeKey&&document.visibilityState!=='hidden'){
+          warnedLogin=noticeKey;
+          alert('서버에서 현재 로그인 정보를 확인할 수 없어 사고 조회와 결재를 계속할 수 없습니다. 계정 메뉴에서 로그아웃한 뒤 다시 로그인해 주세요.');
+        }
+      }
       if(!r.ok||j?.ok===false)throw errorOf(j?.message==='auth_proof_required'||r.status===401?'session_auth_expired':j?.message||`sync_http_${r.status}`,r.status);
       return j;
     }finally{if(timer)clearTimeout(timer)}
@@ -227,6 +237,7 @@
   window.enlIncidentAcknowledge=async(incidentId,u=currentUser(),documentType='incident_report')=>call({action:'acknowledge',actor:actor(),incidentId,documentType});
   window.enlIncidentServerReady=()=>serverReady;
   window.enlIncidentPendingWrites=()=>queues.size;
+  window.enlIncidentHasUnsavedChanges=()=>!!(dirty||queues.size||drafts.size||failures.size);
   window.enlRefreshSharedData=(sessionChanged=false)=>{
     // A local-cache notification is not an authoritative incident response.
     // Keep this tab's records/drafts and fetch through the version-aware path.
