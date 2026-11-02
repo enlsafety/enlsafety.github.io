@@ -31,15 +31,24 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
   window.enlIncidentApi=async ({action})=>{if(action!=='dashboard_read')throw Error('Mutation blocked');return {sites:ENL_SITE_MASTER_SEED,metrics:[...data.incidents,{siteId:'s01',occurredAt:`${year}-01-01`,status:'rejected',category:'person'},...Array.from({length:3},()=>({siteId:'s02',occurredAt:`${year}-02-01`,status:'closed'})),...Array.from({length:5},()=>({siteId:'s03',occurredAt:`${year}-03-01`,status:'closed'}))]}};
  });
  for(const path of ['site-contract-v451.js','app-shell-v411.js','reader-ui-v414.js','incident-stats-v426.js','workflow-enhancements-v432.js','site-dashboard-v450.js'])await page.addScriptTag({content:fs.readFileSync(path,'utf8')});
- await page.locator('[data-shell-view="stats"]').click();await page.locator('[data-sd450-kpis]').waitFor();
- assert.equal(await page.locator('.sd450-kpis>div').count(),6);assert.equal(await page.locator('[data-sd450-map]').count(),1);
+ const verifyDashboard=async()=>{
+  const head=page.locator('.stats426-head'),year=head.getByRole('combobox',{name:'통계 연도'});
+  assert.equal(await head.locator('h2').innerText(),'사고 대시보드');
+  assert.equal(await head.locator('select,button,input,p,.ey').count(),1);
+  assert.equal(await page.locator('[data-sd450-kpis],.stats426 .contract451-detail').count(),0);
+  assert.doesNotMatch(await page.locator('.stats426').innerText(),/회사 전체 현황|운영중|운영상태|계약기간|전체 사고보고 집계를 기준으로/);
+  const [row,title,control]=await Promise.all([head.boundingBox(),head.locator('h2').boundingBox(),year.boundingBox()]);
+  assert.ok(row.height<=60 && control.height>=44,'compact header with a full touch target');
+  assert.ok(title.x+title.width<=control.x && title.y>=control.y && title.y+title.height<=control.y+control.height,'title and year share one row');
+  assert.ok(row.x>=0 && control.x+control.width<=row.x+row.width && row.x+row.width<=width+1,'header fits viewport');
+ };
+ await page.locator('[data-shell-view="stats"]').click();await page.locator('[data-sd450-map]').waitFor();
+ await verifyDashboard();
+ assert.equal(await page.locator('[data-sd450-map]').count(),1);
  assert.ok(await page.locator('.sd450-map-img').evaluate(img=>img.complete&&img.naturalWidth>0));
  assert.equal(await page.locator('[data-sd450-map-site]').count(),33);
  assert.equal(await page.locator('#sd450Scope').count(),0);
  assert.equal(await page.locator('#sd450Site option[value="s34"]').count(),0);
- assert.ok((await page.locator('.sd450-kpis').innerText()).includes('전체인원(상용)'));
- assert.equal(await page.locator('.sd450-kpis>div').filter({hasText:'전체인원(상용)'}).locator('strong').innerText(),'99명');
- assert.equal(await page.locator('.sd450-kpis>div').filter({hasText:'일용 인원'}).locator('strong').innerText(),'66명');
  assert.ok(await page.locator('.sd450-primary-legend').evaluate(el=>el.getBoundingClientRect().bottom<=document.querySelector('.sd450-map-viewport').getBoundingClientRect().top),'legend must be above map, including mobile');
  assert.equal(await page.locator('.sd450-map-note').count(),0);
  const mapLegend=await page.locator('.sd450-primary-legend').innerText();assert.ok(mapLegend.includes('계약종료 · 회색'));assert.ok(mapLegend.includes('안전: 올해 사고 0건'));assert.ok(mapLegend.includes('일반: 올해 사고 1~2건'));
@@ -62,7 +71,7 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  if(touch)assert.equal(await page.locator('.sd450-marker-label').evaluateAll(bs=>bs.filter(b=>getComputedStyle(b).visibility==='visible').length),0,'mobile starts with points only, including high-risk points');
  for(const id of await page.evaluate(()=>Object.keys(ENL_SITE_LOCATIONS).filter(id=>id!=='s34'))){await page.locator('#sd450Site').selectOption(id);const address=await page.evaluate(id=>ENL_SITE_LOCATIONS[id].address,id);await page.waitForFunction(({id,address})=>document.querySelector('#sd450Site')?.value===id&&document.querySelector('[data-sd450-summary]')?.textContent.includes(address),{id,address},{timeout:5000});}
  await page.waitForFunction(()=>{const b=document.querySelector('[data-sd450-map-site="s02"]');return b&&getComputedStyle(b).backgroundColor==='rgb(232, 137, 24)'},{timeout:5000});
- await openSite('s29');assert.ok((await page.locator('[data-sd450-summary]').innerText()).includes('미종결 긴급·중대 사고 있음'));
+ await openSite('s29');await verifyDashboard();assert.ok((await page.locator('[data-sd450-summary]').innerText()).includes('미종결 긴급·중대 사고 있음'));
  assert.equal(await page.locator('[data-sd450-map-site="s29"].high').count(),1);
  for(const [id,expected] of [['s04','rgb(33, 150, 83)'],['s01','rgb(32, 37, 43)'],['s29','rgb(216, 63, 69)'],['s02','rgb(232, 137, 24)'],['s03','rgb(216, 63, 69)']])assert.equal(await page.locator(`[data-sd450-map-site="${id}"]`).evaluate(b=>getComputedStyle(b).backgroundColor),expected);
  assert.ok((await page.locator('[data-sd450-map-site="s04"]').getAttribute('aria-label')).includes('안전'),'0-incident marker labeled safe');assert.ok((await page.locator('[data-sd450-map-site="s01"]').getAttribute('aria-label')).includes('일반'),'1-2 incident marker labeled normal');
@@ -156,22 +165,22 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no horizontal page overflow');
  await page.locator('[data-sd450-open]').click();await page.locator('[data-sd450-info]').waitFor();
  assert.ok((await page.locator('[data-sd450-info]').innerText()).includes('캐슬렉스 제주'));
+ assert.equal(await page.locator('[data-sd450-info] .contract451-detail').count(),1,'contract details remain in incident lookup');
  assert.equal(await page.locator('[data-qa-table]').innerText(),'urgent-prior-year');
  await page.locator('[data-shell-view="incidents"]').click();assert.equal(await page.locator('[data-sd450-info]').count(),0,'no stale site profile on all incidents');
  await page.locator('[data-shell-view="home"]').click();assert.equal(await page.locator('[data-sd450-map]').count(),0);
  assert.equal(await page.locator('[data-safety-site="s34"]').count(),1,'ended site remains in historical incident view');
  await page.locator('[data-safety-site="s01"]').click();await page.locator('[data-sd450-info]').waitFor();assert.equal(await page.locator('[data-qa-table]').innerText(),'ordinary-current');
  await page.locator('[data-shell-view="stats"]').click();await page.locator('#sd450Site').selectOption('s99');assert.ok((await page.locator('[data-sd450-summary]').innerText()).includes('좌표 확인 필요'));
- await page.locator('#stats426Year').selectOption(String(new Date().getFullYear()-1));await page.locator('[data-sd450-map]').waitFor();assert.equal(await page.locator('[data-sd450-kpis]').count(),1);
+ await page.locator('#stats426Year').selectOption(String(new Date().getFullYear()-1));await page.locator('[data-sd450-map]').waitFor();await verifyDashboard();
  await page.locator('[data-stats-filter="all"]').click();assert.ok((await page.locator('#stats426Drill').innerText()).includes('1건'));
 
- const safetyKpis=await page.locator('.sd450-kpis').innerText();
  for(const role of ['manager','executive','final']){
   await page.evaluate(role=>{qaUser={id:role,role,name:'본사 조회자'};currentView='stats';renderShell(qaUser)},role);
   await page.locator('[data-sd450-map]').waitFor();await page.waitForFunction(()=>window.enlDashboardMetrics?.()!==null);
   await page.locator('#stats426Year').selectOption(String(new Date().getFullYear()));
   await page.waitForFunction(()=>document.querySelector('[data-stats-filter="all"] b')?.textContent==='10건',null,{timeout:5000});
-  assert.equal(await page.locator('[data-sd450-map-site]').count(),33);assert.equal(await page.locator('.sd450-kpis').innerText(),safetyKpis,'same company metrics for HQ');assert.equal(await page.locator('[data-stats-filter=all] b').innerText(),'10건');await page.locator('[data-stats-filter=all]').click();assert.equal(await page.locator('[data-stats-inc]').count(),1,'aggregate-only rejected record must not disclose details');
+  assert.equal(await page.locator('[data-sd450-map-site]').count(),33);await verifyDashboard();assert.equal(await page.locator('[data-stats-filter=all] b').innerText(),'10건');await page.locator('[data-stats-filter=all]').click();assert.equal(await page.locator('[data-stats-inc]').count(),1,'aggregate-only rejected record must not disclose details');
   await openSite('s29');await page.locator('[data-sd450-open]').click();await page.locator('[data-sd450-info]').waitFor();
   assert.equal(await page.locator('[data-qa-table]').getAttribute('data-edit'),'false');
   await page.locator('[data-inc-id="urgent-prior-year"]').click();assert.equal(await page.evaluate(()=>qaReview.edit),false,'existing review remains read-only');
