@@ -12,6 +12,33 @@ const incident={id:'qa-case',siteId:'qa-site',status:'approved',category:'proper
   eventType:'검수 사고',summary:'결재 화면 테스트',reportDetails:{},photos:[],corrective:{status:'approved'},_syncVersion:1,
   executiveApproval:{mode:'parallel_then_president',state:'pending',stage:'parallel',round:1,roster,finalApproverId:'qa-3',signatures:[]}};
 const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'};
+async function verifyRecentBadges(page){
+  await page.locator('[data-exec-open="qa-case"]').waitFor();
+  await page.locator('[data-shell-view="home"]').click();
+  const marked=page.locator('.shell411-recent [data-safety-inc="qa-case"]');
+  await marked.locator('[data-exec-kind="required"]').waitFor();
+  for(const width of [320,390,700,701,820,1280]){
+    await page.setViewportSize({width,height:900});
+    const result=await marked.evaluate(row=>{
+      const rect=el=>el.getBoundingClientRect();
+      const pills=card=>Array.from(card.querySelectorAll('.shell411-recent-status .pill'),el=>{
+        const {width,height}=rect(el);return [el.textContent,width,height];
+      });
+      const plain=document.querySelector('[data-safety-inc="qa-no-approval"]');
+      const circle=row.querySelector('.exec-required-badge'),c=rect(circle),r=rect(row);
+      const peers=Array.from(row.children).filter(el=>el!==circle);
+      const separated=peers.every(el=>{const b=rect(el);return b.right<=c.left||b.left>=c.right||b.bottom<=c.top||b.top>=c.bottom});
+      return {sizes:pills(row),baseline:pills(plain),ownSlot:circle.parentElement===row,
+        separated,inside:c.left>=r.left&&c.right<=r.right&&r.right<=innerWidth&&r.left>=0,diameter:[c.width,c.height]};
+    });
+    assert.ok(result.sizes.length>=2,'recent report should show both incident and action status');
+    assert.deepEqual(result.sizes,result.baseline,'approval must not resize status pills at '+width);
+    assert.ok(result.ownSlot&&result.separated&&result.inside,'separate approval area at '+width);
+    assert.deepEqual(result.diameter,[36,36]);
+  }
+  console.log('PASS recent report status pills keep their native sizes alongside a separate approval circle at six viewport widths');
+  await page.setViewportSize({width:820,height:1180});
+}
 async function run(engine){
   const local=engine===chromium&&process.env.CHROME_EXE;
   const browser=await engine.launch(local?{executablePath:local,args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu']}:{});
@@ -34,7 +61,7 @@ async function run(engine){
         assert.equal(req.postDataJSON().actorPasswordHash,actor.passwordHash);
         if(pullError==='offline')return route.abort();
         if(pullError)return route.fulfill({status:403,json:{ok:false,message:pullError}});
-        return route.fulfill({json:{ok:true,incidents:[incident]}});
+        return route.fulfill({json:{ok:true,incidents:[incident,{...incident,id:'qa-no-approval',executiveApproval:null}]}});
       }
       return route.abort();
     });
@@ -56,6 +83,7 @@ async function run(engine){
     await page.waitForFunction(()=>window.ENL_AUTH_VERSION&&!window.sortIncidents);
     await page.evaluate(()=>dispatchEvent(new StorageEvent('storage',{key:'enl_safety_v3'})));
     releaseModule();await reloading;await page.unroute('**/incidents-v410.js?*');
+    await verifyRecentBadges(page);
     await page.locator('[data-exec-open="qa-case"]').click();
     await page.getByRole('button',{name:'결재 승인',exact:true}).waitFor();
     await page.evaluate(()=>{
