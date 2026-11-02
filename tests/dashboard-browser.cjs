@@ -146,8 +146,10 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
   const pageY=await page.evaluate(()=>scrollY);
   await send('touchStart',[[1,cx-35,cy],[2,cx+35,cy]]);
   await send('touchMove',[[1,cx-65,cy],[2,cx+65,cy]]);
-  const enlarged=await scale();assert.ok(enlarged>150,'two fingers apart zoom in');
-  await send('touchMove',[[1,cx-42,cy],[2,cx+42,cy]]);assert.ok(await scale()<enlarged,'two fingers together zoom out');
+  await page.waitForFunction(()=>parseInt(document.querySelector('[data-map-scale]').textContent)>150,null,{timeout:3000});
+  const enlarged=await scale();
+  await send('touchMove',[[1,cx-42,cy],[2,cx+42,cy]]);
+  await page.waitForFunction(n=>parseInt(document.querySelector('[data-map-scale]').textContent)<n,enlarged,{timeout:3000});
   await send('touchEnd',[]);assert.equal(await page.evaluate(()=>scrollY),pageY,'pinch keeps page stationary');
   assert.ok(await page.evaluate(()=>!visualViewport||Math.abs(visualViewport.scale-1)<.01),'pinch zooms map, not page');
  }
