@@ -112,7 +112,7 @@
   function mergeHq(user,passwordHash=''){
     if(!user?.id||!user?.name)return null;if(!Array.isArray(data.users))data.users=[];
     const role=roleNorm(user.role);
-    let x=data.users.find(v=>String(v.id)===String(user.id))||data.users.find(v=>['safety','manager','executive','final'].includes(v.role)&&norm(v.name)===norm(user.name));
+    let x=data.users.find(v=>String(v.id)===String(user.id));
     if(!x){x={id:user.id,createdAt:nowISO()};data.users.push(x)}
     Object.assign(x,{username:user.name,name:user.name,role,department:user.department||'',position:user.position||'',email:user.email||'',pushEnabled:user.pushEnabled!==false,emailEnabled:user.emailEnabled!==false,siteId:null,active:user.active!==false,updatedAt:user.updatedAt||nowISO()});if(passwordHash)x.passwordHash=passwordHash;(window.enlPersistAppData||saveData)();return x;
   }

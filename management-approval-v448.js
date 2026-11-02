@@ -41,58 +41,70 @@
  }
  window.enlPrintFinalDocument=printDocument;
  const queueMarkup=new WeakMap();
- const requiredBadge='<span class="exec-required-badge">결재<br>필요</span>';
+ const labels={required:'결재필요',scheduled:'결재예정',tracking:'결재진행'};
  const pendingReview=i=>i?.status==='approved'&&i.corrective?.status==='approved'&&i.executiveApproval?.state==='pending';
- function approvalRow(i,actionable){
-  const q=window.enlIncidentQuickSummary?.(i);
-  const site=q?.site||window.siteById?.(i.siteId)?.name||i.siteId||'사업장 미확인';
-  if(!actionable)return '<button type="button" data-exec-open="'+e(i.id)+'">'+e(site)+' / '+e(i.eventType||'사고')+' / 진행상태 보기</button>';
-  const when=q?.when||(i.occurredAt?fmt(i.occurredAt):'');
-  return '<button type="button" class="exec-queue-row" data-exec-required data-exec-open="'+e(i.id)+'">'+requiredBadge+'<span class="exec-queue-text"><strong>'+e(site)+' / '+e(i.eventType||'사고')+'</strong><small>'+e(when)+'</small>'+(q?.circumstance?'<span>'+e(q.circumstance)+'</span>':'')+'</span><span class="exec-queue-action">'+(policy().describe(i.executiveApproval).stage==='president'?'최종결재하기':'결재하기')+'</span></button>';
+ function badge(kind){
+  const label=labels[kind];
+  return '<span class="exec-required-badge" data-exec-kind="'+kind+'">'+label.slice(0,2)+'<br>'+label.slice(2)+'</span>';
  }
- function markApprovalRows(root,ids){
-  const selector=ids.size?'button[data-inc-id],button[data-safety-inc],button[data-reader-open],button[data-stats-inc]':'button[data-exec-required]:not([data-exec-open])';
+ function approvalRow(i,kind){
+  const q=window.enlIncidentQuickSummary?.(i),site=q?.site||window.siteById?.(i.siteId)?.name||i.siteId||'사업장 미확인';
+  const when=q?.when||(i.occurredAt?fmt(i.occurredAt):'');
+  const action=kind!=='required'?'진행상태 보기':policy().describe(i.executiveApproval).stage==='president'?'최종결재하기':'결재하기';
+  return '<button type="button" class="exec-queue-row" data-exec-mark="'+kind+'" '+(kind==='required'?'data-exec-required ':'')+'data-exec-open="'+e(i.id)+'">'+badge(kind)+'<span class="exec-queue-text"><strong>'+e(site)+' / '+e(i.eventType||'사고')+'</strong><small>'+e(when)+'</small>'+(q?.circumstance?'<span>'+e(q.circumstance)+'</span>':'')+'</span><span class="exec-queue-action">'+action+'</span></button>';
+ }
+ function markApprovalRows(root,kinds){
+  const selector=kinds.size?'button[data-inc-id],button[data-safety-inc],button[data-reader-open],button[data-stats-inc],[data-prev-card]':'[data-exec-mark]:not([data-exec-open])';
   for(const row of root.querySelectorAll(selector)){
-   const id=row.dataset.incId||row.dataset.safetyInc||row.dataset.readerOpen||row.dataset.statsInc;
-   const needed=ids.has(id),badge=row.querySelector('.exec-required-badge');
-   row.toggleAttribute('data-exec-required',needed);
-   if(needed&&!badge){
-    const slot=row.querySelector('.inc411-card-tags,.shell411-recent-status,.reader414-state,.state')||row;
-    slot.insertAdjacentHTML('beforeend',requiredBadge);
-   }else if(!needed&&badge)badge.remove();
+   const id=row.dataset.incId||row.dataset.safetyInc||row.dataset.readerOpen||row.dataset.statsInc||row.dataset.prevCard;
+   const kind=kinds.get(id),old=row.querySelector('.exec-required-badge');
+   if(row.dataset.execMark===kind&&old?.dataset.execKind===kind)continue;
+   old?.remove();row.toggleAttribute('data-exec-required',kind==='required');
+   if(kind){
+    row.dataset.execMark=kind;
+    const slot=row.querySelector('.inc411-card-tags,.shell411-recent-status,.reader414-state,.state,.prev429-meta')||row;
+    slot.insertAdjacentHTML('beforeend',badge(kind));
+   }else delete row.dataset.execMark;
   }
  }
  function updateApprovalQueue(root,u){
-  const executive=u?.role==='executive'&&u.active!==false;
-  const list=[],waiting=[];
-  if(executive)for(const i of data.incidents||[]){
+  const executive=u?.role==='executive'&&u.active!==false,safety=u?.role==='safety'&&u.active!==false;
+  const list=[],waiting=[],kinds=new Map();
+  if(executive||safety)for(const i of data.incidents||[]){
    if(!pendingReview(i))continue;
-   const a=i.executiveApproval;
-   if(policy().canDecide(a,u.id))list.push(i);
-   else{
-    const plan=policy().describe(a);
-    if(plan.stage==='parallel'&&plan.president.id===u.id&&!plan.approved(u.id))waiting.push(i);
-   }
+   const a=i.executiveApproval,plan=policy().describe(a);
+   if(!plan.valid)continue;
+   let kind;
+   if(safety)kind='tracking';
+   else if(policy().canDecide(a,u.id))kind='required';
+   else if(plan.stage==='parallel'&&plan.president.id===u.id&&!plan.approved(u.id))kind='scheduled';
+   else continue;
+   kinds.set(String(i.id),kind);
+   (kind==='scheduled'?waiting:list).push(i);
   }
   const tab=document.querySelector('.shell411-nav [data-shell-view="incidents"]');
-  if(tab&&list.length){
-   const count=String(list.length);
-   if(tab.dataset.execCount!==count){
-    tab.dataset.execCount=count;
-    tab.setAttribute('aria-label','사고 조회, 내 결재필요 '+count+'건');
+  if(tab){
+   const total=executive?kinds.size:0;
+   let number=tab.querySelector('.exec-tab-count');
+   if(total){
+    if(!number){number=document.createElement('span');number.className='exec-tab-count';number.setAttribute('aria-hidden','true');tab.appendChild(number);}
+    if(number.textContent!==String(total))number.textContent=String(total);
+    tab.dataset.execCount=String(total);
+    tab.setAttribute('aria-label','사고 조회, 결재필요 '+list.length+'건, 결재예정 '+waiting.length+'건');
+   }else if(number||tab.hasAttribute('data-exec-count')){
+    number?.remove();delete tab.dataset.execCount;tab.removeAttribute('aria-label');
    }
-  }else if(tab?.hasAttribute('data-exec-count')){
-   delete tab.dataset.execCount;tab.removeAttribute('aria-label');
   }
-  markApprovalRows(root,new Set(list.map(i=>String(i.id))));
+  markApprovalRows(root,kinds);
   let box=root.querySelector('[data-executive-queue]');
-  if(!executive){box?.remove();return;}
+  if(!executive&&!(safety&&list.length&&['incidents','stats','home','dashboard'].includes(currentView))){box?.remove();return;}
   if(!box){
    box=document.createElement('section');box.dataset.executiveQueue='';box.className='panel';root.prepend(box);
    box.addEventListener('click',event=>{const button=event.target.closest('[data-exec-open]');if(button)openIncidentModal(button.dataset.execOpen)});
   }
-  const html='<h2>내 결재대기 '+list.length+'건</h2>'+list.map(i=>approvalRow(i,true)).join('')+
-   (waiting.length?'<p>경영진 결재 완료 후 최종결재 예정 '+waiting.length+'건</p>'+waiting.map(i=>approvalRow(i,false)).join(''):'');
+  const count=kinds.size?'<span class="exec-tab-count">'+kinds.size+'</span>':'0건';
+  const html='<h2>'+(safety?'경영진 결재현황':'내 결재')+' '+count+'</h2>'+list.map(i=>approvalRow(i,kinds.get(String(i.id)))).join('')+
+   (waiting.length?'<p>임원 결재 후 최종결재 예정 '+waiting.length+'건</p>'+waiting.map(i=>approvalRow(i,'scheduled')).join(''):'');
   if(queueMarkup.get(box)!==html){queueMarkup.set(box,html);box.innerHTML=html;}
  }
  function decorate(){
@@ -104,7 +116,7 @@
   const i=(data.incidents||[]).find(x=>String(x.id)===String(id));if(!i)return;
   const sig=i.id+':'+i._syncVersion+':'+u.id;if(modal.dataset.executiveSignature===sig)return;modal.dataset.executiveSignature=sig;
   modal.querySelector('[data-executive-record]')?.remove();const box=document.createElement('section');box.dataset.executiveRecord='';box.className='panel';const a=i.executiveApproval;
-  box.innerHTML=signatures(i)+(a?'<h3>'+(a.state==='pending'?stageLabel(a):a.state==='rejected'?'경영진 반려 / 안전관리자 재검토':'경영진 결재 완료')+'</h3>'+(a.state==='pending'&&policy().describe(a).stage==='parallel'?'<p>사장을 제외한 경영진은 순서 없이 결재합니다. 전원 완료 후 사장이 최종결재합니다.</p>':'')+(a.rejection&&a.state==='rejected'?'<p>반려 사유: '+e(a.rejection.note)+'</p>':''):'')+(i.officialRecord?.documentNumber?'<p>문서번호: <b>'+e(i.officialRecord.documentNumber)+'</b></p>':'');
+  box.innerHTML=signatures(i)+(a?'<h3>'+(a.state==='pending'?stageLabel(a):a.state==='rejected'?'경영진 반려 / 안전관리자 재검토':'경영진 결재 완료')+'</h3>'+(a.state==='pending'&&policy().describe(a).stage==='parallel'?'<p>경영진 '+policy().describe(a).parallel.length+'명 결재 후 사장 최종결재</p>':'')+(a.rejection&&a.state==='rejected'?'<p>반려 사유: '+e(a.rejection.note)+'</p>':''):'')+(i.officialRecord?.documentNumber?'<p>문서번호: <b>'+e(i.officialRecord.documentNumber)+'</b></p>':'');
   if(u.role==='executive'&&u.active!==false&&pendingReview(i)&&policy().canDecide(a,u.id)){
    for(const [d,label] of [['approve',policy().describe(a).stage==='president'?'사장 최종결재':'결재 승인'],['reject','반려']]){const b=document.createElement('button');b.textContent=label;b.className=d==='approve'?'primary':'secondary';b.onclick=()=>decide(i,d,b);box.appendChild(b)}
   }
@@ -114,15 +126,15 @@
  }
  const style=document.createElement('style');style.textContent='[data-executive-record]{min-width:0;max-width:100%;box-sizing:border-box}[data-executive-record]>h3{font-size:14px}[data-executive-record]>p{font-size:12px}[data-executive-record] button,[data-executive-queue] button{min-height:44px;margin:5px;max-width:100%;white-space:normal}';
  style.textContent+=`
- .shell411-nav button[data-exec-count]::after{content:attr(data-exec-count);display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 3px;margin-left:5px;border-radius:999px;background:#b4232c;color:#fff;font:bold 12px/1 Arial,sans-serif;vertical-align:middle;box-sizing:border-box}
+ .exec-tab-count{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 3px;margin-left:5px;border-radius:999px;background:#b4232c;color:#fff;font:bold 12px/1 Arial,sans-serif;vertical-align:middle;box-sizing:border-box}
  .shell411-nav button[data-exec-count]>.enl424-nav-dot{display:none}
- #view button[data-exec-required]{border:2px solid #b4232c;background:#fff8f8}
- #view button[data-exec-required]:focus-visible{outline:3px solid #204e79;outline-offset:2px}
+ #view [data-exec-mark]{border:2px solid #b4232c;background:#fff8f8}
+ #view [data-exec-mark]:focus-visible{outline:3px solid #204e79;outline-offset:2px}
  #view .exec-required-badge{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;box-sizing:border-box;flex:none;width:36px;height:36px;border-radius:50%;padding:0;background:#b4232c;color:white;font-size:11px;font-weight:800;line-height:1.15;text-align:center;vertical-align:middle;white-space:nowrap}
  [data-executive-queue] .exec-queue-row{width:100%;margin:6px 0 0;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;padding:9px 10px;border-radius:10px;text-align:left;color:#263e52;cursor:pointer}
  .exec-queue-text{display:grid;gap:3px;min-width:0;overflow-wrap:anywhere}.exec-queue-text strong{font-size:14px}.exec-queue-text small,.exec-queue-text>span{font-size:12px;font-weight:500}
  .exec-queue-action{font-size:12px;font-weight:bold;color:#a5232c}
  .stats426-drill-row .state .exec-required-badge{margin-left:4px}
  `;document.head.appendChild(style);
- const queue=()=>{if(!queued){queued=true;requestAnimationFrame(decorate)}};window.addEventListener('enl-incident-saved',queue);new MutationObserver(queue).observe(document.body,{childList:true,subtree:true});queue();
+ const queue=()=>{if(!queued){queued=true;requestAnimationFrame(decorate)}};window.addEventListener('enl-incident-saved',queue);window.addEventListener('enl-incidents-pulled',queue);new MutationObserver(queue).observe(document.body,{childList:true,subtree:true});queue();
 })();

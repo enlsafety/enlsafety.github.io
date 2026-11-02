@@ -96,6 +96,7 @@
     // Only the newest complete snapshot may remove records from the visible list.
     if(!busy&&!refreshDirty()&&sequence===pullSequence){const ids=new Set(remote.map(i=>String(i.id)));data.incidents=(data.incidents||[]).filter(i=>{const id=String(i.id);if(ids.has(id)||hasDraft(id)||started.get(id)!==version(authoritative.get(id)))return true;authoritative.delete(id);history.delete(id);changed=true;return false;});}
     serverReady=true;refreshDirty();persistConfirmed();
+    if(changed)window.dispatchEvent(new CustomEvent('enl-incidents-pulled'));
     if(changed&&renderIfChanged&&canAutoRender())setTimeout(()=>{if(canAutoRender())try{renderShell(currentUser())}catch(e){}},0);
     return changed;
   }

@@ -70,7 +70,7 @@ function errorText(err){
  if(x.includes('invalid_cost'))return '치료비·수리비는 0원 이상의 정수로 입력해 주세요.';
  if(x.includes('no_changes'))return '실제로 변경된 내용이 없습니다.';
  if(x.includes('invalid_occurrence_date')||x.includes('future_occurrence_invalid')||x.includes('report_fields_required'))return '발생일시를 다시 확인해 주세요. 미래 날짜는 저장할 수 없습니다.';
- if(x.includes('contract_period_confirmation_required'))return '변경할 발생일의 계약기간 확인이 필요합니다. 사고자료를 확인한 후 다시 시도해 주세요.';
+ if(x.includes('contract_period_confirmation_required'))return '사업장과 발생일을 원자료에서 확인해 주세요.';
  return '서버 확인에 실패했습니다. 인터넷 연결 및 입력정보를 확인해 주세요.';
 }
 function inputs(i,keys=[...common,...(i.category==='person'?damagePerson:damageProperty),...(i.historicalImport?.enabled?meta:[])]){
@@ -135,7 +135,7 @@ function edit(i,ticket,expiresAt){
     const day=new Date(new Date(changes.occurredAt).getTime()+9*3600000).toISOString().slice(0,10);
     const check=window.ENLContracts.assess(window.ENLContracts.site(i.siteId),day);
     if(check.outsideContractPeriod===true||(check.currentStatus==='closed'&&check.statusAtOccurrence==='unknown')){
-      if(!window.confirm((check.warning||'해당 발생일의 사업장 계약기간을 확인해야 합니다.')+'\n실제 자료를 확인했으며 이 날짜로 정정할까요?'))return;
+      if(!window.confirm('사업장과 발생일을 원자료와 대조해 주세요. 확인한 날짜로 정정할까요?'))return;
       contractConfirmed=true;
     }
   }

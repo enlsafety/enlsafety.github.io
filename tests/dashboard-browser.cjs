@@ -51,8 +51,8 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  assert.equal(await page.locator('#sd450Site option[value="s34"]').count(),0);
  assert.ok(await page.locator('.sd450-primary-legend').evaluate(el=>el.getBoundingClientRect().bottom<=document.querySelector('.sd450-map-viewport').getBoundingClientRect().top),'legend must be above map, including mobile');
  assert.equal(await page.locator('.sd450-map-note').count(),0);
- const mapLegend=await page.locator('.sd450-primary-legend').innerText();assert.ok(mapLegend.includes('계약종료 · 회색'));assert.ok(mapLegend.includes('안전: 올해 사고 0건'));assert.ok(mapLegend.includes('일반: 올해 사고 1~2건'));
- assert.equal(await page.locator('.sd450-dot.closed').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(137, 147, 157)');assert.equal(await page.locator('.sd450-dot.safe').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(33, 150, 83)');
+ const mapLegend=await page.locator('.sd450-primary-legend').innerText();assert.doesNotMatch(mapLegend,/계약종료/);assert.ok(mapLegend.includes('안전: 올해 사고 0건'));assert.ok(mapLegend.includes('일반: 올해 사고 1~2건'));
+ assert.equal(await page.locator('.sd450-dot.closed').count(),0);assert.equal(await page.locator('.sd450-dot.safe').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(33, 150, 83)');
  await page.waitForFunction(()=>window.enlDashboardMetrics?.()!==null,{timeout:5000});
  await page.waitForTimeout(1350);
  await page.locator('[data-sd450-map]').waitFor();
@@ -167,7 +167,7 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no horizontal page overflow');
  await page.locator('[data-sd450-open]').click();await page.locator('[data-sd450-info]').waitFor();
  assert.ok((await page.locator('[data-sd450-info]').innerText()).includes('캐슬렉스 제주'));
- assert.equal(await page.locator('[data-sd450-info] .contract451-detail').count(),1,'contract details remain in incident lookup');
+ assert.equal(await page.locator('[data-sd450-info] .contract451-detail').count(),0,'contract details omitted from incident lookup');
  assert.equal(await page.locator('[data-qa-table]').innerText(),'urgent-prior-year');
  await page.locator('[data-shell-view="incidents"]').click();assert.equal(await page.locator('[data-sd450-info]').count(),0,'no stale site profile on all incidents');
  await page.locator('[data-shell-view="home"]').click();assert.equal(await page.locator('[data-sd450-map]').count(),0);

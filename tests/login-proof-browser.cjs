@@ -17,7 +17,7 @@ async function run(engine){
    window.qaRequests=[];window.qaProofs=proofs;window.qaStrict=true;window.qaAccountFail=false;
    window.qaHq=[{id:'qa-safety',name:'QA 안전',role:'safety',department:'QA 본사',active:true}];
    window.app=document.getElementById('app');window.currentUser=()=>null;window.roleName=()=>'';window.renderLogin=()=>{};window.openUserModal=()=>{};window.openAdminPasswordReset=()=>{};
-   window.session={};window.data={users:[],sites:[{id:'qa-site',name:'QA 사업장'}]};window.currentView='home';window.enlPlatformSection='hub';window.ENL_PLATFORM_SECTION_KEY='qa-platform';
+   window.session={};window.data={users:[{id:'stale-same-name',role:'safety',name:'QA 안전'}],sites:[{id:'qa-site',name:'QA 사업장'}]};window.currentView='home';window.enlPlatformSection='hub';window.ENL_PLATFORM_SECTION_KEY='qa-platform';
    window.saveSession=()=>{};window.saveData=()=>{};window.nowISO=()=>new Date().toISOString();window.uid=p=>p+'-qa-created';
    window.userById=id=>data.users.find(u=>u.id===id);window.siteById=id=>data.sites.find(s=>s.id===id);window.ENL_SITE_DIRECTORY=data.sites;
    window.sha256=async v=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v))),b=>b.toString(16).padStart(2,'0')).join('');
@@ -47,6 +47,7 @@ async function run(engine){
   await page.fill('#loginPassword411','qa-hq-password');await page.click('#loginSubmit411');
   await page.waitForFunction(()=>qaRequests.some(x=>x.body.action==='hq_list'));
   let requests=await page.evaluate(()=>qaRequests);
+  assert.equal(await page.evaluate(()=>currentUser().id),'qa-safety','login keeps the server ID despite a stale same-name cache entry');
   for(const action of ['lookup','login_hq']){const b=requests.find(x=>x.body.action===action).body;assert.equal(b.actorPasswordHash,undefined);assert.equal(b.actorPinHash,undefined)}
   assert.equal(requests.find(x=>x.body.action==='login_hq').body.passwordHash,proofs.hq);
   assert.equal(requests.find(x=>x.body.action==='hq_list').body.actorPasswordHash,proofs.hq);checks.push('HQ login and automatic protected listing');
