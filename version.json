@@ -1,9 +1,9 @@
 {
-  "version": "4.8.7",
-  "build": "stable-487-r1",
+  "version": "4.8.8",
+  "build": "stable-488-r1",
   "autoUpdate": false,
   "loginAutoUpdate": false,
   "stableEntry": "stable412.html",
-  "currentStableVersion": "4.8.7",
-  "updatedAt": "2026-11-02T02:24:23.237661+00:00"
+  "currentStableVersion": "4.8.8",
+  "updatedAt": "2026-11-02T02:53:11.759408+00:00"
 }
