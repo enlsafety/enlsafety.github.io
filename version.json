@@ -1,9 +1,9 @@
 {
   "version": "4.8.6",
-  "build": "stable-486-r1",
+  "build": "stable-486-r2",
   "autoUpdate": false,
   "loginAutoUpdate": false,
   "stableEntry": "stable412.html",
   "currentStableVersion": "4.8.6",
-  "updatedAt": "2026-10-30T08:19:29.775346+00:00"
+  "updatedAt": "2026-11-02T00:26:54.194503+00:00"
 }
