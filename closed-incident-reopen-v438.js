@@ -18,7 +18,7 @@
   if(msg.includes('revision_field_forbidden'))return '서버가 허용하지 않는 수정 항목이 포함되어 있습니다. 변경 항목을 다시 확인해 주세요.';
   if(msg.includes('revision_reason_required'))return '수정 사유를 입력해 주세요.';
   if(msg.includes('report_fields_required')||msg.includes('invalid_occurrence_date')||msg.includes('future_occurrence_invalid'))return '사고 요약 및 발생일시를 확인해 주세요. 미래 날짜는 저장할 수 없습니다.';
-   if(msg.includes('contract_period_confirmation_required'))return '변경할 날짜의 사업장 계약기간 확인이 필요합니다.';
+   if(msg.includes('contract_period_confirmation_required'))return '사업장과 발생일을 원자료에서 확인해 주세요.';
   if(msg.includes('invalid_cost'))return '치료비·수리비는 0원 이상의 정수여야 합니다.';
   if(msg.includes('historical_reauth_required'))return '과거사고 수정 권한이 만료되었습니다. 안전관리자 비밀번호를 다시 확인해 주세요.';
   if(msg.includes('mutation_id_conflict'))return '이전 저장 요청과 다른 내용입니다. 사고기록을 다시 열어 주세요.';
@@ -33,7 +33,7 @@
   if(changes.occurredAt&&window.ENLContracts?.assess){
     const day=new Date(Date.parse(changes.occurredAt)+9*3600000).toISOString().slice(0,10),check=window.ENLContracts.assess(window.ENLContracts.site(i.siteId),day);
     if(check.outsideContractPeriod===true||(check.currentStatus==='closed'&&check.statusAtOccurrence==='unknown')){
-      if(!confirm((check.warning||'계약기간 확인이 필요합니다.')+'\n실제 자료를 확인했으며 이 날짜로 정정할까요?'))throw Error('contract_period_confirmation_required');
+      if(!confirm('사업장과 발생일을 원자료와 대조해 주세요. 확인한 날짜로 정정할까요?'))throw Error('contract_period_confirmation_required');
       contractConfirmed=true;
     }
   }
@@ -88,7 +88,7 @@
          const day=new Date(new Date(changes.occurredAt).getTime()+9*3600000).toISOString().slice(0,10);
          const check=window.ENLContracts.assess(window.ENLContracts.site(i.siteId),day);
          if(check.outsideContractPeriod===true||(check.currentStatus==='closed'&&check.statusAtOccurrence==='unknown')){
-           if(!window.confirm((check.warning||'정정할 날짜가 계약기간 밖입니다.')+'\n원자료와 계약기간을 확인하고 날짜를 정정할까요?'))return;
+           if(!window.confirm('사업장과 발생일을 원자료와 대조해 주세요. 확인한 날짜로 정정할까요?'))return;
            contractConfirmed=true;
          }
        }

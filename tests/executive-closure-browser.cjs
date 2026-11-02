@@ -6,21 +6,22 @@ const context=await browser.newContext({viewport:{width,height:1000},isMobile:wi
 await page.evaluate(i=>{window.data={incidents:[i],sites:[{id:'qa-site',name:'QA 사업장'}]};window.qaUser={id:'qa-executive',role:'executive'};window.currentUser=()=>qaUser;window.currentView='home';window.esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));window.siteById=()=>({name:'QA 사업장'});window.fmt=String;window.won=String;window.eventTypeOptions=v=>'<option>'+esc(v||'접촉')+'</option>';window.categoryBadge=window.badge=()=>'';window.enlAttachmentGalleryHtml=files=>files.map(()=>'<div class="attach-card411"></div>').join('');window.signAttachments=async()=>({'qa-photo.png':'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg=='});window.computePriority=()=> 'normal';window.openModal=html=>modalRoot.innerHTML='<div class="modal">'+html+'</div>';window.closeModal=()=>modalRoot.innerHTML='';window.renderShell=()=>document.getElementById('view').innerHTML='<button data-inc-id="ui-qa"><span class="inc411-card-tags"></span></button>';renderShell();window.openIncidentModal=id=>{openModal(enlCumulativeReportHtml(data.incidents[0]));document.querySelector('.modal').dataset.cumulativeIncident=id};window.enlIncidentApi=body=>api(body);window.enlAcceptSavedIncident=i=>data.incidents=[i];},i);
 for(const file of ['style.css','report-v410.css'])await page.addStyleTag({content:fs.readFileSync(file,'utf8')});for(const file of ['report-v410.js','executive-approval-v482.js','approval-sheet-v486.js','management-approval-v448.js'])await page.addScriptTag({content:fs.readFileSync(file,'utf8')});if(fontCss)await page.addStyleTag({content:fontCss});
 const tab=page.locator('[data-shell-view="incidents"]'),card=page.locator('[data-inc-id="ui-qa"]'),queued=page.locator('[data-exec-open="ui-qa"]');
-async function checkNeeded(needed){
- await page.waitForFunction(needed=>{
+async function checkNeeded(needed,scheduled=false){
+ const kind=needed?'required':scheduled?'scheduled':null;
+ await page.waitForFunction(kind=>{
   const tab=document.querySelector('[data-shell-view="incidents"]'),card=document.querySelector('[data-inc-id="ui-qa"]');
-  return tab?.getAttribute('data-exec-count')===(needed?'1':null)&&card?.hasAttribute('data-exec-required')===needed;
- },needed);
- assert.equal(await card.locator('.exec-required-badge').count(),Number(needed));
- assert.equal(await queued.locator('.exec-required-badge').count(),Number(needed));
- if(needed){
-  assert.match(await tab.getAttribute('aria-label'),/결재필요 1건/);
+  return (tab?.querySelector('.exec-tab-count')?.textContent||null)===(kind?'1':null)&&card?.getAttribute('data-exec-mark')===kind;
+ },kind);
+ assert.equal(await card.locator('.exec-required-badge').count(),Number(!!kind));
+ assert.equal(await queued.locator('.exec-required-badge').count(),Number(!!kind));
+ if(kind){
   assert.equal(await card.evaluate(el=>getComputedStyle(el).borderTopColor),'rgb(180, 35, 44)');
-  assert.equal(await queued.locator('.exec-required-badge').textContent(),'결재필요');
+  assert.equal(await queued.locator('.exec-required-badge').textContent(),needed?'결재필요':'결재예정');
+  assert.match(await tab.getAttribute('aria-label'),needed?/결재필요 1건/:/결재예정 1건/);
  }
 }
-await queued.waitFor();await checkNeeded(false);await queued.click();
-assert.equal(await page.getByRole('button',{name:'사장 최종결재',exact:true}).count(),0);assert.equal(await page.getByRole('button',{name:'반려',exact:true}).count(),0);assert.match(await page.locator('[data-executive-record]').innerText(),/전원 완료 후 사장이 최종결재/);
+await queued.waitFor();await checkNeeded(false,true);await queued.click();
+assert.equal(await page.getByRole('button',{name:'사장 최종결재',exact:true}).count(),0);assert.equal(await page.getByRole('button',{name:'반려',exact:true}).count(),0);assert.match(await page.locator('[data-executive-record]').innerText(),/경영진 4명 결재 후 사장 최종결재/);
 await page.evaluate(()=>{qaUser={id:'e5',role:'executive'};closeModal();renderShell()});await checkNeeded(true);await queued.click();await checkNeeded(true);await page.getByRole('button',{name:'결재 승인',exact:true}).click();await page.waitForFunction(()=>data.incidents[0].executiveApproval.stage==='president');assert.equal(await page.evaluate(()=>data.incidents[0].status),'approved');await checkNeeded(false);
 await page.evaluate(()=>{qaUser={id:'qa-executive',role:'executive'};closeModal();renderShell()});await checkNeeded(true);await queued.click();await checkNeeded(true);await page.getByRole('button',{name:'사장 최종결재',exact:true}).click();await page.waitForFunction(()=>data.incidents[0].status==='closed');assert.match(await page.evaluate(()=>data.incidents[0].officialRecord.documentNumber),/^ENL-ACC/);await checkNeeded(false);
 await page.evaluate(()=>{qaUser={id:'qa-manager',role:'manager'};openIncidentModal(data.incidents[0].id)});await page.getByRole('button',{name:'종결보고서 PDF 출력'}).waitFor();assert.equal(await page.getByRole('button',{name:'사장 최종결재',exact:true}).count(),0);const popupEvent=context.waitForEvent('page');await page.getByRole('button',{name:'종결보고서 PDF 출력'}).click();const popup=await popupEvent;await popup.getByText('이앤엘 사고 종결보고서',{exact:true}).waitFor();assert.ok((await popup.locator('body').innerText()).includes('QA 임원5'));await popup.getByRole('button',{name:'인쇄 / PDF로 저장',exact:true}).waitFor();if(fontCss){await popup.addStyleTag({content:fontCss});await popup.evaluate(()=>document.fonts.ready)}assert.equal(await popup.locator('img').count(),1);assert.ok(await popup.locator('img').evaluate(x=>x.complete&&x.naturalWidth>0));assert.ok((await popup.locator('body').innerText()).includes('완료증빙.pdf (PDF 원본 별도 확인)'));assert.ok(await popup.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));await popup.screenshot({path:'qa-output/executive-print-'+width+'.png',fullPage:true});if(width===1365)await popup.pdf({path:'qa-output/executive-report.pdf',format:'A4',printBackground:true});await page.screenshot({path:'qa-output/executive-ui-'+width+'.png',fullPage:true});assert.deepEqual(errors,[]);console.log('PASS browser UI and print width',width);await context.close();await f.db.close();}}finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});
