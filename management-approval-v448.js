@@ -41,11 +41,12 @@
  }
  window.enlPrintFinalDocument=printDocument;
  const queueMarkup=new WeakMap();
- const labels={required:'결재필요',scheduled:'결재예정',tracking:'결재진행'};
+ const labels={required:'결재필요',scheduled:'결재대기',tracking:'결재대기',signed:'결재완료',completed:'결재완료'};
  const pendingReview=i=>i?.status==='approved'&&i.corrective?.status==='approved'&&i.executiveApproval?.state==='pending';
  function badge(kind){
   const label=labels[kind];
-  return '<span class="exec-required-badge" data-exec-kind="'+kind+'">'+label.slice(0,2)+'<br>'+label.slice(2)+'</span>';
+  const detail=kind==='signed'?'본인 결재 완료':kind==='completed'?'최종결재 완료':label;
+  return '<span class="exec-required-badge" data-exec-kind="'+kind+'" aria-label="'+detail+'" title="'+detail+'">'+label.slice(0,2)+'<br>'+label.slice(2)+'</span>';
  }
  function approvalRow(i,kind){
   const q=window.enlIncidentQuickSummary?.(i),site=q?.site||window.siteById?.(i.siteId)?.name||i.siteId||'사업장 미확인';
@@ -54,15 +55,15 @@
   return '<button type="button" class="exec-queue-row" data-exec-mark="'+kind+'" '+(kind==='required'?'data-exec-required ':'')+'data-exec-open="'+e(i.id)+'">'+badge(kind)+'<span class="exec-queue-text"><strong>'+e(site)+' / '+e(i.eventType||'사고')+'</strong><small>'+e(when)+'</small>'+(q?.circumstance?'<span>'+e(q.circumstance)+'</span>':'')+'</span><span class="exec-queue-action">'+action+'</span></button>';
  }
  function markApprovalRows(root,kinds){
-  const selector=kinds.size?'button[data-inc-id],button[data-safety-inc],button[data-reader-open],button[data-stats-inc],[data-prev-card]':'[data-exec-mark]:not([data-exec-open])';
+  const selector=kinds.size?'button[data-inc-id],button[data-safety-inc],button[data-reader-open],button[data-stats-inc],button[data-lifecycle-open],[data-prev-card]':'[data-exec-mark]:not([data-exec-open])';
   for(const row of root.querySelectorAll(selector)){
-   const id=row.dataset.incId||row.dataset.safetyInc||row.dataset.readerOpen||row.dataset.statsInc||row.dataset.prevCard;
+   const id=row.dataset.incId||row.dataset.safetyInc||row.dataset.readerOpen||row.dataset.statsInc||row.dataset.lifecycleOpen||row.dataset.prevCard;
    const kind=kinds.get(id),old=row.querySelector('.exec-required-badge');
    if(row.dataset.execMark===kind&&old?.dataset.execKind===kind)continue;
    old?.remove();row.toggleAttribute('data-exec-required',kind==='required');
    if(kind){
     row.dataset.execMark=kind;
-    const slot=row.querySelector('.inc411-card-tags,.shell411-recent-status,.reader414-state,.state,.prev429-meta')||row;
+    const slot=(row.dataset.lifecycleOpen?row.firstElementChild:row.querySelector('.inc411-card-tags,.shell411-recent-status,.reader414-state,.state,.prev429-meta'))||row;
     slot.insertAdjacentHTML('beforeend',badge(kind));
    }else delete row.dataset.execMark;
   }
@@ -70,27 +71,32 @@
  function updateApprovalQueue(root,u){
   const executive=u?.role==='executive'&&u.active!==false,safety=u?.role==='safety'&&u.active!==false;
   const list=[],waiting=[],kinds=new Map();
-  if(executive||safety)for(const i of data.incidents||[]){
+  const reader=['manager','final'].includes(u?.role)&&u.active!==false;
+  if(executive||safety||reader)for(const i of data.incidents||[]){
+   const a=i.executiveApproval,id=String(i.id);
+   if(i.status==='closed'&&a?.state==='approved'){kinds.set(id,'completed');continue;}
    if(!pendingReview(i))continue;
-   const a=i.executiveApproval,plan=policy().describe(a);
+   const plan=policy().describe(a);
    if(!plan.valid)continue;
    let kind;
-   if(safety)kind='tracking';
+   if(executive&&plan.approved(u.id)){kinds.set(id,'signed');continue;}
+   if(safety||reader)kind='tracking';
    else if(policy().canDecide(a,u.id))kind='required';
    else if(plan.stage==='parallel'&&plan.president.id===u.id&&!plan.approved(u.id))kind='scheduled';
    else continue;
-   kinds.set(String(i.id),kind);
+   kinds.set(id,kind);
    (kind==='scheduled'?waiting:list).push(i);
   }
+  const outstanding=list.length+waiting.length;
   const tab=document.querySelector('.shell411-nav [data-shell-view="incidents"]');
   if(tab){
-   const total=executive?kinds.size:0;
+   const total=executive?outstanding:0;
    let number=tab.querySelector('.exec-tab-count');
    if(total){
     if(!number){number=document.createElement('span');number.className='exec-tab-count';number.setAttribute('aria-hidden','true');tab.appendChild(number);}
     if(number.textContent!==String(total))number.textContent=String(total);
     tab.dataset.execCount=String(total);
-    tab.setAttribute('aria-label','사고 조회, 결재필요 '+list.length+'건, 결재예정 '+waiting.length+'건');
+    tab.setAttribute('aria-label','사고 조회, 결재필요 '+list.length+'건, 결재대기 '+waiting.length+'건');
    }else if(number||tab.hasAttribute('data-exec-count')){
     number?.remove();delete tab.dataset.execCount;tab.removeAttribute('aria-label');
    }
@@ -102,9 +108,9 @@
    box=document.createElement('section');box.dataset.executiveQueue='';box.className='panel';root.prepend(box);
    box.addEventListener('click',event=>{const button=event.target.closest('[data-exec-open]');if(button)openIncidentModal(button.dataset.execOpen)});
   }
-  const count=kinds.size?'<span class="exec-tab-count">'+kinds.size+'</span>':'0건';
+  const count=outstanding?'<span class="exec-tab-count">'+outstanding+'</span>':'0건';
   const html='<h2>'+(safety?'경영진 결재현황':'내 결재')+' '+count+'</h2>'+list.map(i=>approvalRow(i,kinds.get(String(i.id)))).join('')+
-   (waiting.length?'<p>임원 결재 후 최종결재 예정 '+waiting.length+'건</p>'+waiting.map(i=>approvalRow(i,'scheduled')).join(''):'');
+   (waiting.length?'<p>사장 최종결재 대기 '+waiting.length+'건</p>'+waiting.map(i=>approvalRow(i,'scheduled')).join(''):'');
   if(queueMarkup.get(box)!==html){queueMarkup.set(box,html);box.innerHTML=html;}
  }
  function decorate(){
@@ -128,12 +134,14 @@
  style.textContent+=`
  .exec-tab-count{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 3px;margin-left:5px;border-radius:999px;background:#b4232c;color:#fff;font:bold 12px/1 Arial,sans-serif;vertical-align:middle;box-sizing:border-box}
  .shell411-nav button[data-exec-count]>.enl424-nav-dot{display:none}
- #view [data-exec-mark]{border:2px solid #b4232c;background:#fff8f8}
+ #view [data-exec-mark]{--exec-accent:#626b75;--exec-line:#a3acb4;--exec-bg:#f7f8fa;border:2px solid var(--exec-line);background:var(--exec-bg)}
+ #view [data-exec-mark="required"]{--exec-accent:#b4232c;--exec-line:#b4232c;--exec-bg:#fff8f8}
+ #view [data-exec-mark="signed"],#view [data-exec-mark="completed"]{--exec-accent:#187548;--exec-line:#a8cdb9;--exec-bg:#f5fbf7}
  #view [data-exec-mark]:focus-visible{outline:3px solid #204e79;outline-offset:2px}
- #view .exec-required-badge{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;box-sizing:border-box;flex:none;width:36px;height:36px;border-radius:50%;padding:0;background:#b4232c;color:white;font-size:11px;font-weight:800;line-height:1.15;text-align:center;vertical-align:middle;white-space:nowrap}
+ #view .exec-required-badge{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;box-sizing:border-box;flex:none;width:36px;height:36px;border-radius:50%;padding:0;background:var(--exec-accent);color:white;font-size:11px;font-weight:800;line-height:1.15;text-align:center;vertical-align:middle;white-space:nowrap}
  [data-executive-queue] .exec-queue-row{width:100%;margin:6px 0 0;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;padding:9px 10px;border-radius:10px;text-align:left;color:#263e52;cursor:pointer}
  .exec-queue-text{display:grid;gap:3px;min-width:0;overflow-wrap:anywhere}.exec-queue-text strong{font-size:14px}.exec-queue-text small,.exec-queue-text>span{font-size:12px;font-weight:500}
- .exec-queue-action{font-size:12px;font-weight:bold;color:#a5232c}
+ .exec-queue-action{font-size:12px;font-weight:bold;color:var(--exec-accent)}
  .stats426-drill-row .state .exec-required-badge{margin-left:4px}
  `;document.head.appendChild(style);
  const queue=()=>{if(!queued){queued=true;requestAnimationFrame(decorate)}};window.addEventListener('enl-incident-saved',queue);window.addEventListener('enl-incidents-pulled',queue);new MutationObserver(queue).observe(document.body,{childList:true,subtree:true});queue();

@@ -38,7 +38,7 @@ function priorityName(v){return v==='urgent'?'긴급':v==='important'?'중요':'
 function actionStatusName(v){return v==='planned'?'조치예정':v==='in_progress'?'조치중':v==='submitted'?'검토요청':v==='approved'?'조치완료':'미등록'}
 function badge(cls,text){return `<span class="pill ${cls}">${esc(text)}</span>`}
 function statusBadge(v){return badge(v==='reported'?'p-reported':v==='approved'?'p-approved':'p-closed',statusName(v))}
-function priorityBadge(v){return badge(v==='urgent'?'p-urgent':v==='important'?'p-important':'p-normal',priorityName(v))}
+function priorityBadge(v){return v==='urgent'||v==='important'?badge('p-'+v,priorityName(v)):''}
 function categoryBadge(v){return badge(v==='person'?'p-person':v==='property'?'p-property':'p-near',categoryName(v))}
 function legalBadge(i){return i.legalReview?badge('p-review','법적 검토 필요'):''}
 function actionBadge(i){const s=i.corrective?.status;return s?badge(s==='approved'?'p-done':'p-review',actionStatusName(s)):badge('p-normal','조치 미등록')}
