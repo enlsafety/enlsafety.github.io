@@ -11,6 +11,9 @@ const roster=[actor,...['상무','전무','부사장','사장'].map((position,i)
 const incident={id:'qa-case',siteId:'qa-site',status:'approved',category:'property',occurredAt:'2026-10-30T02:00:00Z',
   eventType:'검수 사고',summary:'결재 화면 테스트',reportDetails:{},photos:[],corrective:{status:'approved'},_syncVersion:1,
   executiveApproval:{mode:'parallel_then_president',state:'pending',stage:'parallel',round:1,roster,finalApproverId:'qa-3',signatures:[]}};
+// Same ordinary badges, different approval turns. Compare them in the real accident list.
+const waiting={...incident,id:'qa-waiting',executiveApproval:{...incident.executiveApproval,finalApproverId:actor.id,
+  roster:roster.map(u=>({...u,position:u.id===actor.id?'사장':u.position==='사장'?'상무':u.position}))}};
 const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'};
 async function verifyRecentBadges(page){
   await page.locator('[data-exec-open="qa-case"]').waitFor();
@@ -39,6 +42,37 @@ async function verifyRecentBadges(page){
   console.log('PASS recent report status pills keep their native sizes alongside a separate approval circle at six viewport widths');
   await page.setViewportSize({width:820,height:1180});
 }
+async function verifyIncidentCardBadges(page){
+  await page.locator('[data-shell-view="incidents"]').click();
+  const row=page.locator('.inc411-card[data-inc-id="qa-waiting"]');
+  await row.locator('[data-exec-kind="scheduled"]').waitFor();
+  for(const width of [1280,820,721,720,390,320]){
+    await page.setViewportSize({width,height:900});
+    const result=await row.evaluate(card=>{
+      const reference=document.querySelector('.inc411-card[data-inc-id="qa-no-approval"]');
+      const sizes=el=>Array.from(el.querySelectorAll('.inc411-card-tags .pill'),p=>{
+        const r=p.getBoundingClientRect();return [p.textContent,r.width,r.height];
+      });
+      const tags=card.querySelector('.inc411-card-tags'),badge=card.querySelector('.exec-required-badge');
+      const t=tags.getBoundingClientRect(),b=badge.getBoundingClientRect(),r=card.getBoundingClientRect();
+      return {sizes:sizes(card),reference:sizes(reference),outside:!tags.contains(badge),
+        separate:t.right<=b.left||b.right<=t.left||t.bottom<=b.top||b.bottom<=t.top,
+        fits:b.left>=r.left&&b.right<=r.right&&r.right<=innerWidth&&r.left>=0,
+        circle:[badge.textContent,b.width,b.height]};
+    });
+    assert.deepEqual(result.sizes.map(p=>p[0]),['대물사고','사고보고 최종승인','재발방지조치 확인완료']);
+    assert.deepEqual(result.sizes,result.reference,'status pill sizes with and without pending approval at '+width);
+    assert.ok(result.outside&&result.separate&&result.fits,'independent approval region at '+width);
+    assert.deepEqual(result.circle,['결재대기',36,36]);
+  }
+  await page.setViewportSize({width:820,height:1180});
+  await row.locator('[data-exec-kind="scheduled"]').click();
+  await page.locator('[data-executive-record]').waitFor();
+  assert.equal(await page.getByRole('button',{name:'결재 승인',exact:true}).count(),0);
+  await page.evaluate(()=>closeModal());
+  await page.locator('[data-shell-view="home"]').click();
+  console.log('PASS accident list keeps three native pills separate from the pending circle at six widths');
+}
 async function run(engine){
   const local=engine===chromium&&process.env.CHROME_EXE;
   const browser=await engine.launch(local?{executablePath:local,args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu']}:{});
@@ -61,7 +95,7 @@ async function run(engine){
         assert.equal(req.postDataJSON().actorPasswordHash,actor.passwordHash);
         if(pullError==='offline')return route.abort();
         if(pullError)return route.fulfill({status:403,json:{ok:false,message:pullError}});
-        return route.fulfill({json:{ok:true,incidents:[incident,{...incident,id:'qa-no-approval',executiveApproval:null}]}});
+        return route.fulfill({json:{ok:true,incidents:[incident,waiting,{...incident,id:'qa-no-approval',executiveApproval:null}]}});
       }
       return route.abort();
     });
@@ -84,6 +118,7 @@ async function run(engine){
     await page.evaluate(()=>dispatchEvent(new StorageEvent('storage',{key:'enl_safety_v3'})));
     releaseModule();await reloading;await page.unroute('**/incidents-v410.js?*');
     await verifyRecentBadges(page);
+    await verifyIncidentCardBadges(page);
     await page.locator('[data-exec-open="qa-case"]').click();
     await page.getByRole('button',{name:'결재 승인',exact:true}).waitFor();
     await page.evaluate(()=>{
