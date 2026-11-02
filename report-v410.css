@@ -35,3 +35,15 @@
 .report410-files .attach-preview411{height:220px;min-width:0;max-width:100%;box-sizing:border-box}
 .report410-files .attach-card411 .attach-preview411>img{display:block;width:100%;height:100%;max-width:100%;max-height:100%;min-width:0;min-height:0;object-fit:contain;object-position:center}
 @media(max-width:620px){.report410-files .attach-preview411{height:180px}}
+
+/* Executive decision view */
+[data-executive-summary]{min-width:0;color:#203b4f}
+.inc411-summary-table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:14px;line-height:1.55}
+.inc411-summary-table caption{text-align:left;color:#173b66;font-size:18px;font-weight:800;padding:10px 0 8px}
+.inc411-summary-table th,.inc411-summary-table td{border:1px solid #cddbe5;padding:8px 10px;text-align:left;vertical-align:top;overflow-wrap:anywhere;white-space:pre-line}
+.inc411-summary-table th{box-sizing:border-box;width:8rem;word-break:keep-all;background:#eef4f8;color:#34536b}
+.inc411-key-fact td{font-weight:650}
+.inc411-summary-files{margin:10px 0}
+.inc411-summary-files summary{padding:10px 2px;cursor:pointer;color:#204e75;font-weight:700}
+.inc411-summary-files h4{margin:8px 0}
+@media(max-width:520px){.inc411-summary-table th{width:clamp(6rem,27vw,7rem)}.inc411-summary-table th,.inc411-summary-table td{padding:7px 8px}}

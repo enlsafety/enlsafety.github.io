@@ -98,19 +98,19 @@
   function decorateModal(){
     css();const modal=document.querySelector('#modalRoot .modal');if(!modal)return;
     if(modal.querySelector('#historical461PasswordForm,#historical461EditForm,#historical461History,#prev429PlanForm,#prev429FieldForm,#prev429ReviewForm'))return;
-    let i=currentIncidentId?incident(currentIncidentId):null;
+    let i=incident(modal.dataset.incidentView||currentIncidentId);
     if(!i){const id=modal.querySelector('[data-lifecycle-final]')?.getAttribute('data-lifecycle-final');if(id)i=incident(id)}
     if(!i)return;
     currentIncidentId=i.id;
     if(isBulkImported(i)){const del=modal.querySelector('#deleteInc'),edit=modal.querySelector('#editInc');if(del&&del.textContent!=='이관 무효처리 관리')del.textContent='이관 무효처리 관리';if(edit&&edit.textContent!=='이관정보 수정')edit.textContent='이관정보 수정';}
-    if(!modal.querySelector('[data-official439-box]')){
+    if(!modal.querySelector('[data-executive-summary],[data-official439-box]')){
       const wrap=document.createElement('div');wrap.dataset.official439Box='1';wrap.innerHTML=officialBox(i);
       const actions=modal.querySelector('.modal-actions')||modal.lastElementChild;
       if(actions)actions.insertAdjacentElement('beforebegin',wrap);else modal.appendChild(wrap);
     }
     const actions=modal.querySelector('.modal-actions');
     if(actions){
-      if(!actions.querySelector('[data-official439-excel]')){const b=document.createElement('button');b.type='button';b.dataset.official439Excel='1';b.className='official439-btn';b.textContent='엑셀 사고보고서 출력';b.title='A4 세로 1장 엑셀 파일 다운로드';b.onclick=()=>printReport(incident(i.id)||i,b);actions.appendChild(b)}
+      if(!actions.querySelector('[data-official439-excel]')){const b=document.createElement('button');b.type='button';b.dataset.official439Excel='1';b.className='official439-btn';b.textContent='엑셀 사고보고서 출력';b.title='한 장 보고서와 A~E 누적기록 다운로드';b.onclick=()=>printReport(incident(i.id)||i,b);actions.appendChild(b)}
     }
   }
 

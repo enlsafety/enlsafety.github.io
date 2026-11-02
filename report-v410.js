@@ -59,6 +59,45 @@
   const reportRow=(label,v)=>`<div class="report410-record-row"><b>${esc(label)}</b><div>${reportValue(v)}</div></div>`;
   const reportStage=(stage,title,html,highlight='')=>`<section class="report410-stage ${highlight?`report410-active-${highlight}`:''}" data-report-stage="${stage}"><h3>${stage}. ${title}</h3>${html}</section>`;
   const reportFiles=(scope,files)=>(files||[]).length?`<div class="report410-files" data-report-files="${esc(scope)}">${window.enlAttachmentGalleryHtml?.(files)||files.map(f=>reportValue(f.name||'첨부자료')).join('<br>')}</div>`:'';
+  function executiveSummaryHtml(i){
+    const d=i.reportDetails||{},c=i.corrective?.status==='approved'?i.corrective:{};
+    const person=i.category==='person',rows=[];
+    const clean=v=>{const text=String(v??'').trim();return ['-','미입력','미기재'].includes(text)?'':text};
+    const join=(values,separator=' / ')=>[...new Set(values.map(clean).filter(Boolean))].join(separator);
+    function row(label,value,emphasis=false){
+      if(clean(value))rows.push(`<tr${emphasis?' class="inc411-key-fact"':''}><th scope="row">${esc(label)}</th><td>${esc(clean(value))}</td></tr>`);
+    }
+    const parts=occurredParts(i),dateOnly=unknownTime(i)||/^\d{4}-\d{2}-\d{2}$/.test(i.occurredAt||'')||!parts.time;
+    const date=clean(i.occurredDate||i.historicalTransfer?.occurredDate||parts.date);
+    const when=date?(dateOnly?date+' (시간 미상)':date+' '+parts.time):'';
+    row('발생 일시 / 장소',join([when,d.place]));
+    row('보고자',i.historicalImport?.originalReporterName||i.historicalTransfer?.originalReporterName||i.reporterName);
+    row(person?'부상자':'작업자',join([person?d.injuredName||i.injuredName:d.workerName,d.job||i.job]));
+    row('사고 전 작업',d.workAction);
+    row('발생 경위',clean(d.incidentHow)||i.summary,true);
+    row(person?'부상 내용':'파손 피해',person?d.injuryDetail:join([d.damagedItem,d.damageDetail]));
+    if(!person){
+      const raw=clean(d.repairCost).replace(/,/g,''),amount=Number(raw);
+      row('복구 예상비',d.repairCostPending===true?'확인 중':raw&&Number.isFinite(amount)&&amount>=0?amount.toLocaleString('ko-KR')+'원':'');
+    }
+    row('즉시 조치',i.immediateAction);
+    const cause=clean(d.causeAnalysisNote)||clean(c.rootCause)||join([d.environmentCause,d.behaviorCause],'\n');
+    row(d.causeAnalysisStatus==='investigating'&&cause?'원인 (조사 중)':'사고 원인',cause||(d.causeAnalysisStatus==='investigating'?'조사 중':''));
+    row('재발방지 계획',c.planDetail||(d.preventionPlan!=='후속 단계에서 안전관리자가 별도 수립'?d.preventionPlan:''));
+    row('현장 조치 결과',c.actionDetail,true);
+    row('조치 담당 / 완료일',join([c.actionOwner,c.actionCompletedDate||c.completedDate]));
+    if(clean(i.safetyNote)!==clean(c.reviewNote))row('보고 검토의견',i.safetyNote);
+    row('조치 확인',join([c.reviewNote,join([c.reviewedBy,occurredParts({occurredAt:c.reviewedAt}).date])],'\n'));
+    const erp=i.externalInitialApproval;
+    if(erp?.state==='verified')row('기존 ERP 결재',join(['기결재 확인',erp.documentNo,erp.approvalDate]));
+    if(erp?.state==='unverifiable')row('기존 ERP 결재',join(['확인 불가',erp.reason]));
+    if(i.officialRecord?.actionRecheckRequired)row('추가 확인','정정에 따른 조치 재검토 필요');
+    // Reader views of personal injuries must never expose supplemental medical documents.
+    const groups=[['photos','현장 자료',i.photos],['supplement','보완 자료',person?[]:i.supplement?.attachments],['action','조치 증빙',c.afterPhotos]].filter(([, ,files])=>Array.isArray(files)&&files.length);
+    const count=groups.reduce((n,[, ,files])=>n+files.length,0);
+    return '<section data-executive-summary><table class="inc411-summary-table"><caption>사고 경위서</caption><tbody>'+rows.join('')+'</tbody></table>'+
+      (count?'<details class="inc411-summary-files"><summary>첨부자료 '+count+'건 보기</summary>'+groups.map(([scope,label,files])=>'<h4>'+label+'</h4>'+reportFiles(scope,files)).join('')+'</details>':'')+'</section>';
+  }
   function reportReadOnlyHtml(i){
     const root=document.createElement('div');root.className='incident410-form report410-readonly';
     root.innerHTML=reportSectionsHtml({role:'field',siteId:i.siteId},i.category,i);
@@ -106,6 +145,7 @@
       else target.scrollIntoView({block:'start',behavior:'instant'});
     });return()=>cancelAnimationFrame(frame);
   }
+  window.enlExecutiveSummaryHtml=executiveSummaryHtml;
   window.enlReportReadOnlyHtml=reportReadOnlyHtml;
   window.enlCumulativeReportHtml=cumulativeReportHtml;
   window.enlBindCumulativeReport=bindCumulativeReport;

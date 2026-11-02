@@ -50,6 +50,16 @@ const timeCell=Number(xml.match(/<c r="I6" s="6"><v>([^<]+)/)[1]);
 assert.ok(Math.abs((timeCell%1)-(10+20/60)/24)<0.000001,'Korean 10:20 irrespective of computer timezone');
 assert.doesNotMatch(unzip(normal)['xl/workbook.xml'],/내용 전문/,'ordinary report should fit without extra sheets');
 
+function cumulativeSheet(bytes){
+  const parts=unzip(bytes),sheets=[...parts['xl/workbook.xml'].matchAll(/<sheet name="([^"]+)" sheetId="(\d+)"/g)];
+  const stageSheet=sheets.find(s=>s[1]==='단계별 누적기록');
+  assert.ok(stageSheet,'every ordinary export includes the complete cumulative record');
+  return parts['xl/worksheets/sheet'+stageSheet[2]+'.xml'];
+}
+const stageXml=cumulativeSheet(normal);
+assert.deepEqual([...stageXml.matchAll(/>([A-E])\. [^<]+</g)].map(m=>m[1]),['A','B','C','D','E']);
+assert.match(stageXml,/fitToHeight="0"/);
+assert.ok(stageXml.includes(fixture.reportDetails.injuryDetail));
 const property=structuredClone(fixture);
 property.category='property';property.reportDetails={place:'주차장',workerName:'홍길동',job:'장비 운전',damagedItem:'안내판',damageDetail:'안내판 하단 찌그러짐',repairCost:0,workAction:'작업차량 이동',incidentHow:'차량이 안내판에 닿음'};
 assert.match(main(build(property)),/<c r="I10" s="7"><v>0<\/v>/,'confirmed zero is not missing');

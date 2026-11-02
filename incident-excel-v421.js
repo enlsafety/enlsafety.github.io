@@ -104,8 +104,14 @@
     const section=t=>rows.push(row([{c:'A',v:t,s:2},{c:'B',v:'',s:2}],24,'A:B'));
     section('A. 현장 최초 사고보고');
     put('사업장 / 사고구분',join([siteName(i.siteId),categoryText(i.category),i.eventType]),true);
-    const timeUnknown=i.occurrenceTimeKnown===false||i.historicalImport?.occurrenceTimeKnown===false||i.historicalTransfer?.occurredTimeKnown===false;
-    put('발생일시 / 장소',join([timeUnknown?new Date(new Date(i.occurredAt).getTime()+9*3600000).toISOString().slice(0,10)+' (시간 미상)':fmtDate(i.occurredAt),d.place]),true);
+    const timeUnknown=i.occurrenceTimeKnown===false||i.historicalImport?.occurrenceTimeKnown===false||i.historicalTransfer?.occurredTimeKnown===false||/^\d{4}-\d{2}-\d{2}$/.test(i.occurredAt||'');
+    let occurred=fmtDate(i.occurredAt);
+    if(timeUnknown){
+      const stamp=Date.parse(i.occurredAt);
+      const day=i.occurredDate||i.historicalTransfer?.occurredDate||(Number.isFinite(stamp)?new Date(stamp+9*3600000).toISOString().slice(0,10):'');
+      occurred=day?day+' (시간 미상)':'';
+    }
+    put('발생일시 / 장소',join([occurred,d.place]),true);
     put('보고자 / 보고일시',stamp(i.reporterName,i.createdAt),true);
     put('사고 직전 작업',d.workAction,true);put('사고 발생 경위',d.incidentHow||i.summary,true);
     if(d.incidentHow&&i.summary&&i.summary!==d.generatedSummary&&i.summary!==d.incidentHow)put('사고 요약',i.summary);
@@ -179,5 +185,5 @@
   if(typeof document!=='undefined'){ensureCss();document.addEventListener('click',e=>{const b=e.target?.closest?.('[data-excel421-id]');if(!b)return;e.preventDefault();e.stopPropagation();downloadExcel(b.dataset.excel421Id)},true);let queued=false;const queue=()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;syncButtons(document)})};const observer=new MutationObserver(queue);observer.observe(document.documentElement,{childList:true,subtree:true});syncButtons(document);setTimeout(()=>syncButtons(document),60)}
   if(typeof window!=='undefined'){window.enlBuildFinalIncidentWorkbook=buildWorkbook;window.enlDownloadFinalIncidentExcel=downloadExcel;window.enlSyncFinalIncidentExcelButtons=syncButtons;window.ENL_INCIDENT_EXCEL_VERSION=VERSION}
   // Shared OOXML packaging for the one-page report; final-export policy stays above.
-  if(typeof window!=='undefined')window.ENLIncidentXlsx=Object.freeze({zipStore,xmlEsc});
+  if(typeof window!=='undefined')window.ENLIncidentXlsx=Object.freeze({zipStore,xmlEsc,reportModel});
 })();
