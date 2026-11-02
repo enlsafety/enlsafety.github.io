@@ -4,6 +4,7 @@ import postgres from "npm:postgres@3.4.5";
 
 const ORIGIN="https://enlsafety.github.io";
 const CLIENT="incident-report-v2";
+const SENDER_NAME="이앤엘 사고보고";
 const BREVO_BASE="https://api.brevo.com/v3";
 const VERSION="4.8.6-approval-wording";
 const cors={"Access-Control-Allow-Origin":ORIGIN,"Access-Control-Allow-Headers":"content-type, x-enl-app, x-enl-internal","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"};
@@ -154,13 +155,14 @@ async function brevo(path:string,init:RequestInit={}){
 async function activeSender(){
   const r=await brevo("/senders",{method:"GET"});
   const list=Array.isArray(r?.senders)?r.senders:[];
-  const preferred=list.find((x:any)=>x?.active===true&&clean(x?.name)==="이앤엘 사고보고")||list.find((x:any)=>x?.active===true);
+  const preferred=list.find((x:any)=>x?.active===true&&clean(x?.name)===SENDER_NAME)||list.find((x:any)=>x?.active===true);
   if(!preferred?.id)throw new Error("brevo_verified_sender_missing");
   return {id:Number(preferred.id),name:clean(preferred.name),email:clean(preferred.email)};
 }
 async function sendBrevo(sql:any,to:string,content:any,sandbox=false){
   const sender=await activeSender(),reply=await replyTo(sql);
-  const body:any={sender:{id:sender.id},to:[{email:to}],subject:content.subject,htmlContent:content.html,textContent:content.text,tags:["enl-incident-report"]};
+  // Brevo builds the MIME From header from these Unicode fields. An id overrides the name.
+  const body:any={sender:{email:sender.email,name:SENDER_NAME},to:[{email:to}],subject:content.subject,htmlContent:content.html,textContent:content.text,tags:["enl-incident-report"]};
   if(reply)body.replyTo={email:reply,name:"이앤엘 안전관리"};
   if(sandbox)body.headers={"X-Sib-Sandbox":"drop"};
   const r=await brevo("/smtp/email",{method:"POST",body:JSON.stringify(body)});
