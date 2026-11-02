@@ -47,3 +47,5 @@
 .inc411-summary-files summary{padding:10px 2px;cursor:pointer;color:#204e75;font-weight:700}
 .inc411-summary-files h4{margin:8px 0}
 @media(max-width:520px){.inc411-summary-table th{width:clamp(6rem,27vw,7rem)}.inc411-summary-table th,.inc411-summary-table td{padding:7px 8px}}
+
+.inc411-brief-original{margin-top:5px;font-size:.88em}.inc411-brief-original summary{color:#34536b;cursor:pointer}.inc411-brief-original[open] div{margin-top:5px;padding:6px 0;border-top:1px solid #d4dfe6}

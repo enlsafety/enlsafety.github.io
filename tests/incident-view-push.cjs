@@ -20,6 +20,25 @@ async function run(){const f=await fixture();let passed=0;const check=(a,b,label
  let handler,sends=[];const adapt=db=>{const sql=async(parts,...args)=>(await db.query(parts.reduce((s,p,i)=>s+(i?'$'+i:'')+p,''),args)).rows;sql.end=async()=>{};sql.begin=fn=>f.db.transaction(tx=>fn(adapt(tx)));return sql};const sql=adapt(f.db);
  const ctx={Deno:{env:{get:()=> 'isolated'},serve:h=>handler=h},postgres:()=>sql,webpush:{setVapidDetails(){},async sendNotification(sub,payload){if(JSON.parse(payload).data.kind==='management_view_report')sends.push({endpoint:sub.endpoint,payload:JSON.parse(payload)})}},Request,Response,TextEncoder,crypto,structuredClone,console};vm.createContext(ctx);vm.runInContext(fs.readFileSync('executive-approval-v482.js','utf8'),ctx);vm.runInContext(stripTypeScriptTypes(fs.readFileSync('edge-functions/enl-push-v418/index.ts','utf8').replace(/^import .*;\r?\n/gm,''))+';globalThis.dispatch=dispatchCore;',ctx);
  const legacy=async(who,id,type='incident_report',proof='qa-proof')=>{const r=await handler(new Request('https://qa.test',{method:'POST',headers:{'content-type':'application/json','x-enl-app':'incident-report-v2'},body:JSON.stringify({action:'management_view',actor:f.actors[who],actorPasswordHash:proof,incidentId:id,documentType:type})}));return {status:r.status,body:await r.json()}};
+ const readList=async(id,who='manager')=>{
+  const r=await handler(new Request('https://qa.test',{method:'POST',headers:{'content-type':'application/json','x-enl-app':'incident-report-v2'},
+    body:JSON.stringify({action:'view_list',actor:f.actors[who],incidentId:id,includeHqReaders:true,actorPasswordHash:'qa-proof',actorPinHash:'qa-proof'})}));
+  return {status:r.status,body:await r.json()};
+ };
+ await seed('read-sheet');
+ await f.db.exec("insert into enl_hq_users(user_id,name,role,position,active) values('unread','다른 실무자','manager','차장',true),('retired','과거 열람자','manager','부장',false)");
+ await f.db.exec("insert into enl_document_views(incident_id,document_type,viewer_id,viewer_name,viewer_role,first_viewed_at) values ('read-sheet','corrective_action','unread','다른 실무자','manager','2026-10-01'),('read-sheet','final_pdf','unread','다른 실무자','manager','2026-10-02'),('read-sheet','incident_report','retired','과거 열람자','manager','2026-09-01')");
+ const rows=async()=>(await readList('read-sheet')).body.readers;
+ const beforeRead=await rows();
+ check(beforeRead.find(x=>x.id==='unread').first_viewed_at,null,'action and PDF do not mark the initial report read');
+ check(beforeRead.some(x=>x.id==='retired'&&x.first_viewed_at!=null),true,'recorded former staff preserved');
+ check(beforeRead.some(x=>x.id==='qa-executive'),false,'only staff in read group');
+ await f.call('manager',{action:'view',incidentId:'read-sheet'});
+ const first=(await rows()).find(x=>x.id==='qa-manager').first_viewed_at;
+ await f.call('manager',{action:'view',incidentId:'read-sheet'});
+ check(!!first&&first===(await rows()).find(x=>x.id==='qa-manager').first_viewed_at,true,'first server timestamp survives repeat views');
+ await seed('hidden-read','rejected');
+ check((await readList('hidden-read')).status,403,'HQ staff cannot fetch readership for a hidden incident');
  for(const category of ['property','person'])for(const status of ['reported','supplement','supplement_submitted','approved','closed']){
   const id=category+'-'+status;await seed(id,status,category);const before=(await f.db.query('select payload from enl_incident_shared where incident_id=$1',[id])).rows[0].payload;
   for(const who of ['manager','executive']){check((await f.call(who,{action:'view',incidentId:id})).status,200,category+status+who);check((await f.call(who,{action:'view',incidentId:id})).status,200,'repeat OK');await legacy(who,id,'corrective_action');}

@@ -12,11 +12,15 @@ async function run(engine,width){
   const count=async(id)=>(await f.db.query("select count(*)::int n from enl_push_events where kind='management_view_report' and incident_id=$1",[id])).rows[0].n;
   const context=await browser.newContext({viewport:{width,height:900},isMobile:width<500,hasTouch:width<1000,serviceWorkers:'block'}),page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));page.on('dialog',d=>d.dismiss());
   await page.route('**/*',r=>r.request().url()==='https://qa.test/'?r.fulfill({contentType:'text/html',body:'<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><main id="view"></main><div id="modalRoot"></div></body></html>'}):r.abort());await page.goto('https://qa.test/');
+  await page.exposeFunction('qaReaders',async id=>{
+    const r=await f.db.query("select first_viewed_at from enl_document_views where incident_id=$1 and document_type='incident_report' and viewer_id='qa-manager'",[id]);
+    return [{id:'qa-manager',name:'QA 본사',position:'차장',first_viewed_at:r.rows[0]?.first_viewed_at||null}];
+  });
   await page.exposeFunction('qaAPI',async body=>{calls.push(body);if(fail){fail--;throw Error('offline simulation');}const r=await f.call(body.actor.role,body);if(r.status!==200)throw Error(r.body.message);return r.body;});
   await page.evaluate(incidents=>{
    window.qaUser={id:'qa-manager',name:'QA 본사',role:'manager'};window.currentUser=window.enlCurrentActor=()=>qaUser;window.data={incidents,sites:[{id:'qa-site',name:'QA 사업장'}]};window.currentView='home';window.session={};window.app=document.body;
    window.esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));window.siteById=id=>data.sites.find(s=>s.id===id);window.siteName=()=> 'QA 사업장';window.fmt=String;window.won=String;window.categoryBadge=window.priorityBadge=window.badge=()=>'';window.eventTypeOptions=()=>'';window.enlAttachmentGalleryHtml=()=>'';window.enlBindAttachmentOpen=()=>{};
-   window.openModal=html=>modalRoot.innerHTML='<div class="modal-bg"><section class="modal">'+html+'</section></div>';window.closeModal=()=>modalRoot.innerHTML='';window.renderShell=()=>document.getElementById('view').innerHTML='';window.enlPushFlush=()=>{window.qaFlushes=(window.qaFlushes||0)+1};window.enlIncidentApi=b=>qaAPI(b);window.saveData=()=>{};
+   window.openModal=html=>modalRoot.innerHTML='<div class="modal-bg"><section class="modal">'+html+'</section></div>';window.closeModal=()=>modalRoot.innerHTML='';window.renderShell=()=>document.getElementById('view').innerHTML='';window.enlPushFlush=()=>{window.qaFlushes=(window.qaFlushes||0)+1};window.enlIncidentApi=b=>qaAPI(b);window.enlIncidentReaderList=id=>qaReaders(id);window.saveData=()=>{};
   },incidents);
   for(const file of ['style.css','report-v410.css'])await page.addStyleTag({content:fs.readFileSync(file,'utf8')});
   for(const file of ['incidents-v410.js','report-v410.js','reader-ui-v414.js','push-session-v425.js','executive-approval-v482.js','approval-sheet-v486.js','management-approval-v448.js','incident-view-v485.js'])await page.addScriptTag({content:fs.readFileSync(file,'utf8')});
@@ -26,6 +30,13 @@ async function run(engine,width){
   await page.evaluate(()=>{const b=document.createElement('button');b.dataset.incId='click-only';b.click();document.body.appendChild(b);b.click();b.remove();});await page.waitForTimeout(200);assert.equal(calls.length,0,'unopened or synthetic row click does not count');
   for(const who of ['manager','executive'])for(const i of incidents.slice(0,10)){
    await page.evaluate(({who,id})=>{qaUser={id:'qa-'+who,role:who};enlOpenIncidentReview(id,false,qaUser)},{who,id:i.id});await waitSaved(i.id,'qa-'+who);assert.equal(await count(i.id),who==='manager'?1:2);cases++;
+   if(who==='manager'&&i.id==='property-reported'){
+    const cell=page.locator('[data-reader-person="qa-manager"]');await cell.locator('time').waitFor();
+    const original=await cell.locator('time').getAttribute('datetime');
+    assert.match(await cell.innerText(),/조회/);assert.equal(await page.locator('[data-executive-record] button').filter({hasText:/결재 승인|사장 최종결재/}).count(),0);
+    await page.evaluate(id=>{closeModal();openIncidentModal(id)},i.id);await cell.locator('time').waitFor();
+    assert.equal(await cell.locator('time').getAttribute('datetime'),original,'first report read survives reopening the detail');
+   }
    if(i.category==='person')assert.equal(await page.locator('#modalRoot .modal').getAttribute('data-incident-view'),i.id,'masked person modal tracked');
    await page.evaluate(id=>{closeModal();data.incidents.find(x=>x.id===id)._syncVersion++;openIncidentModal(id)},i.id);await page.waitForTimeout(50);
   }

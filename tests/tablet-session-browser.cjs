@@ -16,6 +16,9 @@ const incident={id:'qa-case',siteId:'qa-site',status:'approved',category:'proper
   corrective:{status:'approved',planDetail:'통행로 분리',actionDetail:'차량 유도선 설치 완료',actionOwner:'검수 반장',actionCompletedDate:'2026-10-31',reviewNote:'조치 현장 확인'},_syncVersion:1,
   executiveApproval:{mode:'parallel_then_president',state:'pending',stage:'parallel',round:1,roster,finalApproverId:'qa-3',signatures:[]}};
 // Same ordinary badges, different approval turns. Compare them in the real accident list.
+const rawCause='발생 메커니즘: 그레이팅이 튕기면서 후미등 파손\n환경적 요인: 작업로에 쌓인 눈으로 인해 그레이팅의 위치가 가려져 식별이 어려웠으며, 제설작업 중 그레이팅이 튀어 위험한 환경이 형성됨.\n행동적 요인: 제설로 인해 시야 확보가 어려운 상황에서 작업로 내 그레이팅 등 장애물의 위치와 충돌 위험을 충분히 확인하지 못한 채 제설작업을 진행함.\n확인할 관리요인(추정): 차량 동선 분리와 사각지대 확인 절차를 검토해야 함.';
+const rawPlan='1. 사고 지점의 차량·장비 동선과 보행 동선을 분리하고 교차구간·사각지대에는 정지선, 표지, 반사경 등 필요한 통제수단을 보완한다.\n2. 후진·협소구간·시야불량 작업은 유도자 배치 또는 작업구역 출입통제를 적용하고 제한속도·정지·확인 절차를 준수한다.\n3. 운전자와 작업자에게 현장 동선 및 충돌예방 수칙을 TBM으로 재교육하고 동일 위험구간을 함께 점검한다.\n4. 조치 완료 후 현장소장이 이행 여부를 확인하고 사진 등 증빙을 남겨 안전관리자에게 제출한다.';
+incident.corrective.rootCause=rawCause;incident.corrective.planDetail=rawPlan;
 const waiting={...incident,id:'qa-waiting',executiveApproval:{...incident.executiveApproval,finalApproverId:actor.id,
   roster:roster.map(u=>({...u,position:u.id===actor.id?'사장':u.position==='사장'?'상무':u.position}))}};
 const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.png':'image/png','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'};
@@ -82,8 +85,21 @@ async function verifyExecutiveReport(page,engine){
   await table.waitFor();
   const modal=page.locator('#modalRoot .modal');
   assert.equal(await modal.locator('[data-report-stage],.inc411-overview,[data-official439-box]').count(),0);
-  for(const value of ['후진 중 안내판에 접촉함','125,000원','원인 (조사 중)','통행로 분리','차량 유도선 설치 완료','조치 현장 확인'])assert.ok((await table.innerText()).includes(value),value);
-  const attachments=report.locator('details');
+  for(const value of ['후진 중 안내판에 접촉함','125,000원','원인 (조사 중)','차량과 보행자 동선을 분리','차량 유도선 설치 완료','조치 현장 확인'])assert.ok((await table.innerText()).includes(value),value);
+  const readCells=modal.locator('[data-reader-person]');
+  await readCells.first().waitFor();assert.equal(await readCells.count(),4);
+  assert.equal(await readCells.first().locator('time').getAttribute('datetime'),'2026-10-30T03:14:00Z');
+  assert.equal(await readCells.first().locator('time').innerText(),'10.30 12:14');
+  assert.match(await readCells.nth(1).innerText(),/미조회/);
+  const originals=table.locator('.inc411-brief-original');
+  assert.equal(await originals.count(),2);
+  for(const [index,value] of [rawCause,rawPlan].entries()){
+    const details=originals.nth(index);assert.equal(await details.getAttribute('open'),null);
+    assert.ok((await details.locator('..').innerText()).length<value.length*0.65);
+    await details.locator('summary').click();assert.equal(await details.locator('div').textContent(),value);
+    await details.locator('summary').click();
+  }
+  const attachments=report.locator('.inc411-summary-files');
   assert.equal(await attachments.getAttribute('open'),null);
   await attachments.locator('summary').click();
   await attachments.locator('[data-report-files="photos"]').waitFor();
@@ -128,6 +144,10 @@ async function run(engine){
         const name=url.pathname.slice(1);
         if(!/^[\w.-]+$/.test(name)||!fs.existsSync(name))return route.abort();
         return route.fulfill({contentType:mime[path.extname(name)]||'application/octet-stream',body:fs.readFileSync(name)});
+      }
+      if(url.pathname.endsWith('/enl-push-v418')&&req.postDataJSON()?.action==='view_list'){
+        assert.equal(req.postDataJSON().includeHqReaders,true);
+        return route.fulfill({json:{ok:true,readers:[0,1,2,3].map(n=>({id:'qa-staff-'+n,name:'검수 실무'+n,position:'차장',first_viewed_at:n===0?'2026-10-30T03:14:00Z':null}))}});
       }
       if(url.pathname.endsWith('/enl-global-refresh')){
         assert.equal(req.method(),'GET');return route.fulfill({json:{ok:true,epoch,version:release.build}});

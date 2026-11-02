@@ -5,7 +5,7 @@ import webpush from "npm:web-push@3.6.7";
 
 const ORIGIN="https://enlsafety.github.io";
 const CLIENT="incident-report-v2";
-const VERSION="4.8.5-first-incident-view";
+const VERSION="4.8.13-hq-first-reads";
 const FIELD_TITLES=["현장소장","파트장","서무"];
 const cors={"Access-Control-Allow-Origin":ORIGIN,"Access-Control-Allow-Headers":"content-type, x-enl-app, x-enl-internal","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"};
 const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:cors});
@@ -149,9 +149,23 @@ async function viewList(sql:any,body:any){
   const u=await verifiedActor(sql,body.actor,body);if(!u||!["field","safety","manager","executive"].includes(u.role))return json({ok:false,message:"forbidden"},403);
   if(u.role==="field"&&!FIELD_TITLES.includes(clean(u.position)))return json({ok:false,message:"forbidden"},403);
   const incidentId=clean(body.incidentId);if(!incidentId)return json({ok:false,message:"incident_required"},400);
-  const rr=await sql`select site_id from public.enl_incident_shared where incident_id=${incidentId} limit 1`;
+  const rr=await sql`select site_id,payload->>'status' as status,payload->'bulkInvalidation'->>'active' as invalidated
+    from public.enl_incident_shared where incident_id=${incidentId} limit 1`;
   const row=rr[0];if(!row)return json({ok:false,message:"not_found"},404);
   if(u.role==="field"&&clean(row.site_id)!==u.siteId)return json({ok:false,message:"forbidden"},403);
+  if(body.includeHqReaders===true){
+    if(["manager","executive"].includes(u.role)&&(!["reported","supplement","supplement_submitted","approved","closed"].includes(row.status)||row.invalidated==="true"))return json({ok:false,message:"forbidden"},403);
+    const readers=await sql`with staff as (
+        select user_id,name,position from public.enl_hq_users where active=true and role in ('manager','final')
+      ), receipts as (
+        select viewer_id,viewer_name,first_viewed_at from public.enl_document_views
+        where incident_id=${incidentId} and document_type='incident_report' and viewer_role in ('manager','final')
+      )
+      select coalesce(staff.user_id,receipts.viewer_id) as id,coalesce(nullif(receipts.viewer_name,''),staff.name) as name,
+        staff.position,receipts.first_viewed_at
+      from staff full join receipts on staff.user_id=receipts.viewer_id order by name,id`;
+    return json({ok:true,readers});
+  }
   const rows=await sql`select document_type,viewer_id,viewer_name,viewer_role,first_viewed_at
     from public.enl_document_views where incident_id=${incidentId} order by first_viewed_at asc`;
   return json({ok:true,views:rows||[]});
