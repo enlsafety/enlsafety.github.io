@@ -65,7 +65,7 @@
     row.dataset.execMark=kind;
     let slot=row;
     if(row.dataset.lifecycleOpen)slot=row.firstElementChild||row;
-    else if(!row.dataset.safetyInc)slot=row.querySelector('.inc411-card-tags,.reader414-state,.state,.prev429-meta')||row;
+    else if(!row.dataset.safetyInc)slot=row.querySelector('.inc411-card-side,.reader414-state,.state,.prev429-meta')||row;
     slot.insertAdjacentHTML('beforeend',badge(kind));
    }else delete row.dataset.execMark;
   }
@@ -144,6 +144,12 @@
  [data-executive-queue] .exec-queue-row{width:100%;margin:6px 0 0;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;padding:9px 10px;border-radius:10px;text-align:left;color:#263e52;cursor:pointer}
  .exec-queue-text{display:grid;gap:3px;min-width:0;overflow-wrap:anywhere}.exec-queue-text strong{font-size:14px}.exec-queue-text small,.exec-queue-text>span{font-size:12px;font-weight:500}
  .exec-queue-action{font-size:12px;font-weight:bold;color:var(--exec-accent)}
+ .inc411-card[data-exec-mark]>.inc411-card-side{display:grid;justify-items:end;align-items:center;gap:6px}
+ @media(max-width:720px){
+  .inc411-card[data-exec-mark]{grid-template-columns:minmax(0,1fr) auto}
+  .inc411-card[data-exec-mark]>.inc411-card-side{grid-column:2;grid-row:1;min-width:0}
+  .inc411-card[data-exec-mark]>.inc411-card-main{grid-column:1/-1}
+ }
  .shell411-recent button[data-exec-mark]{grid-template-columns:115px minmax(0,1fr) auto auto;grid-template-areas:'meta main status approval'}
  .shell411-recent button>.exec-required-badge{grid-area:approval;justify-self:end}
  @media(max-width:700px){.shell411-recent button[data-exec-mark]{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:'meta approval' 'main main' 'status status'}}
