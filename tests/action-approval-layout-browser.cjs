@@ -3,6 +3,25 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),{chromium,webki
 const html=fs.readFileSync('stable412.html','utf8'),styles=[...html.matchAll(/<link rel="stylesheet" href="([^"?]+)/g)].map(x=>x[1]);
 const roster=[{id:'president',name:'이실연',position:'사장'},{id:'director',name:'김동석',position:'전무'},{id:'lee2',name:'이재민',position:'상무'},{id:'vice',name:'박종태',position:'부사장'},{id:'lee1',name:'이영균',position:'상무'}];
 const picture=name=>`<svg xmlns="http://www.w3.org/2000/svg" width="${name==='portrait'?240:640}" height="${name==='portrait'?640:240}"><rect width="100%" height="100%" fill="#e9f3f8"/><rect x="4" y="4" width="${name==='portrait'?232:632}" height="${name==='portrait'?632:232}" fill="none" stroke="#d94c39" stroke-width="8"/><text x="16" y="40" font-size="23">FULL ${name}</text></svg>`;
+async function assertApprovalFits(page,people=7){
+ const sheet=page.locator('[data-approval-sheet]');
+ assert.equal(await sheet.locator('[data-approval-person]').count(),people);
+ const errors=await sheet.evaluate(el=>{
+  const bounds=el.getBoundingClientRect(),outside=(r,box)=>r.left<box.left-1||r.right>box.right+1;
+  const problems=[];
+  if(outside(bounds,{left:0,right:document.documentElement.clientWidth}))problems.push('sheet outside viewport');
+  for(const node of el.querySelectorAll('div,table,th,td')){
+   if(outside(node.getBoundingClientRect(),bounds)||node.scrollWidth>node.clientWidth+1)problems.push(node.className||node.tagName);
+  }
+  for(const text of el.querySelectorAll('th,.enl-approval486-name,.enl-approval486-status,time')){
+   const range=document.createRange();range.selectNodeContents(text);
+   const cell=text.closest('th,td').getBoundingClientRect(),rects=Array.from(range.getClientRects());
+   if(!rects.length||rects.some(r=>outside(r,cell)||r.bottom>cell.bottom+1))problems.push(text.textContent);
+  }
+  return problems;
+ });
+ assert.deepEqual(errors,[],'all approval cells and text fit without scrolling or clipping');
+}
 async function run(engine,width){
  let opts={headless:true};if(process.env.ENL_QA_CHROMIUM==='sparticuz'){const {default:c}=await import('@sparticuz/chromium');opts={...opts,executablePath:await c.executablePath(),args:c.args.filter(x=>!/(single-process|disable-web-security|allow-running-insecure-content)/.test(x))};}
  const browser=await engine.launch(opts),f=await fixture(),errors=[],alerts=[],calls=[],heldImages=[];let holdPrintImages=false;
@@ -37,10 +56,28 @@ async function run(engine,width){
   assert.ok(await page.locator('[data-report-files="action"] img').evaluateAll(imgs=>imgs.every(img=>{const st=getComputedStyle(img),a=img.getBoundingClientRect(),b=img.parentElement.getBoundingClientRect();return st.objectFit==='contain'&&a.width<=b.width+1&&a.height<=b.height+1&&a.left>=b.left-1&&a.top>=b.top-1})),'full evidence photo fits approval preview');await page.locator('[data-report-files="action"]').screenshot({path:'qa-output/action-evidence-'+engine.name()+'-'+width+'.png'});
   const documentRecord=await page.evaluate(roster=>{const i=structuredClone(data.incidents[0]);i.corrective.status='approved';i.corrective.submittedBy='QA 현장';i.corrective.submittedAt='2026-10-30T02:12:00Z';i.corrective.reviewedBy='QA 안전';i.corrective.reviewedAt='2026-10-30T03:13:00Z';i.executiveApproval={state:'pending',mode:'parallel_then_president',stage:'parallel',round:1,finalApproverId:'president',requestedAt:i.corrective.reviewedAt,roster,signatures:[{id:'director',name:'김동석',decision:'approve',at:'2026-10-30T04:14:00Z'}]};data.incidents=[i];qaUser={id:'lee1',name:'이영균',role:'executive'};openIncidentModal(i.id);return i},roster);
   await page.locator('[data-approval-sheet]').waitFor();assert.deepEqual(await page.locator('[data-approval-person] .enl-approval486-name').allTextContents(),['QA 현장','QA 안전','이영균','이재민','김동석','박종태','이실연']);assert.ok(await page.locator('[data-executive-record]').evaluate(el=>!!(el.compareDocumentPosition(document.querySelector('[data-report-stage="A"]'))&Node.DOCUMENT_POSITION_FOLLOWING)),'approval sheet precedes report');assert.ok(!(await page.locator('#modalRoot').innerText()).includes('병렬'));assert.equal(await page.locator('[data-approval-sheet] time').count(),3);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),'no whole page overflow');
+  await assertApprovalFits(page);
+  if(width===390){
+   for(const w of [320,375,600,768,820,1024]){
+    await page.setViewportSize({width:w,height:930});await assertApprovalFits(page);
+   }
+   await page.setViewportSize({width:320,height:760});
+   const original=await page.locator('[data-approval-sheet]').evaluate((sheet,record)=>{
+    const saved=sheet.outerHTML;
+    record.executiveApproval.roster.push({id:'former',name:'이름이긴과거결재자',position:'사업운영총괄본부장'});
+    record.executiveApproval.signatures=record.executiveApproval.roster.map(u=>({...u,decision:'approve',at:record.corrective.reviewedAt}));
+    sheet.outerHTML=ENLApprovalSheet.render(record);
+    return saved;
+   },documentRecord);
+   await assertApprovalFits(page,8);
+   assert.equal(await page.locator('[data-approval-sheet] time').count(),8);
+   await page.locator('[data-approval-sheet]').evaluate((el,html)=>el.outerHTML=html,original);
+   await page.setViewportSize({width,height:930});
+  }
   await page.locator('[data-executive-record]').screenshot({path:'qa-output/approval-sheet-'+engine.name()+'-'+width+'.png'});
   if(engine.name()==='chromium'&&width===1365){
    await page.evaluate(record=>{record.status='closed';record.closedAt='2026-10-30T06:00:00Z';record.executiveApproval.state='approved';record.executiveApproval.signatures=record.executiveApproval.roster.map((u,n)=>({...u,decision:'approve',at:'2026-10-30T0'+(4+n%3)+':20:00Z'}));window.qaPrintRecord=record;window.enlIncidentApi=async b=>({ok:true,incident:qaPrintRecord,archived:true,documentNumber:'ENL-ACC-2026-00999'});},documentRecord);
-   holdPrintImages=true;const popupPromise=context.waitForEvent('page');await page.evaluate(()=>{void enlPrintFinalDocument(qaPrintRecord)});const popup=await popupPromise;await popup.bringToFront();await popup.waitForFunction(()=>document.images.length===2);assert.ok(await popup.locator('#print').isDisabled(),'print stays disabled while evidence is loading');await popup.evaluate(urls=>{for(const img of document.images)img.src=urls[img.src.split('/').pop()]},{portrait:'data:image/svg+xml;base64,'+Buffer.from(picture('portrait')).toString('base64'),landscape:'data:image/svg+xml;base64,'+Buffer.from(picture('landscape')).toString('base64')});await popup.getByRole('button',{name:'인쇄 / PDF로 저장',exact:true}).waitFor();await Promise.all(heldImages.map(r=>r.abort().catch(()=>{})));if(font)await popup.addStyleTag({content:font});await popup.evaluate(()=>document.fonts.ready);await popup.emulateMedia({media:'print'});assert.equal(await popup.locator('img').count(),2,'both D images in PDF');assert.ok(await popup.locator('img').evaluateAll(xs=>xs.every(x=>x.complete&&x.naturalWidth>0)),'PDF evidence loaded');assert.equal(await popup.locator('[data-approval-sheet]').count(),1);assert.ok(await popup.locator('[data-approval-sheet]').evaluate(el=>!!(el.compareDocumentPosition(document.querySelector('h1'))&Node.DOCUMENT_POSITION_FOLLOWING)));await popup.pdf({path:'qa-output/approval-sheet-report.pdf',format:'A4',printBackground:true});await popup.evaluate(()=>{const img=document.images[0];img.src='data:image/png;base64,invalid';});await popup.waitForFunction(()=>document.getElementById('print').disabled&&document.querySelector('[role=status]').textContent.includes('사진이 누락되지 않도록'));assert.ok(await popup.locator('#print').isDisabled(),'broken evidence never silently prints blank');
+   holdPrintImages=true;const popupPromise=context.waitForEvent('page');await page.evaluate(()=>{void enlPrintFinalDocument(qaPrintRecord)});const popup=await popupPromise;await popup.bringToFront();await popup.waitForFunction(()=>document.images.length===2);assert.ok(await popup.locator('#print').isDisabled(),'print stays disabled while evidence is loading');await popup.evaluate(urls=>{for(const img of document.images)img.src=urls[img.src.split('/').pop()]},{portrait:'data:image/svg+xml;base64,'+Buffer.from(picture('portrait')).toString('base64'),landscape:'data:image/svg+xml;base64,'+Buffer.from(picture('landscape')).toString('base64')});await popup.getByRole('button',{name:'인쇄 / PDF로 저장',exact:true}).waitFor();await Promise.all(heldImages.map(r=>r.abort().catch(()=>{})));if(font)await popup.addStyleTag({content:font});await popup.evaluate(()=>document.fonts.ready);await popup.setViewportSize({width:320,height:760});await assertApprovalFits(popup);await popup.setViewportSize({width:1365,height:930});await popup.emulateMedia({media:'print'});assert.equal(await popup.locator('img').count(),2,'both D images in PDF');assert.ok(await popup.locator('img').evaluateAll(xs=>xs.every(x=>x.complete&&x.naturalWidth>0)),'PDF evidence loaded');assert.equal(await popup.locator('[data-approval-sheet]').count(),1);assert.ok(await popup.locator('[data-approval-sheet]').evaluate(el=>!!(el.compareDocumentPosition(document.querySelector('h1'))&Node.DOCUMENT_POSITION_FOLLOWING)));await assertApprovalFits(popup);await popup.pdf({path:'qa-output/approval-sheet-report.pdf',format:'A4',printBackground:true});await popup.evaluate(()=>{const img=document.images[0];img.src='data:image/png;base64,invalid';});await popup.waitForFunction(()=>document.getElementById('print').disabled&&document.querySelector('[role=status]').textContent.includes('사진이 누락되지 않도록'));assert.ok(await popup.locator('#print').isDisabled(),'broken evidence never silently prints blank');
   }
   assert.deepEqual(errors,[]);console.log('PASS action dates, dismissible validation, full D previews, top approval sheet and timestamps',engine.name(),width);await context.close();
  }finally{await browser.close();await f.db.close()}
