@@ -23,7 +23,10 @@
    if(result?.ok!==true)throw Error('view_not_saved');
    completed.add(view.key);attempts.delete(view.key);
    // The database also dispatches independently if this window is closed immediately.
-   if(String(actor()?.id)===String(view.actor.id))window.enlPushFlush?.();
+   if(String(actor()?.id)===String(view.actor.id)){
+     if(['manager','final'].includes(view.actor.role))window.dispatchEvent(new CustomEvent('enl-report-view-saved',{detail:{incidentId:view.id}}));
+     window.enlPushFlush?.();
+   }
   }catch(e){
    if(visibleView()?.key===view.key&&(attempts.get(view.key)||0)<3){
     const delay=1000*Math.pow(3,(attempts.get(view.key)||1)-1);retryAt.set(view.key,Date.now()+delay);

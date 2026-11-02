@@ -60,6 +60,11 @@
       const data=await res.json().catch(()=>({}));if(!res.ok||data?.ok===false){const e=new Error(data?.message||`http_${res.status}`);e.status=res.status;throw e}return data;
     }finally{if(timer)clearTimeout(timer)}
   }
+  window.enlIncidentReaderList=async incidentId=>{
+    const result=await api('view_list',{actor:actor(),incidentId,includeHqReaders:true});
+    if(!Array.isArray(result.readers))throw new Error('reader_list_unavailable');
+    return result.readers;
+  };
   async function health(){if(healthCache)return healthCache;healthCache=await api('health',{});return healthCache}
   async function ensureSw(){if(swReg)return swReg;if(!('serviceWorker' in navigator))throw new Error('service_worker_unsupported');swReg=await navigator.serviceWorker.register(SW_URL,{scope:'/'});await navigator.serviceWorker.ready;return swReg}
   function b64ToBytes(v){const pad='='.repeat((4-v.length%4)%4),base=(v+pad).replace(/-/g,'+').replace(/_/g,'/'),raw=atob(base),arr=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i);return arr}

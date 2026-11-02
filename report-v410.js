@@ -59,13 +59,46 @@
   const reportRow=(label,v)=>`<div class="report410-record-row"><b>${esc(label)}</b><div>${reportValue(v)}</div></div>`;
   const reportStage=(stage,title,html,highlight='')=>`<section class="report410-stage ${highlight?`report410-active-${highlight}`:''}" data-report-stage="${stage}"><h3>${stage}. ${title}</h3>${html}</section>`;
   const reportFiles=(scope,files)=>(files||[]).length?`<div class="report410-files" data-report-files="${esc(scope)}">${window.enlAttachmentGalleryHtml?.(files)||files.map(f=>reportValue(f.name||'첨부자료')).join('<br>')}</div>`:'';
+  function briefReportText(value,isCause){
+    const raw=String(value||'').trim();
+    if(!raw)return '';
+    if(!isCause){
+      const standard=window.enlSavedPlanBrief?.(raw);
+      if(standard)return standard;
+    }
+    const unnumbered=raw.replace(/(^|\n)\s*\d+[.)]\s+/g,'\n');
+    const lines=unnumbered.replace(/([가-힣][.!?])\s+/g,'$1\n').split(/\n+/)
+      .map(s=>s.replace(/^\s*[-•]\s+/, '').trim()).filter(Boolean);
+    if(isCause){
+      const factors=lines.filter(s=>/^(환경적|행동적)\s*요인\s*[:：]/.test(s));
+      if(factors.length){
+        return [...new Set(factors.map(s=>s.replace(/^(환경적|행동적)\s*요인\s*[:：]\s*/,'')
+          .replace(/작업로에 쌓인 눈으로 인해/g,'작업로 적설로')
+          .replace(/의 위치가 가려져 식별이 어려웠으며,\s*[^.!?]*(?:위험한 환경이 형성됨|위험이 발생함)[.]?$/,' 위치 식별이 어려웠음')
+          .replace(/^.*?상황에서 (?:작업로 내 )?(.+?)의 위치와 충돌 위험을 충분히 확인하지 못한 채 (.+?)(?:을|를) 진행함[.]?$/, '$2 시 $1 위치와 충돌 위험 확인 부족')
+          .replace(/위치와 충돌 위험을 충분히 확인하지 못한 채 (.+?)을 진행함[.]?$/,'위치와 충돌 위험 확인이 부족한 상태로 $1을 진행함')))].join('\n');
+      }
+      const analysis=lines.filter(s=>!/^발생 메커니즘\s*[:：]/.test(s));
+      if(analysis.length&&analysis.length<lines.length)return analysis.slice(0,2).join('\n');
+    }
+    if(raw.length<=95)return raw;
+    // Extract complete statements. Keep an exception or restriction with the lead action.
+    const content=lines.filter(s=>s!=='조치 완료 후 현장소장이 이행 여부를 확인하고 사진 등 증빙을 남겨 안전관리자에게 제출한다.');
+    const distinct=[...new Set(content.length?content:lines)];
+    const chosen=distinct.slice(0,2);
+    for(const s of distinct.slice(2))if(/^(단[,\s]|다만|예외)|금지|전까지.{0,16}(중지|제한)/.test(s))chosen.push(s);
+    return chosen.map(s=>s.replace(/하기 위한 조치를 실시한다[.]?$/,'하도록 조치한다')
+      .replace(/([가-힣]+)을 실시하도록 한다[.]?$/,'$1을 실시한다')
+      .replace(/여부에 대한 확인을 실시한다[.]?$/,'여부를 확인한다')).join('\n');
+  }
   function executiveSummaryHtml(i){
     const d=i.reportDetails||{},c=i.corrective?.status==='approved'?i.corrective:{};
     const person=i.category==='person',rows=[];
     const clean=v=>{const text=String(v??'').trim();return ['-','미입력','미기재'].includes(text)?'':text};
     const join=(values,separator=' / ')=>[...new Set(values.map(clean).filter(Boolean))].join(separator);
-    function row(label,value,emphasis=false){
-      if(clean(value))rows.push(`<tr${emphasis?' class="inc411-key-fact"':''}><th scope="row">${esc(label)}</th><td>${esc(clean(value))}</td></tr>`);
+    function row(label,value,emphasis=false,original=''){
+      const detail=clean(original)&&clean(original)!==clean(value)?'<details class="inc411-brief-original"><summary>원문 보기</summary><div>'+esc(clean(original))+'</div></details>':'';
+      if(clean(value))rows.push(`<tr${emphasis?' class="inc411-key-fact"':''}><th scope="row">${esc(label)}</th><td>${esc(clean(value))}${detail}</td></tr>`);
     }
     const parts=occurredParts(i),dateOnly=unknownTime(i)||/^\d{4}-\d{2}-\d{2}$/.test(i.occurredAt||'')||!parts.time;
     const date=clean(i.occurredDate||i.historicalTransfer?.occurredDate||parts.date);
@@ -82,8 +115,9 @@
     }
     row('즉시 조치',i.immediateAction);
     const cause=clean(d.causeAnalysisNote)||clean(c.rootCause)||join([d.environmentCause,d.behaviorCause],'\n');
-    row(d.causeAnalysisStatus==='investigating'&&cause?'원인 (조사 중)':'사고 원인',cause||(d.causeAnalysisStatus==='investigating'?'조사 중':''));
-    row('재발방지 계획',c.planDetail||(d.preventionPlan!=='후속 단계에서 안전관리자가 별도 수립'?d.preventionPlan:''));
+    row(d.causeAnalysisStatus==='investigating'&&cause?'원인 (조사 중)':'사고 원인',briefReportText(cause,true)||(d.causeAnalysisStatus==='investigating'?'조사 중':''),false,cause);
+    const plan=c.planDetail||(d.preventionPlan!=='후속 단계에서 안전관리자가 별도 수립'?d.preventionPlan:'');
+    row('재발방지 계획',briefReportText(plan,false),false,plan);
     row('현장 조치 결과',c.actionDetail,true);
     row('조치 담당 / 완료일',join([c.actionOwner,c.actionCompletedDate||c.completedDate]));
     if(clean(i.safetyNote)!==clean(c.reviewNote))row('보고 검토의견',i.safetyNote);

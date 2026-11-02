@@ -26,6 +26,10 @@
  .enl-approval486 tr>*:last-child{border-right:0}
  .enl-approval486 th{background:#f0f2f4;border-bottom:1px solid #ccd3dc;color:#40576d;font-weight:500}
  .enl-approval486 td{height:58px;color:#1b3d5e}
+ .enl-approval486-reads{display:flex;gap:6px;min-width:0;margin-top:8px}
+ .enl-approval486-reads .enl-approval486-group{flex:1}
+ .enl-approval486-reads td{height:auto}
+ .enl-approval486-reads p{margin:0;padding:7px;color:#586c7d;font-size:12px}
  .enl-approval486-name{display:block;font-weight:600}
  .enl-approval486-status{display:block;color:#687d8f;font-size:11px}
  .enl-approval486-status.done{color:#12876e}.enl-approval486-status.rejected{color:#b23b36}
@@ -36,7 +40,26 @@
   .enl-approval486 th,.enl-approval486 td{font-size:10px;padding:5px 2px}
   .enl-approval486 time{font-size:9px}
  }`;
- function render(i,users=[]){
+  const maxColumns=4;
+  const renderCell=(x,readOnly)=>{
+   const d=date(x.at);
+   return '<td '+(readOnly?'data-reader-person':'data-approval-person')+'="'+e(x.id||x.role)+'"'+(x.note?' title="'+e(x.note)+'"':'')+'><span class="enl-approval486-name">'+e(x.name||'미지정')+'</span><span class="enl-approval486-status '+(x.done?'done':x.rejected?'rejected':'')+'">'+e(x.state)+'</span>'+(d?'<time datetime="'+e(x.at)+'" title="'+e(d.full)+'" aria-label="'+e(d.full)+'">'+e(d.short)+'</time>':'')+'</td>';
+  };
+  function group(items,name,label){
+   if(!items.length)return '';
+   const tables=[];
+   for(let start=0;start<items.length;start+=maxColumns){
+    const row=items.slice(start,start+maxColumns);
+    tables.push('<table aria-label="'+label+'"><thead><tr>'+row.map(x=>'<th scope="col">'+e(x.role)+'</th>').join('')+'</tr></thead><tbody><tr>'+row.map(x=>renderCell(x,name==='readers')).join('')+'</tr></tbody></table>');
+   }
+   return '<div class="enl-approval486-group" data-approval-group="'+name+'" style="--approval-cols:'+Math.min(items.length,maxColumns)+'">'+tables.join('')+'</div>';
+  }
+ function renderReaders(readers){
+  const cells=Array.isArray(readers)?readers.map(u=>({id:u.id,name:u.name,role:u.position||'본사실무자',state:u.first_viewed_at?'조회':'미조회',at:u.first_viewed_at,done:!!u.first_viewed_at})):null;
+  const body=cells?(group(cells,'readers','본사 실무진 최초 조회')||'<p>대상자 없음</p>'):'<p>조회 기록 확인 불가</p>';
+  return '<div class="enl-approval486-reads"><div class="enl-approval486-label">조회</div>'+body+'</div>';
+ }
+ function render(i,users=[],reads){
   const c=i.corrective||{},a=i.executiveApproval;
   // Existing approvals always use the immutable roster/signature snapshot.
   // Before the server creates a roster, display layout slots rather than cached accounts.
@@ -48,24 +71,10 @@
   const safetyRejected=reviewIsCurrent&&c.status==='rejected';
   const first=[{role:'현장관리자',name:c.submittedBy||'',state:c.submittedAt?'기안':'제출대기',at:c.submittedAt,done:!!c.submittedAt},{role:'안전관리자',name:c.reviewedBy||c.planBy||'',state:safetyApproved?'승인':safetyRejected?'보완요청':'승인대기',at:safetyApproved||safetyRejected?c.reviewedAt:'',done:safetyApproved,rejected:safetyRejected}];
   const approver=u=>{const s=(a?.signatures||[]).find(x=>x.id===u.id&&x.decision==='approve'),r=a?.state==='rejected'&&a.rejection?.id===u.id?a.rejection:null;return {id:u.id,role:u.position||'경영진',name:u.name||'',state:s?'승인':r?'반려':'결재대기',at:s?.at||r?.at,done:!!s,rejected:!!r,note:s?.note||r?.note};};
-  const maxColumns=4;
-  const renderCell=x=>{
-   const d=date(x.at);
-   return '<td data-approval-person="'+e(x.id||x.role)+'"'+(x.note?' title="'+e(x.note)+'"':'')+'><span class="enl-approval486-name">'+e(x.name||'미지정')+'</span><span class="enl-approval486-status '+(x.done?'done':x.rejected?'rejected':'')+'">'+e(x.state)+'</span>'+(d?'<time datetime="'+e(x.at)+'" title="'+e(d.full)+'" aria-label="'+e(d.full)+'">'+e(d.short)+'</time>':'')+'</td>';
-  };
-  function group(items,name,label){
-   if(!items.length)return '';
-   const tables=[];
-   for(let start=0;start<items.length;start+=maxColumns){
-    const row=items.slice(start,start+maxColumns);
-    tables.push('<table aria-label="'+label+'"><thead><tr>'+row.map(x=>'<th scope="col">'+e(x.role)+'</th>').join('')+'</tr></thead><tbody><tr>'+row.map(renderCell).join('')+'</tr></tbody></table>');
-   }
-   return '<div class="enl-approval486-group" data-approval-group="'+name+'" style="--approval-cols:'+Math.min(items.length,maxColumns)+'">'+tables.join('')+'</div>';
-  }
   const decisionCols=Math.min(exec.length,maxColumns)+Math.min(final.length,maxColumns);
   const decisions=decisionCols?'<div class="enl-approval486-decisions" style="--decision-cols:'+decisionCols+'">'+group(exec.map(approver),'executives','경영진 결재')+group(final.map(approver),'president','사장 최종결재')+'</div>':'';
-  return '<section class="enl-approval486" data-approval-sheet aria-label="사고보고 결재란"><div class="enl-approval486-line"><div class="enl-approval486-prep"><div class="enl-approval486-label">결재</div>'+group(first,'origin','기안 및 안전관리자 확인')+'</div>'+decisions+'</div></section>';
+  return '<section class="enl-approval486" data-approval-sheet aria-label="사고보고 결재란"><div class="enl-approval486-line"><div class="enl-approval486-prep"><div class="enl-approval486-label">결재</div>'+group(first,'origin','기안 및 안전관리자 확인')+'</div>'+decisions+'</div><div data-hq-readers>'+(reads===undefined?'':renderReaders(reads))+'</div></section>';
  }
- root.ENLApprovalSheet={render,css};
+ root.ENLApprovalSheet={render,renderReaders,css};
  if(typeof document!=='undefined'&&!document.getElementById('enlApprovalSheet486Css')){const style=document.createElement('style');style.id='enlApprovalSheet486Css';style.textContent=css;document.head.appendChild(style);}
 })(globalThis);
