@@ -40,29 +40,89 @@
   }catch(err){win.document.body.textContent='종결 기록을 불러오지 못했습니다. '+error(err)}
  }
  window.enlPrintFinalDocument=printDocument;
- function decorate(){
-  queued=false;const u=currentUser?.();if(!u)return;
-  const root=document.querySelector('#view');
-  if(root&&u.role==='executive'){
-   const assigned=(data.incidents||[]).filter(i=>i.executiveApproval?.state==='pending'&&i.executiveApproval.roster.some(x=>x.id===u.id)&&!i.executiveApproval.signatures.some(x=>x.id===u.id));
-   const list=assigned.filter(i=>policy().canDecide(i.executiveApproval,u.id)),waiting=assigned.filter(i=>!policy().canDecide(i.executiveApproval,u.id));
-   const sig=JSON.stringify(assigned.map(i=>[i.id,i._syncVersion]));let box=root.querySelector('[data-executive-queue]');
-   if(!box){box=document.createElement('section');box.dataset.executiveQueue='';box.className='panel';root.prepend(box)}
-   if(box.dataset.signature!==sig){box.dataset.signature=sig;box.innerHTML='<h2>내 결재대기 '+list.length+'건</h2>'+list.map(i=>'<button type="button" data-exec-open="'+e(i.id)+'">'+e(siteName(i.siteId))+' / '+e(i.eventType)+' / '+(policy().describe(i.executiveApproval).stage==='president'?'최종결재하기':'결재하기')+'</button>').join('')+(waiting.length?'<p>경영진 결재 완료 후 최종결재 예정 '+waiting.length+'건</p>'+waiting.map(i=>'<button type="button" data-exec-open="'+e(i.id)+'">'+e(siteName(i.siteId))+' / '+e(i.eventType)+' / 진행상태 보기</button>').join(''):'');box.querySelectorAll('[data-exec-open]').forEach(b=>b.onclick=()=>openIncidentModal(b.dataset.execOpen));}
+ const queueMarkup=new WeakMap();
+ const requiredBadge='<span class="exec-required-badge">결재<br>필요</span>';
+ const pendingReview=i=>i?.status==='approved'&&i.corrective?.status==='approved'&&i.executiveApproval?.state==='pending';
+ function approvalRow(i,actionable){
+  const q=window.enlIncidentQuickSummary?.(i);
+  const site=q?.site||window.siteById?.(i.siteId)?.name||i.siteId||'사업장 미확인';
+  if(!actionable)return '<button type="button" data-exec-open="'+e(i.id)+'">'+e(site)+' / '+e(i.eventType||'사고')+' / 진행상태 보기</button>';
+  const when=q?.when||(i.occurredAt?fmt(i.occurredAt):'');
+  return '<button type="button" class="exec-queue-row" data-exec-required data-exec-open="'+e(i.id)+'">'+requiredBadge+'<span class="exec-queue-text"><strong>'+e(site)+' / '+e(i.eventType||'사고')+'</strong><small>'+e(when)+'</small>'+(q?.circumstance?'<span>'+e(q.circumstance)+'</span>':'')+'</span><span class="exec-queue-action">'+(policy().describe(i.executiveApproval).stage==='president'?'최종결재하기':'결재하기')+'</span></button>';
+ }
+ function markApprovalRows(root,ids){
+  const selector=ids.size?'button[data-inc-id],button[data-safety-inc],button[data-reader-open],button[data-stats-inc]':'button[data-exec-required]:not([data-exec-open])';
+  for(const row of root.querySelectorAll(selector)){
+   const id=row.dataset.incId||row.dataset.safetyInc||row.dataset.readerOpen||row.dataset.statsInc;
+   const needed=ids.has(id),badge=row.querySelector('.exec-required-badge');
+   row.toggleAttribute('data-exec-required',needed);
+   if(needed&&!badge){
+    const slot=row.querySelector('.inc411-card-tags,.shell411-recent-status,.reader414-state,.state')||row;
+    slot.insertAdjacentHTML('beforeend',requiredBadge);
+   }else if(!needed&&badge)badge.remove();
   }
+ }
+ function updateApprovalQueue(root,u){
+  const executive=u?.role==='executive'&&u.active!==false;
+  const list=[],waiting=[];
+  if(executive)for(const i of data.incidents||[]){
+   if(!pendingReview(i))continue;
+   const a=i.executiveApproval;
+   if(policy().canDecide(a,u.id))list.push(i);
+   else{
+    const plan=policy().describe(a);
+    if(plan.stage==='parallel'&&plan.president.id===u.id&&!plan.approved(u.id))waiting.push(i);
+   }
+  }
+  const tab=document.querySelector('.shell411-nav [data-shell-view="incidents"]');
+  if(tab&&list.length){
+   const count=String(list.length);
+   if(tab.dataset.execCount!==count){
+    tab.dataset.execCount=count;
+    tab.setAttribute('aria-label','사고 조회, 내 결재필요 '+count+'건');
+   }
+  }else if(tab?.hasAttribute('data-exec-count')){
+   delete tab.dataset.execCount;tab.removeAttribute('aria-label');
+  }
+  markApprovalRows(root,new Set(list.map(i=>String(i.id))));
+  let box=root.querySelector('[data-executive-queue]');
+  if(!executive){box?.remove();return;}
+  if(!box){
+   box=document.createElement('section');box.dataset.executiveQueue='';box.className='panel';root.prepend(box);
+   box.addEventListener('click',event=>{const button=event.target.closest('[data-exec-open]');if(button)openIncidentModal(button.dataset.execOpen)});
+  }
+  const html='<h2>내 결재대기 '+list.length+'건</h2>'+list.map(i=>approvalRow(i,true)).join('')+
+   (waiting.length?'<p>경영진 결재 완료 후 최종결재 예정 '+waiting.length+'건</p>'+waiting.map(i=>approvalRow(i,false)).join(''):'');
+  if(queueMarkup.get(box)!==html){queueMarkup.set(box,html);box.innerHTML=html;}
+ }
+ function decorate(){
+  queued=false;const u=currentUser?.(),root=document.querySelector('#view');
+  if(root)updateApprovalQueue(root,u);
+  if(!u)return;
   const modal=document.querySelector('#modalRoot .modal');if(!modal)return;
   const id=modal.dataset.incidentView||modal.dataset.cumulativeIncident||modal.dataset.wf440Incident||modal.querySelector('[data-lifecycle-final]')?.dataset.lifecycleFinal;
   const i=(data.incidents||[]).find(x=>String(x.id)===String(id));if(!i)return;
   const sig=i.id+':'+i._syncVersion+':'+u.id;if(modal.dataset.executiveSignature===sig)return;modal.dataset.executiveSignature=sig;
   modal.querySelector('[data-executive-record]')?.remove();const box=document.createElement('section');box.dataset.executiveRecord='';box.className='panel';const a=i.executiveApproval;
   box.innerHTML=signatures(i)+(a?'<h3>'+(a.state==='pending'?stageLabel(a):a.state==='rejected'?'경영진 반려 / 안전관리자 재검토':'경영진 결재 완료')+'</h3>'+(a.state==='pending'&&policy().describe(a).stage==='parallel'?'<p>사장을 제외한 경영진은 순서 없이 결재합니다. 전원 완료 후 사장이 최종결재합니다.</p>':'')+(a.rejection&&a.state==='rejected'?'<p>반려 사유: '+e(a.rejection.note)+'</p>':''):'')+(i.officialRecord?.documentNumber?'<p>문서번호: <b>'+e(i.officialRecord.documentNumber)+'</b></p>':'');
-  if(u.role==='executive'&&policy().canDecide(a,u.id)){
+  if(u.role==='executive'&&u.active!==false&&pendingReview(i)&&policy().canDecide(a,u.id)){
    for(const [d,label] of [['approve',policy().describe(a).stage==='president'?'사장 최종결재':'결재 승인'],['reject','반려']]){const b=document.createElement('button');b.textContent=label;b.className=d==='approve'?'primary':'secondary';b.onclick=()=>decide(i,d,b);box.appendChild(b)}
   }
   if(i.status==='closed'&&['manager','executive','safety','final'].includes(u.role)){const b=document.createElement('button');b.textContent='종결보고서 PDF 출력';b.onclick=()=>printDocument(i);box.appendChild(b)}
   if((i.acknowledgements||[]).length){const old=document.createElement('details');old.dataset.priorApprovals='';old.innerHTML='<summary>과거 결재기록 (읽기 전용)</summary>'+i.acknowledgements.map(s=>'<p>'+e(s.name)+' / '+e(s.ackAt||s.readAt||'')+'</p>').join('');box.appendChild(old)}
   if(box.childNodes.length){const head=modal.querySelector('.modal-head');if(head)head.insertAdjacentElement('afterend',box);else modal.prepend(box);}
  }
- const style=document.createElement('style');style.textContent='[data-executive-record]{min-width:0;max-width:100%;box-sizing:border-box}[data-executive-record]>h3{font-size:14px}[data-executive-record]>p{font-size:12px}[data-executive-record] button,[data-executive-queue] button{min-height:44px;margin:5px;max-width:100%;white-space:normal}';document.head.appendChild(style);
- const queue=()=>{if(!queued){queued=true;requestAnimationFrame(decorate)}};new MutationObserver(queue).observe(document.body,{childList:true,subtree:true});queue();
+ const style=document.createElement('style');style.textContent='[data-executive-record]{min-width:0;max-width:100%;box-sizing:border-box}[data-executive-record]>h3{font-size:14px}[data-executive-record]>p{font-size:12px}[data-executive-record] button,[data-executive-queue] button{min-height:44px;margin:5px;max-width:100%;white-space:normal}';
+ style.textContent+=`
+ .shell411-nav button[data-exec-count]::after{content:attr(data-exec-count);display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 3px;margin-left:5px;border-radius:999px;background:#b4232c;color:#fff;font:bold 12px/1 Arial,sans-serif;vertical-align:middle;box-sizing:border-box}
+ .shell411-nav button[data-exec-count]>.enl424-nav-dot{display:none}
+ #view button[data-exec-required]{border:2px solid #b4232c;background:#fff8f8}
+ #view button[data-exec-required]:focus-visible{outline:3px solid #204e79;outline-offset:2px}
+ #view .exec-required-badge{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;box-sizing:border-box;flex:none;width:36px;height:36px;border-radius:50%;padding:0;background:#b4232c;color:white;font-size:11px;font-weight:800;line-height:1.15;text-align:center;vertical-align:middle;white-space:nowrap}
+ [data-executive-queue] .exec-queue-row{width:100%;margin:6px 0 0;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;padding:9px 10px;border-radius:10px;text-align:left;color:#263e52;cursor:pointer}
+ .exec-queue-text{display:grid;gap:3px;min-width:0;overflow-wrap:anywhere}.exec-queue-text strong{font-size:14px}.exec-queue-text small,.exec-queue-text>span{font-size:12px;font-weight:500}
+ .exec-queue-action{font-size:12px;font-weight:bold;color:#a5232c}
+ .stats426-drill-row .state .exec-required-badge{margin-left:4px}
+ `;document.head.appendChild(style);
+ const queue=()=>{if(!queued){queued=true;requestAnimationFrame(decorate)}};window.addEventListener('enl-incident-saved',queue);new MutationObserver(queue).observe(document.body,{childList:true,subtree:true});queue();
 })();
