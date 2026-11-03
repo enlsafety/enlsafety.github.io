@@ -132,7 +132,7 @@
   async function loadInquiries(u,filter=''){
     const a=actor(u),safety=a?.role==='safety',deletedView=filter==='deleted',box=document.getElementById('wf412InquiryList');if(!a||!box)return;
     try{
-      const r=await api(safety?{action:'inquiry_safety_list',actor:a,status:deletedView?'':filter,deleted:deletedView}:{action:'inquiry_my_list',actor:a});const list=r.inquiries||[];box.innerHTML=list.length?list.map(x=>inquiryCard(x,safety,deletedView)).join(''):'<div class="wf412-empty">등록된 문의사항이 없습니다.</div>';
+      const r=await api(safety?{action:'inquiry_safety_list',actor:a,status:deletedView?'':filter,deleted:deletedView}:{action:'inquiry_my_list',actor:a});const list=r.inquiries||[];const newCount=safety&&!deletedView?list.filter(x=>x.status==='new'&&!x.deleted_at).length:0;box.innerHTML=list.length?(newCount?`<strong class="task-chip">이 목록에서 열람할 새 문의 ${newCount}건</strong>`:'')+list.map(x=>inquiryCard(x,safety,deletedView)).join(''):'<div class="wf412-empty">등록된 문의사항이 없습니다.</div>';
       if(!safety)return;
       box.querySelectorAll('[data-wf-inq-read]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{await api({action:'inquiry_read',actor:a,inquiryId:b.dataset.wfInqRead});await loadInquiries(u,filter);markInquiryButton()}catch(e){b.disabled=false;alert('열람 처리를 저장하지 못했습니다.')}});
       box.querySelectorAll('[data-wf-inq-close]').forEach(b=>b.onclick=async()=>{if(!confirm('이 문의를 처리완료로 표시할까요?'))return;b.disabled=true;try{await api({action:'inquiry_close',actor:a,inquiryId:b.dataset.wfInqClose});await loadInquiries(u,filter);markInquiryButton()}catch(e){b.disabled=false;alert('처리완료 상태를 저장하지 못했습니다.')}});

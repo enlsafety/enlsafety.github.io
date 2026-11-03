@@ -253,3 +253,14 @@ body.safety-ui {background:var(--canvas);color:var(--ink)}
   .safety-ui #app :is(.stats426-card,.shell411-stat>button,.field-six-grid .field-six-btn) {padding:12px!important}
   .safety-ui #app :is(.field-six-grid .field-six-btn,.stats426-card,.shell411-stat>button)::before {width:24px;height:24px;right:9px;top:12px}
 }
+
+/* Home restores the saved viewport after its asynchronous navigation badges render. */
+body.safety-ui:has(.shell411-safety-home) {overflow-anchor:none}
+
+.safety-ui #app .won-entry {position:relative;display:block;width:100%}
+.safety-ui #app .won-entry input {width:100%;padding-right:34px}
+.safety-ui #app .won-entry>small {display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);font-weight:600;color:var(--mute);pointer-events:none}
+.safety-ui #app .won-entry.has-amount>small {display:block}
+.safety-ui #app .wf412-inq.new {border:2px solid #b42335}
+.safety-ui #app :is(.wf412-nav-badge,.exec-tab-count) {position:relative;z-index:8}
+.safety-ui #app #prev429PlanForm button[type=submit] {outline:2px solid #b42335;outline-offset:2px}

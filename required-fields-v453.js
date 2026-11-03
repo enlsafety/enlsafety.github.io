@@ -68,6 +68,7 @@
 
   function formatWon(input){
     const raw=input.value, digits=raw.replace(/,/g,'');
+    if(input.parentElement?.classList.contains('won-entry'))input.parentElement.classList.toggle('has-amount',/^\d+$/.test(digits));
     const valid=!raw||raw===input.dataset.autoPending||/^\d+$/.test(digits);
     input.setCustomValidity(valid?'':'금액은 0 이상의 정수로 입력해 주세요.');
     if(!/^\d+$/.test(digits))return;
