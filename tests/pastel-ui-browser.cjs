@@ -6,7 +6,7 @@ const {chromium,webkit}=require('playwright');
 
 const root=process.cwd(),origin='http://ui.localhost',capture=process.env.UI_CAPTURE_DIR;
 const types={'.html':'text/html','.js':'application/javascript','.css':'text/css','.json':'application/json','.svg':'image/svg+xml','.png':'image/png'};
-const sites=['가람CC','솔빛CC','새솔연구소','해솔물류센터'].map((site_name,index)=>({site_id:'s0'+(index+1),site_name,active:true}));
+const sites=['가람CC','솔빛CC','새솔연구소','해솔물류센터'].map((site_name,index)=>({site_id:'s0'+(index+1),site_name,active:true,manager_name:'검수 소장',manager_phone:'',part_name:'',part_phone:'',clerk_name:'',clerk_phone:'',safety_agency:'',agency_manager:'',agency_phone:''}));
 const cases=[
   ['sample-1','s01','property','approved','작업 차량 접촉'],
   ['sample-2','s01','person','reported','이동 중 넘어짐'],
@@ -87,7 +87,10 @@ async function check(engine,width,name){
     }
     await c.close();
     const field=await tab(browser,width,'field');
-    await field.p.locator('[data-field-task="accident_report"]').waitFor();await noOverflow(field.p);await image(field.p,name+'-field-home');
+    await field.p.locator('[data-field-task="accident_report"]').waitFor();
+    await field.p.evaluate(()=>enlIncidentPullNow(false));
+    await field.p.waitForFunction(()=>data.incidents.some(i=>i.id==='sample-1'&&i.corrective?.status==='planned'));
+    await noOverflow(field.p);await image(field.p,name+'-field-home');
     await field.p.locator('[data-field-task="accident_report"]').click();await field.p.locator('button[data-report-type="person"]').click();
     await field.p.locator('#unifiedReportForm').waitFor();await noOverflow(field.p);await image(field.p,name+'-report');
     assert.equal(await field.p.locator('#occurredDate410').count(),1);
