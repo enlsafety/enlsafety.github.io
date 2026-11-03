@@ -174,7 +174,61 @@
     if(c.reviewNote||c.reviewedAt||i.closedAt)add('E','안전관리자 조치 확인',reportRow('처리 상태',i.status==='closed'?'종결':i.executiveApproval?.state==='pending'?'경영진 결재대기':c.status==='rejected'?'보완요청':'검토 중')+reportRow('확인 / 보완요청 의견',c.reviewNote)+reportRow('확인자 / 일시',[c.reviewedBy,c.reviewedAt&&fmt(c.reviewedAt)].filter(Boolean).join(' · '))+reportRow('종결 일시',i.closedAt&&fmt(i.closedAt)));
     return `<article class="report410-cumulative" data-report-id="${esc(i.id)}">${parts.join('')}</article>`;
   }
+  // Arrange existing controls in the same two-column table as the approval report.
+  // Move nodes so labels, draft listeners, upload controls and validation keep their identity.
+  function layoutReportTables(root){
+    if(!root)return;
+    const groups='.report410-cumulative,.report410-section,.report410-stage,.report410-readonly,.report410-grid,.formgrid,.wf440-form-grid,.wf440-cause,.inc411-priority-box,.report410-history,#wf440SupplementForm';
+    function arrange(container){
+      let table=null,body=null;
+      for(const child of [...container.children]){
+        if(child.matches('table,[data-executive-summary]')){table=null;continue;}
+        if(child.matches(groups)){arrange(child);table=null;continue;}
+        const label=child.matches('label')&&child.querySelector('input,select,textarea,.report410-read-value');
+        const record=child.matches('.report410-record-row');
+        if(!label&&!record){table=null;continue;}
+        if(!table){
+          table=document.createElement('table');table.className='inc411-summary-table report410-work-table';
+          body=table.createTBody();child.before(table);
+          container.classList.add('report410-table-group');
+        }
+        const row=body.insertRow(),heading=document.createElement('th'),cell=document.createElement('td');
+        heading.scope='row';row.append(heading,cell);
+        if(record){
+          heading.append(...child.querySelector('b').childNodes);
+          cell.append(...child.querySelector('div').childNodes);
+          child.remove();continue;
+        }
+        let name=child.querySelector(':scope > span:not(.won-entry):not(.report410-picker-wrap)');
+        if(!name){
+          name=document.createElement('span');
+          for(const node of [...child.childNodes])if(node.nodeType===Node.TEXT_NODE)name.append(node);
+          child.prepend(name);
+        }
+        const check=child.querySelector('input[type="checkbox"]');
+        heading.textContent=check?'추가 확인':name.textContent;
+        if(!check)name.classList.add('report410-field-name');
+        cell.append(child);
+      }
+    }
+    root.querySelectorAll('.inc411-overview:not(.report410-table-group)').forEach(overview=>{
+      const table=document.createElement('table');table.className='inc411-summary-table report410-work-table';const body=table.createTBody();
+      for(const item of [...overview.children]){
+        const name=item.querySelector(':scope > span');if(!name)continue;
+        const row=body.insertRow(),heading=document.createElement('th'),cell=document.createElement('td');heading.scope='row';heading.append(...name.childNodes);name.remove();cell.append(...item.childNodes);Object.assign(row.dataset,item.dataset);row.append(heading,cell);
+      }
+      overview.replaceChildren(table);overview.classList.add('report410-table-group');
+    });
+    arrange(root);
+    root.querySelectorAll('.report410-work-table td>label>.report410-field-name').forEach(name=>{
+      const heading=name.closest('td').previousElementSibling;
+      if(heading.textContent!==name.textContent)heading.textContent=name.textContent;
+    });
+  }
+  window.enlLayoutReportTables=layoutReportTables;
+
   function bindCumulativeReport(root,i){
+    layoutReportTables(root);
     const groups={photos:i.photos||[],supplement:i.supplement?.attachments||[],action:i.corrective?.afterPhotos||[]};
     root.querySelectorAll('[data-report-files]').forEach(el=>window.enlBindAttachmentOpen?.(el,groups[el.dataset.reportFiles]||[]));
   }
@@ -205,6 +259,7 @@
       if(i.corrective){const past=document.createElement('div');past.innerHTML=cumulativeReportHtml(i,{from:'C'});submit.before(past);bindCumulativeReport(past,i);}
       if(accepted(i)){form.dataset.reportCorrection='1';for(const el of form.querySelectorAll('[required]'))if(!el.value&&el.id!=='safetyFactEditReason'){el.required=false;el.dataset.allowExistingBlank='1';}const priority=form.querySelector('#priorityManual411');if(priority)priority.disabled=true;}
     }
+    if(editing)layoutReportTables(root.querySelector('#unifiedReportForm'));
     incidentPhotos=editing&&Array.isArray(i.photos)?[...i.photos]:[];renderPhotoThumbs('incident');bindPhotoButtons();
     if(editing){const site=document.getElementById('reportSite');if(site){site.disabled=true;site.title='이미 등록된 사고의 사업장은 수정할 수 없습니다.';}}
     if(person){const leave=document.getElementById('leaveEstimate');if(leave)leave.value=i?.leaveEstimate||'unknown'}

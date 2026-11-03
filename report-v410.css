@@ -49,3 +49,28 @@
 @media(max-width:520px){.inc411-summary-table th{width:clamp(6rem,27vw,7rem)}.inc411-summary-table th,.inc411-summary-table td{padding:7px 8px}}
 
 .inc411-brief-original{margin-top:5px;font-size:.88em}.inc411-brief-original summary{color:#34536b;cursor:pointer}.inc411-brief-original[open] div{margin-top:5px;padding:6px 0;border-top:1px solid #d4dfe6}
+
+/* Screen workflow forms share the approval report's field/value table. */
+@media screen {
+  .report410-work-table {margin:0 0 10px}
+  .report410-table-group.inc411-overview,.report410-table-group.report410-grid,.report410-table-group.formgrid,.report410-table-group.wf440-form-grid {display:block}
+  .inc411-overview.report410-table-group b {margin:0}
+  .report410-work-table th {font-weight:700}
+  .report410-work-table td {min-width:0;white-space:normal}
+  .report410-work-table td>label {display:block!important;margin:0!important;padding:0!important;min-width:0}
+  .report410-work-table .report410-field-name {
+    position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;
+    overflow:hidden!important;clip-path:inset(50%)!important;white-space:nowrap!important
+  }
+  .report410-work-table :is(input:not([type=checkbox]),select,textarea) {width:100%;min-width:0;max-width:100%;box-sizing:border-box;font-size:16px}
+  .report410-work-table :is(input:not([type=checkbox]),select) {min-height:44px}
+  .report410-work-table textarea {display:block;min-height:88px;resize:vertical;line-height:1.6}
+  .report410-work-table .report410-read-value {min-height:0;padding:0;border:0;background:transparent;white-space:pre-wrap}
+  .report410-work-table .report410-picker-wrap {width:100%;min-width:0}
+  .report410-work-table .report410-picker-placeholder {left:10px;right:10px}
+  .report410-work-table td:has(.enl432-required-empty) {background:#fff7f7}
+  .report410-work-table tr:has(.enl432-required-empty)>th {color:#a91d30}
+  .report410-work-table td:has(.report410-read-value) {white-space:pre-wrap}
+  .report410-cumulative .report410-readonly .report410-section {padding:0;border:0;background:transparent;box-shadow:none}
+  .report410-cumulative .report410-readonly .report410-section-head {margin:10px 0 6px}
+}

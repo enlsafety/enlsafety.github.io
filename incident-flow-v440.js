@@ -126,6 +126,7 @@
       ['medicalCostDetail410','진료비 상세내역 (사후 보완 가능)']
     ];
     deferred.forEach(([id,label])=>{const el=form.querySelector('#'+id);if(!el)return;el.required=false;const sp=el.closest('label')?.querySelector('span');if(sp)sp.textContent=label});
+    if(form.dataset.editing==='true')window.enlLayoutReportTables?.(form);
     if(!form.dataset.wf440Bound){form.dataset.wf440Bound='1';form.addEventListener('input',e=>fieldState(e.target),true);form.addEventListener('change',e=>fieldState(e.target),true)}
   }
 
@@ -207,6 +208,7 @@
         <button class="primary full" type="submit" style="margin-top:11px">보완완료 · 안전관리자 검토요청</button>
       </form>`);
     const form=document.getElementById('wf440SupplementForm');if(!form)return;
+    window.enlLayoutReportTables?.(form);
     if(i.category==='person'){const leave=form.querySelector('#wf440Leave');if(leave)leave.value=i.leaveEstimate||d.leaveEstimate||''}
     renderSupplementFiles(form);validateSupplementVisual(form);
     form.addEventListener('input',e=>fieldState(e.target),true);form.addEventListener('change',e=>fieldState(e.target),true);
@@ -330,6 +332,7 @@
       +'<button type="button" data-wf440-cause-generate>사고보고 내용으로 초안 다시 작성</button>'
       +'<p data-wf440-cause-message role="alert" aria-live="polite"></p>'
       +'<button type="button" data-wf440-cause-save>원인분석 별도 저장</button>';
+    window.enlLayoutReportTables?.(panel);
     return panel;
   }
   function bindCausePanel(panel,i){

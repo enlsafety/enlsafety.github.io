@@ -149,6 +149,7 @@
     if(historical){window.enlMountHistoricalFollowups?.(document.getElementById('modalRoot'),i,viewer);return;}
     if(hqReader)return;
     if(!safety)return;
+    window.enlLayoutReportTables?.(document.querySelector('#modalRoot .modal'));
     const note=()=>document.getElementById('safetyNoteEdit')?.value.trim()||'';
     const applyPriority=()=>{const p=document.getElementById('priorityEdit411')?.value;if(['normal','important','urgent'].includes(p)){i.priority=p;i.prioritySource='manual';i.prioritySetBy=viewer.name;i.prioritySetAt=nowISO()}};
     const saveAndRefresh=()=>{applyPriority();i.updatedAt=nowISO();saveData();closeModal();renderShell(viewer)};

@@ -251,6 +251,7 @@
   function mountDocument(i,target){
     const root=document.querySelector('#modalRoot .modal');if(!root)return;
     root.dataset.cumulativeIncident=i.id;
+    window.enlLayoutReportTables?.(root);
     window.enlBindCumulativeReport?.(root,i);
     root.querySelectorAll('[data-submission-files]').forEach(el=>bindAttachments(el,i.corrective?.submissions?.[Number(el.dataset.submissionFiles)]?.afterPhotos||[]));
     if(target)window.enlScrollReportStage?.(root,target);
