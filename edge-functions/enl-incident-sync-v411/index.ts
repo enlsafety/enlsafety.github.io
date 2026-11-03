@@ -269,18 +269,20 @@ Deno.serve(async(req:Request)=>{
     }
 
     if(action==="executive_decide"||action==="final_document"){
-      if(!["safety","manager","executive"].includes(actor.role))return json({ok:false,message:"forbidden"},403);
+      const fieldPrint=action==="final_document"&&actor.role==="field"&&["현장소장","파트장","서무"].includes(clean(actor.position));
+      if(!["safety","manager","executive"].includes(actor.role)&&!fieldPrint)return json({ok:false,message:"forbidden"},403);
       const incidentId=clean(body.incidentId);
       return await sql.begin(async(sql:any)=>{
         await sql`select set_config('enl.actor',${JSON.stringify({id:actor.id,role:actor.role})},true)`;
         const rr=await sql`select site_id,payload from public.enl_incident_active where incident_id=${incidentId} for update`,row=rr[0],prev=parsePayload(row?.payload);
         if(!prev)return json({ok:false,message:"not_found"},404);
         if(action==="final_document"){
+          if(fieldPrint&&(!actor.siteId||clean(row.site_id)!==actor.siteId||clean(prev.siteId)!==actor.siteId))return json({ok:false,message:"forbidden"},403);
           if(prev.status!=="closed")return json({ok:false,message:"closed_required"},409);
           const records=await sql`select payload,document_number from public.enl_final_documents where incident_id=${incidentId}`;
           const record=records[0]?.payload||prev;
           await sql`insert into public.enl_document_views(incident_id,document_type,viewer_id,viewer_name,viewer_role,first_viewed_at) values(${incidentId},'final_pdf',${actor.id},${actor.name},${actor.role},${now}) on conflict do nothing`;
-          return json({ok:true,incident:actor.role==='safety'?record:readerIncident(record),documentNumber:records[0]?.document_number||null,archived:!!records.length});
+          return json({ok:true,incident:actor.role==='safety'||fieldPrint?record:readerIncident(record),documentNumber:records[0]?.document_number||null,archived:!!records.length});
         }
         if(actor.role!=="executive")return json({ok:false,message:"forbidden"},403);
         const ap=prev.executiveApproval;

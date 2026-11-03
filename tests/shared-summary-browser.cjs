@@ -72,6 +72,12 @@ async function sharedSummary(engine,width,name){
     assert.equal(await table.locator('caption').innerText(),'사고 경위서');
     for(const fact of [details.place,details.workAction,details.incidentHow,'검수 소장'])assert.ok((await table.innerText()).includes(fact),role+' '+i.id+' '+fact);
     if(i.category==='property')assert.ok((await table.innerText()).includes('96,250원'));
+    if(role==='field'){
+     assert.equal(await p.locator('#modalRoot [data-official439-excel],#modalRoot [data-excel421-id]').count(),0,'field has no Excel export');
+     if(i.status==='closed')await p.locator('#modalRoot [data-final-pdf]').waitFor();
+     else assert.equal(await p.locator('#modalRoot [data-final-pdf]').count(),0,'only closed records printable');
+    }
+    if(i.category==='property')assert.equal(await table.locator('.inc411-cost-fact td').first().evaluate(el=>getComputedStyle(el).fontWeight),'700');
     assert.equal(await p.locator('#modalRoot .report410-readonly:visible').count(),0,'raw form is collapsed for '+role);
     assert.equal(await p.locator('#modalRoot .inc411-overview').count(),0,'no duplicate overview');
     assert.equal(await p.locator('#modalRoot .report410-cumulative,#modalRoot [data-report-stage="A"],#modalRoot [data-report-stage="C"],#modalRoot [data-report-stage="D"],#modalRoot [data-report-stage="E"]').count(),0,'record lookup must not show A-E document sections');

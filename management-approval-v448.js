@@ -33,6 +33,7 @@
   try{const r=await window.enlIncidentApi({action:'executive_decide',incidentId:i.id,expectedVersion:i._syncVersion,approvalRound:i.executiveApproval.round,actor:requestActor,decision,note:note||''});if(currentUser()?.id!==requestActor.id)return;window.enlAcceptSavedIncident(r.incident);closeModal();renderShell(currentUser());alert(r.incident.status==='closed'?'사장 최종결재가 완료되어 종결되었습니다. 문서번호: '+r.incident.officialRecord.documentNumber:decision==='reject'?'안전관리자에게 재검토를 요청했습니다.':r.incident.executiveApproval.stage==='president'?'경영진 결재가 모두 완료되어 사장 최종결재를 요청했습니다.':'결재를 완료했습니다. 다른 경영진의 결재를 기다립니다.');}catch(err){alert(error(err));}finally{button.disabled=false;}
  }
  async function printDocument(i){
+  if(!canPrintFinal(i,currentUser?.()))return alert('이 종결보고서를 출력할 권한이 없습니다.');
   const win=window.open('','_blank');if(!win)return alert('팝업을 허용한 뒤 다시 눌러 주세요.');win.document.body.textContent='서버의 종결 기록을 불러오는 중입니다.';
   try{
    const viewer=actor();
@@ -40,7 +41,7 @@
    const reads=await window.enlIncidentReaderList?.(i.id).catch(()=>null);
    if(viewer.id!==currentUser()?.id||viewer.role!==currentUser()?.role)throw new Error('로그인 계정이 변경되었습니다.');
    const report=window.enlCumulativeReportHtml(record);
-   win.document.open();win.document.write('<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+e(r.documentNumber||'기존 종결 사고기록')+'</title><style>@page{size:A4;margin:14mm}*{box-sizing:border-box}body{font:14px/1.6 Arial,"Malgun Gothic",sans-serif;color:#182f42;margin:20px;overflow-wrap:anywhere}h1{font-size:24px}h3{font-size:17px;background:#eaf3fa;padding:8px}.report410-record-row{display:grid;grid-template-columns:145px 1fr;border-bottom:1px solid #d9e2e9;padding:7px;white-space:pre-wrap}.report410-record-row b{padding-right:12px}.report410-stage{margin:18px 0}.report410-section{margin:12px 0}.report410-section-head{font-weight:bold;padding:5px 0;border-bottom:2px solid #a8baca;break-after:avoid}.report410-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.report410-wide{grid-column:1/-1}.lbl,.report410-check{display:block;margin:6px 0;break-inside:avoid}.lbl>span,.report410-check>span{display:block;font-size:12px;font-weight:bold;color:#486275}.report410-read-value{white-space:pre-wrap;padding:4px 0;border-bottom:1px solid #d9e2e9;min-height:25px}.report410-record-row{break-inside:avoid}small{font-size:12px}@media screen and (max-width:500px){body{margin:12px}.report410-grid{display:block}.report410-record-row{grid-template-columns:105px 1fr}}img{max-width:100%;max-height:220mm;object-fit:contain}table{width:100%;border-collapse:collapse}th,td{border:1px solid #b8c8d5;padding:8px;text-align:left}tr,img{break-inside:avoid}button{padding:12px;margin:4px;cursor:pointer}.attach-open411,.attach-remove411,iframe{display:none}.attach-grid411{display:block}.attach-card411{margin:10px 0}.attach-file411{border:1px solid #ddd;padding:8px}@media print{body{margin:0}.print-tools{display:none}h3{break-after:avoid}a{color:inherit}}'+(window.ENLApprovalSheet?.css||'')+'</style></head><body><div class="print-tools"><button id="print" disabled>사진 불러오는 중</button><p>인쇄 대상에서 PDF 저장을 선택하세요. PDF 첨부파일은 원본 파일을 별도로 확인해 주세요.</p></div>'+signatures(record,reads)+'<h1>이앤엘 사고 종결보고서</h1><p>문서번호: '+e(r.documentNumber||'기존 종결기록 (자동채번 시행 전)')+'<br>종결일시: '+e(time(record.closedAt))+'</p>'+report+'<p>이 문서는 '+(r.archived?'최종 결재 당시 보존된 기록':'기존 종결 기록')+'을 출력한 것입니다.</p></body></html>');win.document.close();win.document.getElementById('print').onclick=()=>win.print();
+   win.document.open();win.document.write('<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+e(r.documentNumber||'기존 종결 사고기록')+'</title><style>@page{size:A4;margin:14mm}*{box-sizing:border-box}body{font:14px/1.6 Arial,"Malgun Gothic",sans-serif;color:#182f42;margin:20px;overflow-wrap:anywhere}h1{font-size:24px}h3{font-size:17px;background:#eaf3fa;padding:8px}.report410-record-row{display:grid;grid-template-columns:145px 1fr;border-bottom:1px solid #d9e2e9;padding:7px;white-space:pre-wrap}.report410-record-row b{padding-right:12px}.report410-stage{margin:18px 0}.report410-section{margin:12px 0}.report410-section-head{font-weight:bold;padding:5px 0;border-bottom:2px solid #a8baca;break-after:avoid}.report410-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}.report410-wide{grid-column:1/-1}.lbl,.report410-check{display:block;margin:6px 0;break-inside:avoid}.lbl>span,.report410-check>span{display:block;font-size:12px;font-weight:bold;color:#486275}.report410-read-value{white-space:pre-wrap;padding:4px 0;border-bottom:1px solid #d9e2e9;min-height:25px}.report410-record-row{break-inside:avoid}.report410-cost-value,.inc411-cost-fact th,.inc411-cost-fact td{font-weight:700}small{font-size:12px}@media screen and (max-width:500px){body{margin:12px}.report410-grid{display:block}.report410-record-row{grid-template-columns:105px 1fr}}img{max-width:100%;max-height:220mm;object-fit:contain}table{width:100%;border-collapse:collapse}th,td{border:1px solid #b8c8d5;padding:8px;text-align:left}tr,img{break-inside:avoid}button{padding:12px;margin:4px;cursor:pointer}.attach-open411,.attach-remove411,iframe{display:none}.attach-grid411{display:block}.attach-card411{margin:10px 0}.attach-file411{border:1px solid #ddd;padding:8px}@media print{body{margin:0}.print-tools{display:none}h3{break-after:avoid}a{color:inherit}}'+(window.ENLApprovalSheet?.css||'')+'</style></head><body><div class="print-tools"><button id="print" disabled>사진 불러오는 중</button><p>인쇄 대상에서 PDF 저장을 선택하세요. PDF 첨부파일은 원본 파일을 별도로 확인해 주세요.</p></div>'+signatures(record,reads)+'<h1>이앤엘 사고 종결보고서</h1><p>문서번호: '+e(r.documentNumber||'기존 종결기록 (자동채번 시행 전)')+'<br>종결일시: '+e(time(record.closedAt))+'</p>'+report+'<p>이 문서는 '+(r.archived?'최종 결재 당시 보존된 기록':'기존 종결 기록')+'을 출력한 것입니다.</p></body></html>');win.document.close();win.document.getElementById('print').onclick=()=>win.print();
    const all=[...(record.photos||[]),...(record.supplement?.attachments||[]),...(record.corrective?.afterPhotos||[])];
    // Hydrate protected images using the same authorized signing service as the app.
    const paths=all.filter(x=>x&&typeof x==='object'&&x.path).map(x=>x.path);
@@ -63,6 +64,8 @@
  const queueMarkup=new WeakMap();
  const labels={required:'결재필요',scheduled:'결재대기',tracking:'결재대기',signed:'결재완료',completed:'결재완료'};
  const pendingReview=i=>i?.status==='approved'&&i.corrective?.status==='approved'&&i.executiveApproval?.state==='pending';
+ const awaitingSafety=i=>!!i&&!i.bulkInvalidation?.active&&['reported','supplement','supplement_submitted','approved'].includes(i.status)&&!pendingReview(i);
+ const canPrintFinal=(i,u)=>i?.status==='closed'&&u?.active!==false&&(['manager','executive','safety','final'].includes(u?.role)||(u?.role==='field'&&['현장소장','파트장','서무'].includes(u.position||u.jobTitle)&&!!u.siteId&&String(i.siteId)===String(u.siteId)));
  function badge(kind){
   const label=labels[kind];
   const detail=kind==='signed'?'본인 결재 완료':kind==='completed'?'최종결재 완료':label;
@@ -92,11 +95,12 @@
  }
  function updateApprovalQueue(root,u){
   const executive=u?.role==='executive'&&u.active!==false,safety=u?.role==='safety'&&u.active!==false;
-  const list=[],waiting=[],kinds=new Map();
+  const list=[],waiting=[],preparing=[],kinds=new Map();
   const reader=['manager','final'].includes(u?.role)&&u.active!==false;
   if(executive||safety||reader)for(const i of data.incidents||[]){
    const a=i.executiveApproval,id=String(i.id);
    if(i.status==='closed'&&a?.state==='approved'){kinds.set(id,'completed');continue;}
+   if(executive&&awaitingSafety(i)){kinds.set(id,'tracking');preparing.push(i);continue;}
    if(!pendingReview(i))continue;
    const plan=policy().describe(a);
    if(!plan.valid)continue;
@@ -109,7 +113,7 @@
    kinds.set(id,kind);
    (kind==='scheduled'?waiting:list).push(i);
   }
-  const outstanding=list.length+waiting.length;
+  const outstanding=list.length+waiting.length+preparing.length;
   const tab=document.querySelector('.shell411-nav [data-shell-view="incidents"]');
   if(tab){
    const total=executive?outstanding:0;
@@ -118,7 +122,7 @@
     if(!number){number=document.createElement('span');number.className='exec-tab-count';number.setAttribute('aria-hidden','true');tab.appendChild(number);}
     if(number.textContent!==String(total))number.textContent=String(total);
     tab.dataset.execCount=String(total);
-    tab.setAttribute('aria-label','사고 조회, 결재필요 '+list.length+'건, 결재대기 '+waiting.length+'건');
+    tab.setAttribute('aria-label','사고 조회, 결재필요 '+list.length+'건, 결재대기 '+(waiting.length+preparing.length)+'건');
    }else if(number||tab.hasAttribute('data-exec-count')){
     number?.remove();delete tab.dataset.execCount;tab.removeAttribute('aria-label');
    }
@@ -132,7 +136,8 @@
   }
   const count=outstanding?'<span class="exec-tab-count">'+outstanding+'</span>':'0건';
   const html='<h2>'+(safety?'경영진 결재현황':'내 결재')+' '+count+'</h2>'+list.map(i=>approvalRow(i,kinds.get(String(i.id)))).join('')+
-   (waiting.length?'<p>사장 최종결재 대기 '+waiting.length+'건</p>'+waiting.map(i=>approvalRow(i,'scheduled')).join(''):'');
+   (waiting.length?'<p>사장 최종결재 대기 '+waiting.length+'건</p>'+waiting.map(i=>approvalRow(i,'scheduled')).join(''):'')+
+   (preparing.length?'<p>안전관리자 승인 전 결재대기 '+preparing.length+'건</p><p>사고보고와 재발방지조치에 대한 안전관리자 승인 후 결재할 수 있습니다.</p>'+preparing.map(i=>approvalRow(i,'tracking')).join(''):'');
   if(queueMarkup.get(box)!==html){queueMarkup.set(box,html);box.innerHTML=html;}
  }
  function decorate(){
@@ -148,7 +153,8 @@
   if(u.role==='executive'&&u.active!==false&&pendingReview(i)&&policy().canDecide(a,u.id)){
    for(const [d,label] of [['approve',policy().describe(a).stage==='president'?'사장 최종결재':'결재 승인'],['reject','반려']]){const b=document.createElement('button');b.textContent=label;b.className=d==='approve'?'primary':'secondary';b.onclick=()=>decide(i,d,b);box.appendChild(b)}
   }
-  if(i.status==='closed'&&['manager','executive','safety','final'].includes(u.role)){const b=document.createElement('button');b.dataset.finalPdf='';b.textContent='종결보고서 PDF 출력';b.onclick=()=>printDocument(i);box.appendChild(b)}
+  if(u.role==='executive'&&awaitingSafety(i)){const p=document.createElement('p');p.textContent='결재대기: 사고보고와 재발방지조치에 대한 안전관리자 승인 후 결재할 수 있습니다.';box.appendChild(p)}
+  if(canPrintFinal(i,u)){const b=document.createElement('button');b.dataset.finalPdf='';b.textContent=u.role==='field'?'종결사고 결재본 PDF 출력':'종결보고서 PDF 출력';b.onclick=()=>printDocument(i);box.appendChild(b)}
   if((i.acknowledgements||[]).length){const old=document.createElement('details');old.dataset.priorApprovals='';old.innerHTML='<summary>과거 결재기록 (읽기 전용)</summary>'+i.acknowledgements.map(s=>'<p>'+e(s.name)+' / '+e(s.ackAt||s.readAt||'')+'</p>').join('');box.appendChild(old)}
   if(box.childNodes.length){const head=modal.querySelector('.modal-head');if(head)head.insertAdjacentElement('afterend',box);else modal.prepend(box);refreshReads(modal,i.id);}
  }

@@ -92,7 +92,7 @@ assert.match(main(build(pending)),/<c r="I10" s="4" t="inlineStr"><is><t xml:spa
 // Exercise the actual download path with popup opening forbidden and role changes.
 const urls=[],clicks=[],revoked=[],alerts=[],timers=[];
 scope.data={incidents:[fixture]};
-scope.window.currentUser=()=>({id:'field',role:'field'});
+scope.window.currentUser=()=>({id:'safety',role:'safety'});
 scope.window.enlCanViewIncidentOriginal=()=>true;
 scope.window.open=()=>{throw Error('popup forbidden')};
 scope.alert=message=>alerts.push(message);
@@ -104,6 +104,10 @@ scope.window.enlDownloadOnePageIncidentExcel(fixture.id,button);
 assert.equal(clicks.length,1);assert.match(clicks[0],/2026-10-23.*\.xlsx$/);
 assert.equal(alerts.length,0);assert.equal(button.disabled,false);
 assert.equal(timers[0].ms,60000);timers[0].fn();assert.deepEqual(revoked,['blob:qa']);
+scope.window.currentUser=()=>({id:'field',role:'field'});
+scope.window.enlDownloadOnePageIncidentExcel(fixture.id,button);
+assert.equal(clicks.length,1);assert.match(alerts.pop(),/권한/);
+scope.window.currentUser=()=>({id:'safety',role:'safety'});
 scope.window.enlCanViewIncidentOriginal=()=>false;
 scope.window.enlDownloadOnePageIncidentExcel(fixture.id,button);
 assert.equal(clicks.length,1);assert.match(alerts.pop(),/권한/);

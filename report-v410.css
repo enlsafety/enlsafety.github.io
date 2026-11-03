@@ -88,3 +88,6 @@
     .report410-entry-table .report410-work-table th,.report410-entry-table .report410-work-table td {padding:7px 6px}
   }
 }
+
+.report410-readonly .report410-read-value.report410-cost-value{font-weight:700}
+.inc411-summary-table .inc411-cost-fact th,.inc411-summary-table .inc411-cost-fact td{font-weight:700}

@@ -217,7 +217,7 @@
     try {
       const i = (typeof data !== 'undefined' ? data.incidents || [] : []).find(x => String(x.id) === String(id));
       const user = window.currentUser?.();
-      if (!i || !user || !window.enlCanViewIncidentOriginal?.(i,user)) throw new Error('이 사고보고서를 열람할 권한이 없습니다.');
+      if (!i || !user || !['safety','manager','executive','final'].includes(user.role) || !window.enlCanViewIncidentOriginal?.(i,user)) throw new Error('이 사고보고서를 열람할 권한이 없습니다.');
       if (button) { button.disabled = true; button.textContent = '엑셀 파일 생성 중…'; }
       let source=i;
       if (['executive','manager','final'].includes(user.role)) {
