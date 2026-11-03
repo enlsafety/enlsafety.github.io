@@ -241,7 +241,7 @@
   }
 
   function historyPush(c,entry){c.reviewHistory=Array.isArray(c.reviewHistory)?c.reviewHistory:[];c.reviewHistory.push(entry)}
-  function cumulative(i,options){return window.enlCumulativeReportHtml?.(i,options)||overview(i);}
+  function cumulative(i,options){return window.enlCumulativeReportHtml?.(i,{...options,presentation:'screen',includeOriginal:isSafety(currentUser())||isField(currentUser())})||overview(i);}
   const modalHead=(i,title)=>`<div class="modal-head"><div><h2>${ex(siteName(i.siteId))} · ${title}</h2><div style="margin-top:7px">${preventionBadge(i)}</div></div><button class="x" data-close>×</button></div>`;
   function historyHtml(c){
     const submissions=c.submissions||[],reviews=(c.reviewHistory||[]).filter(x=>/rejected|confirmed/.test(x.action||''));

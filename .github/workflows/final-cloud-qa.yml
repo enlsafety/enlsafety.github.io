@@ -1,7 +1,7 @@
 name: final isolated cloud QA
 on:
   push:
-    branches: [main]
+    branches: [main, qa/shared-summary-4813r7]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   isolated:
-    if: github.event_name != 'push'
+    if: github.event_name != 'push' || github.ref == 'refs/heads/qa/shared-summary-4813r7'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -30,7 +30,7 @@ jobs:
       - run: npx playwright install --with-deps chromium webkit
       - run: pip install openpyxl==3.1.5 pillow==11.1.0
       - name: Actual Edge, isolated database, role and browser regressions
-        run: node tests/final-cloud-run.cjs
+        run: UI_CAPTURE_DIR=qa-output/shared-summary node tests/final-cloud-run.cjs
       - name: Actual downloaded XLSX OOXML and formatting validation
         if: always()
         run: python tests/final-excel-validate.py

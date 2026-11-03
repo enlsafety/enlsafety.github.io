@@ -295,3 +295,8 @@ body.safety-ui:has(.shell411-safety-home) {overflow-anchor:none}
 .safety-ui #app .wf412-inq.new {border:2px solid #b42335}
 .safety-ui #app :is(.wf412-nav-badge,.exec-tab-count) {position:relative;z-index:8}
 .safety-ui #app #prev429PlanForm button[type=submit] {outline:2px solid #b42335;outline-offset:2px}
+
+/* The source remains available on authorized screens without replacing the summary. */
+.inc411-summary-original{margin-top:12px;border:1px solid #d9e4ef;border-radius:10px;padding:10px 12px;min-width:0}
+.inc411-summary-original>summary{cursor:pointer;color:#42617f;font-weight:600;min-height:28px}
+.inc411-summary-original[open]>summary{margin-bottom:12px}
