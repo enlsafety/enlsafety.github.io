@@ -43,7 +43,7 @@ body.safety-ui {background:var(--canvas);color:var(--ink)}
 .safety-ui :is([data-shell-view="report"],[data-field-task="accident_report"],.report-type-picker h2,.incident410-form h2,[data-stats-filter="all"]) {--glyph:var(--icon-report)}
 .safety-ui :is([data-shell-view="actions"],[data-field-task="accident_action"],[data-shell-view="followups"],#view:has(.prev429-list) .section-head h2,.field411-screen:has(.prev429-list) h2) {--glyph:var(--icon-shield);--tile:var(--mint)}
 .safety-ui :is([data-lifecycle-closed],.lifecycle413-closed-list h2,[data-safety-status="closed"]) {--glyph:var(--icon-closed);--tile:var(--mint)}
-.safety-ui :is([data-wf-inquiry-nav],[data-field-task="inquiry"],.wf412-page h2) {--glyph:var(--icon-chat);--tile:#f0edf9}
+.safety-ui :is([data-wf-inquiry-nav],[data-field-task="inquiry"],.wf412-page h2) {--glyph:var(--icon-chat);--tile:var(--sky)}
 .safety-ui :is([data-shell-view="more"],.sa415-head h2) {--glyph:var(--icon-settings)}
 .safety-ui :is([data-shell-view="incidents"],[data-field-task="records"],.shell411-filter-head h2) {--glyph:var(--icon-list)}
 .safety-ui :is([data-stats-filter="person"],.report-type-card.person,[data-sa415-tab="hq"]) {--glyph:var(--icon-users);--tile:var(--sky)}

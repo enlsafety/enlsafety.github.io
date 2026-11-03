@@ -30,10 +30,12 @@ jobs:
       - run: npx playwright install --with-deps chromium webkit
       - run: pip install openpyxl==3.1.5 pillow==11.1.0
       - name: Actual Edge, isolated database, role and browser regressions
+        run: node tests/final-cloud-run.cjs
+      - name: Role menus, folding, document parity and navigation
+        if: always()
         run: |
           node tests/pastel-ui-browser.cjs
           node tests/inquiry-return-browser.cjs
-          node tests/final-cloud-run.cjs
       - name: Actual downloaded XLSX OOXML and formatting validation
         if: always()
         run: python tests/final-excel-validate.py

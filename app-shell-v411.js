@@ -56,12 +56,16 @@
   function homeState(u){
     return {user:u.id,view:currentView,top:window.scrollY,open:[...document.querySelectorAll('#view details[data-fold][open]')].map(el=>el.dataset.fold)};
   }
+  function applyHomeState(saved){
+    document.querySelectorAll('#view [data-fold]').forEach(el=>{el.open=saved.open.includes(el.dataset.fold)});
+    window.scrollTo({top:saved.top,behavior:'instant'});
+  }
   function restoreSiteOrigin(u){
     const saved=listReturn;listReturn=null;
     currentView=saved?.user===u.id?saved.view:'home';renderShell(u);
     if(saved?.user!==u.id)return;
-    document.querySelectorAll('#view [data-fold]').forEach(el=>{el.open=saved.open.includes(el.dataset.fold)});
-    requestAnimationFrame(()=>{if(currentView===saved.view)window.scrollTo({top:saved.top,behavior:'instant'})});
+    applyHomeState(saved);
+    requestAnimationFrame(()=>{if(currentView===saved.view)applyHomeState(saved)});
   }
   function recentHtml(recent){if(!recent.length)return '<div class="empty compact">등록된 사고가 없습니다.</div>';return foldedList(recent,'shell411-recent','recent',i=>{const q=qsum(i),task=currentUser()?.role==='safety'&&window.enlSafetyWork?.(i).report;return `<button type="button" class="${task?'task-required':''}" data-safety-inc="${escx(i.id)}"><div class="shell411-recent-meta"><b>${escx(q.when||fmt(i.occurredAt))}</b><span>${escx(q.site||siteName(i.siteId))}${window.ENLContracts?.badge(i.siteId)||''}</span></div><div class="shell411-recent-main"><strong>${escx(q.headline||i.eventType||'사고보고')}</strong>${task?`<span class="task-chip">${escx(task)} 필요</span>`:''}<small>${escx(q.circumstance||q.place||'사고 상세 확인')}</small></div><div class="shell411-recent-status">${typeof priorityBadge==='function'?priorityBadge(i.priority):''}${statusBadge(i.status)}${typeof actionBadge==='function'?actionBadge(i):''}</div></button>`})}
   function siteOverviewHtml(sites,incidents,ready){
@@ -101,10 +105,10 @@
   }
 
   function renderSafetyHome(root,u){
-    const openFolds=root.querySelector('.shell411-safety-home')?homeState(u).open:[];
+    const previous=root.querySelector('.shell411-safety-home')?homeState(u):null;
     const safety=roleNorm(u.role)==='safety',executive=roleNorm(u.role)==='executive',s=safetyStats(u),sites=[...(window.ENLContracts?window.ENLContracts.list().map(x=>({...x,id:x.site_id,name:x.site_name||x.name})):data.sites||[])].filter(x=>x.id!=='site-hq').sort((a,b)=>Number(!!window.ENLContracts?.closed(a.id))-Number(!!window.ENLContracts?.closed(b.id))||String(a.name).localeCompare(String(b.name),'ko')),recent=[...s.all].sort((a,b)=>new Date(b.occurredAt||0)-new Date(a.occurredAt||0)),ready=typeof window.enlIncidentServerReady==='function'?window.enlIncidentServerReady():true;
     root.innerHTML=`<section class="shell411-safety-home"><section class="panel"><div class="shell411-head"><div><div class="ey">ALL SITES</div><h2>전체 사업장 사고현황</h2>${executive?'':'<p>사고보고와 사고조치의 진행상태를 함께 확인합니다.</p>'}${ready?'':'<div class="shell411-sync">서버의 최신 사고자료를 확인하고 있습니다…</div>'}</div><div class="shell411-head-actions">${safety?'<button type="button" class="secondary" id="safetyAdd411">과거 사고 등록</button>':''}<button type="button" class="primary" id="safetyAll411">전체 사고 보기</button></div></div></section><div class="shell411-stat"><button type="button" data-safety-status="all"><span>전체 사고</span><b>${s.all.length}</b></button><button type="button" data-safety-status="reported"><span>미검토 사고</span><b>${s.unreviewed}</b></button><button type="button" data-safety-status="supplement_any"><span>보완·재검토 중</span><b>${s.reviewing}</b></button><button type="button" data-safety-status="action_progress"><span>조치 진행 중</span><b>${s.actionProgress}</b></button><button type="button" id="safetyActionReview411"><span>재발방지조치 확인대기</span><b>${s.actionSubmitted}</b></button><button type="button" id="safetyActionMissing411" class="${safety&&s.actionMissing?'shell411-attention':''}"><span>재발방지계획 수립대기</span><b>${s.actionMissing}</b></button><button type="button" data-safety-status="approved"><span>사고보고 승인</span><b>${s.approved}</b></button><button type="button" data-safety-status="closed"><span>종결</span><b>${s.closed}</b></button></div><section class="panel"><div class="section-head"><div><h2>최근 사고보고</h2>${executive?'':'<p>사고보고 상태와 사고조치 상태를 함께 표시합니다.</p>'}</div></div>${recentHtml(recent)}</section>${siteOverviewHtml(sites,s.all,ready)}</section>`;
-    root.querySelectorAll('[data-fold]').forEach(el=>{el.open=openFolds.includes(el.dataset.fold)});
+    if(previous)applyHomeState(previous);
     if(safety){
       const counts=window.enlSafetyActionCounts?.(u);
       for(const [selector,n] of [['[data-safety-status="reported"]',s.unreviewed],['[data-safety-status="supplement_any"]',s.all.filter(i=>i.status==='supplement_submitted').length],['#safetyActionReview411',counts?.prevention],['#safetyActionMissing411',counts?.plan]]){
@@ -127,7 +131,10 @@
   window.enlOpenSafetySiteIncidents=openSafetySiteIncidents;
   window.enlRenderHqHome=renderSafetyHome;
   window.enlSafetySiteFilter=()=>String(safetyListFilter.siteId||'');
-  window.renderShell=function(u){if(!u||u.active===false)return renderLogin();css();buildShell(u);const root=document.getElementById('view');route(root,u);return root};
+  window.renderShell=function(u){if(!u||u.active===false)return renderLogin();const previous=currentView==='home'&&document.querySelector('#view .shell411-safety-home')?homeState(u):null;
+    css();buildShell(u);const root=document.getElementById('view');route(root,u);
+    if(previous)applyHomeState(previous);
+    return root};
   window.renderCurrentView=function(u){const root=document.getElementById('view');return route(root,u)};
   window.defaultViewFor=function(){return 'home'};
   window.render=function(){const u=currentUser?.();if(!u)return renderLogin();if(!currentView)currentView='home';return renderShell(u)};
