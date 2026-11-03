@@ -46,6 +46,7 @@ async function setup(engine){
 
       const fill={occurredDate410:'2026-10-01',occurredTime410:'13:20',incidentPlace410:'3번홀 카트도로',workAction410:'작업차량 이동 중',incidentHow410:'회전 중 지주와 접촉',immediateAction:'차량 정지 후 현장 통제',damagedItem410:'홀맵 지주',damageDetail410:'지주 하단부 찌그러짐'};
       for(const [id,val] of Object.entries(fill))await page.locator('#'+id).fill(val);
+      await page.evaluate(()=>window.incidentPhotos=[{name:'현장.png',mime:'image/png',path:'qa/scene.png'}]);
       await page.locator('#unifiedReportForm button[type="submit"]').click();
       await page.waitForFunction(()=>window.data.incidents.length===1);
       const saved=await page.evaluate(()=>data.incidents[0]);

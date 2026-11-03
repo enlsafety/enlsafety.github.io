@@ -9,6 +9,14 @@ for path in pathlib.Path('qa-output').glob('final-excel-*.xlsx'):
    if n.endswith(('.xml','.rels')):ET.fromstring(z.read(n))
   if not short:
    assert any(n.startswith('xl/drawings/drawing') for n in names)
+   from PIL import Image
+   import io
+   im=Image.open(io.BytesIO(z.read('xl/media/attachment1.jpeg')))
+   assert im.size==(900,1600) and im.getpixel((450,100))[0]>200 and im.getpixel((450,1500))[2]>200
+   ext=ET.fromstring(z.read('xl/drawings/drawing1.xml')).find('.//{*}ext')
+   w,h=map(int,(ext.get('cx'),ext.get('cy')))
+   assert abs(w/h-9/16)<0.00001 and h<=790*9525
+   assert b'orientation="portrait"' in z.read('xl/worksheets/sheet2.xml')
    assert len([n for n in names if n.startswith('xl/media/')])>=2,'image plus PDF rendered page'
   assert not any('vba' in n.lower() for n in names)
   xml=''.join(z.read(n).decode() for n in names if n.endswith('.xml'))

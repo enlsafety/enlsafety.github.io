@@ -125,7 +125,7 @@ const TYPES={'.html':'text/html; charset=utf-8','.js':'application/javascript; c
    assert.equal(await frame.locator('[data-report-stage="A"]').count(),1);assert.equal(await frame.locator('[data-report-stage="B"]').count(),1);
    await frame.locator('#prev429Review').fill('QA 증빙 검토');await activate('#prev429Approve');await frame.locator('#prev429ReviewForm').waitFor({state:'detached'});
    await frame.locator('body').evaluate(()=>enlOpenIncidentReview('ZW-005',true,currentUser()));
-   await frame.locator('[data-excel421-id="ZW-005"]').waitFor();
+   await frame.locator('[data-official439-excel],[data-excel421-id="ZW-005"]').first().waitFor();
    assert.equal(await frame.locator('body').evaluate(()=>data.incidents.find(i=>i.id==='ZW-005').status),'closed');
    await page.screenshot({path:'qa-output/full-app-cumulative-'+profile.name+'.png'});
    await frame.locator('body').evaluate(()=>closeModal());await switchRole('zw-executive');

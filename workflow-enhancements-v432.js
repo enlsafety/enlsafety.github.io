@@ -84,7 +84,12 @@
       fieldForm.querySelector('.photo-box')?.classList.toggle('enl432-evidence-empty',n<1);
     }
     const report=document.getElementById('unifiedReportForm');
-    if(report)report.querySelector('.report410-photo')?.classList.remove('enl432-evidence-empty');
+    const photo=report?.querySelector('[data-photo-required="true"]');
+    if(photo){
+      const hasImage=typeof incidentPhotos!=='undefined'&&window.enlHasScenePhoto?.(incidentPhotos);
+      photo.classList.toggle('enl432-evidence-empty',!hasImage);
+      photo.querySelector('#incidentPhotoBtn')?.setAttribute('aria-invalid',String(!hasImage));
+    }
   }
 
   function patchReportRequired(){

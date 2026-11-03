@@ -66,7 +66,27 @@
     el.setAttribute('aria-required','true');
   }
 
+  function formatWon(input){
+    const raw=input.value, digits=raw.replace(/,/g,'');
+    if(input.parentElement?.classList.contains('won-entry'))input.parentElement.classList.toggle('has-amount',/^\d+$/.test(digits));
+    const valid=!raw||raw===input.dataset.autoPending||/^\d+$/.test(digits);
+    input.setCustomValidity(valid?'':'금액은 0 이상의 정수로 입력해 주세요.');
+    if(!/^\d+$/.test(digits))return;
+    const formatted=digits.replace(/\B(?=(\d{3})+(?!\d))/g,',');
+    if(raw===formatted)return;
+    const pos=input.selectionStart, count=raw.slice(0,pos).replace(/,/g,'').length;
+    input.value=formatted;
+    if(document.activeElement===input&&pos!=null){
+      let at=0,left=count;
+      while(at<formatted.length&&left){if(formatted[at++]!==',')left--;}
+      input.setSelectionRange(at,at);
+    }
+  }
+  document.addEventListener('input',e=>{
+    if(e.target.matches?.('[data-won]')&&!e.isComposing)formatWon(e.target);
+  },true);
   function scan(root=document){
+    root.querySelectorAll?.('[data-won]').forEach(formatWon);
     if(isControl(root))state(root);
     root.querySelectorAll?.('input,textarea,select').forEach(state);
   }

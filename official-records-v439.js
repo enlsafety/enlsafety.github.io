@@ -91,6 +91,7 @@
     return [...(Array.isArray(i?.photos)?i.photos:[]),...(Array.isArray(i?.corrective?.afterPhotos)?i.corrective.afterPhotos:[])];
   }
   function printReport(i,button){
+    if(window.enlIncidentFinalized?.(i)&&isSafety(current()))return window.enlDownloadFinalIncidentExcel(i.id);
     if(typeof window.enlDownloadOnePageIncidentExcel!=='function')return alert('엑셀 출력 기능을 불러오지 못했습니다. 앱을 새로고침해 주세요.');
     return window.enlDownloadOnePageIncidentExcel(i?.id,button);
   }
@@ -110,7 +111,7 @@
     }
     const actions=modal.querySelector('.modal-actions');
     if(actions){
-      if(!actions.querySelector('[data-official439-excel]')){const b=document.createElement('button');b.type='button';b.dataset.official439Excel='1';b.className='official439-btn';b.textContent='엑셀 사고보고서 출력';b.title='한 장 보고서와 A~E 누적기록 다운로드';b.onclick=()=>printReport(incident(i.id)||i,b);actions.appendChild(b)}
+      if(!actions.querySelector('[data-official439-excel]')){const b=document.createElement('button');b.type='button';b.dataset.official439Excel='1';b.className='official439-btn';const final=window.enlIncidentFinalized?.(i);b.textContent=final?'최종 사고보고서 Excel 출력':'엑셀 사고보고서 출력';b.title=final?'최종 사고보고서와 자료첨부시트 다운로드':'한 장 보고서와 A~E 누적기록 다운로드';b.onclick=()=>printReport(incident(i.id)||i,b);actions.appendChild(b)}
     }
   }
 
