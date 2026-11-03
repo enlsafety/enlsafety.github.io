@@ -187,6 +187,8 @@ async function flush(sql:any){
   const events=await sql`select * from public.enl_email_claim_events(${claimToken},100)`;
   let sent=0,skipped=0,failed=0;
   for(const ev of events||[]){
+    const deleted=await sql`select incident_id from private.enl_incident_deletions where incident_id=${ev.incident_id} limit 1`;
+    if(deleted[0]){await finishEvent(sql,ev.id,{sent_at:new Date().toISOString(),last_error:"incident_deleted"});skipped++;continue}
     const age=Date.now()-new Date(ev.created_at).getTime();
     if(age>24*60*60*1000){await finishEvent(sql,ev.id,{sent_at:new Date().toISOString(),last_error:"expired"});skipped++;continue}
     const p=await profile(sql,clean(ev.user_id)),urgent=clean(ev.kind)==="urgent_incident"&&["safety","manager","executive"].includes(p?.role||"");
@@ -213,7 +215,7 @@ async function flush(sql:any){
       }catch(e:any){await finishEvent(sql,ev.id,{last_error:clean(e?.message||e).slice(0,500),dead_at:Number(ev.attempt_count||0)>=5?new Date().toISOString():null});failed++}
       continue;
     }
-    const rr=await sql`select payload,site_id from public.enl_incident_shared where incident_id=${ev.incident_id} limit 1`;
+    const rr=await sql`select payload,site_id from public.enl_incident_active where incident_id=${ev.incident_id} limit 1`;
     const row=rr[0];if(!row?.payload){await finishEvent(sql,ev.id,{sent_at:new Date().toISOString(),last_error:"incident_missing"});skipped++;continue}
     const testCopy=ev.kind==='executive_approval_test_copy';
     if(ev.kind==='executive_approval_requested'||testCopy){

@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.3.9 - official approval, audit, Excel, backup UI */
 (function(){
   'use strict';
-  const VERSION='4.7.1-one-page-excel';
+  const VERSION='4.8.13-password-deletion';
   const API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-incident-compliance-v439';
   const CLIENT='incident-report-v2';
   let currentIncidentId='',patchQueued=false;
@@ -41,7 +41,7 @@
       .official439-btn{border:1px solid #a9c5d8!important;background:#f3f9fc!important;color:#1d597f!important}.official439-search{display:flex;gap:7px;align-items:center;margin:0 0 10px}.official439-search input{flex:1;min-width:0;height:42px;border:1px solid #cbdbe6;border-radius:10px;padding:0 12px}.official439-search small{color:#708696;font-size:11px}
       
       .official439-backups{display:grid;gap:8px;max-height:55vh;overflow:auto}.official439-backup{padding:10px;border:1px solid #d9e5ed;border-radius:10px;background:#fff}.official439-backup-actions{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}.official439-backup-actions button{min-height:34px;border:1px solid #b8cad7;border-radius:8px;background:#fff;padding:0 9px;font-weight:850}
-      .official439-note{padding:10px;border-radius:10px;background:#fff8e8;color:#74551e;font-size:11px;line-height:1.55;margin-bottom:10px}
+      .official439-delete-submit{background:#b42318!important;color:#fff!important;border:1px solid #b42318!important;min-height:44px}.official439-note{padding:10px;border-radius:10px;background:#fff8e8;color:#74551e;font-size:11px;line-height:1.55;margin-bottom:10px}
       @media(max-width:560px){.official439-grid{grid-template-columns:1fr}.official439-search{align-items:stretch;flex-direction:column}}
     `;document.head.appendChild(s);
   }
@@ -98,12 +98,14 @@
 
   function decorateModal(){
     css();const modal=document.querySelector('#modalRoot .modal');if(!modal)return;
-    if(modal.querySelector('#historical461PasswordForm,#historical461EditForm,#historical461History,#prev429PlanForm,#prev429FieldForm,#prev429ReviewForm'))return;
-    let i=incident(modal.dataset.incidentView||currentIncidentId);
+    if(modal.querySelector('#official439DeleteForm,#historical461PasswordForm,#historical461EditForm,#historical461History,#prev429PlanForm,#prev429FieldForm,#prev429ReviewForm'))return;
+    let i=incident(modal.dataset.incidentView||modal.dataset.cumulativeIncident||modal.dataset.wf440Incident);
     if(!i){const id=modal.querySelector('[data-lifecycle-final]')?.getAttribute('data-lifecycle-final');if(id)i=incident(id)}
     if(!i)return;
     currentIncidentId=i.id;
-    if(isBulkImported(i)){const del=modal.querySelector('#deleteInc'),edit=modal.querySelector('#editInc');if(del&&del.textContent!=='이관 무효처리 관리')del.textContent='이관 무효처리 관리';if(edit&&edit.textContent!=='이관정보 수정')edit.textContent='이관정보 수정';}
+    modal.querySelector('#deleteInc')?.remove();
+    if(isSafety(current())&&!modal.querySelector('[data-official-delete-id]')){const b=document.createElement('button');b.type='button';b.className='danger';b.dataset.officialDeleteId=i.id;b.textContent='사고보고 삭제';(modal.querySelector('.modal-actions')||modal).appendChild(b);}
+    if(isBulkImported(i)){const edit=modal.querySelector('#editInc');if(edit&&edit.textContent!=='이관정보 수정')edit.textContent='이관정보 수정';}
     if(!modal.querySelector('[data-executive-summary],[data-official439-box]')){
       const wrap=document.createElement('div');wrap.dataset.official439Box='1';wrap.innerHTML=officialBox(i);
       const actions=modal.querySelector('.modal-actions')||modal.lastElementChild;
@@ -115,21 +117,43 @@
     }
   }
 
-  async function officialDelete(i){
-    const u=current();if(!isSafety(u))return;
-    if(isBulkImported(i)){try{closeModal()}catch(e){}if(typeof window.enlOpenHistoricalCandidate454==='function')return window.enlOpenHistoricalCandidate454(i.historicalOrigin.batchId,i.historicalOrigin.candidateId);return alert('자동이관 관리 화면에서 무효처리 또는 복구할 수 있습니다.');}
-    const reason=prompt('삭제 사유를 입력해 주세요.\n승인·종결 사고 삭제에는 사유 입력이 필요합니다.','오등록 자료 삭제');
-    if(reason===null)return;if(String(reason).trim().length<2)return alert('삭제 사유를 2자 이상 입력해 주세요.');
-    const stronger=historical(i)?'ERP 기결재 과거사고 이관종결 기록입니다. 삭제 전 자동 백업과 내부 변경기록이 보존됩니다. 계속할까요?':['approved','closed'].includes(String(i.status||''))?'승인 완료된 공식 사고기록입니다. 삭제 전 자동 백업과 내부 변경기록이 보존됩니다. 계속할까요?':'이 사고기록을 삭제할까요?';
-    if(!confirm(stronger))return;
-    try{
-      await api('delete_incident',{incidentId:i.id,reason:String(reason).trim()});
-      try{closeModal()}catch(e){}
-      await window.enlIncidentPullNow?.();
-      renderShell(current()||u);
-      alert('삭제 처리했습니다. 삭제 사유와 삭제 전 자동백업이 기록되었습니다.');
-    }catch(e){alert(e?.message==='login_refresh_required'||e?.message==='forbidden'?'안전관리자 재로그인이 필요합니다.':'삭제하지 못했습니다. 다시 시도해 주세요.')}
+  function officialDelete(i){
+    const u=current();if(!isSafety(u)||!i)return;
+    const owner=String(u.id),expectedVersion=Number(i._syncVersion||0);
+    openModal(`<div class="modal-head"><h2>사고보고 삭제</h2><button type="button" class="x" data-close aria-label="닫기">×</button></div>
+      <form id="official439DeleteForm" autocomplete="off">
+        <p><strong>${esc(site(i.siteId))}</strong><br>${esc(occurrenceText(i))}<br>${esc(i.summary||i.id)}</p>
+        <div class="official439-note">삭제하면 일반 목록과 통계에서 제외됩니다. 사고 원본, 첨부파일, 결재 이력과 삭제자, 삭제 시각, 사유는 서버에 보존됩니다.</div>
+        <label for="official439DeleteReason">삭제 사유 <strong>(필수)</strong></label>
+        <textarea id="official439DeleteReason" required minlength="2" maxlength="2000" rows="3" placeholder="삭제 사유를 2자 이상 입력해 주세요."></textarea>
+        <label for="official439DeletePassword">본인 로그인 비밀번호 <strong>(필수)</strong></label>
+        <input id="official439DeletePassword" type="password" required maxlength="256" autocomplete="current-password">
+        <p id="official439DeleteError" role="alert" style="color:#b42318"></p>
+        <div class="modal-actions"><button type="button" data-close>취소</button><button type="submit" class="danger official439-delete-submit">삭제하기</button></div>
+      </form>`);
+    const form=document.getElementById('official439DeleteForm');let submitting=false;
+    form.style.cssText='display:grid;gap:10px;min-width:0;overflow-wrap:anywhere';
+    for(const el of form.querySelectorAll('input,textarea'))el.style.cssText='width:100%;box-sizing:border-box;min-height:44px;font-size:16px;border:1px solid #b9cfdf;border-radius:9px;padding:10px';
+    form.onsubmit=async e=>{
+      e.preventDefault();if(submitting||!form.reportValidity())return;
+      const error=form.querySelector('[role="alert"]'),password=form.querySelector('[type="password"]'),reason=form.querySelector('textarea').value.trim();
+      if(reason.length<2){error.textContent='삭제 사유를 2자 이상 입력해 주세요.';return;}
+      if(!isSafety(current())||String(current()?.id)!==owner){error.textContent='로그인 정보가 변경되었습니다. 다시 로그인해 주세요.';return;}
+      submitting=true;error.textContent='';const controls=[...form.querySelectorAll('button,input,textarea')];controls.forEach(x=>x.disabled=true);
+      try{
+        await api('delete_incident',{incidentId:i.id,reason,password:password.value,expectedVersion});
+        password.value='';window.enlForgetDeletedIncident?.(i.id);
+        if(form.isConnected)closeModal();
+        await window.enlIncidentPullNow?.().catch(()=>{});
+        renderShell(current()||u);
+        alert('삭제했습니다. 사고 원본과 삭제 이력은 서버에 보존됩니다.');
+      }catch(e){
+        const messages={password_incorrect:'비밀번호가 일치하지 않습니다. 다시 입력해 주세요.',password_attempts_exceeded:'비밀번호 확인을 5회 실패했습니다. 15분 후 다시 시도해 주세요.',password_required:'본인 로그인 비밀번호를 입력해 주세요.',reason_required:'삭제 사유를 2자 이상 2,000자 이하로 입력해 주세요.',enl_sync_conflict_version:'다른 사용자가 사고를 변경했습니다. 화면을 닫고 최신 내용을 확인한 뒤 다시 시도해 주세요.',forbidden:'안전관리자 본인 계정으로 다시 로그인해 주세요.',login_refresh_required:'안전관리자 본인 계정으로 다시 로그인해 주세요.'};
+        error.textContent=messages[e?.message]||'삭제 결과를 확인하지 못했습니다. 목록을 새로고침해 확인한 뒤 다시 시도해 주세요.';
+      }finally{password.value='';submitting=false;controls.forEach(x=>x.disabled=false);}
+    };
   }
+  window.enlDeleteIncident=officialDelete;
 
   function injectSearch(){
     const u=current(),root=document.getElementById('view');if(!isSafety(u)||!root||String(currentView||'')!=='incidents')return;
@@ -177,9 +201,9 @@
 
   document.addEventListener('click',e=>{
     const row=e.target?.closest?.('[data-inc-id],[data-safety-inc]');if(row)currentIncidentId=row.dataset.incId||row.dataset.safetyInc||'';
-    const del=e.target?.closest?.('#deleteInc');
+    const del=e.target?.closest?.('[data-official-delete-id],#deleteInc');
     if(del&&isSafety(current())){
-      const i=currentIncidentId?incident(currentIncidentId):null;if(!i)return;
+      const id=del.dataset.officialDeleteId||currentIncidentId;const i=id?incident(id):null;if(!i)return;
       e.preventDefault();e.stopImmediatePropagation();officialDelete(i);
     }
   },true);

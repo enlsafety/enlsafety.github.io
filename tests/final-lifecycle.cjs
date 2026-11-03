@@ -22,6 +22,7 @@ async function fixture(){
  for(const name of ['enl_incident_optimistic_sync_guard','enl_email_from_push_trigger'])await db.exec(read('tests/fixtures/final-lifecycle/'+name+'.sql'));
  await db.exec(read('supabase/migrations/20261013052400_final_safety_lifecycle.sql'));
  await db.exec(read('tests/fixtures/evidence-storage-schema.sql'));
+ await db.exec(read('supabase/migrations/20261103080347_incident_password_deletion_archive.sql'));
  await db.exec(`create trigger trg_enl_incident_optimistic_sync_guard before insert or update on enl_incident_shared for each row execute function enl_incident_optimistic_sync_guard();create trigger trg_enl_incident_push after insert or update on enl_incident_shared for each row execute function enl_incident_push_trigger();create trigger trg_enl_push_email_bridge after insert on enl_push_events for each row execute function enl_email_from_push_trigger();`);
  let handler,tx=null;
  const sql=async(parts,...args)=>{const query=parts.reduce((s,p,i)=>s+(i?'$'+i:'')+p,'');return (await(tx||db).query(query,args)).rows;};sql.json=JSON.stringify;sql.end=async()=>{};sql.begin=async f=>db.transaction(async t=>{tx=t;try{return await f(sql)}finally{tx=null}});

@@ -3,7 +3,7 @@ import postgres from "npm:postgres@3.4.5";
 
 const ORIGIN="https://enlsafety.github.io";
 const APP="incident-report-v2";
-const VERSION="4.7.2-evidence-storage";
+const VERSION="4.8.13-password-deletion";
 const cors={
   "Access-Control-Allow-Origin":ORIGIN,
   "Access-Control-Allow-Headers":"content-type, x-enl-app",
@@ -30,16 +30,8 @@ async function verifySafety(sql:any,body:any){
   if(!u||u.active===false||roleNorm(u.role)!=="safety"||clean(u.password_hash)!==hash)return null;
   return {id:clean(u.user_id),name:clean(u.name),role:"safety",position:clean(u.position),siteId:""};
 }
-async function audit(sql:any,incidentId:string,siteId:string,action:string,actor:any,before:any,after:any){
-  const at=new Date().toISOString();
-  await sql`insert into public.enl_incident_audit
-    (incident_id,site_id,action,editor_id,editor_name,editor_role,editor_position,changed_at,before_payload,after_payload)
-    values(${incidentId},${siteId},${action},${actor.id},${actor.name},${actor.role},${actor.position},${at},
-      ${before?JSON.stringify(before):null}::jsonb,${after?JSON.stringify(after):null}::jsonb)`;
-  return at;
-}
 async function snapshotRows(sql:any){
-  const rows=await sql`select incident_id,site_id,payload,created_at,updated_at from public.enl_incident_shared order by created_at asc`;
+  const rows=await sql`select incident_id,site_id,payload,created_at,updated_at from public.enl_incident_active order by created_at asc`;
   return rows.map((r:any)=>({
     incident_id:clean(r.incident_id),site_id:clean(r.site_id),payload:parsePayload(r.payload),
     created_at:r.created_at,updated_at:r.updated_at
@@ -74,24 +66,49 @@ Deno.serve(async(req:Request)=>{
       const incidentId=clean(body.incidentId);if(!incidentId)return json({ok:false,message:"incident_required"},400);
       const rows=await sql`select audit_id,incident_id,site_id,action,editor_id,editor_name,editor_role,editor_position,changed_at,coalesce(before_payload,private.enl_evidence_get(before_hash)) as before_payload,coalesce(after_payload,private.enl_evidence_get(after_hash)) as after_payload
         from public.enl_incident_audit where incident_id=${incidentId} order by changed_at desc limit 500`;
-      return json({ok:true,audits:rows});
+      return json({ok:true,audits:rows.map((r:any)=>({...r,before_payload:parsePayload(r.before_payload),after_payload:parsePayload(r.after_payload)}))});
     }
 
     if(action==="delete_incident"){
-      const incidentId=clean(body.incidentId),reason=clean(body.reason);
+      const incidentId=clean(body.incidentId),reason=clean(body.reason),password=typeof body.password==='string'?body.password:'';
       if(!incidentId)return json({ok:false,message:"incident_required"},400);
-      if(reason.length<2)return json({ok:false,message:"reason_required"},400);
-      const rows=await sql`select incident_id,site_id,payload from public.enl_incident_shared where incident_id=${incidentId} limit 1`;
-      const row=rows[0];if(!row)return json({ok:false,message:"not_found"},404);
-      const prev=parsePayload(row.payload);
-      if(isBulkImported(prev))return json({ok:false,message:"bulk_delete_requires_invalidation"},409);
-      const backup=await createBackup(sql,actor,`삭제 전 자동백업: ${incidentId} / ${reason}`);
-      const deletedAt=new Date().toISOString();
-      await audit(sql,incidentId,clean(row.site_id),"delete",actor,prev,{
-        deleted:true,reason,deletedAt,backupId:backup.backupId
+      if(reason.length<2||reason.length>2000)return json({ok:false,message:"reason_required"},400);
+      if(!password||password.length>256)return json({ok:false,message:"password_required"},400);
+      if(!Number.isSafeInteger(body.expectedVersion)||body.expectedVersion<0)return json({ok:false,message:"version_required"},400);
+      const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(password));
+      const enteredHash=Array.from(new Uint8Array(bytes)).map(x=>x.toString(16).padStart(2,'0')).join('');
+      return await sql.begin(async(tx:any)=>{
+        // Lock the account and attempt counter: password resets, role changes and
+        // concurrent guesses cannot race with this destructive authorization.
+        const users=await tx`select user_id,name,role,active,password_hash from public.enl_hq_users where user_id=${actor.id} for share`;
+        const user=users[0];
+        if(!user||user.active!==true||user.role!=='safety'||clean(user.password_hash)!==clean(body.actorPasswordHash))return json({ok:false,message:"forbidden"},403);
+        await tx`insert into private.enl_incident_delete_attempts(actor_id) values(${actor.id}) on conflict do nothing`;
+        const attempts=await tx`select failures,window_started_at from private.enl_incident_delete_attempts where actor_id=${actor.id} for update`;
+        const fresh=Date.now()-new Date(attempts[0].window_started_at).getTime()<15*60*1000;
+        const failures=fresh?Number(attempts[0].failures):0;
+        if(failures>=5)return json({ok:false,message:"password_attempts_exceeded"},429);
+        if(enteredHash!==clean(user.password_hash)){
+          await tx`update private.enl_incident_delete_attempts set failures=${failures+1},window_started_at=case when ${fresh} then window_started_at else now() end where actor_id=${actor.id}`;
+          return json({ok:false,message:"password_incorrect"},403);
+        }
+        await tx`update private.enl_incident_delete_attempts set failures=0,window_started_at=now() where actor_id=${actor.id}`;
+        const rows=await tx`select incident_id,site_id,payload from public.enl_incident_shared where incident_id=${incidentId} for update`;
+        const row=rows[0];if(!row)return json({ok:false,message:"not_found"},404);
+        const prior=await tx`select deleted_at,audit_id from private.enl_incident_deletions where incident_id=${incidentId}`;
+        if(prior[0])return json({ok:true,deleted:true,duplicate:true,incidentId,deletedAt:prior[0].deleted_at,auditId:prior[0].audit_id});
+        const prev=parsePayload(row.payload),version=Number(prev?._syncVersion||0);
+        if(body.expectedVersion!==version)return json({ok:false,message:"enl_sync_conflict_version"},409);
+        const deletedAt=new Date().toISOString(),auditId=crypto.randomUUID();
+        await tx`select set_config('enl.delete_actor',${JSON.stringify({id:actor.id,role:actor.role})},true)`;
+        await tx`insert into public.enl_incident_audit(audit_id,incident_id,site_id,action,editor_id,editor_name,editor_role,editor_position,changed_at,before_payload,after_payload)
+          values(${auditId}::uuid,${incidentId},${row.site_id},'delete',${actor.id},${actor.name},${actor.role},${actor.position},${deletedAt},${tx.json(prev)}::jsonb,${tx.json({deleted:true,reason,deletedAt,retained:true})}::jsonb)`;
+        await tx`insert into private.enl_incident_deletions(incident_id,site_id,deleted_at,deleted_by_id,deleted_by_name,reason,previous_version,audit_id)
+          values(${incidentId},${row.site_id},${deletedAt},${actor.id},${actor.name},${reason},${version},${auditId}::uuid)`;
+        // Do not alter payloads, approvals, attachment objects, final documents or
+        // follow-up foreign keys. The private ledger removes operational visibility.
+        return json({ok:true,deleted:true,incidentId,deletedAt,auditId});
       });
-      await sql`delete from public.enl_incident_shared where incident_id=${incidentId}`;
-      return json({ok:true,deleted:true,backupId:backup.backupId,deletedAt});
     }
 
     if(action==="backup_create"){

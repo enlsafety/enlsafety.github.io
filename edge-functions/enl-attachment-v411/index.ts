@@ -74,7 +74,7 @@ Deno.serve(async(req:Request)=>{
     if(action==="sign"){
       const paths=(Array.isArray(body.paths)?body.paths:[]).map(clean).filter(Boolean).slice(0,30),urls:any={};
       if(paths.some((path:string)=>decodeURIComponent(path).includes("historical-followups")))return json({ok:false,message:"use_followup_authorized_endpoint"},403);
-      const rows=actor.role==='safety'||actor.role==='manager'||actor.role==='executive'?await sql`select payload from public.enl_incident_shared`:await sql`select payload from public.enl_incident_shared where site_id=${actor.siteId}`;
+      const rows=actor.role==='safety'||actor.role==='manager'||actor.role==='executive'?await sql`select payload from public.enl_incident_active`:await sql`select payload from public.enl_incident_active where site_id=${actor.siteId}`;
       const permitted=new Set<string>();
       const allowSnapshot=(value:any)=>{const i=typeof value==='string'?JSON.parse(value):value;if(!i)return;
         if(actor.role==='worker'&&clean(i.reporterId)!==actor.id)return;
@@ -92,7 +92,7 @@ Deno.serve(async(req:Request)=>{
       if(paths.some((path:string)=>!permitted.has(path)&&!owns(path))){
         const history=actor.role==='safety'
           ?await sql`select coalesce(before_payload,private.enl_evidence_get(before_hash)) as before_payload,coalesce(after_payload,private.enl_evidence_get(after_hash)) as after_payload from public.enl_incident_audit`
-          :await sql`select coalesce(a.before_payload,private.enl_evidence_get(a.before_hash)) as before_payload,coalesce(a.after_payload,private.enl_evidence_get(a.after_hash)) as after_payload from public.enl_incident_audit a join public.enl_incident_shared s on s.incident_id=a.incident_id where (${actor.role} in ('manager','executive') or s.site_id=${actor.siteId}) and (${actor.role}<>'worker' or s.payload->>'reporterId'=${actor.id}) and (${actor.role} not in ('manager','executive') or s.payload->>'status' in ('reported','supplement','supplement_submitted','approved','closed'))`;
+          :await sql`select coalesce(a.before_payload,private.enl_evidence_get(a.before_hash)) as before_payload,coalesce(a.after_payload,private.enl_evidence_get(a.after_hash)) as after_payload from public.enl_incident_audit a join public.enl_incident_active s on s.incident_id=a.incident_id where (${actor.role} in ('manager','executive') or s.site_id=${actor.siteId}) and (${actor.role}<>'worker' or s.payload->>'reporterId'=${actor.id}) and (${actor.role} not in ('manager','executive') or s.payload->>'status' in ('reported','supplement','supplement_submitted','approved','closed'))`;
         for(const row of history){allowSnapshot(row.before_payload);allowSnapshot(row.after_payload);}
       }
       for(const path of paths){

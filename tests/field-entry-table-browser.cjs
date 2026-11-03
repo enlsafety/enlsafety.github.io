@@ -80,4 +80,6 @@ async function entry(engine,width,name){
  assert.deepEqual(errors,[]);await c.close();console.log('PASS entry tables',name,width,'person/property required fields, short labels, money, layout');
  }finally{await browser.close()}
 }
-(async()=>{await entry(chromium,1365,'desktop');await entry(chromium,320,'small-mobile');await entry(chromium,412,'android');if(!process.env.UI_CHROMIUM_ONLY){await entry(webkit,390,'iphone');await entry(webkit,820,'tablet');}})().catch(e=>{console.error(e);process.exitCode=1});
+if(require.main===module)(async()=>{await entry(chromium,1365,'desktop');await entry(chromium,320,'small-mobile');await entry(chromium,412,'android');if(!process.env.UI_CHROMIUM_ONLY){await entry(webkit,390,'iphone');await entry(webkit,820,'tablet');}})().catch(e=>{console.error(e);process.exitCode=1});
+
+module.exports={tab,cases,noOverflow};

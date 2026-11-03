@@ -38,7 +38,7 @@ Deno.serve(async(req:Request)=>{
     if(!comment)return json({ok:false,message:"not_found"},404);
     if(clean(comment.author_id)!==clean(user.user_id))return json({ok:false,message:"not_owner"},403);
 
-    const {data:incident,error:iErr}=await db.from("enl_incident_shared").select("incident_id,site_id,payload").eq("incident_id",comment.incident_id).maybeSingle();
+    const {data:incident,error:iErr}=await db.from("enl_incident_active").select("incident_id,site_id,payload").eq("incident_id",comment.incident_id).maybeSingle();
     if(iErr)throw iErr;
     const status=clean(incident?.payload?.status);
     if(!incident||!["approved","closed"].includes(status))return json({ok:false,message:"incident_not_available"},409);

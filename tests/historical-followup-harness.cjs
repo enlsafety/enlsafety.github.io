@@ -16,6 +16,9 @@ async function fixture(){
  insert into enl_site_personnel values('qa-field','s1','QA 소장','현장소장',true,'field','qa-proof'),('qa-other','s2','타현장','현장소장',true,'field','qa-proof');
  insert into enl_incident_shared values('qa-paju','s34','{"id":"qa-paju","siteId":"s34","status":"closed","recordMode":"historical_transfer","category":"property","historicalImport":{"enabled":true,"erpApproved":true,"workflowExempt":true,"transferState":"closed"},"corrective":null}'),('qa-normal','s1','{"status":"approved","corrective":{"status":"planned"}}');
  `);
+ await db.exec(`create role service_role;create schema private;create table enl_incident_audit(audit_id uuid primary key default gen_random_uuid(),incident_id text,action text,editor_id text);
+ create function enl_evidence_append_only() returns trigger language plpgsql as $$begin raise exception 'evidence_is_append_only';end;$$;`);
+ await db.exec(fs.readFileSync('supabase/migrations/20261103080347_incident_password_deletion_archive.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/migrations/20260930104503_historical_followup_actions.sql','utf8'));
  let handler,tx=null;const queries=[],uploads=new Map();
  const sql=async(parts,...args)=>{const q=parts.reduce((s,p,i)=>s+(i?'$'+i:'')+p,'');queries.push(q);return ((await (tx||db).query(q,args)).rows)};

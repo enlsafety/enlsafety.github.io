@@ -50,7 +50,7 @@ async function verifyActor(sql:any,body:any,strong=false){
   return {id:clean(u.personnel_id),name:clean(u.name),role:clean(u.access_role),position:clean(u.job_title),siteId:clean(u.site_id),hasCredential:!!stored,proof:strong&&stored?"pin":"account"};
 }
 
-async function parent(sql:any,id:string){const r=await sql`select payload from public.enl_incident_shared where incident_id=${id} limit 1`;if(!historical(r[0]?.payload))throw Error("이관종결된 과거사고만 연결할 수 있습니다.");return r[0].payload}
+async function parent(sql:any,id:string){const r=await sql`select payload from public.enl_incident_active where incident_id=${id} limit 1`;if(!historical(r[0]?.payload))throw Error("이관종결된 과거사고만 연결할 수 있습니다.");return r[0].payload}
 async function notify(sql:any,row:any,action:string){
  const kind=eventKind(action);if(!kind)return;
  const recipients=action==="submit"?await sql`select user_id as id from public.enl_hq_users where active=true and role='safety'`:await sql`select personnel_id::text as id from public.enl_site_personnel where active=true and site_id=${row.siteId} and access_role='field' and job_title in ('현장소장','파트장','서무')`;
@@ -76,7 +76,7 @@ Deno.serve(async(req:Request)=>{
   const a=await verifyActor(sql,b,true);if(!a)return json({ok:false,message:"auth_proof_required"},401);
   if(!["safety","manager","executive"].includes(a.role)&&!fieldAllowed(a))return json({ok:false,message:"forbidden"},403);
   if(b.action==="list"){
-   const rows=a.role==="field"?await sql`select payload from public.enl_historical_followups where site_id=${a.siteId} order by updated_at desc`:await sql`select payload from public.enl_historical_followups order by updated_at desc`;
+   const rows=a.role==="field"?await sql`select payload from public.enl_historical_followups where incident_id in (select incident_id from public.enl_incident_active) and site_id=${a.siteId} order by updated_at desc`:await sql`select payload from public.enl_historical_followups where incident_id in (select incident_id from public.enl_incident_active) order by updated_at desc`;
    return json({ok:true,version:VERSION,rows:rows.map((r:any)=>r.payload)});
   }
   if(b.action==="options"){
@@ -88,6 +88,7 @@ Deno.serve(async(req:Request)=>{
   if(!uuid(b.id))throw Error("invalid_id");
   if(b.action==="audit"||b.action==="sign"){
    const rr=await sql`select payload from public.enl_historical_followups where id=${b.id}`;const row=rr[0]?.payload;if(!row||!canRead(a,row))throw Error("forbidden");
+   await parent(sql,row.incidentId);
    if(b.action==="audit"){const r=await sql`select action,actor_id,actor_name,created_at,before_payload,after_payload from public.enl_historical_followup_audit where followup_id=${b.id} order by created_at`;return json({ok:true,history:r})}
    const path=clean(b.path);const linked=await sql`select path from public.enl_historical_followup_files where followup_id=${b.id} and path=${path}`;if(!linked[0])throw Error("forbidden");
    const storage=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!).storage.from("enl-incident-files");
@@ -95,7 +96,7 @@ Deno.serve(async(req:Request)=>{
   }
   if(b.action==="upload"){
    const rr=await sql`select payload from public.enl_historical_followups where id=${b.id}`;const row=rr[0]?.payload;
-   if(row){if(!fieldAllowed(a)||a.siteId!==row.siteId||!["in_progress","revision_requested"].includes(row.status))throw Error("forbidden");}
+   if(row){await parent(sql,row.incidentId);if(!fieldAllowed(a)||a.siteId!==row.siteId||!["in_progress","revision_requested"].includes(row.status))throw Error("forbidden");}
    else {if(a.role!=="safety")throw Error("forbidden");await parent(sql,clean(b.incidentId));const sites=await sql`select site_id from public.enl_site_master where site_id=${clean(b.siteId)}`;if(!sites[0])throw Error("사업장을 확인해 주세요.");}
    const siteId=row?.siteId||clean(b.siteId),f=b.file||{},mime=clean(f.mime),size=Number(f.size);
    if(!["image/jpeg","image/png","image/webp","image/heic","image/heif","application/pdf"].includes(mime)||size<=0||size>8*1024*1024||clean(f.base64).length>12*1024*1024)throw Error("이미지·PDF만 8MB까지 첨부할 수 있습니다.");
@@ -114,7 +115,7 @@ Deno.serve(async(req:Request)=>{
   const row=await sql.begin(async(t:any)=>{
    // Row locks serialize concurrent reviewers; mutation IDs make network retries idempotent.
    await t`select pg_advisory_xact_lock(hashtextextended(${b.id},0))`;
-   const old=await t`select payload from public.enl_historical_followups where id=${b.id} for update`;const prev=old[0]?.payload||null;
+   const old=await t`select payload from public.enl_historical_followups where id=${b.id} for update`;const prev=old[0]?.payload||null;if(prev)await parent(t,prev.incidentId);
    const duplicate=await t`select actor_id,followup_id from public.enl_historical_followup_audit where mutation_id=${b.mutationId}`;
    if(duplicate[0]){if(duplicate[0].actor_id!==a.id||duplicate[0].followup_id!==b.id||!prev||!canRead(a,prev))throw Error("forbidden");return prev}
    if(b.action==="create"){

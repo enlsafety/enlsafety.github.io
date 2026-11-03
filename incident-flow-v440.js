@@ -438,7 +438,7 @@
   }
 
   function decorateIncidentModal(id,override=null){
-    const i=override||incident(id),u=currentUser?.(),modal=document.querySelector('#modalRoot .modal');if(!i||!u||!modal||modal.querySelector('#prev429PlanForm,#prev429FieldForm,#prev429ReviewForm'))return;
+    const i=override||incident(id),u=currentUser?.(),modal=document.querySelector('#modalRoot .modal');if(!i||!u||!modal||modal.querySelector('#official439DeleteForm,#prev429PlanForm,#prev429FieldForm,#prev429ReviewForm'))return;
     activeId=String(i.id);modal.dataset.wf440Incident=activeId;
     const decorSig=[i.updatedAt||'',i.status||'',i.supplement?.status||'',i.corrective?.status||'',(i.acknowledgements||[]).length].join('|');
     if(modal.dataset.wf440DecorSig===decorSig)return;

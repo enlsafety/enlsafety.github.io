@@ -158,7 +158,7 @@
     document.getElementById('approveInc')?.addEventListener('click',()=>{applyPriority();i.safetyNote=note();i.status='approved';i.approvedBy=viewer.name;i.approvedAt=nowISO();i.rejectionNote='';saveAndRefresh()});
     document.getElementById('closeInc')?.addEventListener('click',()=>{applyPriority();i.status='closed';i.closedAt=nowISO();saveAndRefresh()});
     document.getElementById('editInc')?.addEventListener('click',()=>openEditIncidentModalFn(i,viewer));
-    document.getElementById('deleteInc')?.addEventListener('click',()=>{if(confirm('이 사고 기록을 삭제할까요?')){data.incidents=data.incidents.filter(x=>String(x.id)!==String(i.id));saveData();closeModal();renderShell(viewer)}});
+    document.getElementById('deleteInc')?.addEventListener('click',()=>window.enlDeleteIncident?window.enlDeleteIncident(i):alert('삭제 기능을 불러오지 못했습니다. 새로고침해 주세요.'));
   }
 
   function openEditIncidentModalFn(i,u){

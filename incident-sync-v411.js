@@ -21,7 +21,7 @@
   // base of a draft silently; only this tab's confirmed writes can be rebased.
   const authoritative=new Map(),history=new Map(),ownWrites=new Map();
   const queues=new Map(),inflight=new Map(),retryWrites=new Map(),failures=new Map(),drafts=new Map();
-  const notices=new Map();
+  const notices=new Map(),deleted=new Set();
   let applyingRemote=false,syncing=false,pending=false,serverReady=false,dirty=false,syncTimer=null,pullSequence=0;
   let sessionKey='',lastPersisted='';
   const baseSaveData=saveData;
@@ -35,9 +35,9 @@
   const same=(a,b)=>contentSignature(a)===contentSignature(b);
   const find=id=>(data.incidents||[]).find(i=>String(i.id)===String(id));
   const key=a=>a?[a.id,a.role,a.siteId].join('|'):'';
-  function scope(){const k=key(actor());if(k!==sessionKey){sessionKey=k;authoritative.clear();history.clear();ownWrites.clear();retryWrites.clear();failures.clear();drafts.clear();notices.clear();serverReady=false;for(const i of data.incidents||[])remember(i);}return k;}
+  function scope(){const k=key(actor());if(k!==sessionKey){sessionKey=k;deleted.clear();authoritative.clear();history.clear();ownWrites.clear();retryWrites.clear();failures.clear();drafts.clear();notices.clear();serverReady=false;for(const i of data.incidents||[])remember(i);}return k;}
   function remember(i){
-    if(!i?.id)return false;const id=String(i.id),old=authoritative.get(id);
+    if(!i?.id||deleted.has(String(i.id)))return false;const id=String(i.id),old=authoritative.get(id);
     if(old&&version(old)>version(i))return false;
     if(!history.has(id))history.set(id,new Map());const h=history.get(id);h.set(version(i),clone(i));
     while(h.size>16)h.delete(h.keys().next().value);
@@ -58,6 +58,7 @@
   const isConflict=e=>String(e?.message||'').includes('enl_sync_conflict');
   function errorMessage(e){
     const m=String(e?.message||'');
+    if(m==='incident_deleted')return '삭제된 사고입니다. 목록을 새로고침해 주세요.';
     if(isConflict(e))return '서버 자료 버전이 변경되어 저장하지 못했습니다. 작성 내용은 유지했습니다. 변경사항을 비교한 뒤 다시 검토해 주세요.';
     if(m==='session_auth_expired'||m==='session_changed')return '로그인 인증을 다시 확인해야 합니다. 작성 내용은 현재 화면에 유지했습니다. 다시 로그인한 뒤 저장을 재시도해 주세요.';
     if(e?.status===403||/forbidden|permission|read_only/.test(m))return '이 내용을 저장할 권한이 없습니다. 작성 내용은 유지했습니다. 계정과 사업장 권한을 확인해 주세요.';
@@ -91,12 +92,21 @@
       return j;
     }finally{if(timer)clearTimeout(timer)}
   }
+  function forgetDeleted(ids){
+    let changed=false;
+    for(const value of ids){const id=String(value);if(!id)continue;deleted.add(id);if(find(id))changed=true;
+      for(const map of [authoritative,history,ownWrites,retryWrites,failures,drafts])map.delete(id);
+    }
+    data.incidents=(data.incidents||[]).filter(i=>!deleted.has(String(i.id)));return changed;
+  }
+  window.enlForgetDeletedIncident=id=>{scope();forgetDeleted([id]);refreshDirty();persistConfirmed();window.dispatchEvent(new CustomEvent('enl-incidents-pulled'));};
   function scopedRemote(items,a){return (Array.isArray(items)?items:[]).filter(i=>i?.id&&(['safety','manager','executive'].includes(a?.role)||['field','worker'].includes(a?.role)&&String(i.siteId)===String(a.siteId)));}
   async function pull(renderIfChanged=true){
     const a=actor();if(!a)return false;const owner=scope(),sequence=++pullSequence,started=new Map([...authoritative].map(([id,i])=>[id,version(i)]));
     const res=await call({action:'pull',actor:a,role:a.role,siteId:a.siteId});
     if(owner!==key(actor())||owner!==sessionKey)return false;
-    const remote=scopedRemote(res.incidents,a),busy=uiWriteBusy();let changed=false;
+    let changed=forgetDeleted(Array.isArray(res.deletedIds)?res.deletedIds:[]);
+    const remote=scopedRemote(res.incidents,a).filter(i=>!deleted.has(String(i.id))),busy=uiWriteBusy();
     for(const saved of remote){
       const id=String(saved.id),protectedDraft=hasDraft(id),local=find(id);
       if(!remember(saved))continue;
@@ -111,6 +121,7 @@
     return changed;
   }
   function acceptSaved(saved,sent,visibleBefore){
+    if(deleted.has(String(saved.id)))throw errorOf('incident_deleted',410);
     const id=String(saved.id),local=find(id),before=authoritative.get(id),unedited=!locallyChanged(local);
     if(!remember(saved))return authoritative.get(id);
     if(!local||unedited||visibleBefore&&same(local,visibleBefore)||same(local,sent||before)||same(local,saved)){
@@ -158,6 +169,7 @@
   }
   function commitIncident(input,{background=false}={}){
     const owner=scope(),a=actor(),id=String(input.id),wanted=clone(input),visibleBefore=clone(find(id)||null),sig=contentSignature(wanted),dedupe=owner+'|'+id+'|'+sig;
+    if(deleted.has(id))return Promise.reject(errorOf('incident_deleted',410));
     if(inflight.has(dedupe))return inflight.get(dedupe);
     const base=clone(history.get(id)?.get(version(wanted))||authoritative.get(id)&&version(authoritative.get(id))===version(wanted)&&authoritative.get(id)||null);
     drafts.set(id,clone(wanted));
@@ -165,6 +177,7 @@
       try{
         if(!a||owner!==key(actor())||owner!==sessionKey)throw errorOf('session_changed');
         if(!serverReady)await pull(false);
+        if(deleted.has(id))throw errorOf('incident_deleted',410);
         const uncertain=retryWrites.get(id);
         if(uncertain){
           // Replay exactly the uncertain operation first, even when the user has
@@ -182,6 +195,7 @@
         const saved=await send(id,candidate,a,owner);acceptSaved(saved,wanted,visibleBefore);return saved;
       }catch(error){
         if(owner!==sessionKey)throw error;
+        if(deleted.has(id)||error.message==='incident_deleted'){forgetDeleted([id]);persistConfirmed();throw error;}
         // A definitive rejection cannot have committed this request. Uncertain
         // network/5xx results retain their exact mutation ID for replay.
         if(error.status>=400&&error.status<500)retryWrites.delete(id);

@@ -68,7 +68,7 @@ Deno.serve(async(req:Request)=>{
     if(!user||user.active===false||roleNorm(user.role)!=="safety")return json({ok:false,message:"forbidden"},403);
     actor.name=clean(user.name)||actor.name;
     const incidentId=clean(body.incidentId);if(!incidentId)return json({ok:false,message:"incident_required"},400);
-    const ir=await sql`select incident_id,site_id,payload from public.enl_incident_shared where incident_id=${incidentId} limit 1`,incidentRow=ir[0],incident=parsePayload(incidentRow?.payload);if(!incident)return json({ok:false,message:"incident_not_found"},404);
+    const ir=await sql`select incident_id,site_id,payload from public.enl_incident_active where incident_id=${incidentId} limit 1`,incidentRow=ir[0],incident=parsePayload(incidentRow?.payload);if(!incident)return json({ok:false,message:"incident_not_found"},404);
     if(clean(incident.category)!=="person")return json({ok:false,message:"person_incident_required"},409);
     const siteId=clean(incident.siteId)||clean(incidentRow.site_id),now=new Date().toISOString();
     const loadState=async()=>{const rows=await sql`select * from public.enl_industrial_accident_reports where incident_id=${incidentId} limit 1`;return rows[0]||null};

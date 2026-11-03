@@ -42,7 +42,7 @@ Deno.serve(async(req:Request)=>{
     return null;
   }
   async function incidentRow(incidentId:string){
-    const {data,error}=await db.from("enl_incident_shared").select("incident_id,site_id,payload").eq("incident_id",incidentId).maybeSingle();if(error)throw error;return data;
+    const {data,error}=await db.from("enl_incident_active").select("incident_id,site_id,payload").eq("incident_id",incidentId).maybeSingle();if(error)throw error;return data;
   }
   async function incidentAudit(row:any,act:string,v:any,before:any=null,after:any=null){
     await db.from("enl_incident_audit").insert({incident_id:row.incident_id,site_id:row.site_id,action:act,editor_id:v.id,editor_name:v.name,editor_role:v.role,editor_position:v.position,changed_at:now,before_payload:before,after_payload:after});

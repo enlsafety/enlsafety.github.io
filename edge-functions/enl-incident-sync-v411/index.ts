@@ -247,7 +247,7 @@ Deno.serve(async(req:Request)=>{
       const verified=await verifyActor(sql,body,true);
       if(!verified)return json({ok:false,message:"auth_proof_required"},403);
       const sites=await sql`select site_id,site_name,site_type,region,address,regular_count,daily_count,total_count,manager_name,part_name,clerk_name,active,start_date,to_jsonb(enl_site_master)->>'contract_end_date' as contract_end_date,to_jsonb(enl_site_master)->>'contract_period' as contract_period from public.enl_site_master order by site_name`;
-      const metrics=await sql`select site_id as "siteId",payload->>'occurredAt' as "occurredAt",payload->>'status' as status,payload->>'category' as category,payload->>'priority' as priority,payload->>'severity' as severity,payload->'potentialMajor' as "potentialMajor",payload->>'recordMode' as "recordMode",payload->'historicalTransfer'->>'mode' as "transferMode",payload->'historicalImport'->'enabled' as "historicalEnabled" from public.enl_incident_shared where not (coalesce(payload->'bulkInvalidation'->>'active','false')='true' and coalesce(payload->'historicalOrigin'->>'batchId','')<>'' and coalesce(payload->'historicalOrigin'->>'candidateId','')<>'' and coalesce(payload->'externalInitialApproval'->>'state','') in ('verified','unverifiable'))`;
+      const metrics=await sql`select site_id as "siteId",payload->>'occurredAt' as "occurredAt",payload->>'status' as status,payload->>'category' as category,payload->>'priority' as priority,payload->>'severity' as severity,payload->'potentialMajor' as "potentialMajor",payload->>'recordMode' as "recordMode",payload->'historicalTransfer'->>'mode' as "transferMode",payload->'historicalImport'->'enabled' as "historicalEnabled" from public.enl_incident_active where not (coalesce(payload->'bulkInvalidation'->>'active','false')='true' and coalesce(payload->'historicalOrigin'->>'batchId','')<>'' and coalesce(payload->'historicalOrigin'->>'candidateId','')<>'' and coalesce(payload->'externalInitialApproval'->>'state','') in ('verified','unverifiable'))`;
       return json({ok:true,sites,metrics:metrics.map((i:any)=>({...i,historicalTransfer:{mode:i.transferMode},historicalImport:{enabled:i.historicalEnabled===true}}))});
     }
 
@@ -259,11 +259,13 @@ Deno.serve(async(req:Request)=>{
 
     if(action==="pull"){
       if(!["worker","field","safety","manager","executive"].includes(actor.role))return json({ok:false,message:"forbidden"},403);
-      let rows:any[];if(["worker","field"].includes(actor.role)){if(!actor.siteId)return json({ok:false,message:"site_required"},400);rows=await sql`select payload from public.enl_incident_shared where site_id=${actor.siteId} order by updated_at desc`;}else rows=await sql`select payload from public.enl_incident_shared order by updated_at desc`;
+      let rows:any[];if(["worker","field"].includes(actor.role)){if(!actor.siteId)return json({ok:false,message:"site_required"},400);rows=await sql`select payload from public.enl_incident_active where site_id=${actor.siteId} order by updated_at desc`;}else rows=await sql`select payload from public.enl_incident_active order by updated_at desc`;
       const raw=rows.map((r:any)=>parsePayload(r.payload)).filter((i:any)=>i&&!bulkInactive(i));
-      if(actor.role==="worker"){const incidents:any[]=[];for(const i of raw){if(isMine(i,actor)){const mine={...i};if(reportApproved(i)&&(clean(i.approvedAt)||isBulkImported(i)))mine.workerPublic=publicSummary(i);incidents.push(mine);}else{const pub=publicIncident(i);if(pub)incidents.push(pub);}}incidents.sort((a,b)=>new Date(b.occurredAt||0).getTime()-new Date(a.occurredAt||0).getTime());return json({ok:true,incidents,workerPublicMode:true});}
-      if(["manager","executive"].includes(actor.role))return json({ok:true,incidents:raw.map(readerIncident).filter(Boolean)});
-      return json({ok:true,incidents:raw});
+      const deleted=await sql`select incident_id from private.enl_incident_deletions where (${'worker'===actor.role||'field'===actor.role} = false or site_id=${actor.siteId})`;
+      const deletedIds=deleted.map((r:any)=>r.incident_id);
+      if(actor.role==="worker"){const incidents:any[]=[];for(const i of raw){if(isMine(i,actor)){const mine={...i};if(reportApproved(i)&&(clean(i.approvedAt)||isBulkImported(i)))mine.workerPublic=publicSummary(i);incidents.push(mine);}else{const pub=publicIncident(i);if(pub)incidents.push(pub);}}incidents.sort((a,b)=>new Date(b.occurredAt||0).getTime()-new Date(a.occurredAt||0).getTime());return json({ok:true,incidents,deletedIds,workerPublicMode:true});}
+      if(["manager","executive"].includes(actor.role))return json({ok:true,incidents:raw.map(readerIncident).filter(Boolean),deletedIds});
+      return json({ok:true,incidents:raw,deletedIds});
     }
 
     if(action==="executive_decide"||action==="final_document"){
@@ -271,7 +273,7 @@ Deno.serve(async(req:Request)=>{
       const incidentId=clean(body.incidentId);
       return await sql.begin(async(sql:any)=>{
         await sql`select set_config('enl.actor',${JSON.stringify({id:actor.id,role:actor.role})},true)`;
-        const rr=await sql`select site_id,payload from public.enl_incident_shared where incident_id=${incidentId} for update`,row=rr[0],prev=parsePayload(row?.payload);
+        const rr=await sql`select site_id,payload from public.enl_incident_active where incident_id=${incidentId} for update`,row=rr[0],prev=parsePayload(row?.payload);
         if(!prev)return json({ok:false,message:"not_found"},404);
         if(action==="final_document"){
           if(prev.status!=="closed")return json({ok:false,message:"closed_required"},409);
@@ -329,7 +331,7 @@ Deno.serve(async(req:Request)=>{
       const incidentId=clean(body.incidentId);if(!incidentId)return json({ok:false,message:"incident_required"},400);
       return await sql.begin(async(sql:any)=>{
         await sql`select set_config('enl.actor',${JSON.stringify({id:actor.id,role:actor.role})},true)`;
-        const rows=await sql`select site_id,payload from public.enl_incident_shared where incident_id=${incidentId} for update`,row=rows[0],prev=parsePayload(row?.payload);
+        const rows=await sql`select site_id,payload from public.enl_incident_active where incident_id=${incidentId} for update`,row=rows[0],prev=parsePayload(row?.payload);
         if(!prev)return json({ok:false,message:"not_found"},404);
         if(!["safety","manager","executive"].includes(actor.role)&&clean(row.site_id)!==actor.siteId)return json({ok:false,message:"forbidden"},403);
         if(actor.role==="worker")return json({ok:false,message:"forbidden"},403);
@@ -427,7 +429,7 @@ Deno.serve(async(req:Request)=>{
           const hm=historicalMeta(raw0);
           if(!hm.erpApproved||clean(raw0.status)!=="closed")rejectWrite("invalid_historical_transfer",400);
         }
-        const rr=await sql`select incident_id,site_id,payload,created_at from public.enl_incident_shared where incident_id=${id} limit 1 for update`,row=rr[0],prev=parsePayload(row?.payload);
+        const rr=await sql`select incident_id,site_id,payload,created_at from public.enl_incident_active where incident_id=${id} limit 1 for update`,row=rr[0],prev=parsePayload(row?.payload);
         if(prev&&clean(raw0._syncMutationId)&&clean(raw0._syncMutationId)===clean(prev._syncMutationId)){savedIncidents.push(prev);ignored++;continue;}
         if(prev&&comparableIncident(raw0)===comparableIncident(prev)){savedIncidents.push(prev);ignored++;continue;}
         // Check the locked row's version before comparing server-managed fields.

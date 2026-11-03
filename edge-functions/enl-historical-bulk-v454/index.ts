@@ -37,7 +37,7 @@ function applyValues(c:any,values:any,a:any,why:string){
 }
 async function incident(t:any,c:any,bat:string){
  if(!c.incidentId)fail('candidate_not_registered');
- const rows=await t`select * from public.enl_incident_shared where incident_id=${c.incidentId} for update`,row=rows[0];
+ const rows=await t`select * from public.enl_incident_active where incident_id=${c.incidentId} for update`,row=rows[0];
  if(!row||!isBulk(row.payload)||row.payload.historicalOrigin.batchId!==bat||row.payload.historicalOrigin.candidateId!==c.id)fail('candidate_scope_mismatch');
  return row;
 }
@@ -64,7 +64,7 @@ async function validateCandidate(t:any,c:any,ss:any,excludeId=''){
  // Search for duplicates only against known site/record identifiers.
  const siteId=clean(c.values?.siteId),recordNo=clean(c.values?.recordNo);
  if(!siteId&&!recordNo)return issues;
- const all=await t`select incident_id,payload from public.enl_incident_shared where incident_id<>${excludeId} and coalesce(payload->'bulkInvalidation'->>'active','false')<>'true' and ((${siteId}<>'' and site_id=${siteId}) or (${recordNo}<>'' and payload->'historicalOrigin'->>'recordNo'=${recordNo}))`;
+ const all=await t`select incident_id,payload from public.enl_incident_active where incident_id<>${excludeId} and coalesce(payload->'bulkInvalidation'->>'active','false')<>'true' and ((${siteId}<>'' and site_id=${siteId}) or (${recordNo}<>'' and payload->'historicalOrigin'->>'recordNo'=${recordNo}))`;
  const dup=all.filter((x:any)=>{
   const p=x.payload,v=c.values;
   if(v.recordNo&&(p.historicalOrigin?.recordNo===v.recordNo||x.incident_id===v.recordNo))return true;
@@ -110,7 +110,7 @@ Deno.serve(async(req:Request)=>{
   if(b.action==='get'){
    const row=await batch(sql,b.batchId,a.id),fs=await sql`select file_id,name,hash,method,size from private.enl_historical_files where batch_id=${b.batchId}`;
    const ids=row.candidates.filter(isRegistered).map((c:any)=>c.incidentId);
-   const incidents=ids.length?await sql`select incident_id,payload from public.enl_incident_shared where incident_id in ${sql(ids)}`:[];
+   const incidents=ids.length?await sql`select incident_id,payload from public.enl_incident_active where incident_id in ${sql(ids)}`:[];
    for(const c of row.candidates){const p=incidents.find((x:any)=>x.incident_id===c.incidentId)?.payload;if(p){c.values=Core.valuesFromIncident(p,c.values);c.incidentVersion=p._syncVersion||0;c.workflowStarted=progressed(p);c.state=p.bulkInvalidation?.active?'voided':'success';}}
    const history=await sql`select actor_id,action,created_at,detail from private.enl_historical_import_audit where batch_id=${b.batchId} order by created_at desc limit 500`;
    return json({ok:true,batch:row,files:fs,incidents,history});

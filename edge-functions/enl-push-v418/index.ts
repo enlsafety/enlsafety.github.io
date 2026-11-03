@@ -133,7 +133,7 @@ async function managementView(sql:any,body:any){
   if(u.role==="field"&&!FIELD_TITLES.includes(clean(u.position)))return json({ok:false,message:"forbidden"},403);
   const incidentId=clean(body.incidentId),documentType=clean(body.documentType);
   if(!incidentId||!["incident_report","corrective_action"].includes(documentType))return json({ok:false,message:"invalid_view"},400);
-  const rr=await sql`select incident_id,site_id,payload from public.enl_incident_shared where incident_id=${incidentId} limit 1`;
+  const rr=await sql`select incident_id,site_id,payload from public.enl_incident_active where incident_id=${incidentId} limit 1`;
   const row=rr[0];if(!row)return json({ok:false,message:"not_found"},404);
   if(u.role==="field"&&clean(row.site_id)!==u.siteId)return json({ok:false,message:"forbidden"},403);
   const status=clean(row.payload?.status),actionStatus=clean(row.payload?.corrective?.status);
@@ -150,7 +150,7 @@ async function viewList(sql:any,body:any){
   if(u.role==="field"&&!FIELD_TITLES.includes(clean(u.position)))return json({ok:false,message:"forbidden"},403);
   const incidentId=clean(body.incidentId);if(!incidentId)return json({ok:false,message:"incident_required"},400);
   const rr=await sql`select site_id,payload->>'status' as status,payload->'bulkInvalidation'->>'active' as invalidated
-    from public.enl_incident_shared where incident_id=${incidentId} limit 1`;
+    from public.enl_incident_active where incident_id=${incidentId} limit 1`;
   const row=rr[0];if(!row)return json({ok:false,message:"not_found"},404);
   if(u.role==="field"&&clean(row.site_id)!==u.siteId)return json({ok:false,message:"forbidden"},403);
   if(body.includeHqReaders===true){
@@ -182,6 +182,8 @@ async function dispatchCoreLocked(sql:any,c:any){
     from public.enl_push_events where sent_at is null order by id asc limit 200`;
   let sent=0,removed=0,pending=0;
   for(const ev of events||[]){
+    const deleted=await sql`select incident_id from private.enl_incident_deletions where incident_id=${ev.incident_id} limit 1`;
+    if(deleted[0]){await sql`update public.enl_push_events set sent_at=now(),last_error='incident_deleted' where id=${ev.id}`;continue}
     if(clean(ev.kind).startsWith("historical_followup_")){
       const permitted=ev.kind==="historical_followup_submitted"
         ? await sql`select user_id as id from public.enl_hq_users where user_id=${ev.user_id} and active=true and role='safety'`
@@ -196,7 +198,7 @@ async function dispatchCoreLocked(sql:any,c:any){
       continue;
     }
     if(ev.kind==='executive_approval_requested'){
-      const rows=await sql`select payload from public.enl_incident_shared where incident_id=${ev.incident_id} limit 1`;
+      const rows=await sql`select payload from public.enl_incident_active where incident_id=${ev.incident_id} limit 1`;
       const a=rows[0]?.payload?.executiveApproval;
       if(prof?.role!=='executive'||!(globalThis as any).ENLExecutiveApproval.canDecide(a,ev.user_id)||(ev.data?.approvalRound&&ev.data.approvalRound!==a.round)||(ev.data?.approvalStage&&ev.data.approvalStage!==(globalThis as any).ENLExecutiveApproval.describe(a).stage)){
         await sql`update public.enl_push_events set sent_at=now(),last_error='approval_no_longer_required' where id=${ev.id}`;continue;
