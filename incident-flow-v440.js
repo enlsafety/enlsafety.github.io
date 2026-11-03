@@ -444,7 +444,7 @@
     if(modal.dataset.wf440DecorSig===decorSig)return;
     modal.dataset.wf440DecorSig=decorSig;
     modal.querySelectorAll('.wf440-stage,.wf440-supplement-note[data-wf440-modal]').forEach(x=>x.remove());
-    const head=modal.querySelector('.modal-head');if(head){head.insertAdjacentHTML('afterend',stageBanner(i));if(i.supplement&&!modal.querySelector('[data-executive-summary]')){const holder=document.createElement('div');holder.className='wf440-supplement-note';holder.dataset.wf440Modal='1';holder.innerHTML=supplementInfo(i).replace(/^<section[^>]*>|<\/section>$/g,'');head.nextElementSibling?.insertAdjacentElement('afterend',holder)}}
+    const head=modal.querySelector('.modal-head');if(head){head.insertAdjacentHTML('afterend',stageBanner(i));if(i.supplement&&(!modal.querySelector('[data-executive-summary]')||isSafety(u)||isFieldManager(u))){const holder=document.createElement('div');holder.className='wf440-supplement-note';holder.dataset.wf440Modal='1';holder.innerHTML=supplementInfo(i).replace(/^<section[^>]*>|<\/section>$/g,'');head.nextElementSibling?.insertAdjacentElement('afterend',holder)}}
     if(isReader(u)&&i.category==='person'&&!['approved','closed'].includes(String(i.status||''))){head?.insertAdjacentHTML('afterend','<div class="wf440-sensitive">관리자·경영진 화면에서는 진단명·의사소견·진단서 등 민감한 의료 상세정보를 제한하여 표시합니다.</div>')}
     if(isSafety(u)){
       modal.querySelector('#closeInc')?.remove();

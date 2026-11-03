@@ -278,8 +278,8 @@
   }
   function openReadOnly(i,u){
     if(u?.role==='executive'&&window.enlOpenIncidentReview)return window.enlOpenIncidentReview(i.id,false,u);
-    openModal(modalHead(i,'누적 사고보고서')+cumulative(i)+historyHtml(i.corrective||{}));
-    mountDocument(i,i.corrective?.actionDetail?'[data-report-stage="D"]':'[data-report-stage="C"]');
+    openModal(modalHead(i,'사고 경위서')+(window.enlIncidentSummaryHtml?.(i,{includeOriginal:isSafety(u)||isField(u)})||overview(i))+historyHtml(i.corrective||{}));
+    mountDocument(i,'[data-incident-summary]');
   }
   function openSafetyPlanModal(i,u){
     i=structuredClone(i);const c=i.corrective||{},plan=hasPlan(c);

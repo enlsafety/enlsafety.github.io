@@ -74,6 +74,8 @@ async function sharedSummary(engine,width,name){
     if(i.category==='property')assert.ok((await table.innerText()).includes('96,250원'));
     assert.equal(await p.locator('#modalRoot .report410-readonly:visible').count(),0,'raw form is collapsed for '+role);
     assert.equal(await p.locator('#modalRoot .inc411-overview').count(),0,'no duplicate overview');
+    assert.equal(await p.locator('#modalRoot .report410-cumulative,#modalRoot [data-report-stage="A"],#modalRoot [data-report-stage="C"],#modalRoot [data-report-stage="D"],#modalRoot [data-report-stage="E"]').count(),0,'record lookup must not show A-E document sections');
+    if(['safety','field'].includes(role))assert.ok((await table.innerText()).includes('이동 전 적재물과 동선을 점검한다.'),'current plan remains visible in summary');
     if(['manager','executive','final'].includes(role)){
      assert.equal(await p.locator('#modalRoot .inc411-summary-original').count(),0);
      const markup=await p.locator('#modalRoot').innerHTML();for(const secret of ['비공개 진단','비공개 소견','비공개 진단서.pdf'])if(i.category==='person')assert.ok(!markup.includes(secret),'private data excluded from reader DOM');
@@ -92,6 +94,10 @@ async function sharedSummary(engine,width,name){
    assert.equal(await p.evaluate(()=>JSON.stringify(data.incidents)),before,'rendering does not rewrite records');
    const print=await p.evaluate(()=>enlCumulativeReportHtml(data.incidents[0]));
    assert.ok(print.includes('report410-readonly')&&!print.includes('data-incident-summary'),'document output remains the original full template');
+   await p.evaluate(()=>{closeModal();openUnifiedCorrectiveModal('closed-property',currentUser())});
+   await p.locator('#modalRoot [data-incident-summary]>table').waitFor();
+   assert.equal(await p.locator('#modalRoot [data-report-stage]').count(),0,'approved action read-only view also uses summary');
+   assert.ok((await p.locator('#modalRoot [data-incident-summary]').first().innerText()).includes('풍우막 교체 완료'));
    if(role==='safety'||role==='field'){
     await p.evaluate(()=>{closeModal();openUnifiedCorrectiveModal('approved-property',currentUser())});
     await p.locator('#modalRoot [data-report-stage="A"] [data-incident-summary]>table').waitFor();

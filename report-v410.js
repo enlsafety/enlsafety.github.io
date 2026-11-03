@@ -100,7 +100,7 @@
       .replace(/여부에 대한 확인을 실시한다[.]?$/,'여부를 확인한다')).join('\n');
   }
   function executiveSummaryHtml(i,{initialOnly=false,includeOriginal=false}={}){
-    const d=i.reportDetails||{},c=i.corrective?.status==='approved'?i.corrective:{};
+    const d=i.reportDetails||{},c=includeOriginal||i.corrective?.status==='approved'?(i.corrective||{}):{};
     const person=i.category==='person',rows=[];
     const clean=v=>{const text=String(v??'').trim();return ['-','미입력','미기재'].includes(text)?'':text};
     const join=(values,separator=' / ')=>[...new Set(values.map(clean).filter(Boolean))].join(separator);
@@ -123,6 +123,7 @@
     }
     row('즉시 조치',i.immediateAction);
     if(!initialOnly){
+      if(c.status&&c.status!=='approved')row('재발방지 진행상태',({planned:'계획 수립 완료 / 현장 조치 작성 대기',draft:'현장 조치 작성 중',submitted:'안전관리자 검토 대기',rejected:'보완 요청 / 현장 조치 수정 중'})[c.status]||'작성 중');
       const cause=clean(d.causeAnalysisNote)||clean(c.rootCause)||join([d.environmentCause,d.behaviorCause],'\n');
       row(d.causeAnalysisStatus==='investigating'&&cause?'원인 (조사 중)':'사고 원인',briefReportText(cause,true)||(d.causeAnalysisStatus==='investigating'?'조사 중':''),false,cause);
       const plan=c.planDetail||(d.preventionPlan!=='후속 단계에서 안전관리자가 별도 수립'?d.preventionPlan:'');
