@@ -75,3 +75,16 @@
   .report410-cumulative .report410-readonly .report410-section {padding:0;border:0;background:transparent;box-shadow:none}
   .report410-cumulative .report410-readonly .report410-section-head {margin:10px 0 6px}
 }
+
+/* Match the incident statement while preserving the same controls and tab order. */
+@media screen {
+  .report410-entry-table .report410-work-table th {white-space:pre-line;vertical-align:middle}
+  .report410-entry-table .report410-work-table textarea {min-height:76px}
+  .report410-entry-table .report410-work-table input:disabled {opacity:1;color:#24435f;background:#f4f7fb}
+  .report410-entry-table .report410-work-table .report410-check {white-space:normal;line-height:1.5}
+  .report410-entry-table .report410-work-table :is(input,select,textarea):focus-visible {outline:2px solid #367fc0;outline-offset:1px}
+  @media(max-width:520px) {
+    .report410-entry-table .report410-work-table th {width:clamp(82px,24vw,104px);font-size:13px}
+    .report410-entry-table .report410-work-table th,.report410-entry-table .report410-work-table td {padding:7px 6px}
+  }
+}

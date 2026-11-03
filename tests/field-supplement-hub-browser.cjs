@@ -1,7 +1,7 @@
 const {chromium,webkit}=require('playwright'),fs=require('node:fs'),assert=require('node:assert/strict');
 
 async function run(engine){
-  const browser=await engine.launch();
+  const browser=await engine.launch(engine===chromium&&process.env.CHROME_EXE?{executablePath:process.env.CHROME_EXE}:{});
   const page=await browser.newPage({viewport:{width:390,height:844}});
   try{
     await page.setContent('<!doctype html><html><head></head><body><div id="view"></div></body></html>');
@@ -87,7 +87,38 @@ async function run(engine){
     await page.evaluate(()=>{data.incidents.find(i=>i.id==='inc-action').corrective.status='submitted';window.enlRenderFieldHome(document.getElementById('view'),window.__u)});
     assert.equal(await page.locator('.field-six-new').count(),0);
     assert.equal(await page.evaluate(()=>window.enlFieldAttentionCount(window.__u)),0);
+    // Every persisted same-site stage must appear once, including both executive rounds.
+    await page.evaluate(()=>{
+      const base={siteId:'s01',category:'property',eventType:'접촉',reporterName:'검수 소장',reporterId:'u1',occurredAt:'2026-10-03T09:00:00+09:00',reportDetails:{damagedItem:'표지판',damageDetail:'파손'}};
+      data.incidents.push(...[
+        {id:'exec-parallel',status:'approved',corrective:{status:'approved'},executiveApproval:{state:'pending',stage:'parallel'}},
+        {id:'exec-president',status:'approved',corrective:{status:'approved'},executiveApproval:{state:'pending',stage:'president'}},
+        {id:'exec-rejected',status:'approved',corrective:{status:'submitted'},executiveApproval:{state:'rejected'}},
+        {id:'report-rejected',status:'rejected'},
+        {id:'action-writing',status:'approved',corrective:{status:'in_progress'}},
+        {id:'action-waiting',status:'approved',corrective:{status:'submitted'}},
+        {id:'saved-draft',status:'draft'},
+        {id:'future-stage',status:'future_status'},
+        {id:'closed-with-old-pending',status:'closed',corrective:{status:'approved'},executiveApproval:{state:'pending'}},
+        {id:'different-site',siteId:'s02',status:'approved',executiveApproval:{state:'pending'}}
+      ].map(x=>({...base,...x})));
+      enlRenderFieldRecords(document.getElementById('view'),__u);
+    });
+    for(const position of ['현장소장','파트장','서무']){
+      await page.evaluate(position=>{__u.position=position;enlRenderFieldRecords(document.getElementById('view'),__u)},position);
+      const expected=await page.evaluate(()=>data.incidents.filter(i=>i.siteId===__u.siteId).map(i=>i.id).sort());
+      const shown=await page.locator('[data-field-open]').evaluateAll(xs=>xs.map(x=>x.dataset.fieldOpen).sort());
+      assert.deepEqual(shown,expected,position+' no omitted/duplicated stages');
+      assert.equal(await page.locator('[data-field-group="executive"] [data-field-open]').count(),2);
+      assert.ok((await page.locator('[data-field-group="waiting"]').innerText()).includes('경영진 반려 후 안전관리자 재검토'));
+      assert.equal(await page.locator('[data-field-action="exec-rejected"]').count(),0);
+      assert.ok((await page.locator('[data-field-group="executive"]').innerText()).includes('사장 최종결재 대기'));
+      assert.equal(await page.locator('[data-field-group="executive"] [data-field-edit]').count(),0,'viewing never grants editing while approval is pending');
+      assert.equal(await page.locator('[data-field-group="closed"] [data-field-open="closed-with-old-pending"]').count(),1);
+      await page.locator('[data-field-open="exec-president"]').click();assert.equal(await page.evaluate(()=>__opened),'exec-president');
+      assert.equal(await page.locator('[data-field-open="different-site"]').count(),0);
+    }
     console.log('PASS:',engine.name(),'field supplement + prevention attention badge, guided record groups and prevention terminology');
   }finally{await browser.close()}
 }
-(async()=>{for(const engine of [chromium,webkit])await run(engine)})().catch(e=>{console.error(e);process.exit(1)});
+(async()=>{for(const engine of process.env.UI_CHROMIUM_ONLY?[chromium]:[chromium,webkit])await run(engine)})().catch(e=>{console.error(e);process.exit(1)});
