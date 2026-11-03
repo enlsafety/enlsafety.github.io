@@ -5,7 +5,7 @@ import postgres from "npm:postgres@3.4.5";
 const ORIGIN="https://enlsafety.github.io";
 const CLIENT="incident-report-v2";
 const REGISTERED_SENDER_NAME="이앤엘 사고보고";
-const DISPLAY_NAME="●이앤엘 사고";
+const DISPLAY_NAME="이앤엘 사고보고";
 const BREVO_BASE="https://api.brevo.com/v3";
 const VERSION="4.8.6-approval-wording";
 const cors={"Access-Control-Allow-Origin":ORIGIN,"Access-Control-Allow-Headers":"content-type, x-enl-app, x-enl-internal","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"};
