@@ -300,3 +300,16 @@ body.safety-ui:has(.shell411-safety-home) {overflow-anchor:none}
 .inc411-summary-original{margin-top:12px;border:1px solid #d9e4ef;border-radius:10px;padding:10px 12px;min-width:0}
 .inc411-summary-original>summary{cursor:pointer;color:#42617f;font-weight:600;min-height:28px}
 .inc411-summary-original[open]>summary{margin-bottom:12px}
+
+/* Field menu totals use the same scope as their destination lists. */
+.safety-ui #app .field-six-btn>strong {flex-wrap:wrap;gap:5px 8px}
+.safety-ui #app .field-six-btn .field-six-total {display:inline-flex;align-items:center;flex:0 0 auto;white-space:nowrap;padding:3px 7px;border-radius:8px;background:var(--sky);color:var(--blue);font-size:13px;font-weight:800;line-height:1.4;font-variant-numeric:tabular-nums}
+.safety-ui #app [data-field-task="accident_action"] .field-six-total {background:var(--mint);color:var(--green)}
+.safety-ui #app .field411-status-tile {position:relative;min-width:0;padding-right:49px;--record-icon:var(--icon-report);--record-tile:var(--sky)}
+.safety-ui #app .field411-status-tile::after {content:"";position:absolute;right:10px;top:12px;width:30px;height:30px;border-radius:9px;background:var(--record-tile) var(--record-icon) center/18px no-repeat;pointer-events:none}
+.safety-ui #app .field411-status-tile>span {overflow-wrap:anywhere;word-break:keep-all}
+.safety-ui #app [data-field-stat="supplement"] {--record-icon:var(--icon-alert);--record-tile:var(--cream)}
+.safety-ui #app [data-field-stat="planned"] {--record-icon:var(--icon-clock)}
+.safety-ui #app [data-field-stat="action"] {--record-icon:var(--icon-shield);--record-tile:var(--cream)}
+.safety-ui #app [data-field-stat="executive"] {--record-icon:var(--icon-approve)}
+.safety-ui #app [data-field-stat="closed"] {--record-icon:var(--icon-closed);--record-tile:var(--mint)}

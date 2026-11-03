@@ -219,6 +219,9 @@
     let arr=[...(data?.incidents||[])].filter(reportAccepted);if(isField(u)){arr=arr.filter(i=>sameSite(i,u));if(!isSiteManager(u))arr=arr.filter(i=>isAuthor(i,u))}if(isReader(u))arr=arr.filter(i=>String(i.corrective?.status||'')==='approved');return arr.sort((a,b)=>new Date(b.occurredAt||0)-new Date(a.occurredAt||0));
   }
 
+  // Keep the home total identical to the field action list and its access scope.
+  window.enlFieldActionRecordCount=u=>eligibleForAction(u).length;
+
   function cardHtml(i,u){
     const c=i?.corrective||{},q=quick(i),rejected=String(c.status||'')==='rejected',plan=hasPlan(c),action=text(c.actionDetail),safety=isSafety(u),field=isField(u),reader=isReader(u);let button='상세 확인',disabled=false;
     if(safety){if(isFinalized(i))button='종결 내용 확인';else if(!plan)button='재발방지계획 등록';else if(c.status==='submitted')button='재발방지조치 확인';else if(c.status==='rejected')button='보완조치 대기';else button='재발방지계획 확인·수정'}

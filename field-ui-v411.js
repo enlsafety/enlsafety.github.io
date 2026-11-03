@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.1.5 - authoritative field/worker UI */
 (function(){
   'use strict';
-  const VERSION='4.4.42-field-prevention-attention1';
+  const VERSION='4.8.13-r10-field-menu';
   const isField=u=>!!u&&['field','worker'].includes(u.role);
   const siteName=u=>{try{return siteById?.(u?.siteId)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(u?.siteId))?.name||'소속 사업장'}catch(e){return '소속 사업장'}};
   const title=u=>u?.position||u?.jobTitle||(u?.role==='worker'?'일반근로자':'현장관리');
@@ -46,11 +46,25 @@
     if(!root||!isField(u))return;
     ensureHomeAlertCss();
     const attention=attentionCounts(u),pending=attention.total,needsPush=pending>0&&((typeof Notification==='undefined')||Notification.permission!=='granted');
+    const menuCount=(count,label)=>isManager(u)&&Number.isFinite(count)?`<span class="field-six-total" aria-label="${label} 전체 ${count.toLocaleString('ko-KR')}건">${count.toLocaleString('ko-KR')}건</span>`:'';
+    const recordTotal=window.enlFieldRecordCount?.(u),actionTotal=window.enlFieldActionRecordCount?.(u);
     const alertLabel=[attention.supplement?`사고보고 보완요청 ${attention.supplement}건`:'',attention.prevention?`재발방지조치 작성·보완 ${attention.prevention}건`:''].filter(Boolean).join(' · ');
-    root.innerHTML=`<section class="field-six-home"><div class="field-six-head"><h2>${esc(siteName(u))}</h2><p>필요한 메뉴를 선택해 주세요.</p><span class="field-six-role">${esc(title(u))} · ${esc(u.name||'')}</span></div>${pending?`<div class="field-six-alert"><b>${esc(alertLabel)}</b>${needsPush?'<button type="button" data-field-notification-setup>휴대폰 알림 켜기</button>':''}</div>`:''}<div class="field-six-grid"><button class="field-six-btn" data-field-task="accident_report"><strong>사고 보고</strong><small>대인·대물 사고를 보고</small></button><button class="field-six-btn" data-field-task="accident_action"><strong>재발방지조치</strong><small>재발방지계획 이행내용 등록</small></button><button class="field-six-btn ${pending?'field-six-attention-btn':''}" data-field-task="records">${pending?`<span class="field-six-new" aria-label="확인·작성 필요 ${pending}건">${pending}</span>`:''}<strong>사고 기록</strong><small>${pending?`확인·작성 필요 ${pending}건`:'우리 현장<br>사고기록 확인'}</small></button><button class="field-six-btn" data-field-task="inquiry"><strong>기타 문의</strong><small>안전관리자 문의 및 답변 확인</small></button></div></section>`;
+    root.innerHTML=`<section class="field-six-home"><div class="field-six-head"><h2>${esc(siteName(u))}</h2><p>필요한 메뉴를 선택해 주세요.</p><span class="field-six-role">${esc(title(u))} · ${esc(u.name||'')}</span></div>${pending?`<div class="field-six-alert"><b>${esc(alertLabel)}</b>${needsPush?'<button type="button" data-field-notification-setup>휴대폰 알림 켜기</button>':''}</div>`:''}<div class="field-six-grid"><button class="field-six-btn" data-field-task="accident_report"><strong>사고 보고</strong><small>대인·대물 사고를 보고</small></button><button class="field-six-btn" data-field-task="accident_action"><strong><span>재발방지조치</span>${menuCount(actionTotal,'재발방지조치')}</strong><small>재발방지계획 이행내용 등록</small></button><button class="field-six-btn ${pending?'field-six-attention-btn':''}" data-field-task="records">${pending?`<span class="field-six-new" aria-label="확인·작성 필요 ${pending}건">${pending}</span>`:''}<strong><span>사고 기록</span>${menuCount(recordTotal,'사고 기록')}</strong><small>${pending?`확인·작성 필요 ${pending}건`:'우리 현장<br>사고기록 확인'}</small></button><button class="field-six-btn" data-field-task="inquiry"><strong>기타 문의</strong><small>안전관리자 문의 및 답변 확인</small></button></div></section>`;
     root.querySelectorAll('[data-field-task]').forEach(b=>b.onclick=()=>go(b.dataset.fieldTask,u));
     root.querySelector('[data-field-notification-setup]')?.addEventListener('click',()=>{if(typeof window.enlOpenPwaNotificationSettings==='function')window.enlOpenPwaNotificationSettings();else document.getElementById('enlPwaTop418')?.click()});
   }
+  function refreshMenuTotals(){
+    const u=currentUser?.();if(!isManager(u))return;
+    const root=document.querySelector('.field-six-home');if(!root)return;
+    [['records',window.enlFieldRecordCount?.(u),'사고 기록'],['accident_action',window.enlFieldActionRecordCount?.(u),'재발방지조치']].forEach(([task,count,label])=>{
+      const badge=root.querySelector(`[data-field-task="${task}"] .field-six-total`);
+      if(!badge||!Number.isFinite(count))return;
+      badge.textContent=`${count.toLocaleString('ko-KR')}건`;
+      badge.setAttribute('aria-label',`${label} 전체 ${count.toLocaleString('ko-KR')}건`);
+    });
+  }
+  window.addEventListener('enl-incidents-pulled',refreshMenuTotals);
+  window.addEventListener('enl-incident-saved',refreshMenuTotals);
   window.enlRenderFieldHome=renderHome;
   window.enlFieldSupplementCount=supplementCount;
   window.enlFieldPreventionActionCount=preventionActionCount;
