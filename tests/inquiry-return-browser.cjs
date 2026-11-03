@@ -15,6 +15,7 @@ async function check(browser, role, position) {
   const context = await browser.newContext({serviceWorkers:'block', viewport:{width:field ? 390 : 1280, height:850}});
   try {
     await context.addInitScript(user => {
+      localStorage.setItem('enl_setup_intro_seen_v1','1'); // Returning-user navigation regression.
       localStorage.setItem('enl_safety_session_v3', JSON.stringify({manager:user, loggedAt:new Date().toISOString()}));
     }, {id:'qa-'+role, role, position, name:'검증 사용자', siteId:field ? 's01' : '', active:true});
     await context.route('**/*', route => {

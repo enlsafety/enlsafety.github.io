@@ -31,6 +31,36 @@
   const withDeviceMeta=p=>({...p,__device:deviceMeta()});
   const keyFor=u=>PREF_PREFIX+String(u?.id||'guest');
 
+  const INTRO='enl_setup_intro_seen_v1';
+  let introTimer=null,introSeen=false;
+  function hasSeenIntro(){
+    if(introSeen)return true;
+    try{return !!(localStorage.getItem(INTRO)||sessionStorage.getItem(INTRO))}catch(e){return true}
+  }
+  function rememberIntro(){introSeen=true;for(const storage of ['localStorage','sessionStorage'])try{window[storage].setItem(INTRO,'1')}catch(e){}}
+  function helpHtml(){
+    const ios=isIOS(),android=isAndroid();
+    return `<p class="enl-help-lead">설치는 선택 사항입니다. 필요한 설정은 상단에서 언제든 다시 확인할 수 있습니다.</p>
+      <section class="enl-help-section"><h3>1. 앱 설치하기</h3>
+      <details ${ios?'open':''}><summary>iPhone / iPad</summary><ol><li>Safari에서 사고보고앱을 엽니다.</li><li>공유 메뉴에서 <b>홈 화면에 추가</b>를 선택합니다. 공유가 보이지 않으면 더 보기 메뉴를 확인합니다.</li><li><b>웹 앱으로 열기</b>가 표시되면 켠 뒤 추가합니다.</li><li>홈 화면에 생긴 사고보고앱 아이콘으로 다시 실행합니다.</li></ol></details>
+      <details ${android?'open':''}><summary>Android</summary><ol><li>Chrome에서 사고보고앱을 엽니다.</li><li>브라우저 메뉴의 <b>설치 및 바로가기 만들기 → 설치</b>를 선택합니다. 버전에 따라 <b>앱 설치</b> 또는 <b>홈 화면에 추가</b>로 표시됩니다.</li><li>설치된 앱 아이콘으로 실행합니다.</li></ol></details>
+      <details ${!ios&&!android?'open':''}><summary>PC</summary><ol><li>Chrome 또는 Edge에서 사고보고앱을 엽니다.</li><li>주소창의 설치 아이콘 또는 브라우저 메뉴의 앱 설치 항목을 선택합니다.</li><li>설치 항목이 없으면 브라우저에서 그대로 사용할 수 있습니다.</li></ol></details>
+      <p class="enl-help-note">카카오톡 안에서 열었다면 Safari 또는 Chrome으로 주소를 열어 주세요. 메뉴 이름은 기기와 브라우저 버전에 따라 다를 수 있습니다.</p></section>
+      <section class="enl-help-section"><h3>2. 알림 켜기</h3><ol><li>앱에 로그인하고 상단의 <b>알림 설정</b>을 누릅니다. iPhone은 홈 화면에 추가한 앱에서 진행합니다.</li><li><b>알림 켜기</b>를 누른 뒤 기기의 권한 요청에서 <b>허용</b>을 선택합니다.</li><li>상단에 <b>알림 켜짐</b>이 표시되는지 확인합니다.</li></ol><p class="enl-help-note">차단된 경우 기기 또는 브라우저 설정에서 사고보고앱의 알림을 허용한 뒤 다시 설정해 주세요. 알림이 오지 않으면 집중 모드와 방해 금지도 확인해 주세요.</p></section>`;
+  }
+  function openHelp(){
+    if(document.getElementById('enlSetupHelp'))return;
+    rememberIntro();ensureCss();const focus=document.activeElement,wrap=document.createElement('div');wrap.id='enlSetupHelp';wrap.className='enl418-overlay';
+    wrap.innerHTML=`<section class="enl418-modal enl-help-modal" role="dialog" aria-modal="true" aria-labelledby="enlHelpTitle"><div class="enl418-head"><div><h2 id="enlHelpTitle">앱 설치 / 알림 안내</h2><p>처음 한 번 확인하면 다음부터는 바로 시작합니다.</p></div><button type="button" class="enl418-close" data-help-close aria-label="닫기">×</button></div><div class="enl418-body">${helpHtml()}<div class="enl-help-actions"><button type="button" data-help-settings>알림 설정 열기</button><button type="button" data-help-close>확인</button></div></div></section>`;
+    const close=()=>{wrap.remove();document.removeEventListener('keydown',key);if(focus?.isConnected)focus.focus()};
+    const key=e=>{if(e.key==='Escape'){e.preventDefault();close()}else if(e.key==='Tab'){const controls=[...wrap.querySelectorAll('button,summary')].filter(el=>el.getClientRects().length);const first=controls[0],last=controls.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}};
+    wrap.querySelectorAll('[data-help-close]').forEach(b=>b.onclick=close);wrap.querySelector('[data-help-settings]').onclick=()=>{close();openModal()};wrap.addEventListener('click',e=>{if(e.target===wrap)close()});document.body.appendChild(wrap);document.addEventListener('keydown',key);wrap.querySelector('[data-help-close]').focus();
+  }
+  function scheduleIntro(){
+    if(hasSeenIntro()||introTimer)return;
+    introTimer=setTimeout(()=>{introTimer=null;if(hasSeenIntro()||!actor()||!document.querySelector('.topbar')||document.querySelector('[role="dialog"],#modalRoot .modal,#enl418Overlay,#unifiedReportForm,#view form'))return;openHelp()},600);
+  }
+
   function defaultPrefs(u){
     const r=roleNorm(u?.role);
     if(r==='safety')return {incident_progress:true,action_progress:true,inquiry:true,management_views:true,urgent:true};
@@ -83,7 +113,7 @@
   async function subscriptionLabel(){const s=await currentSub();return s?'연결됨':'연결 필요'}
 
   async function updateTopButton(){
-    const btn=document.getElementById('enlPwaTop418');if(!btn)return;let on=false;try{on=Notification.permission==='granted'&&!!(await currentSub())}catch(e){}btn.classList.toggle('on',on);btn.classList.toggle('warn',!on&&('Notification' in window)&&window.Notification.permission==='denied');btn.innerHTML=on?'<span class="enl418-dot"></span> 알림 켜짐':'🔔 알림 설정';btn.title=on?'알림 설정 및 테스트':'PWA 설치와 알림을 설정합니다.';
+    const btn=document.getElementById('enlPwaTop418');if(!btn)return;let on=false;try{on=Notification.permission==='granted'&&!!(await currentSub())}catch(e){}btn.classList.toggle('on',on);btn.classList.toggle('warn',!on&&('Notification' in window)&&window.Notification.permission==='denied');const label=on?'알림 켜짐':'알림 설정';if(btn.textContent!==label)btn.textContent=label;btn.setAttribute('aria-label',label+' 열기');btn.title=on?'알림 설정 및 테스트':'PWA 설치와 알림을 설정합니다.';
   }
   async function renderStatus(){
     const install=document.getElementById('enl418InstallState'),perm=document.getElementById('enl418PermissionState'),sub=document.getElementById('enl418SubState');if(install)install.textContent=await installationLabel();if(perm)perm.textContent=permissionLabel();if(sub)sub.textContent=await subscriptionLabel();await updateTopButton();
@@ -95,7 +125,7 @@
     return `<div class="enl418-guide"><strong>한 번만 설정하면 됩니다.</strong><br>${isStandalone()?'앱 설치가 확인되었습니다. 아래 버튼을 눌러 휴대폰 알림 권한을 허용해 주세요.':'아래 버튼을 누르면 앱 설치와 알림 권한 설정을 순서대로 진행합니다.'}</div>`;
   }
   async function openModal(){
-    const u=actor();if(!u)return alert('로그인 후 알림을 설정할 수 있습니다.');ensureCss();document.getElementById('enl418Overlay')?.remove();const p=loadPrefs(u),wrap=document.createElement('div');wrap.id='enl418Overlay';wrap.className='enl418-overlay';wrap.innerHTML=`<section class="enl418-modal" role="dialog" aria-modal="true" aria-labelledby="enl418Title"><div class="enl418-head"><div><h2 id="enl418Title">알림 설정</h2><p>PWA 설치 · 푸시 권한 · 역할별 알림을 한 곳에서 관리합니다.</p></div><button type="button" class="enl418-close" data-enl-close aria-label="닫기">×</button></div><div class="enl418-body"><div class="enl418-status"><div class="enl418-step"><small>앱 설치</small><b id="enl418InstallState">확인 중</b></div><div class="enl418-step"><small>휴대폰 알림 권한</small><b id="enl418PermissionState">확인 중</b></div><div class="enl418-step"><small>푸시 연결</small><b id="enl418SubState">확인 중</b></div></div>${platformGuide()}<div><div class="ey">받을 알림</div><div class="enl418-pref-list">${prefRows(u,p)}</div></div><div id="enl418Message" class="enl418-message"></div><div class="enl418-actions"><button type="button" class="primary" id="enl418Setup">${isStandalone()?'알림 켜기':'설치 및 알림 켜기'}</button><button type="button" id="enl418Test">테스트 알림 보내기</button><button type="button" class="danger" id="enl418Off">이 기기 알림 끄기</button></div></div></section>`;document.body.appendChild(wrap);
+    const u=actor();if(!u)return alert('로그인 후 알림을 설정할 수 있습니다.');rememberIntro();ensureCss();document.getElementById('enl418Overlay')?.remove();const p=loadPrefs(u),wrap=document.createElement('div');wrap.id='enl418Overlay';wrap.className='enl418-overlay';wrap.innerHTML=`<section class="enl418-modal" role="dialog" aria-modal="true" aria-labelledby="enl418Title"><div class="enl418-head"><div><h2 id="enl418Title">알림 설정</h2><p>PWA 설치 · 푸시 권한 · 역할별 알림을 한 곳에서 관리합니다.</p></div><button type="button" class="enl418-close" data-enl-close aria-label="닫기">×</button></div><div class="enl418-body"><div class="enl418-status"><div class="enl418-step"><small>앱 설치</small><b id="enl418InstallState">확인 중</b></div><div class="enl418-step"><small>휴대폰 알림 권한</small><b id="enl418PermissionState">확인 중</b></div><div class="enl418-step"><small>푸시 연결</small><b id="enl418SubState">확인 중</b></div></div>${platformGuide()}<div><div class="ey">받을 알림</div><div class="enl418-pref-list">${prefRows(u,p)}</div></div><div id="enl418Message" class="enl418-message"></div><div class="enl418-actions"><button type="button" class="primary" id="enl418Setup">${isStandalone()?'알림 켜기':'설치 및 알림 켜기'}</button><button type="button" id="enl418Test">테스트 알림 보내기</button><button type="button" class="danger" id="enl418Off">이 기기 알림 끄기</button></div></div></section>`;document.body.appendChild(wrap);
     const close=()=>wrap.remove();wrap.querySelector('[data-enl-close]').onclick=close;wrap.addEventListener('click',e=>{if(e.target===wrap)close()});
     wrap.querySelectorAll('[data-enl-pref]').forEach(input=>input.addEventListener('change',async()=>{const next=loadPrefs(u);wrap.querySelectorAll('[data-enl-pref]').forEach(x=>next[x.dataset.enlPref]=x.checked);if((roleNorm(u.role)==='manager'||roleNorm(u.role)==='executive'))next.urgent=true;savePrefs(u,next);try{const sub=await currentSub();if(sub)await api('preferences',{actor:u,endpoint:sub.endpoint,preferences:withDeviceMeta(next)});setMessage('알림 종류 설정을 저장했습니다.','ok')}catch(e){setMessage('알림 종류 저장에 실패했습니다. 다시 시도해 주세요.','err')}}));
     document.getElementById('enl418Setup').onclick=setupAll;
@@ -125,7 +155,7 @@
   async function disablePush(){const u=actor();if(!u)return;try{const sub=await currentSub();if(sub){try{await api('unsubscribe',{actor:u,endpoint:sub.endpoint})}catch(e){}await sub.unsubscribe()}setMessage('이 기기의 사고보고앱 알림을 껐습니다.','ok');await renderStatus()}catch(e){setMessage('알림 해제 중 오류가 발생했습니다.','err')}}
 
   function injectTopButton(){
-    const u=actor(),top=document.querySelector('.topbar');if(!u||!top)return;let btn=document.getElementById('enlPwaTop418');if(!btn){btn=document.createElement('button');btn.type='button';btn.id='enlPwaTop418';btn.className='enl-pwa-top418';btn.innerHTML='🔔 알림 설정';btn.addEventListener('click',openModal);const user=top.querySelector('.user-wrap');if(user)top.insertBefore(btn,user);else top.appendChild(btn)}setTimeout(updateTopButton,1800);const repairKey=String(u.id||'');if(repairKey&&!repairedUsers.has(repairKey)&&typeof Notification!=='undefined'&&Notification.permission==='granted'){repairedUsers.add(repairKey);setTimeout(()=>ensurePushSubscriptionSilently().then(()=>updateTopButton()).catch(()=>{}),350)}if(!flushedUsers.has(repairKey)){flushedUsers.add(repairKey);setTimeout(flush,3600)}
+    const u=actor(),top=document.querySelector('.topbar');if(!u||!top)return;const tools=top.querySelector('.topbar-tools')||top;let help=document.getElementById('enlAppHelp');if(!help){help=document.createElement('button');help.type='button';help.id='enlAppHelp';help.textContent='설치 / 알림 안내';help.onclick=openHelp;tools.appendChild(help)}scheduleIntro();let btn=document.getElementById('enlPwaTop418');if(!btn){btn=document.createElement('button');btn.type='button';btn.id='enlPwaTop418';btn.className='enl-pwa-top418';btn.innerHTML='🔔 알림 설정';btn.addEventListener('click',openModal);tools.appendChild(btn)}setTimeout(updateTopButton,1800);const repairKey=String(u.id||'');if(repairKey&&!repairedUsers.has(repairKey)&&typeof Notification!=='undefined'&&Notification.permission==='granted'){repairedUsers.add(repairKey);setTimeout(()=>ensurePushSubscriptionSilently().then(()=>updateTopButton()).catch(()=>{}),350)}if(!flushedUsers.has(repairKey)){flushedUsers.add(repairKey);setTimeout(flush,3600)}
   }
   function scheduleInject(){if(renderQueued)return;renderQueued=true;requestAnimationFrame(()=>{renderQueued=false;injectTopButton()})}
 
