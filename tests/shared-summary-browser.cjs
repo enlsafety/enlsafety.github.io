@@ -67,7 +67,7 @@ async function sharedSummary(engine,width,name){
    const before=await p.evaluate(()=>JSON.stringify(data.incidents));
    for(const i of records){
     await p.evaluate(id=>{closeModal();enlOpenIncidentReview(id,false,currentUser())},i.id);
-    const summary=p.locator('#modalRoot [data-executive-summary]').first(),table=summary.locator(':scope>table');
+    const summary=p.locator('#modalRoot [data-incident-summary]').first(),table=summary.locator(':scope>table');
     await table.waitFor();
     assert.equal(await table.locator('caption').innerText(),'사고 경위서');
     for(const fact of [details.place,details.workAction,details.incidentHow,'검수 소장'])assert.ok((await table.innerText()).includes(fact),role+' '+i.id+' '+fact);
@@ -86,15 +86,15 @@ async function sharedSummary(engine,width,name){
     if(i.id==='reported-property'&&role==='safety'){
       await p.locator('#modalRoot .modal').evaluate(el=>el.scrollTop=0);
       await image(p,name+'-safety-summary');
-      await image(p,name+'-summary-table','#modalRoot [data-executive-summary]');
+      await image(p,name+'-summary-table','#modalRoot [data-incident-summary]');
     }
    }
    assert.equal(await p.evaluate(()=>JSON.stringify(data.incidents)),before,'rendering does not rewrite records');
    const print=await p.evaluate(()=>enlCumulativeReportHtml(data.incidents[0]));
-   assert.ok(print.includes('report410-readonly')&&!print.includes('data-executive-summary'),'document output remains the original full template');
+   assert.ok(print.includes('report410-readonly')&&!print.includes('data-incident-summary'),'document output remains the original full template');
    if(role==='safety'||role==='field'){
     await p.evaluate(()=>{closeModal();openUnifiedCorrectiveModal('approved-property',currentUser())});
-    await p.locator('#modalRoot [data-report-stage="A"] [data-executive-summary]>table').waitFor();
+    await p.locator('#modalRoot [data-report-stage="A"] [data-incident-summary]>table').waitFor();
     assert.equal(await p.locator('#modalRoot .report410-readonly:visible').count(),0);
    }
    assert.deepEqual(errors,[]);await c.close();console.log('PASS shared summary',name,role,'10 category/status cases, no mutations, original access, privacy, output template');

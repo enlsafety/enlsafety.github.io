@@ -139,7 +139,7 @@
     // Reader views of personal injuries must never expose supplemental medical documents.
     const groups=[['photos','현장 자료',i.photos],['supplement','보완 자료',person&&!includeOriginal?[]:i.supplement?.attachments],['action','조치 증빙',initialOnly?[]:c.afterPhotos]].filter(([, ,files])=>Array.isArray(files)&&files.length);
     const count=groups.reduce((n,[, ,files])=>n+files.length,0);
-    return '<section data-executive-summary><table class="inc411-summary-table"><caption>사고 경위서</caption><tbody>'+rows.join('')+'</tbody></table>'+
+    return '<section data-incident-summary'+(initialOnly?'':' data-executive-summary')+'><table class="inc411-summary-table"><caption>사고 경위서</caption><tbody>'+rows.join('')+'</tbody></table>'+
       (count?'<details class="inc411-summary-files"><summary>첨부자료 '+count+'건 보기</summary>'+groups.map(([scope,label,files])=>'<h4>'+label+'</h4>'+reportFiles(scope,files)).join('')+'</details>':'')+
       (includeOriginal?'<details class="inc411-summary-original"><summary>입력 원문 상세 보기</summary>'+reportReadOnlyHtml(i,{includeFiles:false})+'</details>':'')+'</section>';
   }
@@ -185,7 +185,7 @@
     function arrange(container){
       let table=null,body=null;
       for(const child of [...container.children]){
-        if(child.matches('table,[data-executive-summary]')){table=null;continue;}
+        if(child.matches('table,[data-incident-summary]')){table=null;continue;}
         if(child.matches(groups)){arrange(child);table=null;continue;}
         const label=child.matches('label')&&child.querySelector('input,select,textarea,.report410-read-value');
         const record=child.matches('.report410-record-row');
