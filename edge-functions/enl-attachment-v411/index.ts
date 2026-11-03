@@ -54,7 +54,7 @@ Deno.serve(async(req:Request)=>{
       if(!data||data.active===false||roleNorm(data.role)!==actor.role||!clean(data.password_hash)||clean(body.actorPasswordHash)!==clean(data.password_hash))return json({ok:false,message:"forbidden"},403);
     }else if(["field","worker"].includes(actor.role)){
       const rows=await sql`select personnel_id,site_id,access_role,active,pin_hash from public.enl_site_personnel where personnel_id::text=${actor.id} limit 1`,data=rows[0],expected=actor.role==="field"?"field":"worker";
-      if(!data||data.active===false||clean(data.access_role)!==expected||clean(data.site_id)!==actor.siteId||(actor.role==="field"&&(!clean(data.pin_hash)||clean(body.actorPinHash)!==clean(data.pin_hash))))return json({ok:false,message:"forbidden"},403);
+      if(!data||data.active===false||clean(data.access_role)!==expected||clean(data.site_id)!==actor.siteId||((actor.role==="field"||clean(data.pin_hash))&&(!clean(data.pin_hash)||clean(body.actorPinHash)!==clean(data.pin_hash))))return json({ok:false,message:"forbidden"},403);
     }else return json({ok:false,message:"forbidden"},403);
 
     const storage=createClient(url,key,{auth:{persistSession:false}}).storage.from(BUCKET);

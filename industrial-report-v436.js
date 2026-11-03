@@ -21,7 +21,7 @@
 
   async function call(body,{pdf=false}={}){
     const u=currentUser?.();
-    const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify({...body,actor:actor(u)}),cache:'no-store'});
+    const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify({...body,actor:actor(u),...window.enlIncidentAuthProof?.()}),cache:'no-store'});
     if(pdf){if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j?.message||`http_${r.status}`)}return r.blob()}
     const j=await r.json().catch(()=>({}));if(!r.ok||j?.ok===false)throw new Error(j?.message||`http_${r.status}`);return j;
   }

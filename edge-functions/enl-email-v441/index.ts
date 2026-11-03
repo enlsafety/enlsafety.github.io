@@ -14,21 +14,20 @@ const clean=(v:any)=>String(v??"").trim();
 const roleNorm=(v:any)=>clean(v)==="final"?"manager":clean(v);
 const dbUrl=Deno.env.get("SUPABASE_DB_URL")||"";
 
-async function verifiedActor(sql:any,raw:any){
-  const a={id:clean(raw?.id),role:roleNorm(raw?.role),siteId:clean(raw?.siteId)};
-  if(!a.id)return null;
-  if(["safety","manager","executive"].includes(a.role)){
-    const rows=await sql`select user_id,role,active from public.enl_hq_users where user_id=${a.id} limit 1`;
-    const d=rows[0];if(!d||d.active===false||roleNorm(d.role)!==a.role)return null;
-    return {id:clean(d.user_id),role:roleNorm(d.role)};
+async function verifiedActor(sql:any,body:any){
+  const actor=body?.actor||{},id=clean(actor.id),role=roleNorm(actor.role);
+  if(!id)return null;
+  if(["safety","manager","executive"].includes(role)){
+    const proof=clean(body.actorPasswordHash);
+    if(!proof)return null;
+    const [user]=await sql`select user_id from public.enl_hq_users where user_id=${id} and active=true and role in (${role},${role==="manager"?"final":role}) and password_hash=${proof} limit 1`;
+    return user?{id,role}:null;
   }
-  if(["field","worker"].includes(a.role)){
-    const rows=await sql`select personnel_id,site_id,access_role,active from public.enl_site_personnel where personnel_id::text=${a.id} limit 1`;
-    const d=rows[0];if(!d||d.active===false||clean(d.access_role)!==a.role)return null;
-    if(a.siteId&&clean(d.site_id)!==a.siteId)return null;
-    return {id:clean(d.personnel_id),role:a.role};
-  }
-  return null;
+  if(!["field","worker"].includes(role))return null;
+  const proof=clean(body.actorPinHash),siteId=clean(actor.siteId);
+  if(!siteId||!proof)return null;
+  const [person]=await sql`select personnel_id from public.enl_site_personnel where personnel_id::text=${id} and site_id=${siteId} and active=true and access_role=${role} and pin_hash=${proof} limit 1`;
+  return person?{id,role}:null;
 }
 async function profile(sql:any,userId:string){
   const h=await sql`select user_id,name,role,email,email_enabled,active from public.enl_hq_users where user_id=${userId} limit 1`;
@@ -272,21 +271,21 @@ Deno.serve(async(req:Request)=>{
     if(req.headers.get("x-enl-app")!==CLIENT)return json({ok:false,message:"invalid_client"},403);
     if(action==="health")return json(await health(sql));
     if(action==="brevo_probe"){
-      const u=await verifiedActor(sql,body.actor);if(!u||u.role!=="safety")return json({ok:false,message:"forbidden"},403);
+      const u=await verifiedActor(sql,body);if(!u||u.role!=="safety")return json({ok:false,message:"forbidden"},403);
       const sender=await activeSender();return json({ok:true,configured:true,sender,replyTo:await replyTo(sql)});
     }
     if(action==="brevo_sandbox_test"){
-      const u=await verifiedActor(sql,body.actor);if(!u||u.role!=="safety")return json({ok:false,message:"forbidden"},403);
+      const u=await verifiedActor(sql,body);if(!u||u.role!=="safety")return json({ok:false,message:"forbidden"},403);
       const to=await replyTo(sql);if(!to)return json({ok:false,message:"reply_to_missing"},409);
       return json(await sendBrevo(sql,to,{subject:"[이앤엘 사고보고앱] Brevo API 연결 테스트",text:"Brevo API 샌드박스 연결 테스트입니다. 실제 메일은 발송되지 않습니다.",html:"<p><b>Brevo API 샌드박스 연결 테스트</b>입니다. 실제 메일은 발송되지 않습니다.</p>"},true));
     }
     if(action==="brevo_test"){
-      const u=await verifiedActor(sql,body.actor);if(!u||u.role!=="safety")return json({ok:false,message:"forbidden"},403);
+      const u=await verifiedActor(sql,body);if(!u||u.role!=="safety")return json({ok:false,message:"forbidden"},403);
       const to=await replyTo(sql);if(!to)return json({ok:false,message:"reply_to_missing"},409);
       return json(await sendBrevo(sql,to,{subject:"[이앤엘 사고보고앱] 이메일 자동발송 테스트",text:"사고보고앱의 Brevo 이메일 자동발송 연결이 정상적으로 구성되었습니다.",html:"<div style=\"font-family:Arial,'Malgun Gothic',sans-serif\"><h2>이앤엘 사고보고앱</h2><p>Brevo 이메일 자동발송 연결 테스트입니다.</p><p><b>이 메일이 도착했다면 실제 발송 경로가 정상입니다.</b></p></div>"},false));
     }
     if(action==="brevo_status"){
-      const u=await verifiedActor(sql,body.actor);if(!u||u.role!=="safety")return json({ok:false,message:"forbidden"},403);
+      const u=await verifiedActor(sql,body);if(!u||u.role!=="safety")return json({ok:false,message:"forbidden"},403);
       const messageId=clean(body.messageId);if(!messageId)return json({ok:false,message:"message_id_required"},400);
       const list=await brevo("/smtp/emails?messageId="+encodeURIComponent(messageId),{method:"GET"});
       const item=Array.isArray(list?.transactionalEmails)?list.transactionalEmails[0]:null;
@@ -294,7 +293,7 @@ Deno.serve(async(req:Request)=>{
       const detail=await brevo("/smtp/emails/"+encodeURIComponent(clean(item.uuid)),{method:"GET"});
       return json({ok:true,found:true,email:clean(detail?.email),subject:clean(detail?.subject),events:Array.isArray(detail?.events)?detail.events:[]});
     }
-    if(action==="flush"){const u=await verifiedActor(sql,body.actor);if(!u)return json({ok:false,message:"forbidden"},403);return json(await flush(sql))}
+    if(action==="flush"){const u=await verifiedActor(sql,body);if(!u)return json({ok:false,message:"forbidden"},403);return json(await flush(sql))}
     return json({ok:false,message:"invalid_action"},400);
   }catch(e:any){
     console.error("enl-email-v441",clean(e?.message||e));

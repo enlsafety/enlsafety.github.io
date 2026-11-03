@@ -107,7 +107,7 @@
   }
 
   async function deleteComment(commentId,u){
-    const r=await fetch(DELETE_API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify({action:'delete',actor:actor(u),commentId}),cache:'no-store'});
+    const r=await fetch(DELETE_API,{method:'POST',headers:{'Content-Type':'application/json','X-ENL-App':CLIENT},body:JSON.stringify({action:'delete',actor:actor(u),commentId,...window.enlIncidentAuthProof?.()}),cache:'no-store'});
     const j=await r.json().catch(()=>({}));if(!r.ok||j?.ok===false){const e=new Error(j?.message||`http_${r.status}`);e.status=r.status;throw e}return j;
   }
 
