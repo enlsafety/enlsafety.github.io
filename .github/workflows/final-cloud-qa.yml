@@ -1,7 +1,7 @@
 name: final isolated cloud QA
 on:
   push:
-    branches: [main]
+    branches: [main, qa/record-summary-4813r9]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   isolated:
-    if: github.event_name != 'push'
+    if: github.event_name != 'push' || github.ref == 'refs/heads/qa/record-summary-4813r9'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:

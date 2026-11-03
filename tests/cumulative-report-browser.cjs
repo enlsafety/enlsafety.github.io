@@ -44,7 +44,7 @@ const profiles=[{name:'desktop',engine:chromium,width:1365},{name:'android',engi
   assert.equal((await get()).occurredAt,'2026-10-13T01:20:00.000Z');
   // Reject through the live approval entry point, then correct the same incident in the field form.
   await setRole('safety');await page.evaluate(()=>enlOpenIncidentReview(data.incidents[0].id,true,currentUser()));
-  assert.ok(await page.locator('[data-report-stage="A"] .inc411-summary-table').count());
+  assert.ok(await page.locator('[data-incident-summary] .inc411-summary-table').count());
   assert.ok(await page.locator('#wf440EnvironmentCause').evaluate(el=>!!el.closest('td')));
   await page.locator('#safetyNoteEdit').fill('QA 발생경위 보완');
   await page.locator('#rejectInc').click();await page.waitForFunction(()=>data.incidents[0].status==='rejected');assert.equal(await page.evaluate(()=>qaSavePromise),true);assert.equal((await get()).status,'rejected');
@@ -84,7 +84,7 @@ const profiles=[{name:'desktop',engine:chromium,width:1365},{name:'android',engi
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+2);assert.equal(overflow,false,'no horizontal overflow');await page.locator('#prev429Approve').click();await page.locator('#prev429ReviewForm').waitFor({state:'detached'});
   saved=await get();assert.equal(saved.executiveApproval.state,'pending');assert.equal((await f.call('executive',{action:'executive_decide',incidentId:saved.id,expectedVersion:saved._syncVersion,decision:'approve'})).status,200);
   saved=await get();assert.equal(saved.status,'closed');assert.equal(saved.id,id);assert.equal(saved.reportDetails.environmentCause,'QA 확인된 협소 동선');assert.equal(saved.approvedAt,approved.approvedAt);assert.equal(saved.corrective.planDetail,'QA 안내표지 설치');assert.equal(saved.corrective.reviewedBy,'QA 안전');
-  await page.evaluate(async()=>{data.incidents=(await qaApi('safety',{action:'pull'})).incidents;enlOpenIncidentReview(data.incidents[0].id,true,currentUser());});assert.equal(await page.locator('[data-report-stage="A"]').count(),1);assert.equal(await page.locator('[data-report-stage="E"]').count(),1);
+  await page.evaluate(async()=>{data.incidents=(await qaApi('safety',{action:'pull'})).incidents;enlOpenIncidentReview(data.incidents[0].id,true,currentUser());});assert.equal(await page.locator('[data-report-stage]').count(),0);assert.ok((await page.locator('[data-incident-summary]').innerText()).includes('QA 안내표지 설치 완료'));
   // The new person form uses the same table without changing required fields or payloads.
   await setRole('field');await page.evaluate(()=>{closeModal();enlOpenIncidentReport('person',currentUser())});
   assert.ok(await page.locator('#injuryDetail410').evaluate(el=>!!el.closest('td')));
