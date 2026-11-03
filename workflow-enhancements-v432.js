@@ -207,7 +207,9 @@
     const overview=modal.querySelector('.inc411-overview');
     if(overview&&!overview.querySelector('[data-prev432-who]')){
       const box=document.createElement('div');box.dataset.prev432Who='1';box.innerHTML=`<span>누가</span><b>${ex(who)}</b>`;
-      const children=overview.children;children.length>1?children[1].insertAdjacentElement('afterend',box):overview.prepend(box);
+      const table=overview.querySelector('.report410-work-table tbody');
+      if(table){const row=table.insertRow(Math.min(2,table.rows.length));row.dataset.prev432Who='1';const heading=document.createElement('th');heading.scope='row';heading.textContent='누가';const cell=document.createElement('td');cell.textContent=who;row.append(heading,cell);}
+      else{const children=overview.children;children.length>1?children[1].insertAdjacentElement('afterend',box):overview.prepend(box);}
     }
     const detail=modal.querySelector('.detail');
     if(detail){

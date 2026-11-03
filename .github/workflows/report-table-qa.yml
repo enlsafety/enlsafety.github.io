@@ -1,0 +1,32 @@
+name: final report table browser QA
+on:
+  push:
+    branches: [qa/workflow-tables-final-4813]
+permissions:
+  contents: read
+jobs:
+  table-browsers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-save --package-lock=false @electric-sql/pglite@0.3.10 playwright@1.51.1
+      - name: Browser dependencies
+        run: |
+          for source in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+            [ -f "$source" ] || continue
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source"
+          done
+          npx playwright install --with-deps chromium webkit
+      - name: Final report tables and real workflow saves in Chromium and WebKit
+        run: |
+          node tests/final-cache.cjs
+          node tests/cumulative-report-browser.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: report-table-evidence
+          path: qa-output/
