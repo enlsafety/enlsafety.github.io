@@ -112,7 +112,7 @@
       if(actions)actions.insertAdjacentElement('beforebegin',wrap);else modal.appendChild(wrap);
     }
     const actions=modal.querySelector('.modal-actions');
-    if(actions){
+    if(actions&&['safety','manager','executive','final'].includes(current()?.role)){
       if(!actions.querySelector('[data-official439-excel]')){const b=document.createElement('button');b.type='button';b.dataset.official439Excel='1';b.className='official439-btn';const final=window.enlIncidentFinalized?.(i);b.textContent=final?'최종 사고보고서 Excel 출력':'엑셀 사고보고서 출력';b.title=final?'최종 사고보고서와 자료첨부시트 다운로드':'한 장 보고서와 A~E 누적기록 다운로드';b.onclick=()=>printReport(incident(i.id)||i,b);actions.appendChild(b)}
     }
   }

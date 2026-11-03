@@ -106,7 +106,7 @@
     const join=(values,separator=' / ')=>[...new Set(values.map(clean).filter(Boolean))].join(separator);
     function row(label,value,emphasis=false,original=''){
       const detail=clean(original)&&clean(original)!==clean(value)?'<details class="inc411-brief-original"><summary>원문 보기</summary><div>'+esc(clean(original))+'</div></details>':'';
-      if(clean(value))rows.push(`<tr${emphasis?' class="inc411-key-fact"':''}><th scope="row">${esc(label)}</th><td>${esc(clean(value))}${detail}</td></tr>`);
+      if(clean(value))rows.push(`<tr${/비용|예상비|진료비|견적/.test(label)?' class="inc411-cost-fact"':emphasis?' class="inc411-key-fact"':''}><th scope="row">${esc(label)}</th><td>${esc(clean(value))}${detail}</td></tr>`);
     }
     const parts=occurredParts(i),dateOnly=unknownTime(i)||/^\d{4}-\d{2}-\d{2}$/.test(i.occurredAt||'')||!parts.time;
     const date=clean(i.occurredDate||i.historicalTransfer?.occurredDate||parts.date);
@@ -117,9 +117,14 @@
     row('사고 전 작업',d.workAction);
     row('발생 경위',clean(d.incidentHow)||i.summary,true);
     row(person?'부상 내용':'파손 피해',person?d.injuryDetail:join([d.damagedItem,d.damageDetail]));
+    if(person){
+      const raw=clean(d.medicalCost).replace(/,/g,''),amount=Number(raw);
+      row('진료비',d.medicalCostPending===true?'확인 중':raw&&Number.isFinite(amount)&&amount>=0?amount.toLocaleString('ko-KR')+'원':'',true);
+    }
     if(!person){
       const raw=clean(d.repairCost).replace(/,/g,''),amount=Number(raw);
-      row('복구 예상비',d.repairCostPending===true?'확인 중':raw&&Number.isFinite(amount)&&amount>=0?amount.toLocaleString('ko-KR')+'원':'');
+      row('복구 예상비',d.repairCostPending===true?'확인 중':raw&&Number.isFinite(amount)&&amount>=0?amount.toLocaleString('ko-KR')+'원':'',true);
+      row('견적 / 비용 상세',d.repairCostDetail,true);
     }
     row('즉시 조치',i.immediateAction);
     if(!initialOnly){
@@ -152,6 +157,7 @@
     root.querySelectorAll('input,select,textarea').forEach(el=>{
       if(el.type==='hidden'){el.remove();return;}
       const box=document.createElement('div');box.className='report410-read-value';
+      if(['medicalCost410','medicalCostDetail410','repairCost410','repairCostDetail410'].includes(el.id))box.classList.add('report410-cost-value');
       box.textContent=el.id==='occurredTime410'&&unknownTime(i)?'시간 미상':el.id==='severity'&&!i.severity?'미입력':el.id==='potentialMajor'&&i.potentialMajor==null?'미확인':el.type==='checkbox'?(el.checked?'해당':'해당 없음'):el.tagName==='SELECT'?(el.selectedOptions[0]?.textContent||'미입력'):(el.value||'미입력');
       el.replaceWith(box);
     });

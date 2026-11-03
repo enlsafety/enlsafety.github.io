@@ -49,7 +49,11 @@ check(/^ENL-ACC-\d{4}-00001$/.test(i.officialRecord.documentNumber),'server docu
 r=await f.call('executive',{action:'executive_decide',incidentId:i.id,decision:'approve',expectedVersion:0});check(r.status===200&&r.body.duplicate,'last approval retry idempotent');
 check((await f.db.query('select count(*)::int n from enl_final_documents')).rows[0].n===1,'one immutable document');
 for(const who of ['manager','executive','safety']){r=await f.call(who,{action:'final_document',incidentId:i.id});check(r.status===200&&r.body.archived&&r.body.documentNumber===i.officialRecord.documentNumber,who+' can print');}
-r=await f.call('field',{action:'final_document',incidentId:i.id});check(r.status===403,'field cannot print HQ record');
+r=await f.call('field',{action:'final_document',incidentId:i.id});check(r.status===200&&r.body.archived,'own-site field manager can print archived final record');
+r=await f.call('other',{action:'final_document',incidentId:i.id});check(r.status===403,'other-site manager cannot print');
+await f.db.exec("update enl_site_personnel set job_title='일반근로자' where personnel_id='qa-field'");
+r=await f.call('field',{action:'final_document',incidentId:i.id});check(r.status===403,'non-manager field cannot print');
+await f.db.exec("update enl_site_personnel set job_title='현장소장' where personnel_id='qa-field'");
 await assert.rejects(()=>f.db.exec('delete from enl_final_documents'),/evidence_is_append_only/);checks++;
 const ev=(await f.db.query("select user_id,kind from enl_push_events")).rows;
 check(ev.filter(x=>x.user_id==='qa-manager').every(x=>['incident_new','incident_closed'].includes(x.kind)),'staff events only first and closed');
