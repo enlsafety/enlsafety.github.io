@@ -52,6 +52,7 @@
 
 /* Screen workflow forms share the approval report's field/value table. */
 @media screen {
+  #modalRoot .modal:has(.report410-work-table)>.modal-head::before {content:"";position:absolute;inset:-24px -24px 0;background:#fff;z-index:-1;pointer-events:none}
   .report410-work-table {margin:0 0 10px}
   .report410-table-group.inc411-overview,.report410-table-group.report410-grid,.report410-table-group.formgrid,.report410-table-group.wf440-form-grid {display:block}
   .inc411-overview.report410-table-group b {margin:0}
