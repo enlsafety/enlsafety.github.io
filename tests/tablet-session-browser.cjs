@@ -168,6 +168,7 @@ async function run(engine){
     await page.evaluate(({backup,actor,old})=>{
       localStorage.setItem(backup,JSON.stringify({session:{loggedAt:new Date(old).toISOString(),manager:actor},savedAt:old}));
       localStorage.setItem('enl_safety_platform_section','incident');
+      localStorage.setItem('enl_setup_intro_seen_v1','1'); // Returning-user session regression.
     },{backup,actor,old});
     // Delay the incident module on cold start. A concurrent tab may notify the
     // restored tab after auth loads but before a dashboard can be rendered.
