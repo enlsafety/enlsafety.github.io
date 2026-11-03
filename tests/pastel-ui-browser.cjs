@@ -55,6 +55,8 @@ async function check(engine,width,name){
     await p.locator('[data-stats426-nav]').click();await p.locator('.stats426-card').first().waitFor();
     await p.waitForFunction(()=>document.querySelector('.stats426-card b')?.textContent.includes('3'));
     await noOverflow(p);await image(p,name+'-dashboard');
+    await p.locator('#sd450Site').selectOption('s01');
+    await p.locator('[data-sd450-summary] [data-sd450-open]').waitFor();
     await p.locator('[data-shell-view="home"]').click();await p.locator('[data-safety-site="s01"]').waitFor();
     if(!baseline){
       await p.waitForFunction(()=>document.querySelectorAll('.site-report-card').length===2);
