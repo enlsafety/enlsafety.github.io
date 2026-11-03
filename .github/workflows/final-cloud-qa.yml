@@ -1,7 +1,7 @@
 name: final isolated cloud QA
 on:
   push:
-    branches: [main]
+    branches: [main, qa/ui-pastel-4813]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   isolated:
-    if: github.event_name != 'push'
+    if: github.ref == 'refs/heads/qa/ui-pastel-4813' || github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -29,6 +29,8 @@ jobs:
           done
       - run: npx playwright install --with-deps chromium webkit
       - run: pip install openpyxl==3.1.5 pillow==11.1.0
+      - name: Full shell pastel screens, Chromium and WebKit
+        run: node tests/pastel-ui-browser.cjs
       - name: Actual Edge, isolated database, role and browser regressions
         run: node tests/final-cloud-run.cjs
       - name: Actual downloaded XLSX OOXML and formatting validation
