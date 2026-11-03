@@ -99,7 +99,7 @@
       .replace(/([가-힣]+)을 실시하도록 한다[.]?$/,'$1을 실시한다')
       .replace(/여부에 대한 확인을 실시한다[.]?$/,'여부를 확인한다')).join('\n');
   }
-  function executiveSummaryHtml(i){
+  function executiveSummaryHtml(i,{initialOnly=false,includeOriginal=false}={}){
     const d=i.reportDetails||{},c=i.corrective?.status==='approved'?i.corrective:{};
     const person=i.category==='person',rows=[];
     const clean=v=>{const text=String(v??'').trim();return ['-','미입력','미기재'].includes(text)?'':text};
@@ -122,25 +122,28 @@
       row('복구 예상비',d.repairCostPending===true?'확인 중':raw&&Number.isFinite(amount)&&amount>=0?amount.toLocaleString('ko-KR')+'원':'');
     }
     row('즉시 조치',i.immediateAction);
-    const cause=clean(d.causeAnalysisNote)||clean(c.rootCause)||join([d.environmentCause,d.behaviorCause],'\n');
-    row(d.causeAnalysisStatus==='investigating'&&cause?'원인 (조사 중)':'사고 원인',briefReportText(cause,true)||(d.causeAnalysisStatus==='investigating'?'조사 중':''),false,cause);
-    const plan=c.planDetail||(d.preventionPlan!=='후속 단계에서 안전관리자가 별도 수립'?d.preventionPlan:'');
-    row('재발방지 계획',briefReportText(plan,false),false,plan);
-    row('현장 조치 결과',c.actionDetail,true);
-    row('조치 담당 / 완료일',join([c.actionOwner,c.actionCompletedDate||c.completedDate]));
-    if(clean(i.safetyNote)!==clean(c.reviewNote))row('보고 검토의견',i.safetyNote);
-    row('조치 확인',join([c.reviewNote,join([c.reviewedBy,occurredParts({occurredAt:c.reviewedAt}).date])],'\n'));
+    if(!initialOnly){
+      const cause=clean(d.causeAnalysisNote)||clean(c.rootCause)||join([d.environmentCause,d.behaviorCause],'\n');
+      row(d.causeAnalysisStatus==='investigating'&&cause?'원인 (조사 중)':'사고 원인',briefReportText(cause,true)||(d.causeAnalysisStatus==='investigating'?'조사 중':''),false,cause);
+      const plan=c.planDetail||(d.preventionPlan!=='후속 단계에서 안전관리자가 별도 수립'?d.preventionPlan:'');
+      row('재발방지 계획',briefReportText(plan,false),false,plan);
+      row('현장 조치 결과',c.actionDetail,true);
+      row('조치 담당 / 완료일',join([c.actionOwner,c.actionCompletedDate||c.completedDate]));
+      if(clean(i.safetyNote)!==clean(c.reviewNote))row('보고 검토의견',i.safetyNote);
+      row('조치 확인',join([c.reviewNote,join([c.reviewedBy,occurredParts({occurredAt:c.reviewedAt}).date])],'\n'));
+    }
     const erp=i.externalInitialApproval;
     if(erp?.state==='verified')row('기존 ERP 결재',join(['기결재 확인',erp.documentNo,erp.approvalDate]));
     if(erp?.state==='unverifiable')row('기존 ERP 결재',join(['확인 불가',erp.reason]));
     if(i.officialRecord?.actionRecheckRequired)row('추가 확인','정정에 따른 조치 재검토 필요');
     // Reader views of personal injuries must never expose supplemental medical documents.
-    const groups=[['photos','현장 자료',i.photos],['supplement','보완 자료',person?[]:i.supplement?.attachments],['action','조치 증빙',c.afterPhotos]].filter(([, ,files])=>Array.isArray(files)&&files.length);
+    const groups=[['photos','현장 자료',i.photos],['supplement','보완 자료',person&&!includeOriginal?[]:i.supplement?.attachments],['action','조치 증빙',initialOnly?[]:c.afterPhotos]].filter(([, ,files])=>Array.isArray(files)&&files.length);
     const count=groups.reduce((n,[, ,files])=>n+files.length,0);
-    return '<section data-executive-summary><table class="inc411-summary-table"><caption>사고 경위서</caption><tbody>'+rows.join('')+'</tbody></table>'+
-      (count?'<details class="inc411-summary-files"><summary>첨부자료 '+count+'건 보기</summary>'+groups.map(([scope,label,files])=>'<h4>'+label+'</h4>'+reportFiles(scope,files)).join('')+'</details>':'')+'</section>';
+    return '<section data-incident-summary'+(initialOnly?'':' data-executive-summary')+'><table class="inc411-summary-table"><caption>사고 경위서</caption><tbody>'+rows.join('')+'</tbody></table>'+
+      (count?'<details class="inc411-summary-files"><summary>첨부자료 '+count+'건 보기</summary>'+groups.map(([scope,label,files])=>'<h4>'+label+'</h4>'+reportFiles(scope,files)).join('')+'</details>':'')+
+      (includeOriginal?'<details class="inc411-summary-original"><summary>입력 원문 상세 보기</summary>'+reportReadOnlyHtml(i,{includeFiles:false})+'</details>':'')+'</section>';
   }
-  function reportReadOnlyHtml(i){
+  function reportReadOnlyHtml(i,{includeFiles=true}={}){
     const root=document.createElement('div');root.className='incident410-form report410-readonly';
     root.innerHTML=reportSectionsHtml({role:'field',siteId:i.siteId},i.category,i);
     prepareReportLayout(root,i);
@@ -157,13 +160,13 @@
     if(i.summary&&i.summary!==d.generatedSummary&&i.summary!==d.incidentHow)root.innerHTML+=reportRow('기존 사고 요약',i.summary);
     if(d.preventionPlan&&d.preventionPlan!=='후속 단계에서 안전관리자가 별도 수립')root.innerHTML+=reportRow('최초 보고 당시 예방대책',d.preventionPlan);
     root.innerHTML+=reportRow('보고자 / 보고일시',[i.reporterName,i.createdAt&&fmt(i.createdAt)].filter(Boolean).join(' · '));
-    root.innerHTML+=`<section class="report410-section"><div class="report410-section-head"><b>현장사진 · PDF</b></div>${reportFiles('photos',i.photos)||'첨부 없음'}${reportFiles('supplement',i.supplement?.attachments)}</section>`;
+    if(includeFiles)root.innerHTML+=`<section class="report410-section"><div class="report410-section-head"><b>현장사진 · PDF</b></div>${reportFiles('photos',i.photos)||'첨부 없음'}${reportFiles('supplement',i.supplement?.attachments)}</section>`;
     return root.outerHTML;
   }
-  function cumulativeReportHtml(i,{through='E',from='A',highlight=''}={}){
+  function cumulativeReportHtml(i,{through='E',from='A',highlight='',presentation='document',includeOriginal=false}={}){
     const d=i.reportDetails||{},c=i.corrective||{},parts=[];
     const add=(s,title,html)=>{if(s>=from&&s<=through)parts.push(reportStage(s,title,html,highlight===s?'orange':''));};
-    add('A','현장 최초 사고보고',reportReadOnlyHtml(i));
+    add('A','현장 최초 사고보고',presentation==='screen'?executiveSummaryHtml(i,{initialOnly:true,includeOriginal}):reportReadOnlyHtml(i));
     add('B','안전관리자 원인분석 및 검토',
       reportRow('원인분석 상태',d.causeAnalysisStatus==='analyzed'?'분석 완료':d.causeAnalysisStatus==='investigating'?'조사 중 · 미확정':'분석 대기')+
       reportRow('환경적 요인',d.environmentCause)+reportRow('행동적 요인',d.behaviorCause)+reportRow('기타·종합 원인',d.causeAnalysisNote)+
@@ -182,7 +185,7 @@
     function arrange(container){
       let table=null,body=null;
       for(const child of [...container.children]){
-        if(child.matches('table,[data-executive-summary]')){table=null;continue;}
+        if(child.matches('table,[data-incident-summary]')){table=null;continue;}
         if(child.matches(groups)){arrange(child);table=null;continue;}
         const label=child.matches('label')&&child.querySelector('input,select,textarea,.report410-read-value');
         const record=child.matches('.report410-record-row');
@@ -242,6 +245,7 @@
     });return()=>cancelAnimationFrame(frame);
   }
   window.enlExecutiveSummaryHtml=executiveSummaryHtml;
+  window.enlIncidentSummaryHtml=executiveSummaryHtml;
   window.enlReportReadOnlyHtml=reportReadOnlyHtml;
   window.enlCumulativeReportHtml=cumulativeReportHtml;
   window.enlBindCumulativeReport=bindCumulativeReport;
