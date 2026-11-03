@@ -7,10 +7,10 @@ const profiles=[{name:'desktop',engine:chromium,width:1365},{name:'android',engi
  const f=await fixture(),migrated=await f.db.exec(fs.readFileSync("supabase/migrations/20261030004902_executive_closure.sql","utf8")),browser=await p.engine.launch({headless:true}),page=await browser.newPage({viewport:{width:p.width,height:900},hasTouch:p.width<1000,isMobile:p.width<1000,timezoneId:'Asia/Seoul'});const errors=[],alerts=[];
  try{
   page.on('pageerror',e=>errors.push(e.message));page.on('dialog',async d=>{alerts.push(d.message());await d.accept()});
-  await page.route('**/*',r=>r.request().url()==='https://enl-cumulative.test/'?r.fulfill({contentType:'text/html',body:'<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><div id="view"></div><div id="modalRoot"></div></body></html>'}):r.abort());
+  await page.route('**/*',r=>r.request().url()==='https://enl-cumulative.test/'?r.fulfill({contentType:'text/html',body:'<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body class="safety-ui"><div id="view"></div><div id="modalRoot"></div></body></html>'}):r.abort());
   await page.goto('https://enl-cumulative.test/');
   await page.exposeFunction('qaApi',async(who,body)=>{const r=await f.call(who,body);if(r.status!==200)throw Error(r.body.message);return r.body});
-  for(const file of ['style.css','v3.css','report-v410.css','responsive-v432.css'])await page.addStyleTag({content:fs.readFileSync(file,'utf8')});
+  for(const file of ['style.css','v3.css','report-v410.css','responsive-v432.css','safety-ui.css'])await page.addStyleTag({content:fs.readFileSync(file,'utf8')});
   await page.evaluate(()=>{
    window.data={incidents:[],sites:[{id:'qa-site',name:'QA 가상 사업장'}],users:[]};window.currentView='report';window.incidentPhotos=[];window.actionPhotos=[];
    window.qaUser={id:'qa-field',name:'QA 현장',role:'field',position:'현장소장',siteId:'qa-site'};window.currentUser=()=>qaUser;window.session={};
@@ -18,7 +18,7 @@ const profiles=[{name:'desktop',engine:chromium,width:1365},{name:'android',engi
    window.fmt=v=>new Date(v).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'});window.siteById=id=>data.sites.find(s=>s.id===id);window.siteName=id=>siteById(id)?.name||id;
    window.won=String;window.roleName=String;window.nowISO=()=>new Date().toISOString();window.uid=()=>crypto.randomUUID();window.eventTypeOptions=v=>'<option value="접촉" '+(v==='접촉'?'selected':'')+'>접촉</option>';window.computePriority=()=> 'normal';window.computeLegalReview=()=>false;
    for(const name of ['categoryBadge','priorityBadge','legalBadge','actionBadge','badge','statusBadge'])window[name]=()=>'';
-   window.saveData=()=>{};window.renderShell=()=>{if(currentView==='report')renderUnifiedReport(document.getElementById('view'),currentUser());else document.getElementById('view').innerHTML='<p>사고목록</p>';};
+   window.saveData=()=>{window.qaSavePromise=enlCommitOrNotify(data.incidents[0]);};window.renderShell=()=>{if(currentView==='report')renderUnifiedReport(document.getElementById('view'),currentUser());else document.getElementById('view').innerHTML='<p>사고목록</p>';};
    window.openModal=html=>{document.getElementById('modalRoot').innerHTML='<div class="modal-bg"><div class="modal">'+html+'</div></div>';document.querySelectorAll('[data-close]').forEach(b=>b.onclick=closeModal)};window.closeModal=()=>document.getElementById('modalRoot').innerHTML='';
    window.enlAttachmentGalleryHtml=files=>files.map((x,n)=>'<button type="button" data-file="'+n+'">'+esc(x.name)+'</button>').join('');
    window.openedFiles=[];window.enlBindAttachmentOpen=(root,files)=>root.querySelectorAll('[data-file]').forEach(b=>b.onclick=()=>openedFiles.push(files[Number(b.dataset.file)].name));window.enlPersistAttachment=x=>x;
@@ -34,16 +34,24 @@ const profiles=[{name:'desktop',engine:chromium,width:1365},{name:'android',engi
   const setRole=role=>page.evaluate(role=>{qaUser=role==='safety'?{id:'qa-safety',name:'QA 안전',role:'safety',position:'안전관리자'}:{id:'qa-field',name:'QA 현장',role:'field',position:'현장소장',siteId:'qa-site'};},role);
   const get=async()=> (await f.call('safety',{action:'pull'})).body.incidents[0];
   const openAction=()=>page.evaluate(()=>openUnifiedCorrectiveModal(data.incidents[0].id,currentUser()));
-  const assertStage=async stage=>{await page.locator('[data-report-stage="'+stage+'"]').waitFor();await page.waitForFunction(stage=>{const t=document.querySelector('#modalRoot [data-report-stage="'+stage+'"]');return t&&t.getBoundingClientRect().top>=0&&t.getBoundingClientRect().top<500;},stage);assert.equal(await page.locator('#modalRoot [data-report-stage="A"] input').count(),0);assert.equal(await page.evaluate(()=>document.activeElement.tagName),'BODY');};
+  const assertStage=async stage=>{await page.locator('[data-report-stage="'+stage+'"]').waitFor();await page.waitForFunction(stage=>{const t=document.querySelector('#modalRoot [data-report-stage="'+stage+'"]');return t&&t.getBoundingClientRect().top>=0&&t.getBoundingClientRect().top<500;},stage);assert.equal(await page.locator('#modalRoot [data-report-stage="A"] input').count(),0);assert.equal(await page.evaluate(()=>document.activeElement.tagName),'BODY');assert.equal(await page.locator('#modalRoot .modal').evaluate(el=>el.scrollWidth>el.clientWidth+2),false,'report modal has no horizontal overflow');};
   await page.evaluate(()=>enlOpenIncidentReport('property',currentUser()));
   for(const [id,v] of Object.entries({occurredDate410:'2026-10-13',occurredTime410:'10:20',incidentPlace410:'QA 진입로',workAction410:'QA 이동 중',incidentHow410:'QA 시설 접촉',immediateAction:'QA 작업 중지',damagedItem410:'QA 표지판',damageDetail410:'QA 파손'}))await page.locator('#'+id).fill(v);
   await page.locator('#eventType').selectOption('접촉');
   await page.locator('#incidentUpload').setInputFiles({name:'사고사진.png',mimeType:'image/png',buffer:fs.readFileSync('pwa-icon-192.png')});
   await page.locator('#unifiedReportForm button[type=submit]').click();await page.locator('#unifiedReportForm').waitFor({state:'detached'});const id=(await get()).id;
   assert.equal((await get()).occurredAt,'2026-10-13T01:20:00.000Z');
+  // Reject through the live approval entry point, then correct the same incident in the field form.
+  await setRole('safety');await page.evaluate(()=>enlOpenIncidentReview(data.incidents[0].id,true,currentUser()));
+  assert.ok(await page.locator('[data-report-stage="A"] .inc411-summary-table').count());
+  assert.ok(await page.locator('#wf440EnvironmentCause').evaluate(el=>!!el.closest('td')));
+  await page.locator('#safetyNoteEdit').fill('QA 발생경위 보완');
+  await page.locator('#rejectInc').click();await page.waitForFunction(()=>data.incidents[0].status==='rejected');assert.equal(await page.evaluate(()=>qaSavePromise),true);assert.equal((await get()).status,'rejected');
+  await setRole('field');
   // Same form, same ID, date/photo preserved, one record after resubmission.
   await page.evaluate(()=>enlEditIncidentInReportForm(data.incidents[0],currentUser()));
   assert.equal(await page.locator('#incidentHow410').inputValue(),'QA 시설 접촉');assert.equal(await page.locator('#occurredDate410').inputValue(),'2026-10-13');assert.equal(await page.locator('#incidentThumbs').innerText(),'사고사진.png');
+  assert.ok(await page.locator('#incidentHow410').evaluate(el=>!!el.closest('td')));
   await page.locator('#incidentHow410').fill('QA 현장 수정 경위');await page.locator('#unifiedReportForm button[type=submit]').click();await page.locator('#unifiedReportForm').waitFor({state:'detached'});
   assert.equal((await get()).id,id);assert.equal((await f.db.query('select count(*)::int n from enl_incident_shared')).rows[0].n,1);
   // Safety edits A+B in the same form before approval.
@@ -57,17 +65,17 @@ const profiles=[{name:'desktop',engine:chromium,width:1365},{name:'android',engi
   await page.locator('#occurredDate410').fill('2026-10-12');await page.locator('#safetyFactEditReason').fill('QA 원자료 날짜 정정');
   await page.locator('#unifiedReportForm button[type=submit]').click();await page.locator('#unifiedReportForm').waitFor({state:'detached'});let saved=await get();assert.equal(saved.approvedAt,approved.approvedAt);assert.equal(saved.approvedBy,approved.approvedBy);assert.equal(saved.reportDetails.causeAnalysisNote,'QA 사진 대조');assert.equal(saved.officialRecord.revisionNumber,1);
   // C opens at current work, with A+B above and preserved attachment binding.
-  await openAction();await assertStage('C');assert.ok((await page.locator('[data-report-stage="B"]').innerText()).includes('QA 확인된 협소 동선'));
+  await openAction();await assertStage('C');assert.ok(await page.locator('#prev429PlanDetail').evaluate(el=>!!el.closest('td')));assert.ok((await page.locator('[data-report-stage="B"]').innerText()).includes('QA 확인된 협소 동선'));
   await page.locator('#prev429RootCause').fill('QA 동선 중첩');await page.locator('#prev429PlanDetail').fill('QA 안내표지 설치');await page.locator('#prev429Owner').fill('QA 현장');await page.locator('#prev429Due').fill('2026-10-20');
   await page.locator('#prev429PlanForm button[type=submit]').click();await page.locator('#prev429PlanForm').waitFor({state:'detached'});await openAction();assert.equal(await page.locator('#prev429PlanDetail').inputValue(),'QA 안내표지 설치');await page.evaluate(()=>closeModal());
   // D restores tab draft and uploaded files when reopened; ABC never contain controls.
-  await setRole('field');await openAction();await assertStage('D');await page.locator('#prev429ActionDetail').fill('QA 안내표지 설치 완료');await page.locator('#prev429ActionDate').fill('2026-10-14');await page.locator('#prev432CompletedDate').fill('2026-10-14');
-  await page.locator('#actionUpload').setInputFiles({name:'조치증빙.png',mimeType:'image/png',buffer:fs.readFileSync('pwa-icon-192.png')});await page.waitForFunction(()=>sessionStorage.length>0);await page.evaluate(()=>closeModal());await openAction();assert.equal(await page.locator('#prev429ActionDetail').inputValue(),'QA 안내표지 설치 완료');assert.ok((await page.locator('#actionThumbs').innerText()).includes('조치증빙.png'));
+  await setRole('field');await openAction();await assertStage('D');assert.ok(await page.locator('#prev429ActionDetail').evaluate(el=>!!el.closest('td')));await page.locator('#prev429ActionDetail').fill('QA 안내표지 설치 완료');await page.locator('#prev429ActionDate').fill('2026-10-14');await page.locator('#prev432CompletedDate').fill('2026-10-14');
+  await page.locator('#actionUpload').setInputFiles({name:'조치증빙.png',mimeType:'image/png',buffer:fs.readFileSync('pwa-icon-192.png')});await page.waitForFunction(()=>sessionStorage.length>0);await page.evaluate(()=>closeModal());await openAction();assert.ok(await page.locator('#prev429ActionDetail').evaluate(el=>!!el.closest('td')));assert.equal(await page.locator('#prev429ActionDetail').inputValue(),'QA 안내표지 설치 완료');assert.ok((await page.locator('#actionThumbs').innerText()).includes('조치증빙.png'));
   await page.locator('#prev429FieldForm button[type=submit]').click();await page.locator('#prev429FieldForm').waitFor({state:'detached'});saved=await get();assert.equal(saved.corrective.submissions.length,1);assert.equal(saved.corrective.actionCompletedDate,'2026-10-14');
   await setRole('safety');await openAction();await assertStage('D');assert.equal(await page.locator('[data-report-stage="D"]').evaluate(el=>el.classList.contains('report410-active-orange')),true);
   await page.locator('[data-report-files="photos"] [data-file]').click();await page.locator('[data-report-files="action"] [data-file]').click();assert.deepEqual(await page.evaluate(()=>openedFiles),['사고사진.png','조치증빙.png']);
-  await page.locator('#prev429Review').fill('QA 완료 위치 사진 추가');await page.locator('#prev429Reject').click();await page.locator('#prev429ReviewForm').waitFor({state:'detached'});
-  await setRole('field');await openAction();assert.equal(await page.locator('#prev429ActionDetail').inputValue(),'QA 안내표지 설치 완료');assert.ok((await page.locator('[data-report-stage="D"]').innerText()).includes('QA 완료 위치 사진 추가'));
+  assert.ok(await page.locator('#prev429Review').evaluate(el=>!!el.closest('td')));await page.locator('#prev429Review').fill('QA 완료 위치 사진 추가');await page.locator('#prev429Reject').click();await page.locator('#prev429ReviewForm').waitFor({state:'detached'});
+  await setRole('field');await openAction();assert.ok(await page.locator('#prev429ActionDetail').evaluate(el=>!!el.closest('td')));assert.equal(await page.locator('#prev429ActionDetail').inputValue(),'QA 안내표지 설치 완료');assert.ok((await page.locator('[data-report-stage="D"]').innerText()).includes('QA 완료 위치 사진 추가'));
   await page.locator('#prev429ActionDetail').fill('QA 안내표지 설치 완료 및 추가 위치 확인');await page.locator('#actionUpload').setInputFiles({name:'추가증빙.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.4 QA')});await page.locator('#prev429FieldForm button[type=submit]').click();await page.locator('#prev429FieldForm').waitFor({state:'detached'});
   saved=await get();assert.equal(saved.corrective.submissions.length,2);assert.equal(saved.corrective.submissions[0].actionDetail,'QA 안내표지 설치 완료');assert.equal(saved.corrective.submissions[0].afterPhotos.length,1);assert.equal(saved.corrective.afterPhotos.length,2);
   await setRole('safety');await openAction();await assertStage('D');await page.locator('#prev429Review').fill('QA 이행내용 및 증빙 확인');await page.screenshot({path:'qa-output/cumulative-'+p.name+'.png'});
