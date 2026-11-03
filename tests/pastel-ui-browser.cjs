@@ -19,6 +19,9 @@ async function tab(browser,width,role){
   const c=await browser.newContext({viewport:{width,height:width<500?844:940},deviceScaleFactor:1,isMobile:width<900,hasTouch:width<900,serviceWorkers:'block'});
   const actor={id:'sample-'+role,name:role==='field'?'검수 소장':'검수 담당',position:role==='field'?'현장소장':'안전관리자',role,siteId:role==='field'?'s01':'',active:true};
   await c.addInitScript(u=>localStorage.setItem('enl_safety_session_v3',JSON.stringify({manager:u,loggedAt:new Date().toISOString()})),actor);
+  const records=cases.map(i=>role==='field' && i.id==='sample-1'
+    ? {...i,corrective:{status:'planned',planDetail:'작업 전 이동 구역을 확인합니다.',actionOwner:'검수 소장',planAt:'2026-10-23T00:00:00Z'}}
+    : i);
   await c.route('**/*',async route=>{
     const req=route.request(),url=new URL(req.url());
     if(url.origin===origin){
@@ -29,7 +32,8 @@ async function tab(browser,width,role){
     // Never forward a request to the real service, including reports, mail and push.
     const action=req.method()==='POST'?req.postDataJSON()?.action:'';
     const data={ok:true,epoch:1,incidents:cases,sites,metrics:cases,inquiries:[],count:0,users:[actor],readers:[]};
-    if(action==='pull')data.incidents=cases.filter(i=>role!=='field'||i.siteId===actor.siteId);
+    if(action==='final_document'){data.incident=cases[2];data.documentNumber='검수-2026-001';}
+    if(action==='pull')data.incidents=records.filter(i=>role!=='field'||i.siteId===actor.siteId);
     return route.fulfill({json:data});
   });
   const p=await c.newPage();p.setDefaultTimeout(7000);await p.goto(origin+'/stable412.html');return {p,c};
@@ -66,12 +70,39 @@ async function check(engine,width,name){
     assert.ok((await p.locator('#view').innerText()).includes('2건'));
     await p.locator('#backSafetyHome411').click();await p.locator('[data-safety-site="s03"]').click();
     await p.locator('#backSafetyHome411').waitFor();assert.ok((await p.locator('#view').innerText()).includes('0건'));
+    await p.locator('[data-lifecycle-closed]').click();
+    await p.locator('[data-lifecycle-open="sample-3"]').click();
+    await p.locator('[data-executive-record]').waitFor();
+    await noOverflow(p);
+    await image(p,name+'-closed');
+    if(!baseline){
+      await p.locator('[data-final-pdf]').waitFor();
+      const popupPromise=p.waitForEvent('popup');
+      await p.locator('[data-final-pdf]').click();
+      const popup=await popupPromise;
+      await popup.getByText('인쇄 / PDF로 저장',{exact:true}).waitFor();
+      assert.equal(await popup.locator('link[href*="safety-ui"]').count(),0);
+      if(engine===chromium)assert.ok((await popup.pdf({format:'A4'})).length>1000);
+      await popup.close();
+    }
     await c.close();
     const field=await tab(browser,width,'field');
     await field.p.locator('[data-field-task="accident_report"]').waitFor();await noOverflow(field.p);await image(field.p,name+'-field-home');
     await field.p.locator('[data-field-task="accident_report"]').click();await field.p.locator('button[data-report-type="person"]').click();
     await field.p.locator('#unifiedReportForm').waitFor();await noOverflow(field.p);await image(field.p,name+'-report');
     assert.equal(await field.p.locator('#occurredDate410').count(),1);
+    await field.p.locator('[data-report-home]').click();
+    await field.p.locator('[data-field-task="accident_action"]').click();
+    await field.p.waitForFunction(()=>data.incidents.some(i=>i.id==='sample-1'&&i.corrective?.status==='planned'));
+    await field.p.evaluate(()=>openUnifiedCorrectiveModal('sample-1',currentUser()));
+    const form=field.p.locator('#prev429FieldForm');await form.waitFor();
+    await form.locator('#prev429ActionDate').scrollIntoViewIfNeeded();
+    await noOverflow(field.p);
+    assert.ok(await form.locator('input[type=date]').evaluateAll(inputs=>inputs.every(el=>{
+      const box=el.getBoundingClientRect(),parent=el.closest('form').getBoundingClientRect();
+      return box.left>=parent.left-1&&box.right<=parent.right+1;
+    })));
+    await image(field.p,name+'-action');
     await field.c.close();console.log('PASS',name,'dashboard, site counts and drill-down, field reporting, viewport');
   } finally { await browser.close(); }
 }

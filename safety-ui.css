@@ -161,3 +161,45 @@ body.safety-ui {background:var(--canvas);color:var(--ink)}
   .safety-ui .site-heading p {line-height:1.6}
   .safety-ui #app :is(.prev429-grid,.report410-grid,.sa415-grid)>* {min-width:0}
 }
+/* Keep status text available in compact headers, including devices without emoji fonts. */
+.safety-ui #app #enlPwaTop418 {display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:0!important;color:var(--blue);background:var(--sky);border:1px solid #bdd4e6;border-radius:10px}
+.safety-ui #app #enlPwaTop418::before {content:"";display:inline-block;width:17px;height:17px;background:var(--icon-bell) center/contain no-repeat}
+.safety-ui #app #enlPwaTop418::after {content:"알림 설정";font-size:13px;line-height:1}
+.safety-ui #app #enlPwaTop418.on::after {content:"알림 켜짐"}
+.safety-ui #app #enlPwaTop418.on {color:var(--green);background:var(--mint)}
+.safety-ui #app #enlPwaTop418.warn {color:var(--amber);background:var(--cream)}
+.safety-ui #app .field-six-grid .field-six-btn {aspect-ratio:auto;min-height:145px!important;display:grid;grid-template-columns:minmax(0,1fr) auto;align-content:center;align-items:center;gap:6px}
+.safety-ui #app .field-six-grid .field-six-btn::before {margin-bottom:4px}
+.safety-ui #app .field-six-grid .field-six-btn .field-six-no {position:static!important;grid-column:2;grid-row:1;background:transparent!important;color:#647c91!important;border:0!important;box-shadow:none!important;text-align:right}
+.safety-ui #app .field-six-grid .field-six-btn :is(strong,small) {grid-column:1/-1}
+.safety-ui #app .field-six-attention-btn .field-six-no {visibility:hidden}
+.safety-ui #app .field-six-grid .field-six-btn small {font-size:14px!important;line-height:1.5!important}
+.safety-ui #app :is(.stats426-chart,.hf452-card,.prev429-plan,.wf412-new,.prev429-card) {border:1px solid var(--rule);background:var(--paper);border-radius:14px}
+.safety-ui #app .stats426-bar {background:#508fbf}
+.safety-ui #app .hf452 .hf452-kpi {gap:12px}
+.safety-ui #app .hf452-late,.safety-ui #app .hf452-error {color:var(--red);background:var(--rose)}
+.safety-ui #app :is(#prev429Reject,.btn-reject) {color:var(--red);border-color:#e5b6bf;background:var(--rose)}
+.safety-ui #app :is(.prev429-field,.wf412-inq-body,.hf452-pre,.report410-record-row) {line-height:1.6}
+.safety-ui #app :is(.report410-history,.hf452-history,.enl-approval486-reads) {border-color:var(--rule);border-radius:9px;background:#f6f9fc}
+.safety-ui #app .report410-history summary {padding-block:9px;color:var(--blue)}
+.safety-ui #app .exec-queue-action {color:var(--blue);background:var(--sky)}
+.safety-ui #app :is([data-official439-excel],.official439-btn) {background:#edf7f2;color:#17664e;border-color:#bdddcf;border-radius:9px}
+.safety-ui #app [data-official439-excel]::before,.safety-ui #app .hf452-head h2::before {content:"";display:inline-block;width:18px;height:18px;margin-right:6px;vertical-align:-3px;background:var(--icon-download) center/contain no-repeat}
+.safety-ui #app .hf452-head h2::before {background-image:var(--icon-shield)}
+@media (max-width:720px) {
+  .safety-ui #app .topbar {display:grid!important;grid-template-columns:minmax(0,1fr) auto;gap:6px 8px;padding:8px max(10px,env(safe-area-inset-right)) 8px max(10px,env(safe-area-inset-left));align-items:center}
+  .safety-ui #app .topbar .brand {grid-area:1/1;min-width:0}
+  .safety-ui #app .topbar .user-wrap {grid-area:1/2;min-width:0;justify-self:end}
+  .safety-ui #app .topbar #headerUpdateControl {grid-area:2/1;justify-self:start;min-width:0;max-width:100%;flex-wrap:wrap}
+  .safety-ui #app .topbar #enlPwaTop418 {grid-area:2/2;width:auto;min-width:0;min-height:44px;justify-self:end;padding-inline:10px}
+}
+.safety-ui #app :is([data-final-pdf],[data-official439-excel]) {min-height:44px;border:1px solid #bdddcf;border-radius:9px;background:var(--mint);color:var(--green);font-weight:700}
+.safety-ui #app [data-final-pdf]::before,.safety-ui #app [data-executive-record]>h3::before,.safety-ui #app .panel:has(>.lifecycle413-closed-list) h2::before,.safety-ui #app .field411-head h2::before {content:"";display:inline-block;margin-right:7px;width:1.15em;height:1.15em;vertical-align:-.18em;background:var(--icon-download) center/contain no-repeat}
+.safety-ui #app [data-executive-record]>h3::before {background-image:var(--icon-approve)}
+.safety-ui #app .panel:has(>.lifecycle413-closed-list) h2::before {background-image:var(--icon-closed)}
+.safety-ui #app .field411-head h2::before {background-image:var(--icon-list)}
+.safety-ui #app .field411-screen:has(.prev429-list) .field411-head h2::before {background-image:var(--icon-shield)}
+.safety-ui #app [data-executive-record]>p>b {font-variant-numeric:tabular-nums;color:var(--blue)}
+.safety-ui #app [data-executive-record] button.secondary {background:var(--rose);color:var(--red);border-color:#e5b6bf}
+.safety-ui #app :is(.prev429-meta,.field411-head,.shell411-recent-status) .p-normal {background:var(--cream);color:var(--amber)}
+.safety-ui #app .lifecycle413-closed-card {border-color:#c9e1d6;border-left:3px solid #70ac98;background:#fff}

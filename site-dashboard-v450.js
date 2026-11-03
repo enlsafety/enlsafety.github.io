@@ -167,7 +167,8 @@ function injectMap(u){
  markDashboardInteraction();
  const head=root.querySelector('.stats426-head');if(!head)return;
  root.querySelectorAll('[data-sd450-map]').forEach(n=>n.remove());
- head.closest('.panel').insertAdjacentHTML('afterend',mapHtml());
+ const summary=root.querySelector('#stats426Drill')||root.querySelector('.stats426-cards')||head;
+ summary.insertAdjacentHTML('afterend',mapHtml());
  const side=root.querySelector('.sd450-map-side'),a=dashboardRows();
  side.insertAdjacentHTML('afterbegin','<label class="sd450-select-label" for="sd450Site">사업장 선택</label><select id="sd450Site"><option value="">사업장을 선택하세요</option>'+a.map(s=>'<option value="'+E(s.site_id)+'">'+E(s.site_name)+(' · '+risk(s.site_id).level)+(pos(s)?'':' · 좌표 확인 필요')+'</option>').join('')+'</select><div data-sd450-summary role="region" aria-label="사업장 요약" aria-live="polite"></div>');
  bindMap(root,a);
