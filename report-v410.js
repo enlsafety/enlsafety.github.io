@@ -225,7 +225,11 @@
     arrange(root);
     root.querySelectorAll('.report410-work-table td>label>.report410-field-name').forEach(name=>{
       const heading=name.closest('td').previousElementSibling;
-      if(heading.textContent!==name.textContent)heading.textContent=name.textContent;
+      const control=name.closest('label').querySelector('input[id],select[id],textarea[id]');
+      const shortNames={incidentPlace410:'사고 장소',workAction410:'사고 전 작업',incidentHow410:'발생 경위',immediateAction:'즉시 조치',injuredName:'부상자',injuryDetail410:'부상 내용',propertyWorker410:'작업자',damagedItem410:'파손 물품',damageDetail410:'파손 내용',repairCost410:'복구 예상비',repairCostDetail410:'비용 상세',doctorOpinion410:'의사 소견',medicalCost410:'진료비',medicalCostDetail410:'진료비 상세'};
+      const short=name.closest('#unifiedReportForm')&&shortNames[control?.id];
+      const label=short?short+(name.textContent.includes('*')?' *':'')+(name.textContent.includes('사후 보완 가능')?'\n(사후 보완 가능)':''):name.textContent;
+      if(heading.textContent!==label)heading.textContent=label;
     });
   }
   window.enlLayoutReportTables=layoutReportTables;
@@ -254,8 +258,10 @@
   function renderTypeForm(root,u,type,i=activeEdit()){
     if(!root)return;if(!['person','property'].includes(type))return renderTypePicker(root,u);activeType=type;
     const person=type==='person',editing=!!i,title=person?'대인사고 경위서':'대물사고 경위서',desc=person?'부상·진단·진료비 등 인적 피해 중심으로 작성합니다.':'파손내용·복구비용·견적 등 물적 피해 중심으로 작성합니다.';
-    root.innerHTML=`${topBack(u)}<form id="unifiedReportForm" class="panel report-simple incident410-form" data-report-type="${type}" data-editing="${editing?'true':'false'}"><div class="section-head"><div><div class="ey">${person?'PERSON INCIDENT':'PROPERTY INCIDENT'}</div><h2>${title}${editing?' 수정':''}</h2><p>${editing?'기존에 입력한 내용을 불러왔습니다. 필요한 부분을 수정한 뒤 다시 제출해 주세요.':desc}</p></div>${editing?'<button type="button" class="secondary report410-change" data-cancel-edit>← 사고 기록으로</button>':'<button type="button" class="secondary report410-change" data-change-type>← 사고 종류 변경</button>'}</div>${reportSectionsHtml(u,type,i)}<section class="report410-section report410-photo" data-photo-required="${!editing||hasScenePhoto(i?.photos)}"><div class="report410-section-head"><b>5. 현장사진${editing&&!hasScenePhoto(i?.photos)?'':' *'}</b></div>${photoPickerHtml('incident')}</section>${editing&&u?.role==='safety'?'<section class="report410-section"><label class="lbl"><span>안전관리자 수정 사유 *</span><textarea id="safetyFactEditReason" required minlength="2" maxlength="2000" rows="2" placeholder="예: 원자료 재확인 후 사고발생일 오류 수정"></textarea></label><small>안전관리자 수정 시 기존 검토 상태는 그대로 유지되며 변경 사항은 서버 감사기록에 남습니다.</small></section>':''}<button class="primary full report410-submit" type="submit">${editing?(u?.role==='safety'?'수정사항 저장':'수정 후 다시 제출'):title+' 제출하기'}</button></form>`;
+    root.innerHTML=`${topBack(u)}<form id="unifiedReportForm" class="panel report-simple incident410-form report410-entry-table" data-report-type="${type}" data-editing="${editing?'true':'false'}"><div class="section-head"><div><div class="ey">${person?'PERSON INCIDENT':'PROPERTY INCIDENT'}</div><h2>${title}${editing?' 수정':''}</h2><p>${editing?'기존에 입력한 내용을 불러왔습니다. 필요한 부분을 수정한 뒤 다시 제출해 주세요.':desc}</p></div>${editing?'<button type="button" class="secondary report410-change" data-cancel-edit>← 사고 기록으로</button>':'<button type="button" class="secondary report410-change" data-change-type>← 사고 종류 변경</button>'}</div>${reportSectionsHtml(u,type,i)}<section class="report410-section report410-photo" data-photo-required="${!editing||hasScenePhoto(i?.photos)}"><div class="report410-section-head"><b>5. 현장사진${editing&&!hasScenePhoto(i?.photos)?'':' *'}</b></div>${photoPickerHtml('incident')}</section>${editing&&u?.role==='safety'?'<section class="report410-section"><label class="lbl"><span>안전관리자 수정 사유 *</span><textarea id="safetyFactEditReason" required minlength="2" maxlength="2000" rows="2" placeholder="예: 원자료 재확인 후 사고발생일 오류 수정"></textarea></label><small>안전관리자 수정 시 기존 검토 상태는 그대로 유지되며 변경 사항은 서버 감사기록에 남습니다.</small></section>':''}<button class="primary full report410-submit" type="submit">${editing?(u?.role==='safety'?'수정사항 저장':'수정 후 다시 제출'):title+' 제출하기'}</button></form>`;
     prepareReportLayout(root,i);
+    const actionHeading=root.querySelector('#immediateAction')?.closest('.report410-section')?.querySelector('.report410-section-head b');
+    if(actionHeading)actionHeading.textContent='4. 사고조치 내용';
     if(editing&&u?.role==='safety'){
       const form=root.querySelector('#unifiedReportForm'),submit=form.querySelector('.report410-submit');
       if(window.enlHistoricalMetadataHtml&&window.enlIsHistoricalCorrectionSupported?.(i)){const meta=document.createElement('section');meta.className='report410-section';meta.innerHTML='<h3>과거사고 원자료 정보</h3>'+window.enlHistoricalMetadataHtml(i);submit.before(meta);}
@@ -263,7 +269,7 @@
       if(i.corrective){const past=document.createElement('div');past.innerHTML=cumulativeReportHtml(i,{from:'C'});submit.before(past);bindCumulativeReport(past,i);}
       if(accepted(i)){form.dataset.reportCorrection='1';for(const el of form.querySelectorAll('[required]'))if(!el.value&&el.id!=='safetyFactEditReason'){el.required=false;el.dataset.allowExistingBlank='1';}const priority=form.querySelector('#priorityManual411');if(priority)priority.disabled=true;}
     }
-    if(editing)layoutReportTables(root.querySelector('#unifiedReportForm'));
+    layoutReportTables(root.querySelector('#unifiedReportForm'));
     incidentPhotos=editing&&Array.isArray(i.photos)?[...i.photos]:[];renderPhotoThumbs('incident');bindPhotoButtons();
     if(editing){const site=document.getElementById('reportSite');if(site){site.disabled=true;site.title='이미 등록된 사고의 사업장은 수정할 수 없습니다.';}}
     if(person){const leave=document.getElementById('leaveEstimate');if(leave)leave.value=i?.leaveEstimate||'unknown'}

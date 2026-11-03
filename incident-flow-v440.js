@@ -126,7 +126,7 @@
       ['medicalCostDetail410','진료비 상세내역 (사후 보완 가능)']
     ];
     deferred.forEach(([id,label])=>{const el=form.querySelector('#'+id);if(!el)return;el.required=false;const sp=el.closest('label')?.querySelector('span');if(sp)sp.textContent=label});
-    if(form.dataset.editing==='true')window.enlLayoutReportTables?.(form);
+    window.enlLayoutReportTables?.(form);
     if(!form.dataset.wf440Bound){form.dataset.wf440Bound='1';form.addEventListener('input',e=>fieldState(e.target),true);form.addEventListener('change',e=>fieldState(e.target),true)}
   }
 

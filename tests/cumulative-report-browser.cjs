@@ -36,6 +36,7 @@ const profiles=[{name:'desktop',engine:chromium,width:1365},{name:'android',engi
   const openAction=()=>page.evaluate(()=>openUnifiedCorrectiveModal(data.incidents[0].id,currentUser()));
   const assertStage=async stage=>{await page.locator('[data-report-stage="'+stage+'"]').waitFor();await page.waitForFunction(stage=>{const t=document.querySelector('#modalRoot [data-report-stage="'+stage+'"]');return t&&t.getBoundingClientRect().top>=0&&t.getBoundingClientRect().top<500;},stage);assert.equal(await page.locator('#modalRoot [data-report-stage="A"] input').count(),0);assert.equal(await page.evaluate(()=>document.activeElement.tagName),'BODY');assert.equal(await page.locator('#modalRoot .modal').evaluate(el=>el.scrollWidth>el.clientWidth+2),false,'report modal has no horizontal overflow');};
   await page.evaluate(()=>enlOpenIncidentReport('property',currentUser()));
+  assert.ok(await page.locator('#unifiedReportForm #incidentHow410').evaluate(el=>!!el.closest('td')),'new property report uses the statement table');
   for(const [id,v] of Object.entries({occurredDate410:'2026-10-13',occurredTime410:'10:20',incidentPlace410:'QA 진입로',workAction410:'QA 이동 중',incidentHow410:'QA 시설 접촉',immediateAction:'QA 작업 중지',damagedItem410:'QA 표지판',damageDetail410:'QA 파손'}))await page.locator('#'+id).fill(v);
   await page.locator('#eventType').selectOption('접촉');
   await page.locator('#incidentUpload').setInputFiles({name:'사고사진.png',mimeType:'image/png',buffer:fs.readFileSync('pwa-icon-192.png')});
@@ -84,6 +85,17 @@ const profiles=[{name:'desktop',engine:chromium,width:1365},{name:'android',engi
   saved=await get();assert.equal(saved.executiveApproval.state,'pending');assert.equal((await f.call('executive',{action:'executive_decide',incidentId:saved.id,expectedVersion:saved._syncVersion,decision:'approve'})).status,200);
   saved=await get();assert.equal(saved.status,'closed');assert.equal(saved.id,id);assert.equal(saved.reportDetails.environmentCause,'QA 확인된 협소 동선');assert.equal(saved.approvedAt,approved.approvedAt);assert.equal(saved.corrective.planDetail,'QA 안내표지 설치');assert.equal(saved.corrective.reviewedBy,'QA 안전');
   await page.evaluate(async()=>{data.incidents=(await qaApi('safety',{action:'pull'})).incidents;enlOpenIncidentReview(data.incidents[0].id,true,currentUser());});assert.equal(await page.locator('[data-report-stage="A"]').count(),1);assert.equal(await page.locator('[data-report-stage="E"]').count(),1);
+  // The new person form uses the same table without changing required fields or payloads.
+  await setRole('field');await page.evaluate(()=>{closeModal();enlOpenIncidentReport('person',currentUser())});
+  assert.ok(await page.locator('#injuryDetail410').evaluate(el=>!!el.closest('td')));
+  assert.equal(await page.locator('#injuryDetail410').getAttribute('required'),'');
+  assert.equal(await page.locator('#diagnosis410').getAttribute('required'),null);
+  for(const [id,v] of Object.entries({occurredDate410:'2026-10-13',occurredTime410:'10:20',incidentPlace410:'QA 통로',workAction410:'QA 이동 중',incidentHow410:'QA 미끄러짐',immediateAction:'QA 응급처치',injuredName:'QA 작업자',injuryDetail410:'QA 발목 타박',medicalCost410:'50,000'}))await page.locator('#'+id).fill(v);
+  await page.locator('#eventType').selectOption('접촉');
+  await page.locator('#incidentUpload').setInputFiles({name:'대인현장사진.png',mimeType:'image/png',buffer:fs.readFileSync('pwa-icon-192.png')});
+  await page.locator('#unifiedReportForm button[type=submit]').click();await page.locator('#unifiedReportForm').waitFor({state:'detached'});
+  const person=(await f.call('safety',{action:'pull'})).body.incidents.find(i=>i.category==='person');
+  assert.equal(person.reportDetails.medicalCost,50000);assert.equal(person.reportDetails.incidentHow,'QA 미끄러짐');assert.equal(person.photos.length,1);assert.equal(person.status,'reported');
   assert.deepEqual(errors,[]);console.log('PASS cumulative A-E actual browser + isolated server:',p.name,'same form, preservation, scroll, draft, attachment scopes, correction audit, resubmission snapshots, closure');
  }catch(e){console.error('ALERTS',p.name,alerts, 'ERRORS',errors, 'INVALID',await page.locator(':invalid').evaluateAll(xs=>xs.map(x=>({id:x.id,value:x.value,message:x.validationMessage}))));throw e;}finally{await browser.close();await f.db.close();}
 }})().catch(e=>{console.error(e);process.exitCode=1});
