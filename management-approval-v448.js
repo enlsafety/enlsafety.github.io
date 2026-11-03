@@ -148,7 +148,7 @@
   if(u.role==='executive'&&u.active!==false&&pendingReview(i)&&policy().canDecide(a,u.id)){
    for(const [d,label] of [['approve',policy().describe(a).stage==='president'?'사장 최종결재':'결재 승인'],['reject','반려']]){const b=document.createElement('button');b.textContent=label;b.className=d==='approve'?'primary':'secondary';b.onclick=()=>decide(i,d,b);box.appendChild(b)}
   }
-  if(i.status==='closed'&&['manager','executive','safety','final'].includes(u.role)){const b=document.createElement('button');b.textContent='종결보고서 PDF 출력';b.onclick=()=>printDocument(i);box.appendChild(b)}
+  if(i.status==='closed'&&['manager','executive','safety','final'].includes(u.role)){const b=document.createElement('button');b.dataset.finalPdf='';b.textContent='종결보고서 PDF 출력';b.onclick=()=>printDocument(i);box.appendChild(b)}
   if((i.acknowledgements||[]).length){const old=document.createElement('details');old.dataset.priorApprovals='';old.innerHTML='<summary>과거 결재기록 (읽기 전용)</summary>'+i.acknowledgements.map(s=>'<p>'+e(s.name)+' / '+e(s.ackAt||s.readAt||'')+'</p>').join('');box.appendChild(old)}
   if(box.childNodes.length){const head=modal.querySelector('.modal-head');if(head)head.insertAdjacentElement('afterend',box);else modal.prepend(box);refreshReads(modal,i.id);}
  }
