@@ -36,7 +36,8 @@ async function tab(browser,width,role,dataset=cases){
     if(action==='export_completed')data.generated=true;
     if(action==='final_document'){data.incident=cases[2];data.documentNumber='검수-2026-001';}
     if(action==='pull')data.incidents=records.filter(i=>role!=='field'||i.siteId===actor.siteId);
-    return route.fulfill({json:data});
+    const headers={'access-control-allow-origin':origin,'access-control-allow-methods':'GET, POST, OPTIONS','access-control-allow-headers':req.headers()['access-control-request-headers']||'content-type,x-enl-app','access-control-allow-credentials':'true'};
+    return req.method()==='OPTIONS'?route.fulfill({status:204,headers}):route.fulfill({json:data,headers});
   });
   const p=await c.newPage();p.setDefaultTimeout(7000);await p.goto(origin+'/stable412.html');return {p,c};
 }
