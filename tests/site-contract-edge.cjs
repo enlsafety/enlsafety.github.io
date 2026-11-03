@@ -4,7 +4,7 @@ let handler,records=new Map(),master={site_id:'s34',active:false,start_date:'202
 const sql=async(parts,...args)=>{const q=parts.join('?');
  if(q.includes("set_config('enl.actor'")||q.includes('pg_advisory_xact_lock'))return [];
  if(q.includes('from public.enl_hq_users'))return [{user_id:'qa',name:'QA',role:'safety',active:true,password_hash:'test'}];
- if(q.includes('from public.enl_incident_shared'))return records.has(args[0])?[{payload:records.get(args[0]),site_id:'s34'}]:[];
+ if(q.includes('from public.enl_incident_active'))return records.has(args[0])?[{payload:records.get(args[0]),site_id:'s34'}]:[];
  if(q.includes('from public.enl_site_master'))return [master];
  if(q.startsWith('update public.enl_incident_shared')){const p=structuredClone(args[1].value);assert.equal(args[1].jsonParameter,true);records.set(args[3],p);writes++;return [{payload:p}]}
  if(q.startsWith('insert into public.enl_incident_shared')){const p=structuredClone(args[2].value);assert.equal(args[2].jsonParameter,true);records.set(args[0],p);writes++;return [{payload:p}]}
