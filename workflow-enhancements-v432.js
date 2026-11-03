@@ -276,7 +276,10 @@
   const initial=currentUser?.();
   if(initial&&canDashboard(initial)&&!dashboardBooted){
     dashboardBooted=true;
-    setTimeout(()=>{try{currentView='stats';window.renderShell?.(initial);queuePatch()}catch(e){}},320);
+    setTimeout(()=>{
+      if(currentUser?.()?.id!==initial.id||!['','home','dashboard'].includes(currentView))return;
+      currentView='stats';window.renderShell?.(initial);queuePatch();
+    },320);
   }
 
   const observer=new MutationObserver(queuePatch);observer.observe(document.body,{childList:true,subtree:true});

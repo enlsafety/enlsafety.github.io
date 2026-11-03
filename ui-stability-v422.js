@@ -27,8 +27,7 @@
     return false;
   }
   function transientViewBusy(){
-    const inquiry=document.querySelector('[data-wf-inquiry-nav]');
-    return !!(inquiry?.classList.contains('on')&&document.querySelector('.wf412-page'));
+    return ['field-inquiry','inquiry'].includes(currentView)&&!!document.querySelector('#view .wf412-page');
   }
   window.enlUiModalBusy=modalBusy;
 
@@ -37,7 +36,8 @@
 
   function syncNavState(){
     const inquiry=document.querySelector('[data-wf-inquiry-nav]');
-    if(inquiry?.classList.contains('on'))return;
+    if(transientViewBusy())return;
+    inquiry?.classList.remove('on');
     document.querySelectorAll('[data-shell-view]').forEach(b=>b.classList.toggle('on',String(b.dataset.shellView||'')===String(currentView||'')));
   }
 
