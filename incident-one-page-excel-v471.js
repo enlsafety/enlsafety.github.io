@@ -213,6 +213,7 @@
   async function download(id, button) {
     if (button?.disabled) return;
     let url, anchor;
+    const initialLabel=button?.textContent;
     try {
       const i = (typeof data !== 'undefined' ? data.incidents || [] : []).find(x => String(x.id) === String(id));
       const user = window.currentUser?.();
@@ -227,7 +228,8 @@
         const active=window.currentUser?.();
         if (!source || active?.id!==user.id || active?.role!==user.role || !window.enlCanViewIncidentOriginal(source,active)) throw new Error('현재 계정으로 이 사고보고서를 출력할 수 없습니다.');
       }
-      const bytes = buildWorkbook(source);
+      const bytes = ['safety','manager','final','executive'].includes(user.role) && window.enlIncidentFinalized?.(source)
+        ? await window.enlBuildFinalIncidentWorkbook(source) : buildWorkbook(source);
       url = URL.createObjectURL(new Blob([bytes], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
       anchor = document.createElement('a'); anchor.href = url;
       const safe = value => text(value,'미확인').replace(/[\\/:*?"<>|\u0000-\u001f]/g,'_').slice(0,48);
@@ -241,7 +243,7 @@
       anchor?.remove();
       alert(error?.message || '엑셀 보고서를 만들지 못했습니다. 다시 시도해 주세요.');
     } finally {
-      if (button) { button.disabled = false; button.textContent = '엑셀 사고보고서 출력'; }
+      if (button) { button.disabled = false; button.textContent = initialLabel; }
     }
   }
   window.enlBuildOnePageIncidentWorkbook = buildWorkbook;

@@ -203,3 +203,53 @@ body.safety-ui {background:var(--canvas);color:var(--ink)}
 .safety-ui #app [data-executive-record] button.secondary {background:var(--rose);color:var(--red);border-color:#e5b6bf}
 .safety-ui #app :is(.prev429-meta,.field411-head,.shell411-recent-status) .p-normal {background:var(--cream);color:var(--amber)}
 .safety-ui #app .lifecycle413-closed-card {border-color:#c9e1d6;border-left:3px solid #70ac98;background:#fff}
+
+/* Keep the label and the pictogram on the same row on every action tile. */
+.safety-ui #app :is(.field-six-grid .field-six-btn,.report-type-card,.stats426-card,.shell411-stat>button) {
+  position:relative;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:6px;
+  padding:16px!important;border-top:3px solid var(--edge,#4191d0);min-width:0;text-align:left
+}
+.safety-ui #app :is(.field-six-grid .field-six-btn,.report-type-card,.stats426-card,.shell411-stat>button)::before {
+  position:absolute;top:12px;right:12px;margin:0;width:30px;height:30px;background-size:18px
+}
+.safety-ui #app :is(.field-six-btn,.report-type-card)>strong,.safety-ui #app :is(.shell411-stat>button,.stats426-card)>span:first-of-type {
+  align-self:stretch;margin:0;min-height:30px;padding-right:38px;display:flex;align-items:center;line-height:1.3
+}
+.safety-ui #app :is(.field-six-grid .field-six-btn,.report-type-card) {min-height:118px!important;aspect-ratio:auto}
+.safety-ui #app .report-type-no {display:none}
+.safety-ui #app .field-six-btn[data-field-task="records"] {--tile:var(--sky)}
+.safety-ui #app :is([data-field-task="inquiry"],[data-wf-inquiry-nav]) {--tile:var(--sky)}
+.safety-ui #app :is([data-field-task="accident_action"],[data-safety-status="closed"],[data-safety-status="approved"]) {--edge:#459f80;--tile:var(--mint)}
+.safety-ui #app :is([data-stats-filter="unresolved"],[data-safety-status="supplement_any"],#safetyActionMissing411) {--edge:#dd923a;--tile:var(--cream)}
+.safety-ui #app .tone-slate {--accent:#75a8d0;--tile:var(--sky)}
+.safety-ui #app .site-quiet-card {display:flex;flex-wrap:nowrap;min-height:58px;gap:10px}
+.safety-ui #app .site-quiet-card>span {display:flex;align-items:center;gap:5px;color:var(--green);white-space:nowrap}
+.safety-ui #app .site-quiet-card i {width:16px;height:16px;background:var(--green);mask:var(--icon-closed) center/contain no-repeat;-webkit-mask:var(--icon-closed) center/contain no-repeat}
+.safety-ui .list-fold {margin:8px 0 0}
+.safety-ui .list-fold>summary {cursor:pointer;list-style:none;text-align:center;min-height:44px;padding:10px;border:1px solid var(--rule);border-radius:10px;background:white;color:var(--blue);font-weight:700}
+.safety-ui .list-fold>summary::-webkit-details-marker {display:none}
+.safety-ui .fold-less,.safety-ui .list-fold[open]>summary .fold-more {display:none}
+.safety-ui .list-fold[open]>summary .fold-less {display:inline}
+.safety-ui .list-fold[open]>summary {margin-bottom:8px}
+.safety-ui .closed-entry {min-width:0}.safety-ui .closed-entry>.lifecycle413-closed-card {width:100%}
+.safety-ui .closed-tools {display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin:6px 0 12px}
+.safety-ui #app .closed-tools button {min-height:44px;background:var(--mint);color:var(--green);border:1px solid #bcdacb;border-radius:9px}
+.safety-ui .closed-sites {margin-top:16px}.safety-ui .closed-sites select {max-width:100%;min-height:44px;margin-block:8px}
+.safety-ui #app .task-required,.safety-ui #app [data-exec-mark="required"],.safety-ui #app .field-six-btn.field-six-attention-btn {border:2px solid #b42335!important}
+.safety-ui #app .task-chip {display:inline-flex;align-items:center;align-self:flex-start;color:#a91d30;background:#fff0f1;border:1px solid #e5afb8;border-radius:7px;padding:3px 7px;font-size:12px;font-weight:800}
+.safety-ui #app .task-required [data-prev-open],.safety-ui #app :is([data-wf440-final],#prev429Approve,.wf412-inq.new [data-wf-inq-read]) {outline:2px solid #b42335;outline-offset:2px}
+.safety-ui #app .shell411-nav {overflow:visible!important}
+.safety-ui #app :is(.enl424-nav-count,.enl424-nav-dot,.field-six-new,.exec-required-badge,.exec-tab-count) {z-index:8;pointer-events:none}
+.safety-ui #app .field-six-new {top:auto;bottom:8px;right:8px}
+.safety-ui #app .field-six-attention-btn small {padding-right:22px}
+.safety-ui #app .exec-required-badge {position:relative}
+.safety-ui #app .report410-photo.enl432-evidence-empty {border:2px solid #bd3040!important;background:#fff9fa}
+@media(max-width:760px){
+  .safety-ui #app .shell411-nav:not(:empty) {display:grid!important;grid-template-columns:repeat(auto-fit,minmax(min(100%,105px),1fr));width:100%;gap:5px;overflow:visible!important;padding:6px}
+  .safety-ui #app .shell411-nav button {min-width:0;max-width:100%;height:auto;white-space:normal;word-break:keep-all;line-height:1.22;padding:6px 3px;font-size:12px;gap:4px}
+  .safety-ui #app .shell411-nav button:has(.enl424-nav-count,.exec-tab-count) {padding-right:17px}
+  .safety-ui #app .shell411-nav .enl424-nav-count {top:-3px;right:-1px}
+  .safety-ui #app .site-quiet-grid {grid-template-columns:minmax(0,1fr)}
+  .safety-ui #app :is(.stats426-card,.shell411-stat>button,.field-six-grid .field-six-btn) {padding:12px!important}
+  .safety-ui #app :is(.field-six-grid .field-six-btn,.stats426-card,.shell411-stat>button)::before {width:24px;height:24px;right:9px;top:12px}
+}

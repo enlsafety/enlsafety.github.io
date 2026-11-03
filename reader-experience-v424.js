@@ -70,12 +70,19 @@
   function safetyHasPlan(i){
     const c=i?.corrective||{};return !!String(c.planDetail||'').trim()||!!c.planAt;
   }
+  function safetyWork(i){
+    if(!i||historicalClosed(i))return {};
+    return {report:i.status==='reported'?'최초보고 검토':i.status==='supplement_submitted'?'보완자료 검토':'',
+      plan:i.status==='approved'&&!safetyHasPlan(i)&&i.corrective?.status!=='approved',
+      review:i.corrective?.status==='submitted'};
+  }
+  window.enlSafetyWork=safetyWork;
   function safetyActionCounts(u){
     const arr=[...(data?.incidents||[])].filter(i=>!historicalClosed(i));
-    const incidentApproval=arr.filter(i=>['reported','supplement_submitted'].includes(String(i.status||''))).length;
+    const incidentApproval=arr.filter(i=>safetyWork(i).report).length;
     const ownApproval=0;
-    const plan=arr.filter(i=>String(i.status||'')==='approved'&&!safetyHasPlan(i)&&String(i?.corrective?.status||'')!=='approved').length;
-    const prevention=arr.filter(i=>String(i?.corrective?.status||'')==='submitted').length;
+    const plan=arr.filter(i=>safetyWork(i).plan).length;
+    const prevention=arr.filter(i=>safetyWork(i).review).length;
     return {incidentApproval,ownApproval,incident:incidentApproval+ownApproval,plan,prevention,actions:plan+prevention,total:incidentApproval+ownApproval+plan+prevention};
   }
   function safetyActionBadges(u){

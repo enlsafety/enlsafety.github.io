@@ -70,9 +70,34 @@ async function check(engine,width,name){
     await image(p,name+'-sites');await noOverflow(p);
     await p.locator('[data-safety-site="s01"]').click();await p.locator('#backSafetyHome411').waitFor();
     assert.ok((await p.locator('#view').innerText()).includes('2건'));
-    await p.locator('#backSafetyHome411').click();await p.locator('[data-safety-site="s03"]').click();
+    await p.locator('#backSafetyHome411').click();
+    const quiet=p.locator('[data-safety-site="s03"]'),fold=p.locator('[data-fold="quiet"]');
+    if(!baseline){
+      assert.equal(await p.locator('.site-quiet-card:visible').count(),5);
+      if(!await quiet.isVisible())await fold.locator('summary').click();
+    }
+    await quiet.scrollIntoViewIfNeeded();
+    const originScroll=await p.evaluate(()=>scrollY);
+    await quiet.click();
     await p.locator('#backSafetyHome411').waitFor();assert.ok((await p.locator('#view').innerText()).includes('0건'));
+    if(!baseline){
+      await p.locator('#backSafetyHome411').click();
+      await quiet.waitFor();
+      await p.waitForFunction(y=>Math.abs(scrollY-y)<5,originScroll);
+    }
     await p.locator('[data-lifecycle-closed]').click();
+    if(!baseline){
+      await p.locator('[data-closed-site]').selectOption('s02');
+      await p.locator('[data-site-closed-records] [data-closed-pdf]').waitFor();
+      await p.locator('[data-wf-inquiry-nav]').click();
+      await p.locator('[data-inquiry-back]').click();
+      await p.locator('[data-closed-site]').waitFor();
+      const popupPromise=p.waitForEvent('popup');
+      await p.locator('[data-closed-pdf]').first().click();
+      const popup=await popupPromise;
+      await popup.getByText('인쇄 / PDF로 저장',{exact:true}).waitFor();
+      await popup.close();
+    }
     await p.locator('[data-lifecycle-open="sample-3"]').click();
     await p.locator('[data-executive-record]').waitFor();
     await noOverflow(p);
@@ -96,6 +121,13 @@ async function check(engine,width,name){
     await field.p.locator('[data-field-task="accident_report"]').click();await field.p.locator('button[data-report-type="person"]').click();
     await field.p.locator('#unifiedReportForm').waitFor();await noOverflow(field.p);await image(field.p,name+'-report');
     assert.equal(await field.p.locator('#occurredDate410').count(),1);
+    if(!baseline){
+      await field.p.locator('[data-photo-required="true"]').waitFor();
+      assert.equal(await field.p.getByText('원본사진 저장',{exact:true}).count(),1);
+      const cost=field.p.locator('#medicalCost410');
+      await cost.fill('5000');assert.equal(await cost.inputValue(),'5,000');
+      await cost.press('End');await cost.press('0');assert.equal(await cost.inputValue(),'50,000');
+    }
     await field.p.locator('[data-report-home]').click();
     await field.p.locator('[data-field-task="accident_action"]').click();
     await field.p.waitForFunction(()=>data.incidents.some(i=>i.id==='sample-1'&&i.corrective?.status==='planned'));

@@ -91,6 +91,7 @@
     return [...(Array.isArray(i?.photos)?i.photos:[]),...(Array.isArray(i?.corrective?.afterPhotos)?i.corrective.afterPhotos:[])];
   }
   function printReport(i,button){
+    if(window.enlIncidentFinalized?.(i)&&isSafety(current()))return window.enlDownloadFinalIncidentExcel(i.id);
     if(typeof window.enlDownloadOnePageIncidentExcel!=='function')return alert('엑셀 출력 기능을 불러오지 못했습니다. 앱을 새로고침해 주세요.');
     return window.enlDownloadOnePageIncidentExcel(i?.id,button);
   }

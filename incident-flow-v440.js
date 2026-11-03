@@ -193,11 +193,11 @@
         <label class="lbl"><span>진단명${star('diagnosis')}</span><input id="wf440Diagnosis" value="${ex(d.diagnosis||'')}" ${required('diagnosis')}></label>
         <label class="lbl"><span>휴업·치료 예상${star('leaveEstimate')}</span><select id="wf440Leave" ${required('leaveEstimate')}><option value="">선택</option><option value="none">휴업 없음</option><option value="under3">3일 미만</option><option value="3plus">3일 이상</option><option value="longterm">장기치료·중상 가능</option></select></label>
         <label class="lbl wf440-wide"><span>의사 소견 / 치료 예상기간${star('doctorOpinion')}</span><textarea id="wf440Doctor" rows="3" ${required('doctorOpinion')}>${ex(d.doctorOpinion||'')}</textarea></label>
-        <label class="lbl"><span>현재 확인된 진료비${star('medicalCost')}</span><input id="wf440MedicalCost" type="number" min="0" inputmode="numeric" value="${ex(d.medicalCost||'')}" ${required('medicalCost')}></label>
+        <label class="lbl"><span>현재 확인된 진료비${star('medicalCost')}</span><input id="wf440MedicalCost" data-won type="text" inputmode="numeric" value="${ex(d.medicalCost||'')}" ${required('medicalCost')}></label>
         <label class="lbl"><span>진료비 상세내역</span><input id="wf440MedicalDetail" value="${ex(d.medicalCostDetail||'')}"></label>
       </div>`:`
       <div class="wf440-form-grid">
-        <label class="lbl"><span>수리·복구 견적금액${star('repairCost')}</span><input id="wf440RepairCost" type="number" min="0" inputmode="numeric" value="${ex(d.repairCostPending===true?'':(d.repairCost||''))}" ${required('repairCost')} placeholder="예: 350000"></label>
+        <label class="lbl"><span>수리·복구 견적금액${star('repairCost')}</span><input id="wf440RepairCost" data-won type="text" inputmode="numeric" value="${ex(d.repairCostPending===true?'':(d.repairCost||''))}" ${required('repairCost')} placeholder="예: 350000"></label>
         <label class="lbl wf440-wide"><span>견적·비용 상세내역${star('repairCostDetail')}</span><textarea id="wf440RepairDetail" rows="3" ${required('repairCostDetail')} placeholder="예: 지주 교체비 250,000원 + 도장비 100,000원">${ex(d.repairCostDetail==='사후 보완 예정'?'':(d.repairCostDetail||''))}</textarea></label>
       </div>`;
     openModal(`<div class="modal-head"><div><div class="ey">SUPPLEMENT</div><h2>${ex(siteName(i.siteId))} · 사고보고 보완자료</h2><p>사고 직후에는 알 수 없었던 진단·비용·견적 등의 사후 확인자료를 입력합니다.</p></div><button class="x" data-close>×</button></div>
@@ -218,9 +218,9 @@
       e.preventDefault();if(!form.reportValidity())return;
       const needFile=req.has('medicalDocument')||req.has('estimateDocument');if(needFile&&supplementFiles.length<1){validateSupplementVisual(form);return alert('안전관리자가 요청한 증빙자료를 1개 이상 첨부해 주세요.')}
       if(i.category==='person'){
-        d.diagnosis=text(form.querySelector('#wf440Diagnosis')?.value);d.doctorOpinion=text(form.querySelector('#wf440Doctor')?.value);d.medicalCost=Number(form.querySelector('#wf440MedicalCost')?.value||0)||0;d.medicalCostDetail=text(form.querySelector('#wf440MedicalDetail')?.value);i.leaveEstimate=text(form.querySelector('#wf440Leave')?.value)||i.leaveEstimate||'unknown';
+        d.diagnosis=text(form.querySelector('#wf440Diagnosis')?.value);d.doctorOpinion=text(form.querySelector('#wf440Doctor')?.value);d.medicalCost=Number((form.querySelector('#wf440MedicalCost')?.value||'').replace(/,/g,''))||0;d.medicalCostDetail=text(form.querySelector('#wf440MedicalDetail')?.value);i.leaveEstimate=text(form.querySelector('#wf440Leave')?.value)||i.leaveEstimate||'unknown';
       }else{
-        const repair=Number(form.querySelector('#wf440RepairCost')?.value||0)||0,detail=text(form.querySelector('#wf440RepairDetail')?.value);
+        const repair=Number((form.querySelector('#wf440RepairCost')?.value||'').replace(/,/g,''))||0,detail=text(form.querySelector('#wf440RepairDetail')?.value);
         d.repairCost=repair;d.repairCostPending=repair<=0;d.repairCostDetail=detail||(repair>0?'':'사후 보완 예정');
       }
       const ts=now();i.reportDetails=d;i.status='supplement_submitted';i.supplement={...(i.supplement||{}),status:'submitted',attachments:persistAttachments(supplementFiles),submittedBy:u.name,submittedById:uid(u),submittedAt:ts};

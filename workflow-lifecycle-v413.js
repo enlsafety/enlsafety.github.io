@@ -15,7 +15,7 @@
   const reportApproved=i=>!!i&&!historicalClosed(i)&&String(i.status)==='approved';
   const actionStatus=v=>v==='planned'?'조치예정':v==='in_progress'?'조치중':v==='submitted'?'사고조치 검토대기':v==='rejected'?'사고조치 반려':v==='approved'?'사고조치 승인완료':'사고조치 미작성';
   const snapshots=new Map();
-  let closedMode=false;
+
 
   function snapshot(){
     snapshots.clear();
@@ -114,17 +114,33 @@
   function renderClosedView(u=currentUser?.()){
     const root=document.getElementById('view');if(!root||!u)return;
     const arr=closedIncidents(u);
-    root.innerHTML=`<section class="panel"><div class="section-head"><div><div class="ey">FINALIZED INCIDENTS</div><h2>종결 사고</h2><p>일반 종결사고와 ERP 기결재 과거사고 이관종결 건을 함께 표시합니다.</p></div></div><div class="lifecycle413-closed-list">${arr.map(i=>{const q=typeof window.enlIncidentQuickSummary==='function'?window.enlIncidentQuickSummary(i):{headline:i.eventType||'사고',site:siteName(i.siteId),when:fmt(i.occurredAt)},c=i.corrective||{},h=historicalClosed(i),hi=i.historicalImport||{};return `<button type="button" class="lifecycle413-closed-card" data-lifecycle-open="${escx(i.id)}"><div>${h?(typeof badge==='function'?badge('p-done','과거사고 · ERP 기결재 · 이관종결'):''):`${typeof priorityBadge==='function'?priorityBadge(i.priority):''}${typeof statusBadge==='function'?statusBadge(i.status):''}${typeof actionBadge==='function'?actionBadge(i):''}`}</div><h3>${escx(q.site||siteName(i.siteId))} · ${escx(q.headline||i.eventType||'사고')}</h3>${typeof window.enlIncidentOverviewHtml==='function'?window.enlIncidentOverviewHtml(i,{compact:true}):''}${h?`<div class="lifecycle413-closed-action"><b>과거사고 이관종결</b><br>ERP 기결재 자료를 사고이력 관리를 위해 이관한 건입니다.<br><small>${escx(hi.transferredByName||i.reporterName||'-')} 이관등록 · ${escx(hi.transferredAt?fmt(hi.transferredAt):'-')}</small></div>`:`<div class="lifecycle413-closed-action"><b>최종 조치</b><br>${escx(c.actionDetail||'-')}<br><small>${escx(c.reviewedBy||'안전관리자')} 승인 · ${escx(c.reviewedAt?fmt(c.reviewedAt):'-')}</small></div>`}</button>`}).join('')||'<div class="empty">종결된 사고가 없습니다.</div>'}</div></section>`;
-    root.querySelectorAll('[data-lifecycle-open]').forEach(b=>b.onclick=()=>window.enlOpenIncidentReview?.(b.dataset.lifecycleOpen,false,u));
+    const previous=root.querySelector('[data-closed-site]')?.value||'';
+    const expanded=!!root.querySelector('[data-fold="closed"][open]');
+    function card(i){const q=typeof window.enlIncidentQuickSummary==='function'?window.enlIncidentQuickSummary(i):{headline:i.eventType||'사고',site:siteName(i.siteId),when:fmt(i.occurredAt)},c=i.corrective||{},h=historicalClosed(i),hi=i.historicalImport||{};return `<div class="closed-entry"><button type="button" class="lifecycle413-closed-card" data-lifecycle-open="${escx(i.id)}"><div>${h?(typeof badge==='function'?badge('p-done','과거사고 · ERP 기결재 · 이관종결'):''):`${typeof priorityBadge==='function'?priorityBadge(i.priority):''}${typeof statusBadge==='function'?statusBadge(i.status):''}${typeof actionBadge==='function'?actionBadge(i):''}`}</div><h3>${escx(q.site||siteName(i.siteId))} · ${escx(q.headline||i.eventType||'사고')}</h3>${typeof window.enlIncidentOverviewHtml==='function'?window.enlIncidentOverviewHtml(i,{compact:true}):''}${h?`<div class="lifecycle413-closed-action"><b>과거사고 이관종결</b><br>ERP 기결재 자료를 사고이력 관리를 위해 이관한 건입니다.<br><small>${escx(hi.transferredByName||i.reporterName||'-')} 이관등록 · ${escx(hi.transferredAt?fmt(hi.transferredAt):'-')}</small></div>`:`<div class="lifecycle413-closed-action"><b>최종 조치</b><br>${escx(c.actionDetail||'-')}<br><small>${escx(c.reviewedBy||'안전관리자')} 승인 · ${escx(c.reviewedAt?fmt(c.reviewedAt):'-')}</small></div>`}</button><div class="closed-tools"><button type="button" data-closed-xlsx="${escx(i.id)}">최종 사고보고서 Excel 출력</button><button type="button" data-closed-pdf="${escx(i.id)}">종결보고서 PDF 출력</button></div></div>`}
+    const groups=new Map();
+    for(const i of arr){const key=String(i.siteId||'');if(!groups.has(key))groups.set(key,[]);groups.get(key).push(i)}
+    root.innerHTML=`<section class="panel"><div class="section-head"><div><div class="ey">FINALIZED INCIDENTS</div><h2>최근 종결사고</h2><p>최근 종결 순서로 표시합니다. 전체 ${arr.length}건</p></div></div>
+      ${arr.length?window.enlFoldedList(arr,'lifecycle413-closed-list','closed',card):'<p>종결된 사고가 없습니다.</p>'}</section>
+      <section class="panel closed-sites"><h2>사업장별 종결사고 기록</h2><label>사업장 선택 <select data-closed-site><option value="">사업장을 선택하세요</option>${[...groups].sort(([a],[b])=>siteName(a).localeCompare(siteName(b),'ko')).map(([id,list])=>`<option value="${escx(id)}">${escx(siteName(id))} (${list.length}건)</option>`).join('')}</select></label><div class="lifecycle413-closed-list" data-site-closed-records></div></section>`;
+    const select=root.querySelector('[data-closed-site]'),records=root.querySelector('[data-site-closed-records]');
+    const bind=container=>{
+      container.querySelectorAll('[data-lifecycle-open]').forEach(b=>b.onclick=()=>window.enlOpenIncidentReview?.(b.dataset.lifecycleOpen,false,u));
+      container.querySelectorAll('[data-closed-xlsx]').forEach(b=>b.onclick=()=>window.enlOfficialIncidentPrint?.(arr.find(i=>i.id===b.dataset.closedXlsx),b));
+      container.querySelectorAll('[data-closed-pdf]').forEach(b=>b.onclick=()=>window.enlPrintFinalDocument?.(arr.find(i=>i.id===b.dataset.closedPdf)));
+    };
+    select.onchange=()=>{records.innerHTML=(groups.get(select.value)||[]).map(card).join('');bind(records)};
+    bind(root);
+    if(previous&&groups.has(previous)){select.value=previous;select.onchange()}
+    const fold=root.querySelector('[data-fold="closed"]');if(fold)fold.open=expanded;
     document.querySelectorAll('.shell411-nav button').forEach(b=>b.classList.remove('on'));document.querySelector('[data-lifecycle-closed]')?.classList.add('on');
   }
   function injectClosedNav(u){
     if(!u||isSite(u))return;const nav=document.querySelector('.shell411-nav');if(!nav||nav.querySelector('[data-lifecycle-closed]'))return;
-    const b=document.createElement('button');b.type='button';b.className='lifecycle413-nav';b.dataset.lifecycleClosed='1';b.textContent='종결';b.onclick=()=>{closedMode=true;renderClosedView(u)};nav.appendChild(b);
+    const b=document.createElement('button');b.type='button';b.className='lifecycle413-nav';b.dataset.lifecycleClosed='1';b.textContent='종결';b.onclick=()=>{currentView='closed';renderShell(u)};nav.appendChild(b);
   }
-  document.addEventListener('click',e=>{if(e.target?.closest?.('[data-shell-view]'))closedMode=false},true);
-  const baseShell=window.renderShell;if(typeof baseShell==='function')window.renderShell=function(u){const r=baseShell(u);injectClosedNav(u);rewriteLabels(document);if(closedMode)renderClosedView(u);snapshot();return r};
-  const baseRender=window.render;if(typeof baseRender==='function')window.render=function(){const r=baseRender();const u=currentUser?.();injectClosedNav(u);rewriteLabels(document);if(closedMode&&u)renderClosedView(u);snapshot();return r};
+  window.enlRenderClosedView=renderClosedView;
+  const baseShell=window.renderShell;if(typeof baseShell==='function')window.renderShell=function(u){const r=baseShell(u);injectClosedNav(u);rewriteLabels(document);snapshot();return r};
+  const baseRender=window.render;if(typeof baseRender==='function')window.render=function(){const r=baseRender();const u=currentUser?.();injectClosedNav(u);rewriteLabels(document);snapshot();return r};
 
   // Existing screen is already rendered before this module loads.
   const initial=currentUser?.();injectClosedNav(initial);rewriteLabels(document);snapshot();
