@@ -7,11 +7,11 @@ const {tab,noOverflow}=require('./field-entry-table-browser.cjs');
   const browser=await engine.launch();
   try{for(const role of roles){
    const {p,c}=await tab(browser,width,role);
-   let enabled=true,modules=[{key:'incident',state:'live'}];const gates=[],savedUsers=[],personnel=[];
+   let enabled=true,modules=[{key:'incident',state:'live'}],services=[{key:'system',state:'live'}];const gates=[],savedUsers=[],personnel=[];
    await c.route('**/*',async route=>{
     const req=route.request(),b=req.method()==='POST'?req.postDataJSON():null;
-    if(b?.action==='platform_catalog')return route.fulfill({json:{revision:1,modules,services:[{key:'system',state:'live'}]}});
-    if(b?.action==='platform_save'){modules=b.modules;return route.fulfill({json:{ok:true,revision:2}})}
+    if(b?.action==='platform_catalog')return route.fulfill({json:{revision:1,modules,services}});
+    if(b?.action==='platform_save'){if(b.group==='services')services=b.modules;else modules=b.modules;return route.fulfill({json:{ok:true,revision:2}})}
     if(b?.action==='personnel_pull')return route.fulfill({json:{ok:true,personnel}});
     if(b?.action==='personnel_upsert'){
       assert.equal(b.person.accessRole,'field');assert.equal(b.person.jobTitle,'파트장');
@@ -33,8 +33,11 @@ const {tab,noOverflow}=require('./field-entry-table-browser.cjs');
     await p.evaluate(()=>{currentView='system-admin';renderShell(currentUser())});
     await p.locator('[data-module=incident]').waitFor();assert.equal(await p.locator('.system-admin').count(),0);
    }else{
-    await p.locator('.feature-pencil').click();await p.getByLabel('업무기능 이름',{exact:true}).fill('사고 <보고>');
+    await p.locator('[data-key=incident] .feature-pencil').click();await p.getByLabel('업무기능 이름',{exact:true}).fill('사고 <보고>');
     await p.locator('.feature-name-form [type=submit]').click();await p.getByRole('button',{name:'사고 <보고>',exact:true}).waitFor();assert.equal(modules[0].displayName,'사고 <보고>');
+    await p.locator('[data-key=system] .feature-pencil').click();await p.getByLabel('서비스 이름',{exact:true}).fill('공통 설정');
+    await p.locator('.feature-name-form [type=submit]').click();await p.getByRole('button',{name:'공통 설정',exact:true}).waitFor();
+    assert.equal(services[0].displayName,'공통 설정');assert.equal(modules[0].displayName,'사고 <보고>');
     await noOverflow(p);await p.locator('[data-service=system]').click();
     const workspace=p.locator('.system-admin');await workspace.locator('#sa415CreateSite').waitFor();
     assert.equal(await p.evaluate(()=>currentView),'system-admin');assert.equal(await p.locator('.shell411-nav').count(),0);

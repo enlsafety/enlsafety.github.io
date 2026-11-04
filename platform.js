@@ -2,7 +2,19 @@
 (()=>{
   'use strict';
   const names={incident:'사고보고',risk:'위험성평가',tbm:'TBM',organization:'안전보건조직',training:'안전보건교육',history:'통합 히스토리',approvals:'통합 결재함',notices:'알림센터',documents:'문서 및 증빙관리',dashboard:'통합 대시보드',system:'시스템 관리'};
-  const icons={incident:'report',risk:'shield',tbm:'chat',organization:'users',training:'education',history:'history',approvals:'approve',notices:'bell',documents:'archive',dashboard:'stats',system:'settings'};
+  const icons={
+    incident:'<path d="M14 3H5v18h14V8z M14 3v5h5 M8 12h8m-8 4h6"/>',
+    risk:'<path d="M12 2 20 5v6c0 5-4 9-8 11-4-2-8-6-8-11V5z m-4 10 3 3 5-6"/>',
+    tbm:'<path d="M3 4h18v13H9l-6 4z M7 9h10m-10 4h7"/>',
+    organization:'<circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2m1-15a3 3 0 0 1 0 6m1 3a5 5 0 0 1 4 5"/>',
+    training:'<path d="m2 7 10-4 10 4-10 4z"/><path d="M6 9v3c3 3 9 3 12 0V9m4-2v6M3 16c3-1 6-.5 9 1 3-1.5 6-2 9-1v5c-3-.7-6-.5-9 1-3-1.5-6-1.7-9-1zm9 1v5"/>',
+    history:'<path d="M3 10a9 9 0 1 1 1.8 8M3 4v6h6M12 7v5l3 2"/>',
+    approvals:'<path d="M13 3H5v18h14v-9 M13 3v5h5M13 3l5 5m-10 6 3 3 9-10"/>',
+    notices:'<path d="M4 17h16l-2-4V9a6 6 0 0 0-12 0v4z m5 3a3 3 0 0 0 6 0"/>',
+    documents:'<path d="M3 4h18v4H3z M5 8v12h14V8m-10 4h6"/>',
+    dashboard:'<path d="M3 3v18h18M7 17v-5m5 5V6m5 11v-8"/>',
+    system:'<path d="M3 6h8m4 0h6M3 12h2m4 0h12M3 18h12m4 0h2"/><circle cx="13" cy="6" r="2"/><circle cx="7" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>'
+  };
   const states={live:'운영 중',building:'구현 중',hidden:'숨김'};
   const roles={field:'현장관리자',manager:'본사실무자',executive:'경영진',worker:'일반근로자',safety:'안전관리자'};
   const duties={supervisor:'관리감독자',safety:'안전관리자',responsible:'안전보건관리책임자',health:'보건관리자'};
@@ -229,33 +241,34 @@
       const future=document.createElement('div');future.className='feature-future';future.innerHTML='<span aria-hidden="true">＋</span>추가 예정';grid.append(future);
       window.enlRefreshHistoryCount?.(true);
     }
-    function addNameEditor(row,button,m){
+    function addNameEditor(row,button,m,support){
+      const fieldName=support?'서비스 이름':'업무기능 이름';
       const pencil=document.createElement('button');pencil.type='button';pencil.className='feature-pencil';
       pencil.setAttribute('aria-label',featureName(m)+' 이름 수정');pencil.title='이름 수정';
       pencil.innerHTML='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m4 16-1 5 5-1L20 8l-4-4zM14 6l4 4"/></svg>';
       button.after(pencil,button.querySelector('small'));
       pencil.onclick=()=>{
         const form=document.createElement('form');form.className='feature-name-form';
-        form.innerHTML='<input aria-label="업무기능 이름" maxlength="30" required><button type="submit">저장</button><button type="button">취소</button>';
+        form.innerHTML='<input aria-label="'+fieldName+'" maxlength="30" required><button type="submit">저장</button><button type="button">취소</button>';
         const input=form.elements[0];input.value=featureName(m);row.replaceChildren(form);input.focus();input.select();
-        const cancel=()=>{cards();area.querySelector('[data-key="'+m.key+'"] .feature-pencil')?.focus()};
+        const cancel=()=>{cards();host.querySelector('[data-key="'+m.key+'"] .feature-pencil')?.focus()};
         form.querySelector('[type=button]').onclick=cancel;
         input.oninput=()=>input.setCustomValidity('');
         input.onkeydown=ev=>{if(ev.key==='Escape'&&!ev.isComposing)cancel()};
         form.onsubmit=async ev=>{
           ev.preventDefault();const name=input.value.trim();
-          if(!name){input.setCustomValidity('업무기능 이름을 입력해 주세요.');input.reportValidity();return;}
-          if(await save(config.modules.map(x=>x===m?{...x,displayName:name}:x)))area.querySelector('[data-key="'+m.key+'"] .feature-pencil')?.focus();
+          if(!name){input.setCustomValidity(fieldName+'을 입력해 주세요.');input.reportValidity();return;}
+          if(await save(itemsFor(m.key).map(x=>x===m?{...x,displayName:name}:x)))host.querySelector('[data-key="'+m.key+'"] .feature-pencil')?.focus();
         };
       };
     }
     function draw(grid,items,support){
       for(const m of items.filter(m=>(admin||m.state!=='hidden')&&(m.key!=='history'||window.enlHistoryAvailable?.(u))&&(m.key!=='system'||admin))){
         const row=document.createElement('article');row.className='feature-card-wrap';row.dataset.key=m.key;row.dataset.state=m.state;row.dataset.on=String(isOn(m));
-        row.innerHTML='<button class="platform-card" type="button" style="--pic:var(--icon-'+icons[m.key]+')"><span class="platform-icon"></span><strong>'+e(featureName(m))+'</strong><small>'+states[m.state]+(!isOn(m)&&m.state==='live'?' / 접근 꺼짐':'')+'</small></button>';
+        row.innerHTML='<button class="platform-card" type="button"><span class="platform-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+icons[m.key]+'</svg></span><strong>'+e(featureName(m))+'</strong><small>'+states[m.state]+(!isOn(m)&&m.state==='live'?' / 접근 꺼짐':'')+'</small></button>';
         const button=row.firstElementChild;
         button.dataset[support?'service':'module']=m.key;button.setAttribute('aria-label',featureName(m));
-        if(m.key==='history'&&isOn(m)&&m.canEnter!==false)button.dataset.platformHistoryFeed='';
+        if(m.key==='history'&&isOn(m)&&m.canEnter!==false)button.dataset.platformHistoryFeed=featureName(m);
         grid.append(row);button.onclick=async()=>{
           if(!isOn(m)||m.canEnter===false){status.textContent='현재 진입할 수 없는 '+(support?'서비스':'모듈')+'입니다.';return;}
           if(m.key==='system'){window.enlOpenSystemAdmin(u);return;}
@@ -267,7 +280,7 @@
           }catch{status.textContent='현재 진입할 수 없는 '+(support?'서비스':'모듈')+'입니다.'}
         };
         if(!admin)continue;
-        if(!support)addNameEditor(row,button,m);
+        addNameEditor(row,button,m,support);
         const tools=document.createElement('div');tools.className='feature-controls';
         tools.innerHTML='<button type="button" role="switch" aria-label="'+e(featureName(m))+' 진입" aria-checked="'+isOn(m)+'">'+(isOn(m)?'ON':'OFF')+'</button><button type="button" class="feature-grip" aria-haspopup="dialog" aria-label="'+e(featureName(m))+' 접근 설정 및 순서 이동">☰</button>';row.append(tools);
         tools.firstElementChild.onclick=()=>{

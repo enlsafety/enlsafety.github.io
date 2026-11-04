@@ -21,9 +21,9 @@
     for(const b of document.querySelectorAll(menuSelector)){
     const count=counts[b.hasAttribute('data-platform-history-feed')?'common':'incident'];
     let badge=b.querySelector('.activity-count');
-    if(!count){badge?.remove();if(b.hasAttribute('data-platform-history-feed'))b.setAttribute('aria-label','통합 히스토리');else b.removeAttribute('aria-label');continue;}
+    if(!count){badge?.remove();if(b.hasAttribute('data-platform-history-feed'))b.setAttribute('aria-label',b.dataset.platformHistoryFeed||'통합 히스토리');else b.removeAttribute('aria-label');continue;}
     if(!badge){badge=document.createElement('span');badge.className='enl424-nav-count activity-count';b.append(badge);}
-    badge.textContent=String(count);b.setAttribute('aria-label',(b.hasAttribute('data-platform-history-feed')?'통합 히스토리':'사용자 기록')+', 미확인 '+count+'건');
+    badge.textContent=String(count);b.setAttribute('aria-label',(b.hasAttribute('data-platform-history-feed')?(b.dataset.platformHistoryFeed||'통합 히스토리'):'사용자 기록')+', 미확인 '+count+'건');
     }
   }
   async function refresh(force=false){
