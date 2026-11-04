@@ -1,4 +1,4 @@
-import { platformRequest } from "./platform-api.ts";
+import { platformRequest, serviceAllowed } from "./platform-api.ts";
 import "./site-contract-v451.js";
 import "./executive-approval-v482.js";
 import { validateLifecycle, correctedIncident, isHistoricalEditable } from "./lifecycle-policy.ts";
@@ -208,7 +208,11 @@ Deno.serve(async(req:Request)=>{
     let actor=await verifyActor(sql,body,true);if(!actor)return json({ok:false,message:"auth_proof_required"},403);
 
     if(action.startsWith("platform_"))return await platformRequest(sql,actor,body,json);
-    const feed=clean(body.feed);
+    let feed=clean(body.feed);
+    if(action.startsWith("activity_")&&feed!=="incident"&&!await serviceAllowed(sql,actor,"history")){
+      if(feed==="common")return json({ok:false,message:"service_unavailable"},403);
+      if(!feed)feed="incident";
+    }
     if(feed&&!["common","incident"].includes(feed))return json({ok:false,message:"invalid_feed"},400);
     if(action==="activity_cleanup_audit"){
       if(actor.role!=="safety")return json({ok:false,message:"forbidden"},403);

@@ -7,10 +7,11 @@ const {tab,noOverflow}=require('./field-entry-table-browser.cjs');
   for(const role of ['safety','manager','field']){
    const {p,c}=await tab(browser,width,role);await p.waitForFunction(()=>!!currentUser()&&!!window.enlPlatformHome);
    let revision=1,modules=['incident','risk','tbm','organization','training'].map(key=>({key,state:key==='incident'?'live':'building',roles:['worker','field','safety','manager','executive'],preview:false,pilots:[]}));
+   let services=['history','approvals','notices','documents','dashboard',...(role==='safety'?['system']:[])].map(key=>({key,state:['history','notices','system'].includes(key)?'live':'building',roles:['manager','field','safety','executive'],preview:false,pilots:[]}));
    await c.route('**/*',async route=>{
      const req=route.request(),b=req.method()==='POST'?req.postDataJSON():null;
-     if(b?.action==='platform_catalog')return route.fulfill({json:{ok:true,modules,revision}});
-     if(b?.action==='platform_save'){modules=b.modules;revision++;return route.fulfill({json:{ok:true,revision}})}
+     if(b?.action==='platform_catalog')return route.fulfill({json:{ok:true,modules,services,revision}});
+     if(b?.action==='platform_save'){if(b.group==='services')services=b.modules;else modules=b.modules;revision++;return route.fulfill({json:{ok:true,revision}})}
      return route.fallback();
    });
    const mountHub=()=>{
@@ -18,7 +19,7 @@ const {tab,noOverflow}=require('./field-entry-table-browser.cjs');
     window.enlIncidentApi=async b=>{
      if(b.action==='platform_notices')return {rows:[{key:'incident',push:true,email:true}]};
      if(b.action==='platform_notice_set')return {ok:true};
-     if(b.action==='platform_enter'){if(b.key!=='incident')throw Error('module_unavailable');return {key:'incident',state:'live'};}
+     if(b.action==='platform_enter'){if(!['incident','notices','history'].includes(b.key))throw Error('module_unavailable');return {key:b.key,state:'live'};}
      if(b.action==='platform_duties')return {duties:['safety','health']};return base(b);
     };
     document.querySelector('.platform-hub')?.remove();currentView='platform';window.enlRenderApp(currentUser());
@@ -28,10 +29,24 @@ const {tab,noOverflow}=require('./field-entry-table-browser.cjs');
    await p.getByText('추가 예정',{exact:false}).waitFor();await p.getByRole('button',{name:'알림센터',exact:true}).click();
    const push=p.getByRole('switch',{name:'사고보고 앱 푸시',exact:true});await push.click();await p.waitForFunction(()=>document.querySelector('.notice-row [role=switch]')?.getAttribute('aria-checked')==='false');
    await p.locator('[data-platform-home]').click();await card.first().waitFor();
-   assert.equal(await p.locator('.shell411-nav:visible').count(),0);assert.equal(await p.locator('.platform-edit').count(),0);assert.equal(await p.locator('.feature-grip').count(),role==='safety'?5:0);
+   assert.equal(await p.locator('.shell411-nav:visible').count(),0);assert.equal(await p.locator('.platform-edit').count(),0);assert.equal(await p.locator('.feature-grip').count(),role==='safety'?11:0);
    await p.locator('[data-module=risk]').click();await p.getByText('현재 진입할 수 없는 모듈입니다.').waitFor();
    if(role==='safety'){
     await p.screenshot({path:'qa-output/platform-'+width+'.png',fullPage:true});
+    const serviceRow=p.locator('[data-key=approvals]'),serviceToggle=serviceRow.getByRole('switch');
+    await serviceToggle.click();await p.waitForFunction(()=>document.querySelector('[data-key=approvals] [role=switch]').getAttribute('aria-checked')==='true');
+    await serviceRow.locator('.feature-grip').click();const servicePanel=p.locator('.feature-settings');
+    await servicePanel.locator('[data-role=field]').uncheck();await servicePanel.locator('[type=submit]').click();await servicePanel.waitFor({state:'detached'});
+    const serviceGrip=serviceRow.locator('.feature-grip');await serviceGrip.scrollIntoViewIfNeeded();
+    const a=await serviceGrip.boundingBox(),b=await p.locator('[data-key=history] .feature-grip').boundingBox();
+    const sx=a.x+a.width/2,sy=a.y+a.height/2,ty=b.y+b.height/2;
+    if(engine===chromium&&width===320){
+      const session=await c.newCDPSession(p);
+      for(const [type,y] of [['touchStart',sy],['touchMove',(sy+ty)/2],['touchMove',ty],['touchEnd',null]])
+        await session.send('Input.dispatchTouchEvent',{type,touchPoints:y==null?[]:[{x:sx,y,id:1}]});
+      await session.detach();
+    }else{await p.mouse.move(sx,sy);await p.mouse.down();await p.mouse.move(sx,ty,{steps:8});await p.mouse.up();}
+    await p.waitForFunction(()=>document.querySelector('[data-service]').dataset.service==='approvals');
     const risk=p.locator('[data-key=risk]'),toggle=risk.getByRole('switch');
     await toggle.click();await p.waitForFunction(()=>document.querySelector('[data-key=risk] [role=switch]').getAttribute('aria-checked')==='true');
     await risk.locator('.feature-grip').click();const panel=p.locator('.feature-settings');
@@ -53,6 +68,7 @@ const {tab,noOverflow}=require('./field-entry-table-browser.cjs');
     await p.waitForFunction(()=>document.querySelector('[data-module]').dataset.module==='risk');
     assert.equal(await panel.count(),0);await p.reload();await p.waitForFunction(()=>!!currentUser()&&!!window.enlPlatformHome);
     await p.evaluate(mountHub);await p.waitForFunction(()=>document.querySelector('[data-module]')?.dataset.module==='risk');
+    assert.equal(await p.locator('[data-service]').first().getAttribute('data-service'),'approvals');
     await p.evaluate(()=>openUserModal(null,currentUser()));const box=p.locator('#hqUserForm422 .platform-duties');await box.waitFor();
     await box.locator('[value=health]').check();await box.locator('[value=safety]').check();assert.equal(await box.locator(':checked').count(),2);await p.evaluate(()=>closeModal());
    }
