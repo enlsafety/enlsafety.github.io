@@ -94,8 +94,8 @@
     const value=local.value.trim().toLowerCase();
     if(!value||value.length>64||!/^[a-z0-9_+-]+(?:\.[a-z0-9_+-]+)*$/.test(value)){status('등록할 회사 이메일 아이디를 입력해 주세요.','err');local.focus();return;}
     const needsLogin=o.kind==='hq'||o.requiresPassword,existing=document.getElementById('loginPassword411')?.value||'';
-    const d=document.createElement('dialog');d.className='email-gate-dialog';
-    d.innerHTML='<form><h2>회사 이메일 신규등록</h2><p></p>'+(needsLogin&&!existing?'<label>본인 로그인 비밀번호<input type="password" name="login" autocomplete="current-password" required></label>':'')+'<label>이메일 등록용 비밀번호<input type="password" name="gate" autocomplete="off" maxlength="128" required></label><small>박태영 안전관리자가 설정한 등록용 비밀번호를 입력해 주세요.</small><div role="status"></div><footer><button type="button">취소</button><button type="submit">등록</button></footer></form>';
+    const d=document.createElement('dialog');d.className='email-gate-dialog';d.setAttribute('aria-labelledby','emailGateTitle411');
+    d.innerHTML='<form><h2 id="emailGateTitle411">회사 이메일 신규등록</h2><p></p>'+(needsLogin&&!existing?'<label>본인 로그인 비밀번호<input type="password" name="login" autocomplete="current-password" required></label>':'')+'<label><span>이메일 등록용 비밀번호 <em class="gate-once">최초 1회</em></span><input type="password" name="gate" aria-describedby="gateHint411" autocomplete="off" maxlength="128" required></label><small id="gateHint411">박태영 안전관리자가 설정한 비밀번호를 회사 이메일 최초 등록 시 한 번만 입력해 주세요.</small><div role="status"></div><footer><button type="button">취소</button><button type="submit">등록</button></footer></form>';
     d.querySelector('p').textContent=o.affiliationLabel+' / '+value+'@enlife.co.kr';document.body.append(d);const f=d.querySelector('form');
     d.onclose=()=>{f.reset();d.remove()};f.querySelector('[type=button]').onclick=()=>d.close();
     f.onsubmit=async ev=>{ev.preventDefault();if(!d.open||selected!==o)return;const submit=f.querySelector('[type=submit]');submit.disabled=true;
