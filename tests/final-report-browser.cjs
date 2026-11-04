@@ -9,11 +9,11 @@ try{
  assert.equal(await page.locator('form').evaluate(f=>f.checkValidity()),true,'fixture form must be valid');for(const files of [[],[{name:'첨부.pdf',mime:'application/pdf'}]]){
    await page.evaluate(files=>window.incidentPhotos=files,files);
    await page.locator('button[type=submit]').click();
-   assert.match(messages.at(-1),/사진을 1장 이상/);assert.equal(await page.evaluate(()=>data.incidents.length),0);
+   assert.match(messages.at(-1),/현장 첨부자료를 1개 이상/);assert.equal(await page.evaluate(()=>data.incidents.length),0);
  }
- await page.evaluate(()=>window.incidentPhotos=[{name:'현장.png',mime:'image/png',path:'qa/scene.png'}]);
+ await page.evaluate(()=>window.incidentPhotos=[{name:'현장.pdf',mime:'application/pdf',path:'qa/scene.pdf',kind:'pdf'}]);
  const failureDialog=page.waitForEvent('dialog');await page.locator('button[type=submit]').click();await failureDialog;await page.waitForFunction(()=>!document.querySelector('button[type=submit]').disabled);assert.ok(messages.some(x=>x.includes('서버 저장을 확인하지 못했습니다')));assert.equal(await page.evaluate(()=>data.incidents.length),0);
  await page.locator('button[type=submit]').click();await page.waitForFunction(()=>data.incidents.length===1);assert.equal((await f.db.query('select count(*)::int n from enl_incident_shared')).rows[0].n,1);assert.equal((await f.db.query("select count(*)::int n from enl_push_events where kind='incident_new'")).rows[0].n,3);
- const initial=(await f.call('safety',{action:'pull'})).body.incidents[0];assert.equal(initial.reportDetails.repairCostPending,true);assert.equal(initial.reportDetails.causeAnalysisStatus,'not_reviewed');assert.ok(initial.officialRecord.reporter.id==='qa-field');
+ const initial=(await f.call('safety',{action:'pull'})).body.incidents[0];assert.equal(initial.photos[0].path,'qa/scene.pdf');assert.equal(initial.reportDetails.repairCostPending,true);assert.equal(initial.reportDetails.causeAnalysisStatus,'not_reviewed');assert.ok(initial.officialRecord.reporter.id==='qa-field');
  console.log('PASS',engine.name(),'actual initial form and lost-response retry: one incident, one notification per HQ user');
 }finally{await browser.close();await f.db.close()}}})().catch(e=>{console.error(e);process.exitCode=1});

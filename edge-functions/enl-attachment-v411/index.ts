@@ -11,6 +11,7 @@ const json=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,
 const clean=(v:any)=>String(v??"").trim();
 const roleNorm=(v:any)=>clean(v)==="final"?"manager":clean(v);
 const allowedMime=new Set(["image/jpeg","image/png","image/webp","image/heic","image/heif","application/pdf"]);
+const documentExtensions=new Set('hwp hwpx doc docx xls xlsx ppt pptx txt csv odt ods odp zip'.split(' '));
 function actorFrom(body:any){const a=body?.actor||{};return {id:clean(a.id),name:clean(a.name),role:roleNorm(a.role),siteId:clean(a.siteId),position:clean(a.position)};}
 function safeName(v:any){const s=clean(v).replace(/[\\/]+/g,"-").replace(/[^0-9A-Za-z가-힣._()\- ]/g,"_").slice(0,90);return s||"file";}
 function decodeBase64(s:string){const raw=atob(s);const out=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);return out;}
@@ -60,16 +61,19 @@ Deno.serve(async(req:Request)=>{
     const storage=createClient(url,key,{auth:{persistSession:false}}).storage.from(BUCKET);
     if(action==="upload"){
       if(!["safety","field","worker"].includes(actor.role))return json({ok:false,message:"reader_upload_forbidden"},403);
-      const f=body.file||{},mime=clean(f.mime),name=safeName(f.name),size=Number(f.size)||0,b64=clean(f.base64),scope=clean(body.scope)==="action"?"action":"incident";
-      if(!allowedMime.has(mime))return json({ok:false,message:"unsupported_file_type"},400);
+      const f=body.file||{},mime=clean(f.mime),size=Number(f.size)||0,b64=clean(f.base64),scope=clean(body.scope)==="action"?"action":"incident";
+      const extension=clean(f.name).toLowerCase().match(/\.([a-z0-9]+)$/)?.[1]||"";
+      const documentFile=scope==="incident"&&mime==="application/octet-stream"&&documentExtensions.has(extension);
+      const name=documentFile?safeName(clean(f.name).slice(0,-extension.length-1)).slice(0,89-extension.length)+"."+extension:safeName(f.name);
+      if(!documentFile&&!allowedMime.has(mime))return json({ok:false,message:"unsupported_file_type"},400);
       if(!size||size>MAX)return json({ok:false,message:"file_too_large",maxBytes:MAX},413);
       if(!b64)return json({ok:false,message:"file_required"},400);
       const bytes=decodeBase64(b64);if(bytes.byteLength!==size||bytes.byteLength>MAX)return json({ok:false,message:"file_too_large",maxBytes:MAX},413);
-      const hash=await fileHash(bytes),ext=({"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/heic":"heic","image/heif":"heif","application/pdf":"pdf"} as Record<string,string>)[mime],owner=actor.siteId?`site-${safeName(actor.siteId)}`:`hq-${safeName(actor.id)}`,path=`${scope}/${owner}/${safeName(actor.id)}/sha256-${hash}.${ext}`;
+      const hash=await fileHash(bytes),ext=documentFile?extension:({"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/heic":"heic","image/heif":"heif","application/pdf":"pdf"} as Record<string,string>)[mime],owner=actor.siteId?`site-${safeName(actor.siteId)}`:`hq-${safeName(actor.id)}`,path=`${scope}/${owner}/${safeName(actor.id)}/sha256-${hash}.${ext}`;
       if(f.optimization?.sha256&&f.optimization.sha256!==hash)return json({ok:false,message:"attachment_integrity_mismatch"},400);
       await immutableUpload(storage,path,bytes,mime,hash);
       const {data:signed,error:sErr}=await storage.createSignedUrl(path,600);if(sErr)throw sErr;
-      return json({ok:true,attachment:{storage:true,path,name,mime,size,sha256:hash,optimization:optimizationInfo(f.optimization,size,hash),kind:mime==="application/pdf"?"pdf":"image",previewUrl:signed.signedUrl}});
+      return json({ok:true,attachment:{storage:true,path,name,mime,size,sha256:hash,optimization:optimizationInfo(f.optimization,size,hash),kind:documentFile?"file":mime==="application/pdf"?"pdf":"image",previewUrl:signed.signedUrl}});
     }
     if(action==="sign"){
       const paths=(Array.isArray(body.paths)?body.paths:[]).map(clean).filter(Boolean).slice(0,30),urls:any={};

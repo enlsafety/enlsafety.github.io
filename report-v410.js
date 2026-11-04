@@ -3,14 +3,13 @@
   'use strict';
 
   const VERSION='4.7.0-cumulative-report';
-  function hasScenePhoto(files){
+  function hasSceneEvidence(files){
     return Array.isArray(files)&&files.some(file=>{
-      if(!file)return false;
-      const ref=typeof file==='string'?file:file.path||file.dataUrl||file.url||file.storageUrl||file.name||'';
-      return !!ref && file.kind!=='pdf' && !/pdf/i.test(file.mime||file.type||'') && !/^(?:data:application\/pdf)|\.pdf(?:$|[?#])/i.test(ref);
+      const ref=typeof file==='string'?file:file?.path||file?.dataUrl||file?.url||file?.storageUrl;
+      return typeof ref==='string'&&ref.trim().length>0;
     });
   }
-  window.enlHasScenePhoto=hasScenePhoto;
+  window.enlHasSceneEvidence=hasSceneEvidence;
   let activeType=null;
   let activeEditId=null;
   let editSnapshot=null,editOptions={};
@@ -169,7 +168,7 @@
     if(d.preventionPlan&&d.preventionPlan!=='후속 단계에서 안전관리자가 별도 수립')root.innerHTML+=reportRow('최초 보고 당시 예방대책',d.preventionPlan);
     if(i.pastReport)root.innerHTML+=reportRow('당시 기안자',i.pastReport.drafterName)+reportRow('당시 안전관리자',i.pastReport.safetyManagerName);
     root.innerHTML+=reportRow('보고자 / 보고일시',[i.reporterName,i.createdAt&&fmt(i.createdAt)].filter(Boolean).join(' · '));
-    if(includeFiles)root.innerHTML+=`<section class="report410-section"><div class="report410-section-head"><b>현장사진 · PDF</b></div>${reportFiles('photos',i.photos)||'첨부 없음'}${reportFiles('supplement',i.supplement?.attachments)}</section>`;
+    if(includeFiles)root.innerHTML+=`<section class="report410-section"><div class="report410-section-head"><b>현장 첨부자료</b></div>${reportFiles('photos',i.photos)||'첨부 없음'}${reportFiles('supplement',i.supplement?.attachments)}</section>`;
     return root.outerHTML;
   }
   function cumulativeReportHtml(i,{through='E',from='A',highlight='',presentation='document',includeOriginal=false}={}){
@@ -282,7 +281,7 @@
   function renderTypeForm(root,u,type,i=activeEdit()){
     if(!root)return;if(!['person','property'].includes(type))return renderTypePicker(root,u);activeType=type;
     const person=type==='person',editing=!!i,title=person?'대인사고 경위서':'대물사고 경위서',desc=person?'부상·진단·진료비 등 인적 피해 중심으로 작성합니다.':'파손내용·복구비용·견적 등 물적 피해 중심으로 작성합니다.';
-    root.innerHTML=`${topBack(u)}<form id="unifiedReportForm" class="panel report-simple incident410-form report410-entry-table" data-report-type="${type}" data-editing="${editing?'true':'false'}"><div class="section-head"><div><div class="ey">${person?'PERSON INCIDENT':'PROPERTY INCIDENT'}</div><h2>${title}${editing?' 수정':''}</h2><p>${editing?'기존에 입력한 내용을 불러왔습니다. 필요한 부분을 수정한 뒤 다시 제출해 주세요.':desc}</p></div>${editing?'<button type="button" class="secondary report410-change" data-cancel-edit>← 사고 기록으로</button>':'<button type="button" class="secondary report410-change" data-change-type>← 사고 종류 변경</button>'}</div>${reportSectionsHtml(u,type,i)}<section class="report410-section report410-photo" data-photo-required="${!editing||hasScenePhoto(i?.photos)}"><div class="report410-section-head"><b>5. 현장사진${editing&&!hasScenePhoto(i?.photos)?'':' *'}</b></div>${photoPickerHtml('incident')}</section>${editing&&u?.role==='safety'?'<section class="report410-section"><label class="lbl"><span>안전관리자 수정 사유 *</span><textarea id="safetyFactEditReason" required minlength="2" maxlength="2000" rows="2" placeholder="예: 원자료 재확인 후 사고발생일 오류 수정"></textarea></label><small>안전관리자 수정 시 기존 검토 상태는 그대로 유지되며 변경 사항은 서버 감사기록에 남습니다.</small></section>':''}<button class="primary full report410-submit" type="submit">${editing?(u?.role==='safety'?'수정사항 저장':'수정 후 다시 제출'):title+' 제출하기'}</button></form>`;
+    root.innerHTML=`${topBack(u)}<form id="unifiedReportForm" class="panel report-simple incident410-form report410-entry-table" data-report-type="${type}" data-editing="${editing?'true':'false'}"><div class="section-head"><div><div class="ey">${person?'PERSON INCIDENT':'PROPERTY INCIDENT'}</div><h2>${title}${editing?' 수정':''}</h2><p>${editing?'기존에 입력한 내용을 불러왔습니다. 필요한 부분을 수정한 뒤 다시 제출해 주세요.':desc}</p></div>${editing?'<button type="button" class="secondary report410-change" data-cancel-edit>← 사고 기록으로</button>':'<button type="button" class="secondary report410-change" data-change-type>← 사고 종류 변경</button>'}</div>${reportSectionsHtml(u,type,i)}<section class="report410-section report410-photo" data-photo-required="${!editing||hasSceneEvidence(i?.photos)}"><div class="report410-section-head"><b>5. 현장 첨부자료${editing&&!hasSceneEvidence(i?.photos)?'':' *'}</b></div>${photoPickerHtml('incident')}</section>${editing&&u?.role==='safety'?'<section class="report410-section"><label class="lbl"><span>안전관리자 수정 사유 *</span><textarea id="safetyFactEditReason" required minlength="2" maxlength="2000" rows="2" placeholder="예: 원자료 재확인 후 사고발생일 오류 수정"></textarea></label><small>안전관리자 수정 시 기존 검토 상태는 그대로 유지되며 변경 사항은 서버 감사기록에 남습니다.</small></section>':''}<button class="primary full report410-submit" type="submit">${editing?(u?.role==='safety'?'수정사항 저장':'수정 후 다시 제출'):title+' 제출하기'}</button></form>`;
     prepareReportLayout(root,i);
     const actionHeading=root.querySelector('#immediateAction')?.closest('.report410-section')?.querySelector('.report410-section-head b');
     if(actionHeading)actionHeading.textContent='4. 사고조치 내용';
@@ -318,9 +317,9 @@
     if(type==='person'){if(!required('injuredName','피해 직원 성명')||!required('injuryDetail410','부상 내용'))return}else if(!required('damagedItem410','파손된 물품 또는 시설')||!required('damageDetail410','파손 내용'))return;
     if(existing&&!accepted(existing)&&typeof window.enlCanEditIncident==='function'&&!window.enlCanEditIncident(existing,u))return alert('현재 상태에서는 이 사고보고를 수정할 수 없습니다.');
 
-    if((!existing||hasScenePhoto(existing.photos))&&!hasScenePhoto(incidentPhotos)){
+    if((!existing||hasSceneEvidence(existing.photos))&&!hasSceneEvidence(incidentPhotos)){
       document.getElementById('incidentPhotoBtn')?.focus();
-      return alert('사고현장 사진을 1장 이상 첨부해 주세요.');
+      return alert('현장 첨부자료를 1개 이상 등록해 주세요. 사진, PDF 또는 문서를 첨부할 수 있습니다.');
     }
     const safetyReason=existing&&u?.role==='safety'?value('safetyFactEditReason'):'';
     if(existing&&u?.role==='safety'&&safetyReason.length<2)return alert('수정 사유를 2자 이상 입력해 주세요.');
