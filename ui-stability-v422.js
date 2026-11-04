@@ -45,7 +45,8 @@
     window.renderShell=function(u){
       if(!u||u.active===false)return baseRenderShell(u);
       const id=userKey(u),shell=document.querySelector('.app-shell.shell-v411'),root=document.getElementById('view');
-      if(shell&&root&&mountedUserId===id){
+      const systemShell=u.role==='safety'&&['more','system-admin'].includes(currentView);
+      if(shell&&root&&mountedUserId===id&&shell.hasAttribute('data-system-shell')===systemShell){
         if(modalBusy()||transientViewBusy())return root;
         syncNavState();
         try{
@@ -108,7 +109,7 @@
         localMerge({...r.user,id:r.user?.id||payload.id});
         try{await window.enlSyncHqUsers?.(currentUser?.()||operator)}catch(e){}
         closeModal();
-        try{window.renderShell?.(currentUser?.()||operator)}catch(e){}
+        try{const u=currentUser?.()||operator;if(currentView==='system-admin')await window.enlRenderSystemAdmin(document.getElementById('view'),u,true);else window.renderShell?.(u)}catch(e){}
         alert(isNew?'본사 사용자 계정이 생성되었습니다.':'사용자 정보와 권한이 저장되었습니다.');
       }catch(e){
         if(button?.isConnected){button.disabled=false;button.textContent=isNew?'계정 생성':'변경사항 저장'}
