@@ -86,7 +86,7 @@ async function uploadAttachment(file,scope,options={}){
   const actor=attachmentActor();if(!actor)throw new Error('로그인 정보를 확인하지 못했습니다.');
   const mime=inferMime(file);const documentFile=scope==='incident'&&evidenceDocumentExtensions.has(fileExtension(file.name));
   if(!(mime.startsWith('image/')||mime==='application/pdf'||documentFile))throw new Error('지원하지 않는 파일 형식입니다. 사진, PDF 또는 지원 문서를 선택해 주세요.');
-  const prepared=mime.startsWith('image/')&&window.ENLImageOptimizer?await window.ENLImageOptimizer.prepare(file,options):{file,optimization:null},upload=prepared.file;
+  const prepared=!documentFile&&window.ENLImageOptimizer?await window.ENLImageOptimizer.prepare(file,options):{file,optimization:null},upload=prepared.file;
   if(upload.size>MAX_ATTACHMENT_BYTES)throw new Error('화질을 유지한 파일이 8MB를 넘습니다. 원본을 별도 보관하고 8MB 이하의 파일을 선택해 주세요.');
   const base64=await fileToBase64(upload),body=JSON.stringify({...attachmentProof(),action:'upload',actor,scope,file:{name:upload.name||'file',mime:inferMime(upload),size:upload.size,base64,optimization:prepared.optimization}});
   let r;try{r=await attachmentRequest(body)}catch(e){throw new Error('파일 전송이 완료되지 않았습니다. 연결을 확인한 뒤 같은 파일을 다시 선택해 주세요.')}const j=await r.json().catch(()=>({}));
