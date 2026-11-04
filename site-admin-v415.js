@@ -100,6 +100,19 @@
   }
 
   function bindTabs(root,u){
+    const tabs=root.querySelector('.sa415-tabs');
+    authApi({action:'email_gate_manage',actor:actor(u)}).then(state=>{
+      if(!tabs?.isConnected)return;
+      const btn=document.createElement('button');btn.type='button';btn.textContent='이메일 등록 비밀번호 '+(state.configured?'변경':'설정');tabs.append(btn);
+      btn.onclick=()=>{
+        openModal('<div class="modal-head"><h2>회사 이메일 등록용 비밀번호</h2><button data-close>닫기</button></div><form id="emailGateSet"><label>새 등록용 비밀번호<input type="password" name="secret" minlength="8" maxlength="128" autocomplete="new-password" required></label><label>비밀번호 확인<input type="password" name="repeat" autocomplete="new-password" required></label><p>로그인 비밀번호와 다른 8자 이상을 사용해 주세요.</p><p role="status"></p><button type="submit">저장</button></form>');
+        const f=document.getElementById('emailGateSet');f.onsubmit=async ev=>{ev.preventDefault();const msg=f.querySelector('[role=status]'),save=f.querySelector('[type=submit]');
+          if(f.elements.secret.value!==f.elements.repeat.value){msg.textContent='입력한 두 비밀번호가 다릅니다.';return;}
+          save.disabled=true;try{await authApi({action:'email_gate_set',actor:actor(u),newRegistrationPassword:f.elements.secret.value});f.reset();if(f.isConnected)closeModal();btn.textContent='이메일 등록 비밀번호 변경';alert('등록용 비밀번호를 저장했습니다.');}
+          catch(e){msg.textContent=e.message==='invalid_gate_password'?'로그인 비밀번호와 다른 8자 이상을 입력해 주세요.':'저장하지 못했습니다. 다시 시도해 주세요.';}finally{save.disabled=false;}
+        };
+      };
+    }).catch(()=>{});
     root.querySelector('[data-platform-modules]').onclick=()=>window.enlPlatformOpenEditor(u);
     root.querySelector('[data-platform-history]').onclick=()=>{window.enlRequestHistory();currentView='history';renderShell(u)};
     root.querySelectorAll('[data-sa415-tab]').forEach(button=>{
@@ -220,12 +233,6 @@
     const form=document.getElementById('sa415PersonForm');
     if(!form)return;
     const duties=window.enlDutyEditor?.(form,'site',selected.personnel_id);
-    if(u.role==='safety'&&selected.active!==false&&selected.access_role==='worker'&&!text(selected.email)){
-      const btn=document.createElement('button'),out=document.createElement('p');btn.type='button';btn.textContent='회사 이메일 최초 등록코드 발급';out.setAttribute('role','status');form.append(btn,out);
-      btn.onclick=async()=>{btn.disabled=true;try{const r=await authApi({action:'email_registration_code',actor:actor(u),siteId:site.site_id,personnelId:selected.personnel_id});
-        out.textContent=selected.name+' / '+r.code+' (30분간 유효). 본인에게 전달해 주세요.';
-      }catch{out.textContent='등록코드를 발급하지 못했습니다.'}finally{btn.disabled=false}};
-    }
     const positionSelect=document.getElementById('sa415PersonPosition');
     const passwordBox=document.getElementById('sa415PasswordBox');
     const syncPasswordBox=()=>{passwordBox.style.display=FIELD_TITLES.includes(positionSelect.value)?'block':'none';};

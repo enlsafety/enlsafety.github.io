@@ -53,25 +53,57 @@ Deno.serve(async(req:Request)=>{
     async function clearOldMasterIfOwned(prev:any,newTitle:string,newActive:boolean){if(!prev)return;const oldTitle=clean(prev.job_title);if(!isFieldTitle(oldTitle)||(newActive&&oldTitle===newTitle))return;const rows=await sql`select manager_name,part_name,clerk_name from public.enl_site_master where site_id=${prev.site_id} limit 1`;const m=rows[0];if(!m)return;if(oldTitle==="현장소장"&&norm(m.manager_name)===norm(prev.name))await sql`update public.enl_site_master set manager_name='',manager_phone='',updated_at=${now} where site_id=${prev.site_id}`;if(oldTitle==="파트장"&&norm(m.part_name)===norm(prev.name))await sql`update public.enl_site_master set part_name='',part_phone='',updated_at=${now} where site_id=${prev.site_id}`;if(oldTitle==="서무"&&norm(m.clerk_name)===norm(prev.name))await sql`update public.enl_site_master set clerk_name='',clerk_phone='',updated_at=${now} where site_id=${prev.site_id}`;}
     async function syncMasterForField(saved:any){if(saved.active===false||clean(saved.access_role)!=="field")return;const t=clean(saved.job_title);if(t==="현장소장")await sql`update public.enl_site_master set manager_name=${clean(saved.name)},manager_phone=${clean(saved.phone)},updated_at=${now} where site_id=${saved.site_id}`;else if(t==="파트장")await sql`update public.enl_site_master set part_name=${clean(saved.name)},part_phone=${clean(saved.phone)},updated_at=${now} where site_id=${saved.site_id}`;else if(t==="서무")await sql`update public.enl_site_master set clerk_name=${clean(saved.name)},clerk_phone=${clean(saved.phone)},updated_at=${now} where site_id=${saved.site_id}`;}
 
-    async function enrollmentCode(p:any,expiry:number){
-      const secret=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");if(!secret)throw Error("enrollment_key_unavailable");
-      const enc=new TextEncoder(),key=await crypto.subtle.importKey("raw",enc.encode(secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]);
-      const message=JSON.stringify(["company-email",p.personnel_id,p.site_id,p.name,p.key_version,expiry]);
-      const mac=new Uint8Array(await crypto.subtle.sign("HMAC",key,enc.encode(message)));
-      return expiry.toString(36)+"-"+Array.from(mac.slice(0,7),x=>x.toString(16).padStart(2,"0")).join("");
-    }
-    if(action==="email_registration_code"){
-      const v=await verifiedActor();if(v?.role!=="safety")return json({ok:false,message:"forbidden"},403);
-      const [p]=await sql`select personnel_id,site_id,name,updated_at::text as key_version from public.enl_site_personnel
-        where personnel_id::text=${clean(body.personnelId)} and site_id=${clean(body.siteId)} and active and access_role='worker' and coalesce(trim(email),'')=''`;
-      if(!p)return json({ok:false,message:"account_unavailable"},404);
-      const expiry=Math.floor(Date.now()/60000)+30;return json({ok:true,code:await enrollmentCode(p,expiry),expiresAt:new Date(expiry*60000).toISOString()});
-    }
     const companyDomain="@enlife.co.kr";
     const localPart=(email:any)=>{const v=clean(email).toLowerCase();return v.endsWith(companyDomain)?v.slice(0,-companyDomain.length):""};
-    const entered=clean(body.companyLocal).toLowerCase();
-    if(entered&&(!/^[a-z0-9](?:[a-z0-9._+-]{0,62}[a-z0-9])?$/.test(entered)||entered.includes("..")))return json({ok:false,message:"invalid_company_email"},400);
-    const address=entered?entered+companyDomain:"";
+    async function verifier(password:string,salt:string){
+      const enc=new TextEncoder(),key=await crypto.subtle.importKey('raw',enc.encode(password),'PBKDF2',false,['deriveBits']);
+      const bits=await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',iterations:210000,salt:enc.encode(salt)},key,256);
+      return Array.from(new Uint8Array(bits),n=>n.toString(16).padStart(2,'0')).join('');
+    }
+    if(action==="email_gate_manage"||action==="email_gate_set"){
+      const v=await verifiedActor();if(v?.role!=="safety")return json({ok:false,message:"forbidden"},403);
+      const [gate]=await sql`select owner_id,salt from private.enl_email_enrollment_gate where singleton`;
+      if(v.id!==gate.owner_id)return json({ok:false,message:'forbidden'},403);
+      if(action==="email_gate_manage")return json({ok:true,configured:!!gate.salt});
+      const password=body.newRegistrationPassword;
+      if(typeof password!=='string'||password.trim().length<8||password.length>128||await sha256(password)===body.actorPasswordHash)return json({ok:false,message:"invalid_gate_password"},400);
+      const salt=crypto.randomUUID(),hash=await verifier(password,salt);
+      await sql`update private.enl_email_enrollment_gate set salt=${salt},verifier=${hash},updated_at=now() where singleton and owner_id=${v.id}`;
+      return json({ok:true});
+    }
+    if(action==="register_company_email"){
+      const key=clean(body.accountKey),name=clean(body.name),site=clean(body.affiliationId),entered=clean(body.companyLocal).toLowerCase();
+      const password=body.registrationPassword,loginProof=clean(body.passwordHash);
+      if(!/^(hq|site):.{1,140}$/.test(key)||!name||!site||!entered||entered.length>64||!/^[a-z0-9_+-]+(?:\.[a-z0-9_+-]+)*$/.test(entered)||
+         typeof password!=='string'||!password||password.length>128)return json({ok:false,message:'invalid_registration'},400);
+      const hq=key.startsWith('hq:'),id=key.slice(key.indexOf(':')+1),email=entered+companyDomain;
+      return await sql.begin(async(tx:any)=>{
+        const [account]=hq?await tx`select * from public.enl_hq_users where user_id=${id} and active for update`:
+          await tx`select * from public.enl_site_personnel where personnel_id::text=${id} and active for update`;
+        if(!account||norm(account.name)!==norm(name)||(hq?affiliation(account).id:'site:'+account.site_id)!==site)return json({ok:false,message:'invalid_account'},403);
+        if(hq||account.access_role==='field'||isFieldTitle(account.job_title)){
+          const proof=clean(hq?account.password_hash:account.pin_hash);
+          if(!proof||!sameProof(proof,loginProof))return json({ok:false,message:'invalid_login'},403);
+        }
+        if(clean(account.email))return json({ok:false,message:'email_already_registered'},409);
+        const [gate]=await tx`select salt,verifier from private.enl_email_enrollment_gate where singleton for share`;
+        if(!gate?.verifier)return json({ok:false,message:'gate_not_configured'},409);
+        await tx`insert into private.enl_email_enrollment_attempts(account_key) values(${key}) on conflict do nothing`;
+        const [attempt]=await tx`select failures,started_at from private.enl_email_enrollment_attempts where account_key=${key} for update`;
+        const fresh=Date.now()-new Date(attempt.started_at).getTime()<900000,failures=fresh?attempt.failures:0;
+        if(failures>=5)return json({ok:false,message:'attempts_exceeded'},429);
+        if(!sameProof(await verifier(password,gate.salt),gate.verifier)){
+          await tx`update private.enl_email_enrollment_attempts set failures=${failures+1},started_at=case when ${fresh} then started_at else now() end where account_key=${key}`;
+          return json({ok:false,message:'incorrect_registration_password'},403);
+        }
+        if(hq)await tx`update public.enl_hq_users set email=${email},updated_at=now(),updated_by_id=${id},updated_by_name=${account.name},updated_by_role=${account.role} where user_id=${id}`;
+        else await tx`update public.enl_site_personnel set email=${email},updated_at=now(),updated_by_id=${id},updated_by_name=${account.name},updated_by_role=${account.access_role} where personnel_id::text=${id}`;
+        await tx`update private.enl_email_enrollment_attempts set failures=0 where account_key=${key}`;
+        return json({ok:true,email});
+      });
+    }
+    // Legacy clients may still send the address during login. Never enroll through login.
+    if(["login_site","login_hq"].includes(action)&&clean(body.companyLocal)&&!body.accountKey)return json({ok:false,message:"update_required"},409);
     if(action==="lookup"){
       const name=clean(body.name);if(!name)return json({ok:false,message:"name_required"},400);
       const sites=await siteMap(),people=await sql`select personnel_id,site_id,name,email,job_title,access_role from public.enl_site_personnel where active=true and regexp_replace(lower(name),'[[:space:]]','','g')=${norm(name)}`;
@@ -96,17 +128,7 @@ Deno.serve(async(req:Request)=>{
       if(matches.length!==1)return json({ok:false,message:"account_not_unique"},403);
       const p=matches[0],manager=p.access_role==='field'||isFieldTitle(p.job_title);
       if(manager&&(!passwordHash||!p.pin_hash||!sameProof(p.pin_hash,passwordHash)))return json({ok:false,message:"invalid_login"},401);
-      if(address&&!clean(p.email)){
-        if(!manager){
-          const code=clean(body.registrationCode).toLowerCase(),expiry=parseInt(code.split("-")[0],36),minute=Math.floor(Date.now()/60000);
-          if(!/^[0-9a-z]{5,8}-[0-9a-f]{14}$/.test(code)||expiry<=minute||expiry>minute+30||!sameProof(code,await enrollmentCode(p,expiry)))
-            return json({ok:false,message:"registration_code_required"},403);
-        }
-        const changed=await sql`update public.enl_site_personnel set email=${address},updated_at=now(),updated_by_id=${String(p.personnel_id)},updated_by_name=${p.name},updated_by_role=${p.access_role}
-          where personnel_id=${p.personnel_id} and site_id=${siteId} and name=${p.name} and active and access_role=${p.access_role} and job_title is not distinct from ${p.job_title} and updated_at::text is not distinct from ${p.key_version}
-          and (not ${manager} or pin_hash=${passwordHash}) and coalesce(trim(email),'')='' returning email`;
-        if(!changed.length)return json({ok:false,message:"account_changed"},409);p.email=changed[0].email;
-      }else if(address&&address!==clean(p.email).toLowerCase())return json({ok:false,message:"account_changed"},409);
+      if(clean(body.companyLocal)&&clean(body.companyLocal).toLowerCase()!==localPart(p.email))return json({ok:false,message:'use_email_registration'},409);
       const names=await siteMap();return json({ok:true,person:{personnel_id:p.personnel_id,site_id:p.site_id,site_name:names.get(p.site_id)||p.site_id,name:p.name,job_title:p.job_title,access_role:manager?'field':'worker',active:true,email:p.email||''}});
     }
     if(action==="login_hq"){
@@ -114,11 +136,7 @@ Deno.serve(async(req:Request)=>{
       if(!name||!affiliationId||!passwordHash)return json({ok:false,message:"input_required"},400);
       const hq=await findHqByName(name);
       if(!hq?.active||!hqAllowed(hq.role)||affiliation(hq).id!==affiliationId||(body.accountKey&&body.accountKey!=='hq:'+hq.user_id)||!sameProof(clean(hq.password_hash),passwordHash))return json({ok:false,message:"invalid_login"},401);
-      if(address&&!clean(hq.email)){
-        const updated=await sql`update public.enl_hq_users set email=${address},updated_at=now(),updated_by_id=${hq.user_id},updated_by_name=${hq.name},updated_by_role=${hq.role}
-          where user_id=${hq.user_id} and active and name=${hq.name} and password_hash=${passwordHash} and coalesce(trim(email),'')='' returning email`;
-        if(!updated.length)return json({ok:false,message:"account_changed"},409);hq.email=updated[0].email;
-      }else if(address&&address!==clean(hq.email).toLowerCase())return json({ok:false,message:"account_changed"},409);
+      if(clean(body.companyLocal)&&clean(body.companyLocal).toLowerCase()!==localPart(hq.email))return json({ok:false,message:'use_email_registration'},409);
       return json({ok:true,user:publicHq(hq)});
     }
     if(action==="hq_list"){
