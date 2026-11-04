@@ -23,8 +23,8 @@ Deno.serve(async(req:Request)=>{
   const dbUrl=Deno.env.get("SUPABASE_DB_URL")||"";if(!dbUrl)return json({ok:false,message:"server_not_configured"},500);
   let body:any={};try{body=await req.json()}catch{return json({ok:false,message:"invalid_json"},400)}
   const action=clean(body.action),rawActor=body.actor||{},actor={id:clean(rawActor.id),name:clean(rawActor.name),role:roleNorm(rawActor.role),position:clean(rawActor.position),siteId:clean(rawActor.siteId)},now=new Date().toISOString();
-  const sql=postgres(dbUrl,{prepare:false,max:3,connect_timeout:5,idle_timeout:2});
-  try{
+  const connection=postgres(dbUrl,{prepare:false,max:3,connect_timeout:5,idle_timeout:2});
+  async function handle(sql:any){
     async function verifiedActor(){
       if(!actor.id)return null;
       if(actor.role==="safety"){
@@ -80,7 +80,7 @@ Deno.serve(async(req:Request)=>{
     if(action==="personnel_pull"){
       const siteId=clean(body.siteId),v=await verifiedActor();if(!siteId)return json({ok:false,message:"site_required"},400);
       if(!(v?.role==="safety"||(v?.role==="field"&&v.siteId===siteId)))return json({ok:false,message:"forbidden"},403);
-      const rows=await sql`select personnel_id,site_id,name,job_title,access_role,phone,email,push_enabled,email_enabled,active,created_at,updated_at,updated_by_name,updated_by_role,updated_by_position from public.enl_site_personnel where site_id=${siteId} order by active desc,case when job_title='현장소장' then 0 when job_title='파트장' then 1 when job_title='서무' then 2 else 3 end,name`;
+      const rows=await sql`select personnel_id,site_id,name,job_title,access_role,phone,email,push_enabled,email_enabled,active,created_at,updated_at,updated_by_name,updated_by_role,updated_by_position,case when ${v.role}='safety' then array(select d.duty from private.enl_duty_assignments d where d.source='site' and d.account_id=p.personnel_id::text and d.ended_at is null order by d.duty) else '{}'::text[] end as duties from public.enl_site_personnel p where site_id=${siteId} order by active desc,case when job_title='현장소장' then 0 when job_title='파트장' then 1 when job_title='서무' then 2 else 3 end,name`;
       return json({ok:true,personnel:rows,counts:await counts(siteId)});
     }
 
@@ -89,6 +89,7 @@ Deno.serve(async(req:Request)=>{
       if(!siteId||!name)return json({ok:false,message:"invalid_personnel"},400);
       if(!(v?.role==="safety"||(v?.role==="field"&&v.siteId===siteId)))return json({ok:false,message:"forbidden"},403);
       if(p.duties!==undefined&&(!Array.isArray(p.duties)||p.duties.some((d:any)=>!['supervisor','safety','responsible','health'].includes(d))))return json({ok:false,message:'invalid_duty'},400);
+      await sql`select site_id from public.enl_site_master where site_id=${siteId} for update`;
       const list=await sql`select * from public.enl_site_personnel where site_id=${siteId}`;
       const prev=targetId?list.find((x:any)=>String(x.personnel_id)===targetId):null;const email=hasEmail?clean(p.email).toLowerCase():clean(prev?.email),pushEnabled=hasPush?p.pushEnabled!==false:prev?.push_enabled!==false,emailEnabled=hasMail?p.emailEnabled!==false:prev?.email_enabled!==false;
       if(targetId&&!prev)return json({ok:false,message:"person_not_found"},404);
@@ -108,6 +109,10 @@ Deno.serve(async(req:Request)=>{
       if(prev&&norm(name)!==norm(stripTitle(prev.name))){
         const collision=list.find((x:any)=>String(x.personnel_id)!==String(prev.personnel_id)&&x.active!==false&&norm(stripTitle(x.name))===norm(name));
         if(collision)return json({ok:false,message:(clean(collision.access_role)==="field"||isFieldTitle(collision.job_title))?"manager_name_conflict":"duplicate_personnel"},409);
+      }
+      if(!targetId&&active&&accessRole==="field"&&p.expectedHolder!==undefined){
+        const holders=list.filter((x:any)=>x.active!==false&&x.access_role==="field"&&x.job_title===jobTitle);
+        if(holders.length>1||clean(holders[0]?.personnel_id)!==p.expectedHolder)return json({ok:false,message:"holder_changed"},409);
       }
       let pinHash="";
       if(accessRole==="field"){
@@ -147,5 +152,6 @@ Deno.serve(async(req:Request)=>{
     }
 
     return json({ok:false,message:"invalid_action"},400);
-  }catch(e:any){return json({ok:false,message:"request_failed"},500)}finally{await sql.end({timeout:1}).catch(()=>{})}
+  }
+  try{return action==="personnel_upsert"?await connection.begin(handle):await handle(connection)}catch(e:any){return json({ok:false,message:"request_failed"},500)}finally{await connection.end({timeout:1}).catch(()=>{})}
 });
