@@ -90,6 +90,11 @@
     host.querySelector('.platform-heading p').textContent=[u.name,roles[u.role]||'본사실무자',u.siteId?(siteById(u.siteId)?.name||u.siteId):(u.department||'본사')].filter(Boolean).join(' / ');
     const area=host.querySelector('.platform-modules'),services=host.querySelector('.platform-grid'),status=host.querySelector('[role=status]');
     const admin=u.role==='safety';
+    if(admin){
+      const hint=document.createElement('small');
+      hint.textContent='☰를 짧게 누르면 접근 설정, 위아래로 끌면 순서가 바뀝니다.';
+      host.querySelector('.platform-heading').append(hint);
+    }
     const service=(name,icon,enabled,open)=>{
       const b=document.createElement('button');b.type='button';b.disabled=!enabled;b.className='support-row';b.style.setProperty('--pic','var(--icon-'+icon+')');b.setAttribute('aria-label',name);b.innerHTML='<span class="platform-icon" aria-hidden="true"></span><strong>'+name+'</strong><small>'+(enabled?'운영 중':'구현 중')+'</small>';b.onclick=open;services.append(b);return b;
     };
@@ -98,7 +103,7 @@
     }
     service('통합 결재함','approve',false);service('알림센터','bell',true,()=>go('notice-center',u));service('문서 및 증빙관리','archive',false);service('통합 대시보드','stats',false);
     if(admin)service('시스템 관리','settings',true,()=>go('more',u));
-    let config,saving=false,dragged=false;
+    let config,saving=false;
     const isOn=m=>m.enabled!==false&&m.state!=='hidden'&&(m.state==='live'||m.preview);
     async function save(modules){
       if(saving)return false;
@@ -149,6 +154,73 @@
       dialog.showModal();const r=grip.getBoundingClientRect();
       dialog.style.left=Math.max(8,Math.min(r.right-dialog.offsetWidth,innerWidth-dialog.offsetWidth-8))+'px';dialog.style.top=Math.max(8,Math.min(r.bottom+4,innerHeight-dialog.offsetHeight-8))+'px';
     }
+    function bindGrip(grip,row,module,grid){
+      let gesture=null,suppressClick=false;
+      grip.title='눌러서 접근 설정, 위아래로 끌어서 순서 변경';
+      grip.onclick=ev=>{if(ev.detail===0||!suppressClick)settings(module,grip);suppressClick=false};
+      grip.oncontextmenu=ev=>ev.preventDefault();
+      function preview(){
+        const g=gesture,box=grid.getBoundingClientRect(),y=g.y-box.top;
+        const last=g.slots.length-1;
+        // Keep the grabbed point under the pointer. Test against the unshifted slots, including gaps.
+        const top=Math.max(g.slots[0].top,Math.min(g.slots[last].top,y-g.offset));
+        const center=top+g.slots[g.from].height/2;
+        g.to=g.slots.reduce((best,slot,i)=>Math.abs(slot.center-center)<Math.abs(g.slots[best].center-center)?i:best,g.from);
+        g.slots.forEach((slot,i)=>{
+          let shift=0;
+          if(i===g.from)shift=top-slot.top;
+          else if(i>g.from&&i<=g.to)shift=g.slots[i-1].top-slot.top;
+          else if(i<g.from&&i>=g.to)shift=g.slots[i+1].top-slot.top;
+          slot.row.style.transform=shift?'translateY('+shift+'px)':'';
+        });
+      }
+      function frame(){
+        const g=gesture;
+        if(!g?.active)return;
+        if(!grid.isConnected){finish(false);return}
+        const box=grid.getBoundingClientRect();
+        if(g.y<56&&box.top<0)window.scrollBy(0,-10);
+        if(g.y>innerHeight-56&&box.bottom>innerHeight)window.scrollBy(0,10);
+        preview();g.frame=requestAnimationFrame(frame);
+      }
+      function finish(commit){
+        const g=gesture;if(!g)return;
+        gesture=null;window.removeEventListener('blur',cancel);
+        if(grip.hasPointerCapture(g.id))grip.releasePointerCapture(g.id);
+        if(!g.active)return;
+        cancelAnimationFrame(g.frame);row.classList.remove('moving');
+        for(const slot of g.slots)slot.row.style.transform='';
+        if(commit&&g.from!==g.to)move(module.key,g.slots[g.to].row.dataset.key);
+      }
+      const cancel=()=>finish(false);
+      grip.onpointerdown=ev=>{
+        if(!ev.isPrimary||ev.button!==0||gesture||saving)return;
+        suppressClick=false;
+        const rect=row.getBoundingClientRect();
+        gesture={id:ev.pointerId,y:ev.clientY,startY:ev.clientY,offset:ev.clientY-rect.top,active:false};
+        grip.setPointerCapture(ev.pointerId);window.addEventListener('blur',cancel);
+      };
+      grip.onpointermove=ev=>{
+        const g=gesture;if(!g||ev.pointerId!==g.id)return;g.y=ev.clientY;
+        if(!g.active){
+          if(Math.abs(g.y-g.startY)<6)return;
+          const base=grid.getBoundingClientRect().top;
+          g.slots=Array.from(grid.querySelectorAll('.feature-card-wrap'),el=>{
+            const r=el.getBoundingClientRect(),top=r.top-base;
+            return {row:el,top,height:r.height,center:top+r.height/2};
+          });
+          g.from=g.slots.findIndex(slot=>slot.row===row);
+          g.active=suppressClick=true;row.classList.add('moving');frame();
+        }else preview();
+      };
+      grip.onpointerup=ev=>{
+        const g=gesture;if(!g||ev.pointerId!==g.id)return;
+        const box=grid.getBoundingClientRect();
+        if(g.active){g.y=ev.clientY;preview()}
+        finish(ev.clientX>=box.left&&ev.clientX<=box.right&&ev.clientY>=box.top-16&&ev.clientY<=box.bottom+16);
+      };
+      grip.onpointercancel=grip.onlostpointercapture=ev=>{if(gesture?.id===ev.pointerId)cancel()};
+    }
     function cards(){
       const grid=document.createElement('div');grid.className='platform-grid';area.replaceChildren(grid);
       for(const m of config.modules.filter(m=>admin||m.state!=='hidden')){
@@ -170,12 +242,7 @@
           if(updated.state==='building')updated.preview=enabled;
           save(config.modules.map(x=>x===m?updated:x));
         };
-        const grip=tools.lastElementChild;let start=null;
-        grip.onclick=()=>{if(!dragged)settings(m,grip);dragged=false};
-        grip.onpointerdown=ev=>{if(ev.button!==0)return;dragged=false;start=[ev.clientX,ev.clientY];grip.setPointerCapture(ev.pointerId)};
-        grip.onpointermove=ev=>{if(!start)return;if(Math.hypot(ev.clientX-start[0],ev.clientY-start[1])>7){dragged=true;row.classList.add('moving')}};
-        grip.onpointercancel=()=>{start=null;row.classList.remove('moving')};
-        grip.onpointerup=ev=>{if(!start)return;start=null;row.classList.remove('moving');if(dragged){const dest=document.elementFromPoint(ev.clientX,ev.clientY)?.closest('[data-key]');if(dest&&grid.contains(dest))move(m.key,dest.dataset.key);}};
+        bindGrip(tools.lastElementChild,row,m,grid);
       }
       const future=document.createElement('div');future.className='feature-future';future.innerHTML='<span aria-hidden="true">＋</span>추가 예정';grid.append(future);
     }
