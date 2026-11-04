@@ -20,6 +20,7 @@ const assert=require('node:assert/strict'),{fixture}=require('./final-lifecycle.
  assert.equal(await menu.locator('.activity-count').count(),0);assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
  await f.db.exec(`insert into enl_personnel_audit(personnel_id,site_id,action,editor_id,editor_name,editor_role,changed_at,before_payload)
  values('qa-removed-worker','qa-site','delete','qa-field','QA 현장','field','2025-12-31T15:00:00Z','{"name":"검색검수"}')`);
+ await p.locator('[data-platform-home]').click();await p.locator('[data-platform-history-feed]').click();
  const filters=p.locator('.activity-filters');await filters.locator('[name=range]').selectOption('month');await filters.locator('[type=month]').fill('2026-01');
  await filters.locator('[type=search]').fill('검색검수 삭제');await filters.getByRole('button',{name:'검색'}).click();
  await rows.getByText(/QA 현장님이 .*검색검수 사용자 계정을 삭제했습니다/).click();await p.getByRole('heading',{name:'설정 변경 기록'}).waitFor();

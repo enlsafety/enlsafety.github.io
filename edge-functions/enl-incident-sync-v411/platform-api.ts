@@ -2,6 +2,25 @@ const moduleKeys=['incident','risk','tbm','organization','training'];
 const systemRoles=['worker','field','manager','executive','safety'];
 export async function platformRequest(sql:any,actor:any,body:any,reply:any){
   const admin=actor.role==='safety',action=body.action;
+  if(action==='platform_notices'||action==='platform_notice_set'){
+    const hq=['safety','manager','executive'].includes(actor.role),source=hq?'hq':'site';
+    if(action==='platform_notice_set'){
+      const {key,channel,enabled}=body;
+      if(!moduleKeys.includes(key)||!['push','email'].includes(channel)||typeof enabled!=='boolean')return reply({ok:false,message:'invalid_preference'},400);
+      const push=channel==='push'?enabled:null,email=channel==='email'?enabled:null;
+      if(key==='incident'){
+        if(hq)await sql`update public.enl_hq_users set push_enabled=coalesce(${push}::boolean,push_enabled),email_enabled=coalesce(${email}::boolean,email_enabled) where user_id=${actor.id} and active`;
+        else await sql`update public.enl_site_personnel set push_enabled=coalesce(${push}::boolean,push_enabled),email_enabled=coalesce(${email}::boolean,email_enabled) where personnel_id::text=${actor.id} and site_id=${actor.siteId} and active`;
+      }else await sql`insert into private.enl_module_notice_preferences as p(source,account_id,module_key,push_enabled,email_enabled)
+        values(${source},${actor.id},${key},coalesce(${push}::boolean,true),coalesce(${email}::boolean,true)) on conflict(source,account_id,module_key) do update
+        set push_enabled=coalesce(${push}::boolean,p.push_enabled),email_enabled=coalesce(${email}::boolean,p.email_enabled)`;
+      return reply({ok:true});
+    }
+    const [incident]=hq?await sql`select push_enabled,email_enabled from public.enl_hq_users where user_id=${actor.id}`:
+      await sql`select push_enabled,email_enabled from public.enl_site_personnel where personnel_id::text=${actor.id} and site_id=${actor.siteId}`;
+    const others=await sql`select module_key,push_enabled,email_enabled from private.enl_module_notice_preferences where source=${source} and account_id=${actor.id}`;
+    return reply({ok:true,rows:moduleKeys.map(key=>{const p=key==='incident'?incident:others.find((r:any)=>r.module_key===key);return {key,push:p?.push_enabled!==false,email:p?.email_enabled!==false}})});
+  }
   if(action==='platform_directory'){
     if(!admin)return reply({ok:false,message:'forbidden'},403);
     const query=String(body.query||'').trim().slice(0,100),duty=String(body.duty||''),offset=Number(body.offset||0);

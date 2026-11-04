@@ -114,7 +114,7 @@
       };
     }).catch(()=>{});
     root.querySelector('[data-platform-modules]').onclick=()=>window.enlPlatformOpenEditor(u);
-    root.querySelector('[data-platform-history]').onclick=()=>{window.enlRequestHistory();currentView='history';renderShell(u)};
+    root.querySelector('[data-platform-history]').onclick=()=>{window.enlRequestHistory();currentView='common-history';renderShell(u)};
     root.querySelectorAll('[data-sa415-tab]').forEach(button=>{
       button.onclick=()=>{
         activeTab=button.dataset.sa415Tab;

@@ -32,3 +32,25 @@
 .feature-settings{position:fixed;margin:0;width:min(350px,calc(100vw - 16px));box-sizing:border-box;max-height:calc(100dvh - 16px);overflow:auto;border:1px solid #bdd1e3;border-radius:14px;padding:15px;color:#173d61}
 .feature-settings::backdrop{background:#102c4519}.feature-settings form{display:grid;gap:9px}.feature-settings h3{margin:0}.feature-settings input:not([type=checkbox]),.feature-settings select{max-width:100%;width:100%;min-height:40px}.feature-settings [data-results]{max-height:145px;overflow:auto}.feature-actions{display:flex;gap:4px;flex-wrap:wrap}.feature-settings [hidden]{display:none!important}
 @media(max-width:700px){.system-title-line{display:block}.safety-ui #app .topbar .brand h1,.login-v411 .login-brand h1{white-space:normal;overflow:visible;text-overflow:clip}.safety-ui #app .topbar .brand h1{font-size:clamp(12px,3.1vw,18px)}.login-v411 .login-brand h1{font-size:clamp(16px,4.8vw,24px)}.platform-hub .feature-controls button{min-height:44px;min-width:44px}.feature-card-wrap:has(.feature-controls) .platform-card{padding-top:50px}}
+.platform-modules>.platform-grid{grid-template-columns:minmax(0,1fr);gap:7px}
+.platform-modules .feature-card-wrap{display:flex;align-items:center;gap:4px;background:#eaf4ff;border:1px solid #a8cce9;border-radius:12px;color:#164c7e}
+.platform-modules .feature-card-wrap:is([data-state=building],[data-state=hidden],[data-on=false]){background:#edf0f3;border-color:#cbd2da;color:#505f6d}
+.platform-modules .feature-card-wrap .platform-card,.platform-services .support-row{display:flex;align-items:center;gap:9px;min-width:0;padding:9px 12px;text-align:left}
+.platform-modules .feature-card-wrap .platform-card{flex:1;width:auto;height:auto;color:inherit;background:transparent;border:0}
+.platform-modules .feature-controls{position:static;padding-right:6px;flex:none}
+.platform-hub .platform-icon,.feature-future span{display:inline-grid;place-items:center;flex:0 0 26px;width:26px;height:26px;background-size:19px;border-radius:7px}
+.platform-modules .platform-card strong,.support-row strong{font-size:1rem;word-break:keep-all}
+.platform-card small,.support-row small{flex:none;margin-left:auto;padding:3px 7px;border-radius:99px;background:#d1e8fc;color:#164f83;font-size:.74rem;white-space:nowrap}
+.feature-card-wrap:not([data-state=live]) .platform-icon,.feature-card-wrap[data-on=false] .platform-icon,.support-row:disabled .platform-icon{filter:grayscale(1)}
+.feature-card-wrap:not([data-state=live]) small,.feature-card-wrap[data-on=false] small,.support-row:disabled small{background:#dce1e6;color:#505e6b}
+.feature-future{display:flex;align-items:center;gap:9px;padding:9px 12px;color:#657483;background:#fafbfd;border:1px dashed #bbc8d3;border-radius:12px;font-weight:700}.feature-future span{font-size:21px;background:#e9eef2}
+.platform-services>.platform-grid{grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr))}
+.platform-services .support-row{background:#edf6ff;border-color:#b3d1e9}.platform-services .support-row:disabled{background:#edf0f3;color:#586776;border-color:#ced5dc}
+.notice-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:6px;padding:10px 0;border-bottom:1px solid #d8e4ec}.notice-row button{min-height:44px;border:1px solid #c5cfd8;border-radius:10px;font-weight:bold;color:#525f6d;background:#edf0f3}.notice-row [aria-checked=true]{color:#164e80;background:#e2f2ff;border-color:#9fc6e6}
+.safety-ui #app .topbar-tools .platform-return{margin:0;order:0;white-space:nowrap;min-height:42px}
+.safety-ui #app:has(.platform-hub) .topbar-tools .platform-return{display:none}
+@media(max-width:720px){.safety-ui #app:not(:has(.platform-hub)) .topbar-tools{grid-template-columns:auto minmax(0,1fr) minmax(0,1fr) 44px;gap:4px}
+.safety-ui #app .topbar-tools .platform-return{font-size:12px;padding:5px 6px}.platform-modules .feature-controls{gap:1px}.platform-modules .feature-card-wrap .platform-card{gap:6px;padding:8px}.platform-services>.platform-grid{grid-template-columns:minmax(0,1fr)}}
+
+.safety-ui #app .main:has(.notice-center,.activity-history[data-feed="common"])>.shell411-nav,
+#view:has(.notice-center,.activity-history[data-feed="common"])>[data-executive-queue]{display:none!important}

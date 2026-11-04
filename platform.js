@@ -58,6 +58,30 @@
     }
     form.onsubmit=ev=>{ev.preventDefault();load(true)};more.onclick=()=>load(false);await load(true);
   };
+  window.enlNoticeCenter=async root=>{
+    if(root.querySelector('.notice-center'))return;
+    const host=document.createElement('section');host.className='panel notice-center';root.replaceChildren(host);
+    host.innerHTML='<h2>알림센터</h2><p>업무별로 받을 알림을 선택하세요. 긴급 알림은 수신 설정과 관계없이 지정된 대상에게 발송됩니다.</p><div data-rows></div><p role="status"></p>';
+    const status=host.querySelector('[role=status]'),list=host.querySelector('[data-rows]');
+    async function load(){
+      list.replaceChildren();status.textContent='설정을 불러오는 중입니다.';
+      try{const r=await api({action:'platform_notices'});if(!host.isConnected)return;
+        for(const item of r.rows){
+          const row=document.createElement('div');row.className='notice-row';row.innerHTML='<strong>'+names[item.key]+'</strong>';
+          for(const [key,label] of [['push','앱 푸시'],['email','이메일']]){
+            const b=document.createElement('button');b.type='button';b.setAttribute('role','switch');b.setAttribute('aria-label',names[item.key]+' '+label);
+            const paint=()=>{b.setAttribute('aria-checked',String(item[key]));b.textContent=label+' '+(item[key]?'ON':'OFF')};paint();
+            b.onclick=async()=>{const enabled=!item[key];row.inert=true;
+              try{await api({action:'platform_notice_set',key:item.key,channel:key,enabled});item[key]=enabled;paint();status.textContent=names[item.key]+' '+label+' 설정을 저장했습니다.'}
+              catch{status.textContent='저장 결과를 확인하지 못했습니다. 다시 조회해 주세요.'}
+              finally{row.inert=false}
+            };row.append(b);
+          }list.append(row);
+        }status.textContent='';
+      }catch{status.textContent='설정을 불러오지 못했습니다.';const b=document.createElement('button');b.textContent='다시 조회';b.onclick=load;list.append(b);}
+    }
+    await load();
+  };
   window.enlPlatformOpenEditor=u=>go('platform',u);
   window.enlPlatformHome=async(root,u)=>{
     if(root.querySelector('.platform-hub'))return;
@@ -66,14 +90,14 @@
     host.querySelector('.platform-heading p').textContent=[u.name,roles[u.role]||'본사실무자',u.siteId?(siteById(u.siteId)?.name||u.siteId):(u.department||'본사')].filter(Boolean).join(' / ');
     const area=host.querySelector('.platform-modules'),services=host.querySelector('.platform-grid'),status=host.querySelector('[role=status]');
     const admin=u.role==='safety';
-    const service=(name,enabled,open)=>{
-      const b=document.createElement('button');b.type='button';b.disabled=!enabled;b.textContent=name+(enabled?'':' (구현 중)');b.onclick=open;services.append(b);return b;
+    const service=(name,icon,enabled,open)=>{
+      const b=document.createElement('button');b.type='button';b.disabled=!enabled;b.className='support-row';b.style.setProperty('--pic','var(--icon-'+icon+')');b.setAttribute('aria-label',name);b.innerHTML='<span class="platform-icon" aria-hidden="true"></span><strong>'+name+'</strong><small>'+(enabled?'운영 중':'구현 중')+'</small>';b.onclick=open;services.append(b);return b;
     };
     if(window.enlHistoryAvailable?.(u)){
-      const historyButton=service('통합 히스토리',true,()=>{window.enlRequestHistory();go('history',u)});historyButton.dataset.platformHistoryFeed='';window.enlRefreshHistoryCount?.();
+      const historyButton=service('통합 히스토리','history',true,()=>{window.enlRequestHistory();go('common-history',u)});historyButton.dataset.platformHistoryFeed='';window.enlRefreshHistoryCount?.(true);
     }
-    for(const name of ['통합 결재함','알림센터','문서 및 증빙관리','통합 대시보드'])service(name,false);
-    if(admin)service('시스템 관리',true,()=>go('more',u));
+    service('통합 결재함','approve',false);service('알림센터','bell',true,()=>go('notice-center',u));service('문서 및 증빙관리','archive',false);service('통합 대시보드','stats',false);
+    if(admin)service('시스템 관리','settings',true,()=>go('more',u));
     let config,saving=false,dragged=false;
     const isOn=m=>m.enabled!==false&&m.state!=='hidden'&&(m.state==='live'||m.preview);
     async function save(modules){
@@ -128,7 +152,7 @@
     function cards(){
       const grid=document.createElement('div');grid.className='platform-grid';area.replaceChildren(grid);
       for(const m of config.modules.filter(m=>admin||m.state!=='hidden')){
-        const row=document.createElement('article');row.className='feature-card-wrap';row.dataset.key=m.key;
+        const row=document.createElement('article');row.className='feature-card-wrap';row.dataset.key=m.key;row.dataset.state=m.state;row.dataset.on=String(isOn(m));
         row.innerHTML='<button class="platform-card" type="button" data-module="'+e(m.key)+'" style="--pic:var(--icon-'+icons[m.key]+')"><span class="platform-icon"></span><strong>'+names[m.key]+'</strong><small>'+states[m.state]+(!isOn(m)&&m.state==='live'?' / 접근 꺼짐':'')+'</small></button>';
         grid.append(row);row.querySelector('[data-module]').onclick=async()=>{
           if(!isOn(m)){status.textContent='현재 진입할 수 없는 모듈입니다.';return;}
@@ -153,6 +177,7 @@
         grip.onpointercancel=()=>{start=null;row.classList.remove('moving')};
         grip.onpointerup=ev=>{if(!start)return;start=null;row.classList.remove('moving');if(dragged){const dest=document.elementFromPoint(ev.clientX,ev.clientY)?.closest('[data-key]');if(dest&&grid.contains(dest))move(m.key,dest.dataset.key);}};
       }
+      const future=document.createElement('div');future.className='feature-future';future.innerHTML='<span aria-hidden="true">＋</span>추가 예정';grid.append(future);
     }
     async function load(){config=await api({action:'platform_catalog'});if(host.isConnected)cards()}
     try{await load()}catch{area.innerHTML='<p>업무기능을 불러오지 못했습니다.</p><button>다시 시도</button>';area.querySelector('button').onclick=()=>{host.remove();window.enlPlatformHome(root,u)};}

@@ -11,16 +11,17 @@
   const userId=()=>{const a=actor();return a?.id&&canView(a)?JSON.stringify([a.role,a.siteId,a.id]):'';};
   const api=body=>window.enlIncidentApi({...body,actor:actor()});
   const safe=v=>esc(String(v??''));
-  let account='',count=0,checked=0,serial=0,opening=0,requested=false,activeHistory=null;
+  let account='',counts={common:0,incident:0},checked=0,serial=0,opening=0,requested=false,activeHistory=null;
   function owner(){
     const id=userId();
-    if(account!==id){account=id;count=0;checked=0;serial++;opening=0;requested=false;activeHistory=null;}
+    if(account!==id){account=id;counts={common:0,incident:0};checked=0;serial++;opening=0;requested=false;activeHistory=null;}
     return id;
   }
   function paint(){
     for(const b of document.querySelectorAll(menuSelector)){
+    const count=counts[b.hasAttribute('data-platform-history-feed')?'common':'incident'];
     let badge=b.querySelector('.activity-count');
-    if(!count){badge?.remove();b.removeAttribute('aria-label');continue;}
+    if(!count){badge?.remove();if(b.hasAttribute('data-platform-history-feed'))b.setAttribute('aria-label','통합 히스토리');else b.removeAttribute('aria-label');continue;}
     if(!badge){badge=document.createElement('span');badge.className='enl424-nav-count activity-count';b.append(badge);}
     badge.textContent=String(count);b.setAttribute('aria-label',(b.hasAttribute('data-platform-history-feed')?'통합 히스토리':'사용자 기록')+', 미확인 '+count+'건');
     }
@@ -30,7 +31,12 @@
     if(!id||!document.querySelector(menuSelector))return;
     paint();if(opening||document.hidden||!window.enlIncidentApi||(!force&&Date.now()-checked<30000))return;
     checked=Date.now();const token=++serial;
-    try{const r=await api({action:'activity_count'});if(token===serial&&userId()===id){count=r.unread;paint();}}
+    try{
+      const feeds=[...new Set([...document.querySelectorAll(menuSelector)].map(b=>b.hasAttribute('data-platform-history-feed')?'common':'incident'))];
+      await Promise.all(feeds.map(async feed=>{const r=await api({action:'activity_count',feed});
+        if(token===serial&&userId()===id){counts[feed]=r.unread;paint();}
+      }));
+    }
     catch{if(token===serial)checked=0;}
   }
   async function openDoc(row,host,id){
@@ -66,19 +72,24 @@
       host.append(dialog);dialog.showModal();
     });
   }
-  function render(root){
+  function render(root,feed='incident'){
     const id=owner();if(!id)return;
     const mark=requested;requested=false;
     // Background sync may rebuild the shell while the user is editing search or removal dates.
-    if(!mark&&activeHistory){if(activeHistory.parentElement!==root)root.replaceChildren(activeHistory);return;}
-    const host=document.createElement('section');host.className='panel activity-history';root.replaceChildren(host);activeHistory=host;
+    if(!mark&&activeHistory?.dataset.feed===feed){if(activeHistory.parentElement!==root)root.replaceChildren(activeHistory);return;}
+    const host=document.createElement('section');host.className='panel activity-history';host.dataset.feed=feed;root.replaceChildren(host);activeHistory=host;
     host.innerHTML='<div class="section-head"><h2>통합 히스토리</h2><button type="button" class="secondary" data-refresh>새로고침</button></div><form class="activity-filters"><label>기간<select name="range"><option value="recent">최근 30일</option><option value="month">월별 조회</option><option value="custom">기간 지정</option><option value="all">전체 기간</option></select></label><label hidden data-month>조회 월<input type="month" name="month"></label><label hidden data-custom>시작일<input type="date" name="start"></label><label hidden data-custom>종료일<input type="date" name="end"></label><label>검색어<input type="search" name="q" maxlength="120" placeholder="이름, 사업장, 사고, 처리 내용"></label><button class="secondary" type="submit">검색</button></form><p role="status"></p><ol></ol><button type="button" class="secondary" data-more hidden>이전 기록 더 보기</button>';
+    host.querySelector('h2').textContent=feed==='common'?'통합 히스토리':'사고보고 사용자 기록';
+    if(feed==='common')host.querySelector('.section-head').insertAdjacentHTML('afterend','<p>사용자 계정, 이메일, 사업장 정보의 변경 기록입니다.</p>');
     const list=host.querySelector('ol'),status=host.querySelector('[role=status]'),more=host.querySelector('[data-more]');
     const form=host.querySelector('form'),controls=form.elements;
     const names={incident:'사고보고',common:'공통 시스템',risk:'위험성평가',tbm:'TBM',organization:'안전보건조직',training:'안전보건교육'};
     const kinds={create:'최초 등록',view:'최초 조회',approve:'최초 승인',reject:'반려',supplement_request:'보완 요청',supplement_submit:'보완 제출',plan_create:'계획 수립',plan_edit:'계획 수정',corrective_submit:'조치 제출',corrective_reject:'조치 보완',corrective_approve:'조치 승인',executive_sign:'경영진 결재',executive_reject:'경영진 반려',final_approval:'최종 결재',update:'수정',delete:'삭제',cause_save:'원인분석 저장',cost_added:'비용 추가',post_approval_revision:'승인 후 수정',correct_closed:'종결 정정',resubmit:'재제출',supplement_resubmit:'보완 재제출',site_create:'현장 등록',site_update:'현장 변경',personnel_create:'인원 등록',personnel_update:'인원 변경',personnel_delete:'인원 삭제',personnel_retire:'퇴사',personnel_reactivate:'복직',hq_create:'본사 계정 등록',hq_update:'본사 계정 변경'};
+    kinds.email_registered='이메일 등록';
+    const feedKinds=Object.fromEntries(Object.entries(kinds).filter(([k])=>/^(hq_|personnel_|site_|email_)/.test(k)===(feed==='common')));
     const options=obj=>'<option value="">전체</option>'+Object.entries(obj).map(([k,v])=>'<option value="'+safe(k)+'">'+safe(v)+'</option>').join('');
-    form.querySelector('[type=submit]').insertAdjacentHTML('beforebegin','<label>업무모듈<select name="module">'+options(names)+'</select></label><label>사업장<input name="site" maxlength="100"></label><label>사용자<input name="person" maxlength="100"></label><label>처리유형<select name="kind">'+options(kinds)+'</select></label><label>처리결과<select name="result">'+options(Object.fromEntries(['승인','반려','보완요청','종결','처리완료'].map(v=>[v,v])))+'</select></label>');
+    form.querySelector('[type=submit]').insertAdjacentHTML('beforebegin','<label>사업장<input name="site" maxlength="100"></label><label>사용자<input name="person" maxlength="100"></label><label>처리유형<select name="kind">'+options(feedKinds)+'</select></label><label>처리결과<select name="result">'+options(Object.fromEntries(['승인','반려','보완요청','종결','처리완료'].map(v=>[v,v])))+'</select></label>');
+    if(feed==='common'){controls.q.placeholder='이름, 사업장, 계정 변경 내용';controls.result.closest('label').remove();}
     const today=day.format(new Date()),recent=day.format(new Date(Date.parse(today+'T12:00:00+09:00')-29*86400000));
     controls.month.value=today.slice(0,7);controls.start.value=recent;controls.end.value=today;
     let before='',busy=false,request=0,filters={fromDate:recent,toDate:today,search:''};
@@ -90,7 +101,7 @@
       try{
         const proof=await cleanupProof(host);if(!proof||!host.isConnected||userId()!==id)return;
         const restoring=payload.mode==='restore';
-        const result=await api({action:restoring?'activity_restore':'activity_delete',...payload,...proof,confirmed:true});
+        const result=await api({action:restoring?'activity_restore':'activity_delete',...payload,...proof,feed,confirmed:true});
         if(host.isConnected&&userId()===id){await load(true,false);await refresh(true);notice.textContent=restoring?result.restored+'건을 복구했습니다.':result.removed+'건을 정리했습니다.';if(audit.open)await loadAudit();}
       }catch(err){if(host.isConnected)notice.textContent=err.message==='password_incorrect'?'비밀번호가 일치하지 않습니다.':err.message==='password_attempts_exceeded'?'확인 횟수를 초과했습니다. 15분 뒤 다시 시도하세요.':'작업 결과를 확인하지 못했습니다. 새로고침 후 확인해 주세요.';}
       finally{deleting=false;}
@@ -98,7 +109,7 @@
     const audit=document.createElement('details');audit.className='history-manage';
     async function loadAudit(before=''){
       const log=audit.querySelector('ol'),next=audit.querySelector('[data-next]');next.disabled=true;
-      try{const r=await api({action:'activity_cleanup_audit',before});if(!before)log.replaceChildren();
+      try{const r=await api({action:'activity_cleanup_audit',before,feed});if(!before)log.replaceChildren();
         for(const x of r.rows){const li=document.createElement('li');li.textContent=stamp.format(new Date(x.at))+' / '+x.actor_name+' / '+({one:'개별',range:'기간',all:'전체'}[x.mode])+ ' '+x.count+'건 / '+x.reason+(x.scope?.from?' / '+x.scope.from+' ~ '+x.scope.to:'')+(x.scope?.id?' / 번호 '+x.scope.id:'');
           if(x.restored_at)li.append(' / 복구 '+stamp.format(new Date(x.restored_at))+' '+x.restored_by+' / '+x.restore_reason);
           else if(x.count){const b=document.createElement('button');b.type='button';b.textContent='복구';b.onclick=()=>removeHistory({mode:'restore',id:x.id},'이 작업으로 정리한 기록을');li.append(b);}log.append(li);}
@@ -125,7 +136,7 @@
         fromDate=month+'-01';const last=new Date(fromDate+'T12:00:00Z');last.setUTCMonth(last.getUTCMonth()+1,0);toDate=last.toISOString().slice(0,10);
       }
       if(fromDate&&toDate&&fromDate>toDate){status.textContent='종료일은 시작일 이후로 선택해 주세요.';return;}
-      filters={fromDate,toDate,search:controls.q.value.trim(),...Object.fromEntries(['module','site','person','kind','result'].map(k=>[k,controls[k].value.trim()]))};load(true,false);
+      filters={fromDate,toDate,search:controls.q.value.trim(),...Object.fromEntries(['site','person','kind','result'].filter(k=>controls[k]).map(k=>[k,controls[k].value.trim()]))};load(true,false);
     }
     controls.range.onchange=()=>{
       form.querySelector('[data-month]').hidden=controls.range.value!=='month';
@@ -139,9 +150,9 @@
       if(first){before='';more.hidden=true;list.replaceChildren();}
       status.textContent='기록을 불러오는 중입니다.';
       try{
-        const r=await api({action:first?(ack?'activity_open':'activity_list'):'activity_page',before,...filters});
+        const r=await api({action:first?(ack?'activity_open':'activity_list'):'activity_page',before,feed,...filters});
         if(userId()!==id)return;
-        if(ack&&token===serial){count=0;checked=Date.now();paint();}
+        if(ack&&token===serial){counts[feed]=0;checked=Date.now();paint();}
         if(!host.isConnected||seq!==request)return;
         if(first)list.replaceChildren();
         for(const row of r.rows){

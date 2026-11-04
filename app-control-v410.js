@@ -163,16 +163,21 @@
     const safety=roleNorm(u.role)==='safety';let box=document.getElementById('headerUpdateControl');
     if(!box){box=document.createElement('div');box.id='headerUpdateControl';box.className='header-update-control';(top.querySelector('.topbar-tools')||top).appendChild(box)}
     const postponed=pendingUpdate&&deferredBuild===pendingUpdate.build;
-    const versionLabel=postponed?'<button type="button" class="header-refresh-btn" data-resume-update>새 버전</button>':`<span class="header-version">v${VERSION}</span>`;
+    const mobileMenu=matchMedia('(max-width:720px)').matches&&user.querySelector('.user-menu');
+    const versionLabel=postponed&&!mobileMenu?'<button type="button" class="header-refresh-btn" data-resume-update>새 버전</button>':`<span class="header-version">v${VERSION}</span>`;
     const wanted=`${versionLabel}<button type="button" class="header-refresh-btn" data-enl-refresh aria-label="새로고침" title="새로고침">${REFRESH_LABEL}</button>`;
-    const mode=[safety,!!postponed].join('/');
+    const mode=[safety,!!postponed,!!mobileMenu].join('/');
     if(box.dataset.mode!==mode){box.innerHTML=wanted;box.dataset.mode=mode}
-    const resume=box.querySelector('[data-resume-update]');if(resume)resume.onclick=()=>{deferredBuild='';refreshControls()};
+    let menuResume=user.querySelector('.user-menu [data-resume-update]');
+    if(postponed&&mobileMenu&&!menuResume){menuResume=document.createElement('button');menuResume.type='button';menuResume.dataset.resumeUpdate='';menuResume.textContent='새 버전 업데이트';mobileMenu.insertBefore(menuResume,mobileMenu.querySelector('#logoutBtn'));}
+    if(!(postponed&&mobileMenu))menuResume?.remove();
+    const resume=box.querySelector('[data-resume-update]')||(postponed&&mobileMenu&&menuResume);if(resume)resume.onclick=()=>{mobileMenu?.classList?.add('hide');deferredBuild='';refreshControls()};
     const refresh=box.querySelector('[data-enl-refresh]');if(refresh)refresh.onclick=refreshData;
     const menu=user.querySelector('.user-menu');let update=menu?.querySelector('[data-enl-global-update]');
     if(safety&&menu&&!update){update=document.createElement('button');update.type='button';update.className='header-global-update-btn';update.dataset.enlGlobalUpdate='';update.textContent=UPDATE_LABEL;menu.insertBefore(update,menu.querySelector('#logoutBtn'));}
     if(update)update.onclick=safetyGlobalUpdate;
   }
+  matchMedia('(max-width:720px)').addEventListener('change',()=>refreshControls());
   function removeLoginUpdate(){document.getElementById('loginLatestBtn')?.remove()}
   function footer(){const f=document.querySelector('.footer-note');const text=`이앤엘 사고보고앱 v${VERSION}`;if(f&&f.textContent!==text)f.textContent=text}
   function refreshControls(){try{removeLoginUpdate();if(currentUser?.())injectHeader();else document.getElementById('headerUpdateControl')?.remove();footer();refreshUpdateNotice()}catch(e){console.warn('update control render skipped',e)}}
