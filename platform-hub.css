@@ -1,3 +1,4 @@
+.system-admin{display:grid;gap:12px;min-width:0}.system-admin h1{font-size:1.5rem;margin:4px 0}.system-admin header p{margin:4px 0;color:#526c80}.system-admin [data-admin-content]{min-width:0}
 .platform-return{margin:4px 0 10px;min-height:40px;background:white;border:1px solid #bed5e6;border-radius:10px;padding:6px 14px;color:#184e78}
 .main:has(.platform-hub)>.shell411-nav,.main:has(.platform-hub)>.platform-return,#view:has(.platform-hub)>[data-executive-queue]{display:none!important}
 .platform-hub{display:grid;gap:18px;color:#153c5e;max-width:1150px;margin:auto}

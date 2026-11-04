@@ -66,7 +66,12 @@ const assert=require('node:assert/strict'),{fixture}=require('./final-lifecycle.
  assert.equal((await api('manager','platform_notices')).status,403);assert.equal((await pref('manager','risk','push',true)).status,403);
  assert.equal((await api('safety','activity_list',{feed:'common',...auth})).status,403);assert.equal((await api('safety','activity_list',{feed:'incident',...auth})).status,200);
  assert.equal((await api('manager','platform_enter',{key:'documents'})).status,200);assert.equal((await api('executive','platform_enter',{key:'documents'})).status,403);
- assert.equal((await api('manager','platform_enter',{key:'system'})).status,403);
+ for(const who of ['field','manager','executive']){
+   assert.equal((await api(who,'platform_enter',{key:'system'})).status,403);
+   const catalog=(await api(who,'platform_catalog')).body;
+   assert.ok(!catalog.services.some(s=>s.key==='system'));
+   for(const group of ['modules','services'])assert.equal((await api(who,'platform_save',{group,modules:after[group],revision:after.revision})).status,403);
+ }
  console.log('PASS service order, optimistic locking, role/individual gates and existing module isolation');
  console.log('PASS verified role and individual module gates, shared order, write conflict, audit reauthentication, reversible history cleanup and scoped filters');
 }finally{await f.db.close()}})().catch(e=>{console.error(e);process.exitCode=1});

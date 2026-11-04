@@ -9,14 +9,12 @@
   const HQ_ROLES=['safety','manager','executive','final'];
   const baseAuthApi=window.enlAuthApi;
   const baseIncidentApi=window.enlIncidentApi;
-  const baseRenderShell=window.renderShell;
   const text=v=>String(v??'').trim();
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   const ex=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const actor=u=>{try{return window.enlCurrentActor?.()||{id:u?.id||u?.personnelId||u?.username||'',name:u?.name||'',role:roleNorm(u?.role),position:u?.position||u?.jobTitle||'',siteId:u?.siteId||''}}catch(e){return null}};
   const isFieldManager=u=>!!u&&u.role==='field'&&FIELD_TITLES.includes(text(u.position||u.jobTitle));
   let hqSyncing=false;
-  let allowSettingsRender=false;
 
   async function callPersonnel(body,timeout=15000){
     const ctl=typeof AbortController!=='undefined'?new AbortController():null;
@@ -156,16 +154,8 @@
     const u=currentUser?.();if(roleNorm(u?.role)!=='safety')return;
     document.querySelectorAll('.sa415-person').forEach(row=>{
       if(row.querySelector('.pm434-delete'))return;const edit=row.querySelector('[data-sa415-person]');if(!edit)return;
-      const b=document.createElement('button');b.type='button';b.className='pm434-delete';b.textContent='삭제';b.onclick=async ev=>{ev.preventDefault();ev.stopPropagation();const id=edit.dataset.sa415Person,name=text(row.querySelector('b')?.textContent);if(!confirm(`${name||'이 근무자'} 정보를 완전히 삭제할까요?\n잘못 등록한 정보일 때만 삭제해 주세요.`))return;try{const r=await window.enlAuthApi({action:'personnel_delete',actor:actor(u),personnelId:id});closeModal?.();allowSettingsRender=true;window.renderShell?.(u);alert('근무자 정보가 삭제되었습니다.')}catch(e){alert('근무자 정보를 삭제하지 못했습니다.')}};edit.insertAdjacentElement('afterend',b);
+      const b=document.createElement('button');b.type='button';b.className='pm434-delete';b.textContent='삭제';b.onclick=async ev=>{ev.preventDefault();ev.stopPropagation();const id=edit.dataset.sa415Person,name=text(row.querySelector('b')?.textContent);if(!confirm(`${name||'이 근무자'} 정보를 완전히 삭제할까요?\n잘못 등록한 정보일 때만 삭제해 주세요.`))return;try{const r=await window.enlAuthApi({action:'personnel_delete',actor:actor(u),personnelId:id});closeModal?.();if(currentView==='system-admin')await window.enlRenderSystemAdmin(document.getElementById('view'),u,true);else window.renderShell?.(u);alert('근무자 정보가 삭제되었습니다.')}catch(e){alert('근무자 정보를 삭제하지 못했습니다.')}};edit.insertAdjacentElement('afterend',b);
     });
-  }
-
-  if(typeof baseRenderShell==='function'){
-    window.renderShell=function(u){
-      if(String(currentView||'')==='more'&&document.querySelector('.sa415')&&!allowSettingsRender){return document.getElementById('view')}
-      allowSettingsRender=false;return baseRenderShell.apply(this,arguments);
-    };
-    try{renderShell=window.renderShell}catch(e){}
   }
 
   const observer=new MutationObserver(()=>{augmentSafetyDelete()});observer.observe(document.body,{childList:true,subtree:true});

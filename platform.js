@@ -83,6 +83,11 @@
     await load();
   };
   window.enlPlatformOpenEditor=u=>go('platform',u);
+  window.enlOpenSystemAdmin=u=>{
+    if(u?.role!=='safety')return;
+    go('system-admin',u);
+    return document.querySelector('#view > .system-admin')?.ready;
+  };
   window.enlPlatformHome=async(root,u)=>{
     if(root.querySelector('.platform-hub'))return;
     const host=document.createElement('section');host.className='platform-hub';root.replaceChildren(host);
@@ -232,11 +237,11 @@
         if(m.key==='history'&&isOn(m)&&m.canEnter!==false)button.dataset.platformHistoryFeed='';
         grid.append(row);button.onclick=async()=>{
           if(!isOn(m)||m.canEnter===false){status.textContent='현재 진입할 수 없는 '+(support?'서비스':'모듈')+'입니다.';return;}
+          if(m.key==='system'){window.enlOpenSystemAdmin(u);return;}
           try{const r=await api({action:'platform_enter',key:m.key});if(!host.isConnected)return;
             if(r.key==='incident')go(['worker','field'].includes(u.role)?'home':'stats',u);
             else if(r.key==='history'){window.enlRequestHistory();go('common-history',u)}
             else if(r.key==='notices')go('notice-center',u);
-            else if(r.key==='system')go('more',u);
             else{const box=support?services:area;box.innerHTML='<section class="panel"><h2>'+names[r.key]+'</h2><p>세부 업무 화면은 준비 중입니다.</p><button>← '+(support?'공통 업무지원 서비스':'업무기능 선택')+'</button></section>';box.querySelector('button').onclick=cards;}
           }catch{status.textContent='현재 진입할 수 없는 '+(support?'서비스':'모듈')+'입니다.'}
         };

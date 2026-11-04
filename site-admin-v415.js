@@ -118,14 +118,14 @@
     root.querySelectorAll('[data-sa415-tab]').forEach(button=>{
       button.onclick=()=>{
         activeTab=button.dataset.sa415Tab;
-        if(activeTab==='directory')directory(root,u);else if(activeTab==='hq')renderHq(root,u);else renderSites(root,u);
+        if(activeTab==='directory')directory(root,u);else if(activeTab==='hq')renderHq(root,u);else renderAdmin(root,u);
       };
     });
   }
 
   function renderSites(root,u){
     const pageData=sitePageData();
-    root.innerHTML=`<div class="sa415"><section class="panel"><div class="sa415-head"><div><div class="ey">SITE & USER SETTINGS</div><h2>시스템 관리</h2><p>현장 기본정보와 일반근로자·현장소장·파트장·서무를 한 곳에서 관리합니다.</p></div>${tabsHtml()}</div></section><section class="panel"><div class="sa415-tools"><div class="sa415-search"><input id="sa415SiteSearch" value="${escx(siteQuery)}" placeholder="사업장명, 지역, 소장 검색"><button type="button" id="sa415SiteSearchBtn">검색</button></div><button type="button" class="sa415-primary" id="sa415CreateSite">+ 사업장 추가</button></div><label class="sa415-status-label">목록 선택 <select id="sa415SiteStatus">${[['active','기본 목록'],['all','전체'],['closed','보관함']].map(([v,t])=>`<option value="${v}" ${v===siteStatus?'selected':''}>${t}</option>`).join('')}</select></label><div class="sa415-sites">${pageData.rows.map(s=>`<button type="button" class="sa415-site" data-sa415-site="${escx(s.site_id)}"><div><h3>${escx(siteName(s))}</h3><p>${escx(text(s.region)||'지역 미등록')}${text(s.address)?' · '+escx(s.address):''}</p></div><div class="sa415-counts"><span>상용<b>${number(s.regular_count)}</b></span><span>일용<b>${number(s.daily_count)}</b></span><span>합계<b>${total(s)}</b></span></div><div><b>소장 ${escx(text(s.manager_name)||'미등록')}</b><p>등록 근무자 ${number(s.worker_login_count)}명</p></div><span class="sa415-arrow">정보 수정 ›</span></button>`).join('')||'<div class="sa415-empty">조건에 맞는 사업장이 없습니다.</div>'}</div><div class="sa415-page">${Array.from({length:pageData.pages},(_,i)=>i+1).slice(Math.max(0,sitePage-3),Math.max(0,sitePage-3)+5).map(p=>`<button type="button" data-sa415-site-page="${p}" class="${p===sitePage?'on':''}">${p}</button>`).join('')}</div></section></div>`;
+    root.innerHTML=`<div class="sa415"><section class="panel"><div class="sa415-head"><div><div class="ey">SITE & USER SETTINGS</div><h2>사업장 및 근무자</h2><p>사업장의 기본정보와 소속 근무자를 관리합니다.</p></div>${tabsHtml()}</div></section><section class="panel"><div class="sa415-tools"><div class="sa415-search"><input id="sa415SiteSearch" value="${escx(siteQuery)}" placeholder="사업장명, 지역, 소장 검색"><button type="button" id="sa415SiteSearchBtn">검색</button></div><button type="button" class="sa415-primary" id="sa415CreateSite">+ 사업장 추가</button></div><label class="sa415-status-label">목록 선택 <select id="sa415SiteStatus">${[['active','기본 목록'],['all','전체'],['closed','보관함']].map(([v,t])=>`<option value="${v}" ${v===siteStatus?'selected':''}>${t}</option>`).join('')}</select></label><div class="sa415-sites">${pageData.rows.map(s=>`<button type="button" class="sa415-site" data-sa415-site="${escx(s.site_id)}"><div><h3>${escx(siteName(s))}</h3><p>${escx(text(s.region)||'지역 미등록')}${text(s.address)?' · '+escx(s.address):''}</p></div><div class="sa415-counts"><span>상용<b>${number(s.regular_count)}</b></span><span>일용<b>${number(s.daily_count)}</b></span><span>합계<b>${total(s)}</b></span></div><div><b>소장 ${escx(text(s.manager_name)||'미등록')}</b><p>등록 근무자 ${number(s.worker_login_count)}명</p></div><span class="sa415-arrow">정보 수정 ›</span></button>`).join('')||'<div class="sa415-empty">조건에 맞는 사업장이 없습니다.</div>'}</div><div class="sa415-page">${Array.from({length:pageData.pages},(_,i)=>i+1).slice(Math.max(0,sitePage-3),Math.max(0,sitePage-3)+5).map(p=>`<button type="button" data-sa415-site-page="${p}" class="${p===sitePage?'on':''}">${p}</button>`).join('')}</div></section></div>`;
     bindTabs(root,u);
     document.getElementById('sa415SiteStatus').onchange=e=>{siteStatus=e.target.value;sitePage=1;renderSites(root,u)};
     const search=()=>{siteQuery=document.getElementById('sa415SiteSearch').value;sitePage=1;renderSites(root,u);};
@@ -314,8 +314,8 @@
     try{
       await window.enlSyncHqUsers?.(u);
       const users=sortHqUsers((data.users||[]).filter(x=>['safety','manager','executive','final'].includes(String(x.role||''))));
-      const box=document.getElementById('sa415HqList');
-      if(!box)return;
+      const box=root.querySelector('#sa415HqList');
+      if(!box?.isConnected)return;
       box.innerHTML=users.map(x=>{
         const role=roleNorm(x.role);
         return `<div class="sa415-hq-row"><div><b>${escx(x.name)} ${x.active===false?'(비활성)':''}</b><span>${escx(x.department||'소속 미등록')} · ${escx(x.position||'직급 미등록')}</span></div><div><span class="sa415-role">${escx(roleName(role))}</span></div><div><span>로그인 이름 ${escx(x.username||x.name)}</span></div><div class="sa415-hq-actions"><button type="button" data-sa415-hq-edit="${escx(x.id)}">정보·권한 수정</button><button type="button" data-sa415-hq-pw="${escx(x.id)}">비밀번호</button></div></div>`;
@@ -323,11 +323,11 @@
       box.querySelectorAll('[data-sa415-hq-edit]').forEach(button=>button.onclick=()=>window.openUserModal?.(userById(button.dataset.sa415HqEdit),u));
       box.querySelectorAll('[data-sa415-hq-pw]').forEach(button=>button.onclick=()=>window.openAdminPasswordReset?.(userById(button.dataset.sa415HqPw),u));
       setTimeout(()=>window.enlRenderHqNotificationStatus?.(true),0);
-    }catch(err){document.getElementById('sa415HqList').innerHTML='<div class="sa415-empty">본사 사용자를 불러오지 못했습니다.</div>';setTimeout(()=>window.enlRenderHqNotificationStatus?.(true),0);}
+    }catch(err){const box=root.querySelector('#sa415HqList');if(!box?.isConnected)return;box.innerHTML='<div class="sa415-empty">본사 사용자를 불러오지 못했습니다.</div>';setTimeout(()=>window.enlRenderHqNotificationStatus?.(true),0);}
   }
 
   function directory(root,u){
-    root.innerHTML='<section class="panel"><h2>시스템 관리</h2>'+tabsHtml()+'</section>';bindTabs(root,u);return window.enlPlatformDirectory(root);
+    root.innerHTML='<section class="panel"><h2>직무 담당자</h2>'+tabsHtml()+'</section>';bindTabs(root,u);return window.enlPlatformDirectory(root);
   }
   async function renderAdmin(root,u){
     installCss();
@@ -338,9 +338,29 @@
     if(activeTab==='directory')return directory(root,u);
     if(activeTab==='hq')return renderHq(root,u);
     root.innerHTML='<div class="panel"><div class="sa415-empty">현장정보를 불러오는 중입니다.</div></div>';
-    try{await loadSites(u);renderSites(root,u);}
+    try{await loadSites(u);if(root.isConnected)renderSites(root,u);}
     catch(err){root.innerHTML='<div class="panel"><div class="sa415-empty">현장정보를 불러오지 못했습니다.</div></div>';}
   }
+
+  // All entry points, including a restored session, pass the same service gate.
+  window.enlRenderSystemAdmin=(root,u,refresh=false)=>{
+    if(!refresh&&root.firstElementChild?.classList.contains('system-admin'))return root.firstElementChild.ready;
+    const page=document.createElement('section');page.className='system-admin';
+    root.replaceChildren(page);
+    page.innerHTML='<header class="panel"><div class="ey">공통 업무지원 서비스</div><h1>시스템 관리</h1><p>모든 업무기능에서 함께 사용하는 사용자, 사업장, 권한을 관리합니다.</p></header><div data-admin-content role="region" aria-label="공통 설정"></div>';
+    const content=page.lastElementChild;
+    content.textContent='접근 권한을 확인하는 중입니다.';
+    page.ready=(async()=>{
+      try{
+        if(u?.role!=='safety')throw Error('forbidden');
+        await siteApi({action:'platform_enter',key:'system',actor:actor(u)});
+        if(!page.isConnected||currentUser()?.id!==u.id)return;
+        await renderAdmin(content,u);
+        if(page.isConnected)return content;
+      }catch{if(page.isConnected)content.textContent='시스템 관리에 진입할 수 없습니다. 통합 메인에서 접근 설정과 연결 상태를 확인해 주세요.';}
+    })();
+    return page.ready;
+  };
 
   window.enlOpenHistorySetting=async(row,live)=>{
     const u=currentUser();if(roleNorm(u?.role)!=='safety'||!live())return;
@@ -349,18 +369,18 @@
     if(row.kind.startsWith('hq_')){
       await window.enlSyncHqUsers?.(u);if(!live())return;
       const target=userById(row.incident_id);
-      if(target)return window.openUserModal(target,u);
+      if(target){activeTab='hq';const content=await window.enlOpenSystemAdmin(u);if(content?.isConnected)return window.openUserModal(target,u);return;}
     }else{
       await loadSites(u);if(!live())return;
       const site=sites.find(s=>String(s.site_id)===row.site_id);
       if(site){
         stateFor(site.site_id).selectedId=row.kind.startsWith('personnel_')?row.incident_id:'';
-        currentView='more';activeTab='sites';renderShell(u);return openSite(site,u,document.getElementById('view'));
+        activeTab='sites';const content=await window.enlOpenSystemAdmin(u);if(content?.isConnected)return openSite(site,u,content);return;
       }
     }
     showRecord();
   };
-  window.renderMore=(root,u)=>renderAdmin(root,u);
+  window.renderMore=(root,u)=>window.enlOpenSystemAdmin(u);
   window.enlRenderSiteAdmin411=renderAdmin;
   window.ENL_SITE_ADMIN_VERSION=VERSION;
 })();

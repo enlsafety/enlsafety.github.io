@@ -179,7 +179,7 @@
   }
   matchMedia('(max-width:720px)').addEventListener('change',()=>refreshControls());
   function removeLoginUpdate(){document.getElementById('loginLatestBtn')?.remove()}
-  function footer(){const f=document.querySelector('.footer-note');const text=`이앤엘 사고보고앱 v${VERSION}`;if(f&&f.textContent!==text)f.textContent=text}
+  function footer(){const f=document.querySelector('.footer-note');const text=`${f?.closest('[data-system-shell]')?'이앤엘 안전보건관리 통합시스템':'이앤엘 사고보고앱'} v${VERSION}`;if(f&&f.textContent!==text)f.textContent=text}
   function refreshControls(){try{removeLoginUpdate();if(currentUser?.())injectHeader();else document.getElementById('headerUpdateControl')?.remove();footer();refreshUpdateNotice()}catch(e){console.warn('update control render skipped',e)}}
   let queued=false;
   const observer=new MutationObserver(()=>{if(queued)return;queued=true;queueMicrotask(()=>{queued=false;refreshControls()})});
