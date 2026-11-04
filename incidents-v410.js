@@ -33,7 +33,7 @@
   function canViewOriginal(i,u){if(!i||!u)return false;const r=roleOf(u);if(r==='safety')return true;if(['manager','executive'].includes(r))return ['reported','supplement','supplement_submitted','approved','closed'].includes(i.status);return sameSite(i,u)&&isSiteManager(u)}
 
   function quickSummary(i){
-    const d=i?.reportDetails||{},person=i?.category==='person',place=d.place||'',h=i?.historicalTransfer||{},when=isBulkImported(i)&&i.occurrenceTimeKnown===false?(String(i.occurredDate||i.occurredAt||'').slice(0,10)+' · 시간 미확인'):isHistorical(i)&&h.occurredDate?(h.occurredDate+(h.occurredTimeKnown&&h.occurredTime?' '+h.occurredTime:' · 시간 미확인')):(i?.occurredAt?fmt(i.occurredAt):'-');
+    const d=i?.reportDetails||{},person=i?.category==='person',place=d.place||'',h=i?.historicalTransfer||{},when=/^\d{4}-\d{2}-\d{2}$/.test(i.occurredAt)?i.occurredAt+' (시간 미상)':isBulkImported(i)&&i.occurrenceTimeKnown===false?(String(i.occurredDate||i.occurredAt||'').slice(0,10)+' · 시간 미확인'):isHistorical(i)&&h.occurredDate?(h.occurredDate+(h.occurredTimeKnown&&h.occurredTime?' '+h.occurredTime:' · 시간 미확인')):(i?.occurredAt?fmt(i.occurredAt):'-');
     let impact='',headline='';
     if(person){impact=cut(d.injuryDetail||i?.injuredName||'부상내용 미입력',54);headline=`${i?.eventType||'대인사고'} · ${impact}`}
     else{const item=d.damagedItem||'파손 물품',cost=won(d.repairCost);impact=cut(d.damageDetail||item,54);headline=`${i?.eventType||'대물사고'} · ${item}${cost?' · '+cost:''}`}

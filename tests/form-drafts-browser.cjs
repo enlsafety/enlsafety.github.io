@@ -21,7 +21,7 @@ async function run(engine,width){
       if(kind==='person'){
         await p.locator('[data-shell-view="report"]').click();await p.locator('[data-report-type="person"]').click();
         await p.locator('#pastReportMode').check();await p.locator('#pastReportDrafter').fill('시험 기안자');
-        await p.locator('#reportSite').selectOption('s01');await p.locator('#occurredDate410').fill('2026-10-15');
+        await p.locator('#reportSite').selectOption('s01');await p.locator('#occurredDate410').fill('2026-10-15');await p.locator('#unknownTime410').check();
       }else await p.evaluate(()=>openUnifiedCorrectiveModal('sample-1',currentUser()));
       const field={person:'#incidentHow410',plan:'#prev429PlanDetail',action:'#prev429ActionDetail'}[kind];
       const typed='자동저장 검수 '+kind;
@@ -44,6 +44,7 @@ async function run(engine,width){
         assert.equal(await p.locator('#pastReportDrafter').inputValue(),'시험 기안자');
         assert.equal(await p.locator('#reportSite').inputValue(),'s01');
         assert.equal(await p.locator('#occurredDate410').inputValue(),'2026-10-15');
+        assert.equal(await p.locator('#unknownTime410').isChecked(),true);assert.equal(await p.locator('#occurredTime410').isDisabled(),true);
       }
       if(kind!=='plan')assert.match(await p.locator(kind==='action'?'#actionPhotoCount':'#incidentPhotoCount').innerText(),/1 \/ 8/);
       if(kind==='plan'){
@@ -62,8 +63,7 @@ async function run(engine,width){
           assert.equal(await p.locator(field).inputValue(),'','a new accident must start empty');
           await p.locator('[data-change-type]').click();
         }else{
-          await p.evaluate(()=>{data.incidents.find(i=>i.id==='sample-1')._syncVersion++;});
-          await p.locator('#localDraftList').getByText('이어서 작성').click();
+          await p.evaluate(()=>{data.incidents.find(i=>i.id==='sample-1')._syncVersion++;document.querySelector('#localDraftList button').click();});
           assert.match(await p.locator('#localDraftList details').innerText(),new RegExp(typed));
           assert.equal(await p.locator('#prev429FieldForm').count(),0,'stale work never overwrites latest stage');
         }

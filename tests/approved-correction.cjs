@@ -60,6 +60,11 @@ const assert=require('node:assert/strict'),crypto=require('node:crypto'),{fixtur
   assert.ok(dateHistory[0].changes.some(d=>d.field==='occurredAt'),'occurrence date change audited');checks++;
   eq(dateHistory[0].reason,'사고 당시 근거사진에 따라 발생일시 정정','date correction reason audited');
   eq(Number((await f.db.query("select count(*)::int n from enl_incident_audit where action='correct_closed'")).rows[0].n),2,'date revision appended, not overwritten');
+  for(const value of ['2026-02-30','2099-12-31','2026-10-09','2026-10-08T15:00:00.000Z']){
+    r=await call('safety','correct_closed',{changes:{occurredAt:value},reason:'발생시간 원자료 확인',mutationId:crypto.randomUUID(),expectedVersion:i._syncVersion});
+    if(['2026-02-30','2099-12-31'].includes(value))eq(r.status,400,'invalid date blocked');
+    else{eq(r.status,200,JSON.stringify(r.body));i=r.body.incident;eq(i.occurredAt,value,'precision preserved');}
+  }
   console.log('PASS ordinary approved correction: '+checks+' checks; persistent update, unchanged approval, audit, access denial, stale conflict and no push');
  }finally{await f.db.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});

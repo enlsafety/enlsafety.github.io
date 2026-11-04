@@ -26,7 +26,7 @@ function uid(prefix='id'){return `${prefix}-${Date.now().toString(36)}-${Math.ra
 function nowISO(){return new Date().toISOString()}
 function localDT(d=new Date()){return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16)}
 function esc(v=''){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function fmt(v){if(!v)return '-';try{return new Intl.DateTimeFormat('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(v))}catch{return v}}
+function fmt(v){if(!v)return '-';if(/^\d{4}-\d{2}-\d{2}$/.test(v))return v;try{return new Intl.DateTimeFormat('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(v))}catch{return v}}
 function dday(v){if(!v)return '-';const a=new Date(v);a.setHours(0,0,0,0);const b=new Date();b.setHours(0,0,0,0);const n=Math.ceil((a-b)/86400000);return n===0?'오늘':n>0?`D-${n}`:`D+${Math.abs(n)}`}
 function siteById(id){return data.sites.find(s=>s.id===id)}
 function userById(id){return data.users.find(u=>u.id===id)}
