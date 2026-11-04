@@ -37,7 +37,7 @@ const {tab,noOverflow}=require('./field-entry-table-browser.cjs');
    }));
    for(const item of colors)assert.deepEqual(item.off,item.live,'access does not change the operating palette');
    for(const i of [0,1,2]){
-     assert.equal(new Set(colors.map(x=>x.live[i])).size,colors.length,'each live menu gets its own color');
+     assert.equal(new Set(colors.map(x=>x.live[i])).size,i===0?1:colors.length,'live rows share a background and keep distinct icons');
      assert.equal(new Set(colors.map(x=>x.building[i])).size,1,'building menus share the grey palette');
    }
    const ys=await card.evaluateAll(nodes=>nodes.map(n=>n.getBoundingClientRect().y));assert.ok(ys.every((y,i)=>!i||y>ys[i-1]));

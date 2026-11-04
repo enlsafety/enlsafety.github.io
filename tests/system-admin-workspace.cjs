@@ -38,7 +38,22 @@ const {tab,noOverflow}=require('./field-entry-table-browser.cjs');
     await p.locator('[data-key=system] .feature-pencil').click();await p.getByLabel('서비스 이름',{exact:true}).fill('공통 설정');
     await p.locator('.feature-name-form [type=submit]').click();await p.getByRole('button',{name:'공통 설정',exact:true}).waitFor();
     assert.equal(services[0].displayName,'공통 설정');assert.equal(modules[0].displayName,'사고 <보고>');
-    await noOverflow(p);await p.locator('[data-service=system]').click();
+    await noOverflow(p);
+    assert.equal(gates.length,0,'editing a name does not enter a menu');
+    const row=p.locator('[data-key=system]');await row.scrollIntoViewIfNeeded();
+    if(width===1365){
+      await p.mouse.move(0,0);
+      const point=await row.evaluate(el=>{
+        const r=el.getBoundingClientRect(),y=r.top+r.height/2;
+        for(let x=r.left+r.width/2;x<r.right;x++){if(document.elementFromPoint(x,y)===el)return {x,y}}
+        throw Error('Expected blank space on the operating row');
+      });
+      const base=await row.evaluate(el=>getComputedStyle(el).backgroundColor);
+      await p.mouse.move(point.x,point.y);
+      assert.notEqual(await row.evaluate(el=>getComputedStyle(el).backgroundColor),base,'hover highlights the whole row');
+      await p.mouse.click(point.x,point.y);
+    }else{await row.locator(':scope > small').tap()}
+
     const workspace=p.locator('.system-admin');await workspace.locator('#sa415CreateSite').waitFor();
     assert.equal(await p.evaluate(()=>currentView),'system-admin');assert.equal(await p.locator('.shell411-nav').count(),0);
     assert.ok(gates.includes('system'));await noOverflow(p);
