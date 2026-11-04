@@ -13,7 +13,7 @@
     attachment_add:'첨부자료를 등록했습니다',attachment_delete:'첨부자료를 삭제했습니다',cost_added:'사고 비용을 추가했습니다',
     cause_save:'원인분석을 저장했습니다',erp_record:'ERP 기안 기록을 저장했습니다'
   };
-  const roles={safety:'안전관리자',executive:'경영진',manager:'본사실무자',final:'본사실무자',field:'현장관리자',worker:'근로자'};
+  const roles={system:'시스템',safety:'안전관리자',executive:'경영진',manager:'본사실무자',final:'본사실무자',field:'현장관리자',worker:'근로자'};
   const stamp=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
   const day=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul'});
   const occurred=raw=>raw&&Number.isFinite(Date.parse(raw))?day.format(new Date(raw)):'';
@@ -33,7 +33,7 @@
     let badge=b.querySelector('.activity-count');
     if(!count){badge?.remove();b.removeAttribute('aria-label');return;}
     if(!badge){badge=document.createElement('span');badge.className='activity-count';b.append(badge);}
-    badge.textContent=count>99?'99+':String(count);b.setAttribute('aria-label','히스토리, 미확인 '+count+'건');
+    badge.textContent=String(count);b.setAttribute('aria-label','히스토리, 미확인 '+count+'건');
   }
   async function refresh(force=false){
     const id=owner();if(!id||!document.querySelector('[data-shell-view="history"]'))return;
