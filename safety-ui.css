@@ -350,3 +350,11 @@ body.safety-ui:has(.shell411-safety-home) {overflow-anchor:none}
 }
 .safety-ui .report410-work-table td > label.report410-check > span {margin:0}
 .safety-ui .report410-work-table tr:has(:is(input,select,textarea)) > th {vertical-align:middle}
+
+.draft-save-status{display:block;margin:10px 0;color:#365976;font-size:.8rem}
+#localDraftList{margin-bottom:12px;padding:14px}
+.draft-list-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}
+.draft-list-row span{flex:1 1 160px;font-size:.9rem}
+.draft-list-row button{width:auto;min-height:40px}
+
+.draft-list-row details{flex-basis:100%;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}

@@ -31,7 +31,7 @@
   function backHome(u){activeType=null;activeEditId=null;if(isSiteUser(u)&&typeof window.enlFieldHome==='function')return window.enlFieldHome(u);currentView='home';renderShell(u)}
   function backRecords(u){activeType=null;activeEditId=null;currentView='incidents';renderShell(u)}
   function topBack(u,label='사고 종류 선택'){if(isSiteUser(u))return `<div class="field-task-back"><button type="button" data-report-home>← 현장 홈으로</button><span>${esc(currentSiteName(u.siteId))}</span></div>`;return `<div class="report410-top-back"><button type="button" data-report-home>← ${esc(label)}</button></div>`}
-  function bindPicker(root,u){root.querySelector('[data-report-home]')?.addEventListener('click',()=>backHome(u));root.querySelectorAll('[data-report-type]').forEach(btn=>btn.addEventListener('click',()=>{activeEditId=null;activeType=btn.dataset.reportType;renderTypeForm(root,u,activeType,null)}))}
+  function bindPicker(root,u){root.querySelector('[data-report-home]')?.addEventListener('click',()=>backHome(u));root.querySelectorAll('[data-report-type]').forEach(btn=>btn.addEventListener('click',()=>{activeEditId=null;activeType=btn.dataset.reportType;renderTypeForm(root,u,activeType,null,true)}))}
   function renderTypePicker(root,u){if(!root)return;activeType=null;activeEditId=null;root.innerHTML=`${topBack(u,'홈으로')}<section class="panel report-type-picker" data-report-picker="v410"><div class="section-head"><div><div class="ey">ACCIDENT REPORT</div><h2>사고 종류를 선택해 주세요</h2><p>발생한 사고에 맞는 경위서를 선택합니다.</p></div></div><div class="report-type-grid"><button type="button" class="report-type-card person" data-report-type="person"><span class="report-type-no">01</span><strong>대인사고</strong><small>사람이 다치거나 치료가 필요한 사고<br>부상·진단·진료비 중심 작성</small></button><button type="button" class="report-type-card property" data-report-type="property"><span class="report-type-no">02</span><strong>대물사고</strong><small>차량·장비·시설물이 파손된 사고<br>파손·복구견적 중심 작성</small></button></div><div class="report-type-note">사고 종류를 선택하면 해당 경위서에 필요한 항목만 표시됩니다.</div></section>`;bindPicker(root,u)}
 
   function siteControl(u,siteId){const selected=siteId||u?.siteId||'';if(isSiteUser(u))return `<input id="reportSite" type="hidden" value="${esc(selected)}"><input class="report410-overview-control" value="${esc(currentSiteName(selected))}" disabled>`;return `<select id="reportSite" class="report410-overview-control" required><option value="">사업장 선택</option>${(data.sites||[]).filter(s=>s.id!=='site-hq').map(s=>`<option value="${esc(s.id)}" ${String(s.id)===String(selected)?'selected':''}>${esc(s.name)}</option>`).join('')}</select>`}
@@ -278,7 +278,7 @@
     });
   }
 
-  function renderTypeForm(root,u,type,i=activeEdit()){
+  function renderTypeForm(root,u,type,i=activeEdit(),fresh=false){
     if(!root)return;if(!['person','property'].includes(type))return renderTypePicker(root,u);activeType=type;
     const person=type==='person',editing=!!i,title=person?'대인사고 경위서':'대물사고 경위서',desc=person?'부상·진단·진료비 등 인적 피해 중심으로 작성합니다.':'파손내용·복구비용·견적 등 물적 피해 중심으로 작성합니다.';
     root.innerHTML=`${topBack(u)}<form id="unifiedReportForm" class="panel report-simple incident410-form report410-entry-table" data-report-type="${type}" data-editing="${editing?'true':'false'}"><div class="section-head"><div><div class="ey">${person?'PERSON INCIDENT':'PROPERTY INCIDENT'}</div><h2>${title}${editing?' 수정':''}</h2><p>${editing?'기존에 입력한 내용을 불러왔습니다. 필요한 부분을 수정한 뒤 다시 제출해 주세요.':desc}</p></div>${editing?'<button type="button" class="secondary report410-change" data-cancel-edit>← 사고 기록으로</button>':'<button type="button" class="secondary report410-change" data-change-type>← 사고 종류 변경</button>'}</div>${reportSectionsHtml(u,type,i)}<section class="report410-section report410-photo" data-photo-required="${!editing||hasSceneEvidence(i?.photos)}"><div class="report410-section-head"><b>5. 현장 첨부자료${editing&&!hasSceneEvidence(i?.photos)?'':' *'}</b></div>${photoPickerHtml('incident')}</section>${editing&&u?.role==='safety'?'<section class="report410-section"><label class="lbl"><span>안전관리자 수정 사유 *</span><textarea id="safetyFactEditReason" required minlength="2" maxlength="2000" rows="2" placeholder="예: 원자료 재확인 후 사고발생일 오류 수정"></textarea></label><small>안전관리자 수정 시 기존 검토 상태는 그대로 유지되며 변경 사항은 서버 감사기록에 남습니다.</small></section>':''}<button class="primary full report410-submit" type="submit">${editing?(u?.role==='safety'?'수정사항 저장':'수정 후 다시 제출'):title+' 제출하기'}</button></form>`;
@@ -302,6 +302,7 @@
     if(editing){const form=root.querySelector('#unifiedReportForm');form._initialValues=Object.fromEntries([...form.querySelectorAll('input[id],textarea[id],select[id]')].map(el=>[el.id,el.type==='checkbox'?el.checked:el.value]));}
     root.querySelectorAll('[data-report410-picker]').forEach(w=>{const input=w.querySelector('input'),ph=w.querySelector('.report410-picker-placeholder');if(!input)return;const sync=()=>w.classList.toggle('has-value',!!String(input.value||'').trim());const focus=()=>w.classList.add('is-focus'),blur=()=>{w.classList.remove('is-focus');sync()};input.addEventListener('input',sync);input.addEventListener('change',sync);input.addEventListener('focus',focus);input.addEventListener('blur',blur);ph?.addEventListener('click',()=>{try{input.focus();input.showPicker?.()}catch(e){input.focus()}});sync()});
     root.querySelectorAll('[data-auto-pending]').forEach(el=>{const base=String(el.dataset.autoPending||PENDING_COST);el.addEventListener('focus',()=>{if(String(el.value||'').trim()===base)el.value=''});el.addEventListener('blur',()=>{if(!String(el.value||'').trim())el.value=base})});
+    window.ENLFormDrafts?.bind(root.querySelector('#unifiedReportForm'),u,type,i,fresh);
     root.querySelector('[data-report-home]')?.addEventListener('click',()=>backHome(u));root.querySelector('[data-change-type]')?.addEventListener('click',()=>renderTypePicker(root,u));root.querySelector('[data-cancel-edit]')?.addEventListener('click',()=>backRecords(u));root.querySelector('#unifiedReportForm')?.addEventListener('submit',async e=>submitIncident410(e,u,type,i));
   }
 
@@ -310,6 +311,7 @@
   function buildSummary(type,siteId){const when=formatOccurred(value('occurredDate410'),value('occurredTime410')),site=currentSiteName(siteId),place=value('incidentPlace410'),work=value('workAction410'),how=value('incidentHow410'),prevention=value('preventionPlan410'),special=value('specialNote410');let damage='';if(type==='person'){const cost=money(value('medicalCost410'));damage=[`${value('injuredName')||'피해 직원'}: ${value('injuryDetail410')}`,value('diagnosis410')&&`진단명: ${value('diagnosis410')}`,value('doctorOpinion410')&&`의사 소견: ${value('doctorOpinion410')}`,cost&&`진료비: ${moneyText(cost)}`].filter(Boolean).join(' / ')}else{const raw=value('repairCost410'),cost=money(raw),costText=raw===PENDING_COST||!cost?PENDING_COST:moneyText(cost);damage=[value('propertyWorker410')&&`작업자: ${value('propertyWorker410')}`,`${value('damagedItem410')}: ${value('damageDetail410')}`,`복구 예상비용: ${costText}`,value('repairCostDetail410')&&`견적 상세: ${value('repairCostDetail410')}`].filter(Boolean).join(' / ')}return [`[사고 개요] ${when} ${site} ${place}`,`[사고 경위] ${work} 중 ${how}`,`[피해 상황] ${damage}`,prevention&&`[재발 방지 대책] ${prevention}`,special&&`[특이사항] ${special}`].filter(Boolean).join('  ')}
 
   async function submitIncident410(e,u,type,existing=null){
+    const draftStore=window.ENLFormDrafts?.forForm(e.currentTarget);
     if(existing)existing=structuredClone(existing);
     e.preventDefault();
     if(existing&&accepted(existing)&&u?.role!=='safety')return alert('승인된 사고는 안전관리자만 정정할 수 있습니다.');if(!canCreate(u))return alert('사고보고 등록 권한이 없습니다.');
@@ -361,7 +363,7 @@
         if(window.enlIsHistoricalCorrectionSupported?.(existing))Object.assign(changes,window.enlCollectHistoricalMetadata?.(existing,e.currentTarget)||{});
         if(!Object.keys(changes).length)return alert('변경된 내용이 없습니다.');
         const form=e.currentTarget,button=form.querySelector('[type=submit]');if(button.disabled)return;button.disabled=true;
-        try{await window.enlSaveReportCorrection(existing,changes,safetyReason,{...editOptions,requestState:form});incidentPhotos=[];activeType=null;activeEditId=null;editSnapshot=null;currentView='incidents';renderShell(u);alert('정정사항이 저장되었습니다. 승인·종결 정보와 변경 전후 이력은 보존됩니다.');}catch(err){alert(window.enlCorrectionError?.(err)||err.message);}finally{button.disabled=false;}
+        try{await window.enlSaveReportCorrection(existing,changes,safetyReason,{...editOptions,requestState:form});draftStore?.clear();incidentPhotos=[];activeType=null;activeEditId=null;editSnapshot=null;currentView='incidents';renderShell(u);alert('정정사항이 저장되었습니다. 승인·종결 정보와 변경 전후 이력은 보존됩니다.');}catch(err){alert(window.enlCorrectionError?.(err)||err.message);}finally{button.disabled=false;}
         return;
       }
       const previousStatus=existing.status,bySafety=u?.role==='safety';
@@ -377,11 +379,12 @@
       }
       const attempt=window.enlStableSaveAttempt?.(e.currentTarget,existing,['prioritySetAt','resubmittedAt','reviewHistory.'+(existing.reviewHistory.length-1)+'.at'])||existing;
       if(!await window.enlCommitOrNotify(attempt))return;
+      draftStore?.clear();
       incidentPhotos=[];activeType=null;activeEditId=null;
       alert(bySafety?'안전관리자 수정사항이 저장되었습니다. 기존 검토상태는 유지됩니다.':'수정된 사고보고서가 다시 제출되었습니다.');
       currentView='incidents';return renderShell(u);
     }
-    const form=e.currentTarget,submissionKey=JSON.stringify({...common,updatedAt:undefined,reportDetails:{...details,recordedAt:undefined}});form._draftIncidentId=form._draftIncidentId||uid('inc');const incident=form._pendingIncident&&form._submissionKey===submissionKey?form._pendingIncident:{id:form._draftIncidentId,...common,reporterName:u.name,reporterId:u.personnelId||u.id||'',createdAt:nowISO(),status:'reported',safetyNote:'',approvedBy:'',approvedAt:null,closedAt:null,corrective:null,readReceipts:[]};form._pendingIncident=incident;form._submissionKey=submissionKey;if(!await window.enlCommitOrNotify(incident))return;incidentPhotos=[];activeType=null;activeEditId=null;alert(`${type==='person'?'대인사고':'대물사고'} 경위서가 접수되었습니다.`);currentView='incidents';renderShell(u)
+    const form=e.currentTarget,submissionKey=JSON.stringify({...common,updatedAt:undefined,reportDetails:{...details,recordedAt:undefined}});form._draftIncidentId=form._draftIncidentId||uid('inc');const incident=form._pendingIncident&&form._submissionKey===submissionKey?form._pendingIncident:{id:form._draftIncidentId,...common,reporterName:u.name,reporterId:u.personnelId||u.id||'',createdAt:nowISO(),status:'reported',safetyNote:'',approvedBy:'',approvedAt:null,closedAt:null,corrective:null,readReceipts:[]};form._pendingIncident=incident;form._submissionKey=submissionKey;draftStore?.capture();if(!await window.enlCommitOrNotify(incident))return;draftStore?.clear();incidentPhotos=[];activeType=null;activeEditId=null;alert(`${type==='person'?'대인사고':'대물사고'} 경위서가 접수되었습니다.`);currentView='incidents';renderShell(u)
   }
 
   function renderReport(root,u){if(!root)return;if(!canCreate(u)){root.innerHTML='<div class="panel permission-empty"><div class="lock-icon">🔒</div><h2>사고보고 등록 권한이 없습니다.</h2></div>';return}const edit=activeEdit();if(edit){activeType=edit.category;return renderTypeForm(root,u,activeType,edit)}if(activeType)return renderTypeForm(root,u,activeType,null);return renderTypePicker(root,u)}

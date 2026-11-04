@@ -155,8 +155,16 @@ function attachmentGalleryHtml(arr){const list=Array.isArray(arr)?arr:[];if(!lis
 function bindAttachmentOpen(root,arr){const list=Array.isArray(arr)?arr:[];root?.querySelectorAll('[data-attach-open]').forEach(b=>b.onclick=()=>openAttachment(list[Number(b.dataset.attachOpen)]));hydrateAttachmentPreviews(root,list)}
 function photoPickerHtml(kind){ensureAttachmentStyle();return `<div class="photo-box"><div class="photo-head"><b>${kind==='incident'?'현장 첨부자료':'개선조치 사진 / PDF'}</b><small id="${kind}PhotoCount">0 / ${MAX_PHOTOS}개</small></div><div class="photo-actions"><button type="button" class="secondary" id="${kind}PhotoBtn">${kind==='incident'?'사진 또는 파일 선택':'사진 / PDF 선택 / 촬영'}</button></div><label style="display:flex;gap:7px;align-items:flex-start;font-size:13px;line-height:1.5;margin:8px 0"><input id="${kind}PreserveOriginal" type="checkbox" style="width:18px;min-width:18px;margin-top:2px">${kind==='incident'?'원본사진 저장':'증빙 원본 그대로 보존 (작은 글씨, 균열, 상처 등의 정밀 확인용)'}</label>${kind==='incident'?'<small style="display:block;color:#60788d;margin-bottom:8px">사진, PDF, 한글, 워드, 엑셀, PPT, 텍스트, ODF, ZIP 파일을 첨부할 수 있습니다. 파일당 최대 8MB입니다.</small>':'<small style="display:block;color:#60788d;margin-bottom:8px">선택 전 체크하면 원본을 저장합니다. 일반 사진은 해상도를 유지해 자동 압축하며 PDF는 변경하지 않습니다.</small>'}<div id="${kind}Thumbs" class="attach-grid411"></div></div>`}
 function bindPhotoButtons(){const a=document.getElementById('incidentPhotoBtn');if(a)a.onclick=()=>incidentPhotoInput.click();const b=document.getElementById('actionPhotoBtn');if(b)b.onclick=()=>actionPhotoInput.click()}
-incidentPhotoInput.onchange=async e=>{incidentPhotos=await addFiles(incidentPhotos,e.target.files,'incident');e.target.value='';renderPhotoThumbs('incident')};
-actionPhotoInput.onchange=async e=>{actionPhotos=await addFiles(actionPhotos,e.target.files,'action');e.target.value='';renderPhotoThumbs('action')};
+async function selectFormFiles(event,kind){
+  const input=event.target,form=document.getElementById(kind+'PhotoBtn')?.closest('form');
+  const list=kind==='incident'?incidentPhotos:actionPhotos;
+  const files=await addFiles(list,input.files,kind,{form});input.value='';
+  if(form&&!form.isConnected){window.ENLFormDrafts?.forForm(form)?.capture(files);return;}
+  if(kind==='incident')incidentPhotos=files;else actionPhotos=files;
+  renderPhotoThumbs(kind);
+}
+incidentPhotoInput.onchange=e=>selectFormFiles(e,'incident');
+actionPhotoInput.onchange=e=>selectFormFiles(e,'action');
 const attachmentFormLocks=new WeakMap();
 function lockAttachmentForm(form){
   if(!form)return()=>{};

@@ -259,19 +259,6 @@
     root.querySelectorAll('[data-submission-files]').forEach(el=>bindAttachments(el,i.corrective?.submissions?.[Number(el.dataset.submissionFiles)]?.afterPhotos||[]));
     if(target)window.enlScrollReportStage?.(root,target);
   }
-  // Drafts belong to this tab, user, incident, stage and server version. A newer
-  // server record never receives an old draft automatically.
-  function retainDraft(form,i,u,kind){
-    const key=['enl-report-draft',userId(u),i.id,kind,Number(i._syncVersion||0)].join(':');
-    const fields=()=>[...form.querySelectorAll('input[id],textarea[id],select[id]')].filter(el=>el.type!=='file'&&!el.disabled);
-    try{const saved=JSON.parse(sessionStorage.getItem(key)||'null');if(saved){for(const el of fields())if(Object.prototype.hasOwnProperty.call(saved.values,el.id)){if(el.type==='checkbox')el.checked=!!saved.values[el.id];else el.value=saved.values[el.id];}if(kind==='action'&&Array.isArray(saved.photos)){actionPhotos=saved.photos;renderPhotoThumbs('action');}}}catch(e){}
-    const capture=()=>{if(!form.isConnected)return;const values=Object.fromEntries(fields().map(el=>[el.id,el.type==='checkbox'?el.checked:el.value]));try{sessionStorage.setItem(key,JSON.stringify({values,photos:kind==='action'?persistAttachments(actionPhotos):[]}));}catch(e){}};
-    form.addEventListener('input',capture);form.addEventListener('change',capture);window.addEventListener('pagehide',capture);
-    const thumbs=form.querySelector('#actionThumbs'),observer=thumbs?new MutationObserver(capture):null;if(thumbs)observer.observe(thumbs,{childList:true});
-    const cleanup=()=>{window.removeEventListener('pagehide',capture);observer?.disconnect();};
-    const removal=new MutationObserver(()=>{if(!form.isConnected){cleanup();removal.disconnect();}});removal.observe(document.getElementById('modalRoot'),{childList:true,subtree:true});
-    return {capture,clear:()=>{cleanup();removal.disconnect();try{sessionStorage.removeItem(key)}catch(e){}}};
-  }
   async function commitForm(form,i,u,onSuccess){
     if(form.dataset.saving==='1')return false;form.dataset.saving='1';
     i=window.enlStableSaveAttempt?.(form,i,['closedAt'])||i;
@@ -301,11 +288,11 @@
     openModal(modalHead(i,`재발방지계획 ${plan?'수정':'작성'}`)+cumulative(i,{through:'B'})+
       `<form id="prev429PlanForm" class="report410-stage report410-active-blue" data-report-stage="C"><h3>C. 안전관리자 재발방지계획</h3><p class="report410-current-note">${plan?'저장된 계획을 불러왔습니다. 변경할 내용만 수정해 주세요.':'기존 사고내용을 바탕으로 제안한 초안입니다. 확인한 사실에 맞게 수정해 주세요.'}</p><label class="lbl"><span>원인 분석 *</span><textarea id="prev429RootCause" rows="4" required>${ex(initial('rootCause'))}</textarea></label><label class="lbl"><span>재발방지계획 *</span><textarea id="prev429PlanDetail" rows="5" required>${ex(initial('planDetail'))}</textarea></label><div class="formgrid"><label class="lbl"><span>조치 담당자 *</span><input id="prev429Owner" value="${ex(initial('ownerName'))}" required></label><label class="lbl"><span>완료예정일 *</span><input id="prev429Due" type="date" value="${ex(initial('dueDate'))}" required></label></div><button type="submit" class="primary full">${plan?'재발방지계획 수정 저장':'재발방지계획 등록'}</button></form>`+
       (c.actionDetail?cumulative(i,{from:'D'})+historyHtml(c):''));
-    mountDocument(i,'[data-report-stage="C"]');const form=document.getElementById('prev429PlanForm'),draftStore=retainDraft(form,i,u,'plan');
-    form.onsubmit=async e=>{e.preventDefault();if(!form.reportValidity())return;draftStore.capture();const next=structuredClone(i),out={...c};
+    mountDocument(i,'[data-report-stage="C"]');const form=document.getElementById('prev429PlanForm'),draftStore=window.ENLFormDrafts?.bind(form,u,'plan',i);
+    form.onsubmit=async e=>{e.preventDefault();if(!form.reportValidity())return;draftStore?.capture();const next=structuredClone(i),out={...c};
       for(const [k,id] of [['rootCause','prev429RootCause'],['planDetail','prev429PlanDetail'],['ownerName','prev429Owner'],['dueDate','prev429Due']])out[k]=text(form.querySelector('#'+id).value);
       if(!plan)out.status=text(c.actionDetail)?'in_progress':'planned';else if(!out.status||out.status==='none')out.status='planned';
-      next.corrective=out;next.updatedAt=now();if(await commitForm(form,next,u,()=>draftStore.clear()))alert(plan?'재발방지계획을 수정했습니다.':'재발방지계획을 등록했습니다.');
+      next.corrective=out;next.updatedAt=now();if(await commitForm(form,next,u,()=>draftStore?.clear()))alert(plan?'재발방지계획을 수정했습니다.':'재발방지계획을 등록했습니다.');
     };
   }
   // Do not invoke native validation bubbles: mobile browsers can leave them over later screens.
@@ -336,15 +323,15 @@
     openModal(modalHead(i,'재발방지조치 작성')+cumulative(i,{through:'C'})+
       `<form id="prev429FieldForm" novalidate data-enl432-action="1" class="report410-stage report410-active-orange" data-report-stage="D"><h3>D. 현장 재발방지조치</h3><p class="report410-current-note">위 계획에 따라 실제 실시한 조치와 증빙을 등록해 주세요.</p>${c.status==='rejected'?`<div class="prev429-reject"><b>보완요청 사항</b><p>${ex(c.reviewNote||'')}</p></div>`:''}<label class="lbl"><span>실제 실시한 재발방지조치 *</span><textarea id="prev429ActionDetail" rows="5" required>${ex(c.actionDetail||'')}</textarea></label><div class="formgrid"><label class="lbl"><span>실제 시행일 *</span><input id="prev429ActionDate" type="date" max="${targetDate(0)}" value="${ex(c.actionDate||'')}" required></label><label class="lbl"><span>실제 조치 완료일 *</span><input id="prev432CompletedDate" type="date" max="${targetDate(0)}" value="${ex(c.actionCompletedDate||c.completedDate||'')}" required></label><label class="lbl"><span>조치 담당자 *</span><input id="prev429ActionOwner" value="${ex(c.actionOwner||u.name||'')}" required></label></div><label class="lbl"><span>추가 확인사항</span><textarea id="prev429AdditionalNotes" rows="2">${ex(c.additionalNotes||'')}</textarea></label>${photoPickerHtml('action')}<div id="prev432EvidenceRequired" class="prev432-evidence-required"><b>조치 증빙 *</b><span>사진 또는 PDF 1개 이상 · <em data-prev432-count></em></span></div><details class="report410-history"><summary>사후 확인된 추가 비용</summary><div class="formgrid">${[['medicalCost','치료비'],['repairCost','수리비']].map(([k,label])=>`<label class="lbl"><span>${label} (원)</span><span class="won-entry"><input id="prev429Extra-${k}" data-won type="text" inputmode="numeric" ${previousCost[k]!=null&&previousCost[k]!==''&&!(Number(previousCost[k])===0&&previousCost[k+'Pending']===true)?'disabled':''} value="${ex(previousCost[k]??'')}"><small>원</small></span></label>`).join('')}</div></details><div class="modal-actions"><button type="button" class="btn-gray" id="prev429Draft">임시저장</button><button type="submit" class="btn-blue">안전관리자 확인요청</button></div></form>`+historyHtml(c));
     renderPhotoThumbs('action');bindPhotoButtons();mountDocument(i,'[data-report-stage="D"]');
-    const form=document.getElementById('prev429FieldForm'),draftStore=retainDraft(form,i,u,'action');
-    const save=async status=>{draftStore.capture();if(!validateFieldAction(form,status==='submitted'))return;
+    const form=document.getElementById('prev429FieldForm'),draftStore=window.ENLFormDrafts?.bind(form,u,'action',i);
+    const save=async status=>{draftStore?.capture();if(!validateFieldAction(form,status==='submitted'))return;
       const detail=text(form.querySelector('#prev429ActionDetail').value);if(!detail)return alert('실제 조치내용을 입력해 주세요.');
       if(status==='submitted'&&!actionPhotos.length)return alert('사진 또는 PDF 증빙을 1개 이상 첨부해 주세요.');
       const next=structuredClone(i),out={...c,status,actionDetail:detail,afterPhotos:persistAttachments(actionPhotos)};
       for(const [k,id] of [['actionDate','prev429ActionDate'],['actionCompletedDate','prev432CompletedDate'],['actionOwner','prev429ActionOwner'],['additionalNotes','prev429AdditionalNotes']])out[k]=text(form.querySelector('#'+id).value);
       if(status==='submitted'&&out.actionCompletedDate<out.actionDate)return alert('완료일은 시행일보다 빠를 수 없습니다.');
       for(const k of ['medicalCost','repairCost']){const input=form.querySelector('#prev429Extra-'+k);if(input.disabled||!text(input.value))continue;const amount=Number(input.value.replace(/,/g,''));if(!Number.isSafeInteger(amount)||amount<0)return alert('비용은 0원 이상의 정수로 입력해 주세요.');next.reportDetails={...next.reportDetails,[k]:amount};}
-      next.corrective=out;next.updatedAt=now();if(await commitForm(form,next,u,()=>{draftStore.clear();actionPhotos=[];}))alert(status==='submitted'?'재발방지조치를 제출했습니다.':'재발방지조치를 임시저장했습니다.');
+      next.corrective=out;next.updatedAt=now();if(await commitForm(form,next,u,()=>{draftStore?.clear();actionPhotos=[];}))alert(status==='submitted'?'재발방지조치를 제출했습니다.':'재발방지조치를 임시저장했습니다.');
     };
     form.onsubmit=e=>{e.preventDefault();save('submitted')};document.getElementById('prev429Draft').onclick=()=>save('in_progress');
   }
