@@ -7,7 +7,18 @@ const assert=require('node:assert/strict'),{fixture}=require('./final-lifecycle.
  await ok('field','push',{incidents:[doc]});
  let id=doc.id,visitId=crypto.randomUUID();for(let n=0;n<2;n++)await ok('manager','view',{incidentId:id,visitId});
  await ok('manager','view',{incidentId:id,visitId:crypto.randomUUID()});
- for(const role of ['manager','executive','field','other'])for(const action of ['activity_count','activity_open','activity_list','activity_page','activity_document'])assert.equal((await q(role,action,{incidentId:id})).status,403);
+ for(const role of ['manager','executive','field','other']){
+   const expected=role==='other'?0:2;
+   assert.equal((await ok(role,'activity_count')).unread,expected);
+   assert.equal((await ok(role,'activity_open')).rows.length,expected);
+   assert.equal((await ok(role,'activity_count')).unread,0);
+   assert.equal((await q(role,'activity_document',{incidentId:id})).status,expected?200:404);
+   for(const mode of ['one','range','all'])assert.equal((await q(role,'activity_delete',{mode,confirmed:true})).status,403);
+ }
+ assert.equal((await f.raw({actor:f.actors.safety,action:'activity_delete',mode:'all',confirmed:true})).status,403);
+ await f.db.exec("insert into enl_site_personnel values('qa-worker','qa-site','근로자','일반근로자','worker',true,'qa-proof')");
+ for(const action of ['activity_count','activity_list','activity_document','activity_delete'])
+   assert.equal((await q('field',action,{actor:{id:'qa-worker',siteId:'qa-site',role:'worker'}})).status,403);
  assert.equal((await q('other','view',{incidentId:id,visitId:crypto.randomUUID()})).status,403);
  assert.equal((await ok('safety','activity_count')).unread,2);
  const r=await ok('safety','activity_open');assert.equal(r.rows.length,2);assert.equal(r.rows[1].kind,'create');assert.equal(r.rows[1].actor_name,'QA 현장');assert.match(r.rows[1].incident_title,/충돌/);
@@ -35,5 +46,32 @@ const assert=require('node:assert/strict'),{fixture}=require('./final-lifecycle.
  assert.equal((await find({toDate:'2025-12-31',search:'가상 직원'})).length,0);
  for(const keyword of ['현장 정보','본사 사용자','최초 등록','처음 조회','최초조회','현장설정'])assert.ok((await find({search:keyword==='본사 사용자'?'본사 계정':keyword})).length>0);
  assert.equal((await q('safety','activity_list',{fromDate:'2026-02-31'})).status,400);
+ for(const who of ['executive','manager','field'])assert.equal((await q(who,'activity_document',{incidentId:id})).status,404);
+ assert.equal((await ok('other','activity_list')).rows.length,0);
+ const fieldSettings=(await ok('field','activity_list')).rows;
+ assert.ok(fieldSettings.some(r=>r.kind==='personnel_create'));assert.ok(fieldSettings.every(r=>r.site_id==='qa-site'&&!r.kind.startsWith('hq_')));
+ assert.ok(!(await ok('manager','activity_list')).rows.some(r=>r.kind.startsWith('hq_')));
+ for(const args of [{mode:'all'},{mode:'range',fromDate:'2026-01-01',confirmed:true},{mode:'all',id:'1',confirmed:true},{mode:'range',fromDate:'2026-02-31',toDate:'2026-03-01',confirmed:true}])
+   assert.equal((await q('safety','activity_delete',args)).status,400);
+ const erase=(args)=>ok('safety','activity_delete',{confirmed:true,...args});
+ assert.equal((await erase({mode:'one',id:jan[0].id})).removed,1);
+ assert.equal((await erase({mode:'one',id:jan[0].id})).removed,0);
+ await f.db.exec(`insert into enl_site_audit(site_id,action,editor_role,changed_at) values
+ ('qa-site','update','safety','2026-02-28T14:59:59Z'),('qa-site','update','safety','2026-02-28T15:00:00Z'),
+ ('qa-site','update','safety','2026-03-01T14:59:59Z'),('qa-site','update','safety','2026-03-01T15:00:00Z')`);
+ assert.equal((await erase({mode:'range',fromDate:'2026-03-01',toDate:'2026-03-01'})).removed,2);
+ assert.ok((await erase({mode:'all'})).removed>50);
+ for(const who of ['safety','manager','executive','field']){assert.equal((await ok(who,'activity_count')).unread,0);assert.equal((await ok(who,'activity_list')).rows.length,0);}
+ assert.ok((await ok('safety','activity_document',{incidentId:id})).archived);
+ await f.db.exec("insert into enl_site_audit(site_id,action,editor_role,changed_at) values('qa-site','update','safety',now())");
+ assert.equal((await ok('field','activity_count')).unread,1);
+ const rejected={...doc,id:'qa-rejected',status:'rejected'};
+ await f.seedLegacy(rejected);
+ await f.db.exec("insert into enl_incident_audit(incident_id,site_id,action,editor_role,changed_at) values('qa-rejected','qa-site','create','field',now())");
+ for(const who of ['manager','executive','other']){
+   assert.equal((await ok(who,'activity_list',{search:'qa-rejected'})).rows.length,0);
+   assert.equal((await q(who,'activity_document',{incidentId:rejected.id})).status,404);
+ }
+ assert.equal((await ok('field','activity_document',{incidentId:rejected.id})).archived,false);
  console.log('PASS scoped history, audit/visit idempotency, per-user reads, new unread, pagination and deleted document');
 }finally{await f.db.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

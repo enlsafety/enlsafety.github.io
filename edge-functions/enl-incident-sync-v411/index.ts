@@ -206,17 +206,53 @@ Deno.serve(async(req:Request)=>{
   try{
     let actor=await verifyActor(sql,body,true);if(!actor)return json({ok:false,message:"auth_proof_required"},403);
 
-    if(["activity_count","activity_open","activity_list","activity_page","activity_document"].includes(action)){
-      if(actor.role!=="safety")return json({ok:false,message:"forbidden"},403);
+    if(["activity_count","activity_open","activity_list","activity_page","activity_document","activity_delete"].includes(action)){
+      const safety=actor.role==="safety",field=actor.role==="field"&&!!actor.siteId&&["현장소장","파트장","서무"].includes(actor.position);
+      if(!safety&&!field&&!["manager","executive"].includes(actor.role))return json({ok:false,message:"forbidden"},403);
+      const readKey=safety?actor.id:JSON.stringify([actor.role,actor.siteId,actor.id]);
+      const from=clean(body.fromDate),to=clean(body.toDate);
+      const dayOk=(v:string)=>!v||(/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v&&v>="1900-01-01"&&v<="9998-12-31");
+      if(action==="activity_delete"){
+        if(!safety)return json({ok:false,message:"forbidden"},403);
+        const mode=clean(body.mode),id=clean(body.id);
+        if(body.confirmed!==true||!["one","range","all"].includes(mode)||
+           (mode==="one"?!/^\d{1,18}$/.test(id):!!id)||
+           (mode==="range"?(!from||!to||!dayOk(from)||!dayOk(to)||from>to):!!from||!!to))
+          return json({ok:false,message:"invalid_delete_scope"},400);
+        const [result]=await sql`with removed as (
+          update private.enl_activity_events set listed=false where listed
+          and (${mode}<>'one' or id=nullif(${id},'')::bigint)
+          and (${mode}<>'range' or happened_at >= (nullif(${from},'')::date::timestamp at time zone 'Asia/Seoul')
+            and happened_at < ((nullif(${to},'')::date+1)::timestamp at time zone 'Asia/Seoul')) returning 1)
+          select count(*)::int as removed from removed`;
+        return json({ok:true,removed:result.removed});
+      }
+      // Both the unread count and every search/page use this same server-verified scope.
+      const visible=safety?sql`true`:sql`(
+        (${field} and e.site_id=${actor.siteId} and split_part(e.kind,'_',1) in ('site','personnel'))
+        or (split_part(e.kind,'_',1) not in ('site','personnel','hq') and exists (
+          select 1 from public.enl_incident_active a where a.incident_id=e.incident_id
+          and (not ${field} or (a.site_id=${actor.siteId} and e.site_id=a.site_id))
+          and (${field} or a.payload->>'status' in ('reported','supplement','supplement_submitted','approved','closed'))
+          and not (coalesce(a.payload#>>'{bulkInvalidation,active}','false')='true'
+            and coalesce(a.payload#>>'{historicalOrigin,batchId}','')<>'' and coalesce(a.payload#>>'{historicalOrigin,candidateId}','')<>''
+            and coalesce(a.payload#>>'{externalInitialApproval,state}','') in ('verified','unverifiable')))))`;
       if(action==="activity_count"){
         const [r]=await sql`select count(*)::int as unread from private.enl_workflow_history e
-          left join private.enl_history_checkpoints c on c.actor_id=${actor.id}
-          where (c.seen is null or (e.write_xid>=pg_snapshot_xmin(c.seen) and not pg_visible_in_snapshot(e.write_xid,c.seen))) and not exists
-          (select 1 from private.enl_activity_reads r where r.actor_id=${actor.id} and r.event_id=e.id)`;
+          left join private.enl_history_checkpoints c on c.actor_id=${readKey}
+          where ${visible} and (c.seen is null or (e.write_xid>=pg_snapshot_xmin(c.seen) and not pg_visible_in_snapshot(e.write_xid,c.seen))) and not exists
+          (select 1 from private.enl_activity_reads r where r.actor_id=${readKey} and r.event_id=e.id)`;
         return json({ok:true,unread:r.unread});
       }
       if(action==="activity_document"){
         const id=clean(body.incidentId);
+        if(!safety){
+          const [active]=await sql`select site_id,payload from public.enl_incident_active where incident_id=${id}`;
+          const doc=parsePayload(active?.payload);
+          if(!doc||bulkInactive(doc)||(field?active.site_id!==actor.siteId:!reportVisibleToReaders(doc)))
+            return json({ok:false,message:"not_found"},404);
+          return json({ok:true,archived:false});
+        }
         const [r]=await sql`select case when d.deleted_at is not null then s.payload end as payload,s.site_id,d.deleted_at,d.deleted_by_name,d.reason from public.enl_incident_shared s
           left join private.enl_incident_deletions d using(incident_id) where s.incident_id=${id}`;
         if(r&&!r.deleted_at)return json({ok:true,archived:false});
@@ -230,18 +266,17 @@ Deno.serve(async(req:Request)=>{
       }
       const cursor=action==="activity_page"?clean(body.before):"";
       if(action==="activity_page"&&!/^\d{1,18}$/.test(cursor))return json({ok:false,message:"invalid_cursor"},400);
-      const from=clean(body.fromDate),to=clean(body.toDate),term=clean(body.search).toLowerCase().replace(/\s+/g," ");
-      const dayOk=(v:string)=>!v||(/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v&&v>="1900-01-01"&&v<="9998-12-31");
+      const term=clean(body.search).toLowerCase().replace(/\s+/g," ");
       if(!dayOk(from)||!dayOk(to)||from&&to&&from>to||term.length>120)return json({ok:false,message:"invalid_history_filter"},400);
       // One statement, one MVCC snapshot. Concurrent later commits remain unread,
       // even if their sequence values or timestamps precede the displayed rows.
       const rows=await sql`with marked as (
           insert into private.enl_history_checkpoints(actor_id,seen,marked_at)
-          select ${actor.id},pg_current_snapshot(),statement_timestamp() where ${action==="activity_open"}
+          select ${readKey},pg_current_snapshot(),statement_timestamp() where ${action==="activity_open"}
           on conflict(actor_id) do update set seen=excluded.seen,marked_at=excluded.marked_at
           where excluded.marked_at>=enl_history_checkpoints.marked_at returning actor_id)
         select id::text as id,incident_id,happened_at,actor_name,actor_role,site_name,site_id,incident_title,occurred_text,kind,sentence,role_label
-        from private.enl_workflow_history e where (nullif(${cursor},'') is null or (happened_at,id) <
+        from private.enl_workflow_history e where ${visible} and (nullif(${cursor},'') is null or (happened_at,id) <
           (select happened_at,id from private.enl_activity_events where id=nullif(${cursor},'')::bigint))
         and (nullif(${from},'') is null or happened_at >= (nullif(${from},'')::date::timestamp at time zone 'Asia/Seoul'))
         and (nullif(${to},'') is null or happened_at < ((nullif(${to},'')::date+1)::timestamp at time zone 'Asia/Seoul'))

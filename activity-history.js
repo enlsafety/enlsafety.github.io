@@ -1,11 +1,14 @@
-/* Safety-only activity feed. The server owns both the audit trail and each user's read state. */
+/* Role-scoped activity feed. The server owns both the audit trail and each user's read state. */
 (()=>{
   'use strict';
   const stamp=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
   const day=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul'});
   const occurred=raw=>raw&&Number.isFinite(Date.parse(raw))?day.format(new Date(raw)):'';
   const actor=()=>window.enlCurrentActor?.();
-  const userId=()=>{const a=actor();return a?.role==='safety'?String(a.id):'';};
+  const canView=u=>['safety','manager','final','executive'].includes(u?.role)||(u?.role==='field'&&!!u.siteId&&['현장소장','파트장','서무'].includes(u.position||u.jobTitle));
+  window.enlHistoryAvailable=canView;
+  const menuSelector='[data-shell-view="history"],[data-field-task="history"]';
+  const userId=()=>{const a=actor();return a?.id&&canView(a)?JSON.stringify([a.role,a.siteId,a.id]):'';};
   const api=body=>window.enlIncidentApi({...body,actor:actor()});
   const safe=v=>esc(String(v??''));
   let account='',count=0,checked=0,serial=0,opening=0,requested=false;
@@ -15,7 +18,7 @@
     return id;
   }
   function paint(){
-    const b=document.querySelector('[data-shell-view="history"]');
+    const b=document.querySelector(menuSelector);
     if(!b)return;
     let badge=b.querySelector('.activity-count');
     if(!count){badge?.remove();b.removeAttribute('aria-label');return;}
@@ -23,7 +26,7 @@
     badge.textContent=String(count);b.setAttribute('aria-label','사용자 기록, 미확인 '+count+'건');
   }
   async function refresh(force=false){
-    const id=owner();if(!id||!document.querySelector('[data-shell-view="history"]'))return;
+    const id=owner();if(!id||!document.querySelector(menuSelector))return;
     paint();if(opening||document.hidden||!window.enlIncidentApi||(!force&&Date.now()-checked<30000))return;
     checked=Date.now();const token=++serial;
     try{const r=await api({action:'activity_count'});if(token===serial&&userId()===id){count=r.unread;paint();}}
@@ -33,7 +36,9 @@
     const live=()=>host.isConnected&&userId()===id;
     try{
       if(/^(site|hq|personnel)_/.test(row.kind)){
-        await window.enlOpenHistorySetting(row,live);return;
+        if(actor().role==='safety')await window.enlOpenHistorySetting(row,live);
+        else openModal('<div class="modal-head"><h2>설정 변경 기록</h2><button data-close>닫기</button></div><p>'+safe(row.sentence)+'</p><small>'+safe(stamp.format(new Date(row.happened_at)))+'</small>');
+        return;
       }
       const r=await api({action:'activity_document',incidentId:row.incident_id});if(!live())return;
       if(r.archived){
@@ -45,7 +50,7 @@
         dialog.onclose=()=>dialog.remove();host.append(dialog);dialog.showModal();refresh(true);return;
       }
       if(!data.incidents.some(i=>String(i.id)===row.incident_id))await window.enlIncidentPullNow(false);
-      if(live())window.enlOpenIncidentReview(row.incident_id,true,currentUser());
+      if(live())window.enlOpenIncidentReview(row.incident_id,actor().role==='safety',currentUser());
     }catch{if(live())alert('연결된 사고기록을 불러오지 못했습니다. 다시 시도해 주세요.');}
   }
   function render(root){
@@ -58,6 +63,28 @@
     const today=day.format(new Date()),recent=day.format(new Date(Date.parse(today+'T12:00:00+09:00')-29*86400000));
     controls.month.value=today.slice(0,7);controls.start.value=recent;controls.end.value=today;
     let before='',busy=false,request=0,filters={fromDate:recent,toDate:today,search:''};
+    const canDelete=actor().role==='safety';
+    let deleting=false;
+    async function removeHistory(payload,label){
+      if(deleting||!host.isConnected||userId()!==id||!confirm(label+' 삭제할까요? 모든 사용자의 기록 목록에 적용됩니다. 사고보고서는 유지됩니다.'))return;
+      deleting=true;
+      try{
+        const result=await api({action:'activity_delete',...payload,confirmed:true});
+        if(host.isConnected&&userId()===id){await load(true,false);await refresh(true);notice.textContent='사용자 기록 '+result.removed+'건을 삭제했습니다.';}
+      }catch{if(host.isConnected)notice.textContent='삭제 결과를 확인하지 못했습니다. 새로고침 후 확인해 주세요.';}
+      finally{deleting=false;}
+    }
+    const notice=document.createElement('p');notice.setAttribute('role','status');
+    if(canDelete){
+      const manage=document.createElement('details');manage.className='history-manage';
+      manage.innerHTML='<summary>기록 삭제 관리</summary><form><label>삭제 시작일<input type="date" name="start" required></label><label>삭제 종료일<input type="date" name="end" required></label><button type="submit">기간별 삭제</button><button type="button" data-delete-all>전체 삭제</button></form>';
+      form.after(manage);manage.after(notice);
+      const range=manage.querySelector('form');
+      range.onsubmit=e=>{e.preventDefault();const fromDate=range.elements.start.value,toDate=range.elements.end.value;
+        if(fromDate>toDate){notice.textContent='종료일은 시작일 이후로 선택해 주세요.';return;}
+        removeHistory({mode:'range',fromDate,toDate},fromDate+'부터 '+toDate+'까지의 사용자 기록을 모두');};
+      manage.querySelector('[data-delete-all]').onclick=()=>removeHistory({mode:'all'},'전체 기간의 사용자 기록을 모두');
+    }
     function apply(){
       let fromDate='',toDate='';
       if(controls.range.value==='recent'){fromDate=recent;toDate=today;}
@@ -89,7 +116,12 @@
         for(const row of r.rows){
           const item=document.createElement('li'),button=document.createElement('button');button.type='button';
           button.innerHTML='<small>'+safe(stamp.format(new Date(row.happened_at)))+'　'+safe(row.role_label)+(row.occurred_text?'　사고일 '+safe(occurred(row.occurred_text)):'')+'</small><strong>'+safe(row.sentence)+'</strong>';
-          button.onclick=()=>openDoc(row,host,id);item.append(button);list.append(item);before=row.id;
+          button.onclick=()=>openDoc(row,host,id);item.append(button);
+          if(canDelete){
+            const remove=document.createElement('button');remove.type='button';remove.className='history-remove';remove.textContent='×';
+            remove.setAttribute('aria-label','기록 삭제: '+row.sentence);remove.onclick=()=>removeHistory({mode:'one',id:row.id},'이 기록을');item.append(remove);
+          }
+          list.append(item);before=row.id;
         }
         more.hidden=!r.more;status.textContent=list.childElementCount?'최신순 / 한국시간':'조건에 맞는 기록이 없습니다.';
       }catch{if(host.isConnected&&seq===request)status.textContent='기록을 불러오지 못했습니다. 다시 시도해 주세요.';}
