@@ -56,13 +56,14 @@ const assert=require('node:assert/strict'),{fixture}=require('./final-lifecycle.
  assert.equal((await api('safety','activity_list',{...auth,module:'risk'})).body.rows.length,1);
  const cfg=(await api('safety','platform_catalog',auth)).body,services=cfg.services.toReversed();assert.equal(cfg.modules.find(m=>m.key==='risk').displayName,'위험요인 평가');
  assert.equal(services.length,6);assert.equal((await api('manager','platform_catalog')).body.services.some(s=>s.key==='system'),false);
- services.find(s=>s.key==='history').enabled=false;
+ services.find(s=>s.key==='history').enabled=false;services.find(s=>s.key==='history').displayName='공통 변경 기록';
  services.find(s=>s.key==='notices').roles=['safety'];
  const trial=services.find(s=>s.key==='documents');Object.assign(trial,{enabled:true,preview:true,roles:['manager','safety'],pilots:['hq:qa-manager']});
  const serviceSave={group:'services',modules:services,revision:cfg.revision};
  assert.equal((await api('manager','platform_save',serviceSave)).status,403);
  assert.equal((await api('safety','platform_save',{...serviceSave,...auth})).status,200);
  assert.equal((await api('safety','platform_save',{...serviceSave,...auth})).status,409);
+ assert.equal((await api('manager','platform_catalog')).body.services.find(s=>s.key==='history').displayName,'공통 변경 기록');
  const after=(await api('safety','platform_catalog',auth)).body;assert.deepEqual(after.modules,cfg.modules);assert.deepEqual(after.services.map(s=>s.key),services.map(s=>s.key));
  assert.equal((await api('manager','platform_notices')).status,403);assert.equal((await pref('manager','risk','push',true)).status,403);
  assert.equal((await api('safety','activity_list',{feed:'common',...auth})).status,403);assert.equal((await api('safety','activity_list',{feed:'incident',...auth})).status,200);

@@ -25,6 +25,21 @@ const {tab,noOverflow}=require('./field-entry-table-browser.cjs');
     document.querySelector('.platform-hub')?.remove();currentView='platform';window.enlRenderApp(currentUser());
    };await p.evaluate(mountHub);
    const card=p.locator('[data-module]');await card.first().waitFor();assert.equal(await card.count(),5);await noOverflow(p);
+   const colors=await p.locator('.feature-card-wrap').evaluateAll(rows=>rows.map(row=>{
+     const icon=row.querySelector('.platform-icon');
+     const paint=()=>[getComputedStyle(row).backgroundColor,getComputedStyle(icon).backgroundColor,getComputedStyle(icon.querySelector('svg')).stroke];
+     const initial=row.dataset.state,on=row.dataset.on;
+     row.dataset.state='live';row.dataset.on='true';const live=paint();
+     row.dataset.on='false';const off=paint();
+     row.dataset.state='building';row.dataset.on='true';const building=paint();
+     row.dataset.state=initial;row.dataset.on=on;
+     return {live,off,building};
+   }));
+   for(const item of colors)assert.deepEqual(item.off,item.live,'access does not change the operating palette');
+   for(const i of [0,1,2]){
+     assert.equal(new Set(colors.map(x=>x.live[i])).size,colors.length,'each live menu gets its own color');
+     assert.equal(new Set(colors.map(x=>x.building[i])).size,1,'building menus share the grey palette');
+   }
    const ys=await card.evaluateAll(nodes=>nodes.map(n=>n.getBoundingClientRect().y));assert.ok(ys.every((y,i)=>!i||y>ys[i-1]));
    await p.getByText('추가 예정',{exact:false}).waitFor();await p.getByRole('button',{name:'알림센터',exact:true}).click();
    const push=p.getByRole('switch',{name:'사고보고 앱 푸시',exact:true});await push.click();await p.waitForFunction(()=>document.querySelector('.notice-row [role=switch]')?.getAttribute('aria-checked')==='false');

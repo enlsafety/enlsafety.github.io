@@ -68,7 +68,7 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
     if(!m||!['live','building','hidden'].includes(m.state)||typeof m.preview!=='boolean'||(m.enabled!==undefined&&typeof m.enabled!=='boolean')||
        !Array.isArray(m.roles)||m.roles.some((r:any)=>!systemRoles.includes(r))||
        !Array.isArray(m.pilots)||m.pilots.length>100||m.pilots.some((p:any)=>typeof p!=='string'||!/^(hq|site):.{1,150}$/.test(p)))return reply({ok:false,message:'invalid_catalog'},400);
-    if(m.displayName!==undefined&&(services||typeof m.displayName!=='string'||!m.displayName.trim()||m.displayName.trim().length>30||/[\u0000-\u001f\u007f]/.test(m.displayName)))return reply({ok:false,message:'invalid_display_name'},400);
+    if(m.displayName!==undefined&&(typeof m.displayName!=='string'||!m.displayName.trim()||m.displayName.trim().length>30||/[\u0000-\u001f\u007f]/.test(m.displayName)))return reply({ok:false,message:'invalid_display_name'},400);
     if(m.key==='system'&&m.roles.some((r:any)=>r!=='safety'))return reply({ok:false,message:'forbidden'},403);
     if(m.key==='incident'&&(m.state==='building'||(m.state==='hidden'&&modules.find((x:any)=>x.key==='incident').state!=='hidden'&&body.confirmHideIncident!==true)||(m.enabled===false&&modules.find((x:any)=>x.key==='incident').enabled!==false&&body.confirmDisableIncident!==true)))return reply({ok:false,message:'incident_protected'},409);
   }
