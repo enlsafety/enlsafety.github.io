@@ -9,5 +9,13 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
  let r=await call('field',{action:'upload',file});check(r.status,200,'field upload');const path=r.body.attachment.path;check((await call('field',{action:'sign',paths:[path]})).status,200,'own upload preview');check((await call('other',{action:'sign',paths:[path]})).status,403,'other site cannot sign');check((await call('manager',{action:'sign',paths:[path]})).status,403,'unreferenced upload cannot be read');check((await call('safety',{action:'sign',paths:['../private.pdf']})).status,403,'path traversal');
  await f.call('field',{action:'push',incidents:[{id:'qa-attachment',siteId:'qa-site',status:'reported',category:'person',summary:'가상 첨부',occurredAt:'2026-10-13T00:00:00Z',photos:[{path}],supplement:{attachments:[{path:'incident/site-qa-site/medical.pdf'}]},corrective:null,_syncBaseVersion:0,_syncMutationId:'attachment-create'}]});
  check((await call('manager',{action:'sign',paths:[path]})).status,200,'reader linked photo');check((await call('manager',{action:'sign',paths:['incident/site-qa-site/medical.pdf']})).status,403,'reader medical supplement excluded');check(uploads,1,'only authenticated valid upload');
+ const doc={...file,name:'피해견적.xlsx',mime:'application/octet-stream'};
+ const uploaded=await call('field',{action:'upload',scope:'incident',file:doc});
+ check(uploaded.status,200,'site document upload');const a=uploaded.body.attachment;
+ check(a.kind,'file','download-only document');check(a.name,doc.name,'retains filename');assert.match(a.path,/\.xlsx$/);
+ check((await call('other',{action:'sign',paths:[a.path]})).status,403,'other site cannot download the document');
+ for(const ext of ['html','exe'])check((await call('field',{action:'upload',file:{...doc,name:'test.'+ext}})).status,400,'unsupported extension');
+ check((await call('field',{action:'upload',scope:'action',file:doc})).status,400,'document scope limited to initial report');
+ check(uploads,2,'rejections do not store bytes');
  console.log(JSON.stringify({passed,failed:0,suite:'attachment-security'}));
 }finally{await f.db.close()}})().catch(e=>{console.error(e);process.exitCode=1});

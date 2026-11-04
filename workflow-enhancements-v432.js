@@ -86,9 +86,9 @@
     const report=document.getElementById('unifiedReportForm');
     const photo=report?.querySelector('[data-photo-required="true"]');
     if(photo){
-      const hasImage=typeof incidentPhotos!=='undefined'&&window.enlHasScenePhoto?.(incidentPhotos);
-      photo.classList.toggle('enl432-evidence-empty',!hasImage);
-      photo.querySelector('#incidentPhotoBtn')?.setAttribute('aria-invalid',String(!hasImage));
+      const hasEvidence=typeof incidentPhotos!=='undefined'&&window.enlHasSceneEvidence?.(incidentPhotos);
+      photo.classList.toggle('enl432-evidence-empty',!hasEvidence);
+      photo.querySelector('#incidentPhotoBtn')?.setAttribute('aria-invalid',String(!hasEvidence));
     }
   }
 
