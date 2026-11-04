@@ -40,7 +40,7 @@
     let b=btn.querySelector(':scope > .enl424-nav-count');
     if(value>0){
       if(!b){b=document.createElement('span');b.className='enl424-nav-count';btn.appendChild(b)}
-      const shown=value>99?'99+':String(value);if(b.textContent!==shown)b.textContent=shown;
+      const shown=String(value);if(b.textContent!==shown)b.textContent=shown;
       const aria=`${label} ${value}건`;b.setAttribute('aria-label',aria);b.title=aria;
     }else if(b)b.remove();
   }

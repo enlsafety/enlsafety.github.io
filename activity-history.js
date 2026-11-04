@@ -19,8 +19,8 @@
     if(!b)return;
     let badge=b.querySelector('.activity-count');
     if(!count){badge?.remove();b.removeAttribute('aria-label');return;}
-    if(!badge){badge=document.createElement('span');badge.className='activity-count';b.append(badge);}
-    badge.textContent=String(count);b.setAttribute('aria-label','히스토리, 미확인 '+count+'건');
+    if(!badge){badge=document.createElement('span');badge.className='enl424-nav-count activity-count';b.append(badge);}
+    badge.textContent=String(count);b.setAttribute('aria-label','사용자 기록, 미확인 '+count+'건');
   }
   async function refresh(force=false){
     const id=owner();if(!id||!document.querySelector('[data-shell-view="history"]'))return;
@@ -52,7 +52,7 @@
     const id=owner();if(!id)return;
     const mark=requested;requested=false;
     const host=document.createElement('section');host.className='panel activity-history';root.replaceChildren(host);
-    host.innerHTML='<div class="section-head"><h2>히스토리</h2><button type="button" class="secondary" data-refresh>새로고침</button></div><form class="activity-filters"><label>기간<select name="range"><option value="recent">최근 30일</option><option value="month">월별 조회</option><option value="custom">기간 지정</option><option value="all">전체 기간</option></select></label><label hidden data-month>조회 월<input type="month" name="month"></label><label hidden data-custom>시작일<input type="date" name="start"></label><label hidden data-custom>종료일<input type="date" name="end"></label><label>검색어<input type="search" name="q" maxlength="120" placeholder="이름, 사업장, 사고, 처리 내용"></label><button class="secondary" type="submit">검색</button></form><p role="status"></p><ol></ol><button type="button" class="secondary" data-more hidden>이전 기록 더 보기</button>';
+    host.innerHTML='<div class="section-head"><h2>사용자 기록</h2><button type="button" class="secondary" data-refresh>새로고침</button></div><form class="activity-filters"><label>기간<select name="range"><option value="recent">최근 30일</option><option value="month">월별 조회</option><option value="custom">기간 지정</option><option value="all">전체 기간</option></select></label><label hidden data-month>조회 월<input type="month" name="month"></label><label hidden data-custom>시작일<input type="date" name="start"></label><label hidden data-custom>종료일<input type="date" name="end"></label><label>검색어<input type="search" name="q" maxlength="120" placeholder="이름, 사업장, 사고, 처리 내용"></label><button class="secondary" type="submit">검색</button></form><p role="status"></p><ol></ol><button type="button" class="secondary" data-more hidden>이전 기록 더 보기</button>';
     const list=host.querySelector('ol'),status=host.querySelector('[role=status]'),more=host.querySelector('[data-more]');
     const form=host.querySelector('form'),controls=form.elements;
     const today=day.format(new Date()),recent=day.format(new Date(Date.parse(today+'T12:00:00+09:00')-29*86400000));

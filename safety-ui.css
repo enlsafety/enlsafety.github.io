@@ -16,6 +16,7 @@
   --icon-download: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23164f83%22%20stroke-width%3D%221.7%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M12%203v12m-5-5%205%205%205-5M4%2016v5h16v-5%22/%3E%3C/svg%3E");
   --icon-photo: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23164f83%22%20stroke-width%3D%221.7%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20x%3D%223%22%20y%3D%224%22%20width%3D%2218%22%20height%3D%2216%22%20rx%3D%222%22/%3E%3Ccircle%20cx%3D%228%22%20cy%3D%229%22%20r%3D%221.5%22/%3E%3Cpath%20d%3D%22m4%2018%205-5%203%203%204-6%205%207%22/%3E%3C/svg%3E");
   --icon-clock: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23164f83%22%20stroke-width%3D%221.7%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%229%22/%3E%3Cpath%20d%3D%22M12%206v6l4%202%22/%3E%3C/svg%3E");
+  --icon-history: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23164f83%22%20stroke-width%3D%221.7%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3%2010a9%209%200%201%201%201.8%208M3%204v6h6M12%207v5l3%202%22/%3E%3C/svg%3E");
   --icon-list: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23164f83%22%20stroke-width%3D%221.7%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M8%206h13M8%2012h13M8%2018h13M3%206h1M3%2012h1M3%2018h1%22/%3E%3C/svg%3E");
 }
 :root {
@@ -38,6 +39,7 @@ body.safety-ui {background:var(--canvas);color:var(--ink)}
 .safety-ui #app .shell411-nav button:hover {background:#f1f6fb}
 .safety-ui :is(button,a,input,select,textarea,summary):focus-visible {outline:3px solid #5195ce;outline-offset:3px}
 .safety-ui .shell411-nav button {--glyph:var(--icon-list)}
+.safety-ui .shell411-nav [data-shell-view="history"] {--glyph:var(--icon-history)}
 .safety-ui :is([data-shell-view="stats"],.stats426-head h2) {--glyph:var(--icon-dashboard)}
 .safety-ui :is([data-shell-view="home"],.shell411-head h2,[data-safety-status="all"]) {--glyph:var(--icon-stats)}
 .safety-ui :is([data-shell-view="report"],[data-field-task="accident_report"],.report-type-picker h2,.incident410-form h2,[data-stats-filter="all"]) {--glyph:var(--icon-report)}
@@ -271,6 +273,7 @@ body.safety-ui {background:var(--canvas);color:var(--ink)}
 .safety-ui #app .task-required [data-prev-open],.safety-ui #app :is([data-wf440-final],#prev429Approve,.wf412-inq.new [data-wf-inq-read]) {outline:2px solid #b42335;outline-offset:2px}
 .safety-ui #app .shell411-nav {overflow:visible!important}
 .safety-ui #app :is(.enl424-nav-count,.enl424-nav-dot,.field-six-new,.exec-required-badge,.exec-tab-count) {z-index:8;pointer-events:none}
+.safety-ui #app .shell411-nav .enl424-nav-count {box-sizing:border-box;min-width:26px;height:26px;padding:0;border-radius:999px;font:800 10px/1 system-ui,sans-serif;font-variant-numeric:tabular-nums}
 .safety-ui #app .field-six-new {top:auto;bottom:8px;right:8px}
 .safety-ui #app .field-six-attention-btn small {padding-right:22px}
 .safety-ui #app .exec-required-badge {position:relative}
@@ -367,7 +370,6 @@ dialog.draft-resume-dialog{position:fixed;inset:0;box-sizing:border-box;width:mi
 .draft-resume-dialog>div{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
 .draft-resume-dialog button{width:auto;min-width:5rem;min-height:44px}
 
-.shell411-nav .activity-count{display:inline-grid;place-items:center;flex:none;height:21px;min-width:21px;padding:0 4px;box-sizing:border-box;border-radius:99px;background:#bb2038;color:white;font:bold 12px/1 sans-serif}
 .activity-history ol{padding:0;list-style:none}.activity-history li+li{border-top:1px solid #dbe6ed}
 .activity-history li button{display:grid;width:100%;gap:4px;text-align:left;padding:12px 6px;color:#183950;background:transparent;border:0;overflow-wrap:anywhere}
 .activity-history li button:hover{background:#eff7ff}.activity-history small,.activity-history li span{color:#536a7a}
