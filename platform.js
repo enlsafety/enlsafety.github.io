@@ -269,7 +269,9 @@
         const button=row.firstElementChild;
         button.dataset[support?'service':'module']=m.key;button.setAttribute('aria-label',featureName(m));
         if(m.key==='history'&&isOn(m)&&m.canEnter!==false)button.dataset.platformHistoryFeed=featureName(m);
-        grid.append(row);button.onclick=async()=>{
+        grid.append(row);row.onclick=async ev=>{
+          const control=ev.target.closest('button,form');
+          if(!row.contains(button)||(control&&control!==button))return;
           if(!isOn(m)||m.canEnter===false){status.textContent='현재 진입할 수 없는 '+(support?'서비스':'모듈')+'입니다.';return;}
           if(m.key==='system'){window.enlOpenSystemAdmin(u);return;}
           try{const r=await api({action:'platform_enter',key:m.key});if(!host.isConnected)return;
