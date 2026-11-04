@@ -26,7 +26,7 @@ async function run(engine,width){
         }else await p.evaluate(()=>openUnifiedCorrectiveModal('sample-1',currentUser()));
       };
       await enter();
-      assert.equal(await p.locator('dialog.draft-resume-dialog').count(),0);
+      assert.equal(await p.locator('.draft-resume-dialog').count(),0);
       if(report){
         await p.locator('#pastReportMode').check();await p.locator('#pastReportDrafter').fill('시험 기안자');
         await p.locator('#reportSite').selectOption('s01');await p.locator('#occurredDate410').fill('2026-10-15');await p.locator('#unknownTime410').check();

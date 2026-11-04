@@ -26,16 +26,26 @@
     try{return Object.keys(localStorage).filter(k=>k.startsWith(account));}catch{return [];}
   }
   function askToResume(form,caption,choose){
-    const dialog=document.createElement('dialog');
+    const backdrop=document.createElement('div');backdrop.className='draft-resume-backdrop';
+    const dialog=document.createElement('dialog');dialog.setAttribute('aria-modal','true');
     dialog.className='draft-resume-dialog';
     dialog.setAttribute('aria-label','임시저장한 내용 이어쓰기');
     dialog.innerHTML='<strong>이전에 작성하시던 내용이 있습니다.</strong><p>이어서 작성하시겠습니까?</p><small></small><div><button type="button" class="secondary" data-draft-no>아니오</button><button type="button" class="primary" data-draft-yes autofocus>예</button></div>';
     dialog.querySelector('small').textContent=caption;
-    const finish=yes=>{dialog.close();dialog.remove();choose(yes);};
+    const close=()=>{watch.disconnect();document.removeEventListener('focusin',keepFocus,true);dialog.close();backdrop.remove();};
+    const keepFocus=event=>{if(!dialog.contains(event.target))dialog.querySelector('[data-draft-yes]').focus();};
+    const watch=new MutationObserver(()=>{if(!form.isConnected)close();});
+    const finish=yes=>{close();choose(yes);};
+    dialog.addEventListener('keydown',event=>{
+      if(event.key==='Escape'){event.preventDefault();event.stopPropagation();finish(false);}
+      if(event.key==='Tab'){event.preventDefault();dialog.querySelector(document.activeElement.hasAttribute('data-draft-yes')?'[data-draft-no]':'[data-draft-yes]').focus();}
+    });
     dialog.querySelector('[data-draft-yes]').onclick=()=>finish(true);
     dialog.querySelector('[data-draft-no]').onclick=()=>finish(false);
     dialog.addEventListener('cancel',event=>{event.preventDefault();finish(false);});
-    form.append(dialog);dialog.showModal();
+    backdrop.append(dialog);document.body.append(backdrop);dialog.show();
+    document.addEventListener('focusin',keepFocus,true);
+    watch.observe(document.body,{childList:true,subtree:true});
   }
   function bind(form,u,kind,i){
     const account=owner(u);
