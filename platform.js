@@ -6,6 +6,8 @@
   const states={live:'운영 중',building:'구현 중',hidden:'숨김'};
   const roles={field:'현장관리자',manager:'본사실무자',executive:'경영진',worker:'일반근로자',safety:'안전관리자'};
   const duties={supervisor:'관리감독자',safety:'안전관리자',responsible:'안전보건관리책임자',health:'보건관리자'};
+  const featureName=m=>m.displayName||names[m.key];
+  window.enlDutyNames=codes=>(codes||[]).map(code=>duties[code]).filter(Boolean);
   const api=body=>window.enlIncidentApi({...body,actor:window.enlCurrentActor()});
   const e=v=>esc(String(v??''));
   const sessionKey=u=>JSON.stringify([u.id||u.personnelId,u.role,u.siteId||'']);
@@ -32,7 +34,7 @@
     if(!parent||currentUser()?.role!=='safety')return;
     const group=document.createElement('fieldset');group.className='platform-duties';
     group.innerHTML='<legend>법정 안전보건 직무 (복수 선택)</legend>'+Object.entries(duties).map(([k,v])=>'<label><input type="checkbox" value="'+k+'">'+v+'</label>').join('')+'<small>업무 분류용입니다. 법적 선임과 자격 요건은 별도로 확인합니다.</small>';
-    const submit=parent.querySelector('[type=submit],#sa415AddWorkers');if(submit)submit.before(group);else parent.append(group);
+    const submit=parent.querySelector('.sa415-person-actions,[type=submit]');if(submit)submit.before(group);else parent.append(group);
     if(id){const key=document.createElement('small');key.textContent='공통 사용자 ID '+source+':'+id;group.append(key);}
     let changed=false;group.onchange=()=>{changed=true};
     if(id){
@@ -82,7 +84,6 @@
     }
     await load();
   };
-  window.enlPlatformOpenEditor=u=>go('platform',u);
   window.enlOpenSystemAdmin=u=>{
     if(u?.role!=='safety')return;
     go('system-admin',u);
@@ -124,7 +125,7 @@
     }
     function settings(m,grip){
       const draft=structuredClone(m),dialog=document.createElement('dialog');dialog.className='feature-settings';
-      dialog.innerHTML='<form><h3>'+names[m.key]+' 접근 설정</h3><label>공개 상태<select name="state">'+Object.entries(states).filter(([k])=>k!=='building'||m.key!=='incident').map(([k,v])=>'<option value="'+k+'">'+v+'</option>').join('')+'</select></label><fieldset><legend>접근할 수 있는 역할</legend>'+Object.entries(roles).filter(([k])=>k!=='safety'&&m.key!=='system'&&!(m.key==='history'&&k==='worker')).map(([k,v])=>'<label><input type="checkbox" data-role="'+k+'"> '+v+'</label>').join('')+'</fieldset><section data-trial><strong>시험 사용자</strong><p>구현 중에는 허용 역할에 해당하고 아래에 지정된 사용자만 진입합니다.</p><div data-selected></div><label>이름 또는 사업장<input name="search" autocomplete="off"></label><button type="button" data-search>사용자 찾기</button><div data-results></div></section><div class="feature-actions"><button type="button" data-up>앞으로</button><button type="button" data-down>뒤로</button><button type="button" data-close>닫기</button><button type="submit">저장</button></div><small role="status"></small></form>';
+      dialog.innerHTML='<form><h3>'+e(featureName(m))+' 접근 설정</h3><label>공개 상태<select name="state">'+Object.entries(states).filter(([k])=>k!=='building'||m.key!=='incident').map(([k,v])=>'<option value="'+k+'">'+v+'</option>').join('')+'</select></label><fieldset><legend>접근할 수 있는 역할</legend>'+Object.entries(roles).filter(([k])=>k!=='safety'&&m.key!=='system'&&!(m.key==='history'&&k==='worker')).map(([k,v])=>'<label><input type="checkbox" data-role="'+k+'"> '+v+'</label>').join('')+'</fieldset><section data-trial><strong>시험 사용자</strong><p>구현 중에는 허용 역할에 해당하고 아래에 지정된 사용자만 진입합니다.</p><div data-selected></div><label>이름 또는 사업장<input name="search" autocomplete="off"></label><button type="button" data-search>사용자 찾기</button><div data-results></div></section><div class="feature-actions"><button type="button" data-up>앞으로</button><button type="button" data-down>뒤로</button><button type="button" data-close>닫기</button><button type="submit">저장</button></div><small role="status"></small></form>';
       host.append(dialog);const form=dialog.querySelector('form'),note=form.querySelector('[role=status]'),index=itemsFor(m.key).indexOf(m);
       form.elements.state.value=m.state;
       if(m.key==='system')form.querySelector('fieldset').append('안전관리자 전용');
@@ -228,12 +229,32 @@
       const future=document.createElement('div');future.className='feature-future';future.innerHTML='<span aria-hidden="true">＋</span>추가 예정';grid.append(future);
       window.enlRefreshHistoryCount?.(true);
     }
+    function addNameEditor(row,button,m){
+      const pencil=document.createElement('button');pencil.type='button';pencil.className='feature-pencil';
+      pencil.setAttribute('aria-label',featureName(m)+' 이름 수정');pencil.title='이름 수정';
+      pencil.innerHTML='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m4 16-1 5 5-1L20 8l-4-4zM14 6l4 4"/></svg>';
+      button.after(pencil,button.querySelector('small'));
+      pencil.onclick=()=>{
+        const form=document.createElement('form');form.className='feature-name-form';
+        form.innerHTML='<input aria-label="업무기능 이름" maxlength="30" required><button type="submit">저장</button><button type="button">취소</button>';
+        const input=form.elements[0];input.value=featureName(m);row.replaceChildren(form);input.focus();input.select();
+        const cancel=()=>{cards();area.querySelector('[data-key="'+m.key+'"] .feature-pencil')?.focus()};
+        form.querySelector('[type=button]').onclick=cancel;
+        input.oninput=()=>input.setCustomValidity('');
+        input.onkeydown=ev=>{if(ev.key==='Escape'&&!ev.isComposing)cancel()};
+        form.onsubmit=async ev=>{
+          ev.preventDefault();const name=input.value.trim();
+          if(!name){input.setCustomValidity('업무기능 이름을 입력해 주세요.');input.reportValidity();return;}
+          if(await save(config.modules.map(x=>x===m?{...x,displayName:name}:x)))area.querySelector('[data-key="'+m.key+'"] .feature-pencil')?.focus();
+        };
+      };
+    }
     function draw(grid,items,support){
       for(const m of items.filter(m=>(admin||m.state!=='hidden')&&(m.key!=='history'||window.enlHistoryAvailable?.(u))&&(m.key!=='system'||admin))){
         const row=document.createElement('article');row.className='feature-card-wrap';row.dataset.key=m.key;row.dataset.state=m.state;row.dataset.on=String(isOn(m));
-        row.innerHTML='<button class="platform-card" type="button" style="--pic:var(--icon-'+icons[m.key]+')"><span class="platform-icon"></span><strong>'+names[m.key]+'</strong><small>'+states[m.state]+(!isOn(m)&&m.state==='live'?' / 접근 꺼짐':'')+'</small></button>';
+        row.innerHTML='<button class="platform-card" type="button" style="--pic:var(--icon-'+icons[m.key]+')"><span class="platform-icon"></span><strong>'+e(featureName(m))+'</strong><small>'+states[m.state]+(!isOn(m)&&m.state==='live'?' / 접근 꺼짐':'')+'</small></button>';
         const button=row.firstElementChild;
-        button.dataset[support?'service':'module']=m.key;button.setAttribute('aria-label',names[m.key]);
+        button.dataset[support?'service':'module']=m.key;button.setAttribute('aria-label',featureName(m));
         if(m.key==='history'&&isOn(m)&&m.canEnter!==false)button.dataset.platformHistoryFeed='';
         grid.append(row);button.onclick=async()=>{
           if(!isOn(m)||m.canEnter===false){status.textContent='현재 진입할 수 없는 '+(support?'서비스':'모듈')+'입니다.';return;}
@@ -242,12 +263,13 @@
             if(r.key==='incident')go(['worker','field'].includes(u.role)?'home':'stats',u);
             else if(r.key==='history'){window.enlRequestHistory();go('common-history',u)}
             else if(r.key==='notices')go('notice-center',u);
-            else{const box=support?services:area;box.innerHTML='<section class="panel"><h2>'+names[r.key]+'</h2><p>세부 업무 화면은 준비 중입니다.</p><button>← '+(support?'공통 업무지원 서비스':'업무기능 선택')+'</button></section>';box.querySelector('button').onclick=cards;}
+            else{const box=support?services:area;box.innerHTML='<section class="panel"><h2>'+e(featureName(m))+'</h2><p>세부 업무 화면은 준비 중입니다.</p><button>← '+(support?'공통 업무지원 서비스':'업무기능 선택')+'</button></section>';box.querySelector('button').onclick=cards;}
           }catch{status.textContent='현재 진입할 수 없는 '+(support?'서비스':'모듈')+'입니다.'}
         };
         if(!admin)continue;
+        if(!support)addNameEditor(row,button,m);
         const tools=document.createElement('div');tools.className='feature-controls';
-        tools.innerHTML='<button type="button" role="switch" aria-label="'+names[m.key]+' 진입" aria-checked="'+isOn(m)+'">'+(isOn(m)?'ON':'OFF')+'</button><button type="button" class="feature-grip" aria-haspopup="dialog" aria-label="'+names[m.key]+' 접근 설정 및 순서 이동">☰</button>';row.append(tools);
+        tools.innerHTML='<button type="button" role="switch" aria-label="'+e(featureName(m))+' 진입" aria-checked="'+isOn(m)+'">'+(isOn(m)?'ON':'OFF')+'</button><button type="button" class="feature-grip" aria-haspopup="dialog" aria-label="'+e(featureName(m))+' 접근 설정 및 순서 이동">☰</button>';row.append(tools);
         tools.firstElementChild.onclick=()=>{
           const enabled=!isOn(m),updated={...m,enabled};
           if(enabled&&updated.state==='hidden')updated.state=['incident','history','notices','system'].includes(m.key)?'live':'building';

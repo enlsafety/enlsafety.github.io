@@ -53,7 +53,7 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
     return reply({ok:true,duties:rows.map((r:any)=>r.duty)});
   }
   const [config]=await sql`select revision,modules,services from private.enl_platform_catalog where singleton`;
-  const publicItems=(items:any[])=>admin?items:items.filter(m=>m.state!=='hidden'&&m.key!=='system').map(m=>({key:m.key,state:m.state,enabled:m.enabled!==false,preview:m.preview,canEnter:canEnter(m,actor)}));
+  const publicItems=(items:any[])=>admin?items:items.filter(m=>m.state!=='hidden'&&m.key!=='system').map(m=>({key:m.key,displayName:m.displayName,state:m.state,enabled:m.enabled!==false,preview:m.preview,canEnter:canEnter(m,actor)}));
   if(action==='platform_catalog')return reply({ok:true,revision:config.revision,modules:publicItems(config.modules),services:publicItems(config.services)});
   if(action==='platform_enter'){
     const m=[...config.modules,...config.services].find(m=>m.key===body.key);
@@ -68,10 +68,15 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
     if(!m||!['live','building','hidden'].includes(m.state)||typeof m.preview!=='boolean'||(m.enabled!==undefined&&typeof m.enabled!=='boolean')||
        !Array.isArray(m.roles)||m.roles.some((r:any)=>!systemRoles.includes(r))||
        !Array.isArray(m.pilots)||m.pilots.length>100||m.pilots.some((p:any)=>typeof p!=='string'||!/^(hq|site):.{1,150}$/.test(p)))return reply({ok:false,message:'invalid_catalog'},400);
+    if(m.displayName!==undefined&&(services||typeof m.displayName!=='string'||!m.displayName.trim()||m.displayName.trim().length>30||/[\u0000-\u001f\u007f]/.test(m.displayName)))return reply({ok:false,message:'invalid_display_name'},400);
     if(m.key==='system'&&m.roles.some((r:any)=>r!=='safety'))return reply({ok:false,message:'forbidden'},403);
     if(m.key==='incident'&&(m.state==='building'||(m.state==='hidden'&&modules.find((x:any)=>x.key==='incident').state!=='hidden'&&body.confirmHideIncident!==true)||(m.enabled===false&&modules.find((x:any)=>x.key==='incident').enabled!==false&&body.confirmDisableIncident!==true)))return reply({ok:false,message:'incident_protected'},409);
   }
-  const clean=next.map(({key,state,enabled,preview,roles,pilots}:any)=>({key,state,enabled:enabled??(modules.find((m:any)=>m.key===key).enabled!==false),preview,roles:[...new Set(roles)],pilots:[...new Set(pilots)]}));
+  const clean=next.map(({key,state,enabled,preview,roles,pilots,displayName}:any)=>{
+    const previous=modules.find((m:any)=>m.key===key);
+    const label=displayName?.trim()??previous.displayName;
+    return {...(label?{displayName:label}:{}),key,state,enabled:enabled??(previous.enabled!==false),preview,roles:[...new Set(roles)],pilots:[...new Set(pilots)]};
+  });
   const pilots=Array.from(new Set(clean.flatMap(m=>m.pilots))) as string[];
   if(pilots.length){
     const valid=await sql`select source||':'||id as key from private.enl_master_accounts where active and (source||':'||id) in(select jsonb_array_elements_text(${sql.json(pilots)}::jsonb))`;
