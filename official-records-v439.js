@@ -157,11 +157,18 @@
 
   function injectSearch(){
     const u=current(),root=document.getElementById('view');if(!isSafety(u)||!root||String(currentView||'')!=='incidents')return;
+    const panel=root.querySelector('.panel');
+    if(panel)attachIncidentSearch(root,panel.children[1],'현재 사고기록 전체에서 검색');
+  }
+
+  function attachIncidentSearch(root,before,scopeLabel){
+    if(!before)return;
     if(root.querySelector('[data-official439-search]'))return;
     const targets=root.querySelectorAll('[data-inc-id],[data-safety-inc]');if(!targets.length)return;
     const box=document.createElement('div');box.dataset.official439Search='1';box.className='official439-search';
-    box.innerHTML='<input type="search" placeholder="사고번호·사업장·신고자·사고유형·내용 검색"><small>현재 사고기록 전체에서 검색</small>';
-    const panel=root.querySelector('.panel');if(panel)panel.insertBefore(box,panel.children[1]||panel.firstChild);
+    box.innerHTML='<input type="search" placeholder="사고번호·사업장·신고자·사고유형·내용 검색"><small></small>';
+    box.querySelector('small').textContent=scopeLabel;
+    before.before(box);
     const input=box.querySelector('input');
     input.oninput=()=>{
       const q=String(input.value||'').trim().toLocaleLowerCase('ko-KR');
@@ -172,6 +179,8 @@
       });
     };
   }
+
+  window.enlAttachIncidentSearch=attachIncidentSearch;
 
   async function openBackup(){
     async function render(){

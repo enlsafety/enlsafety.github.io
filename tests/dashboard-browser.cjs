@@ -182,7 +182,7 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
   await page.locator('[data-sd450-map]').waitFor();await page.waitForFunction(()=>window.enlDashboardMetrics?.()!==null);
   await page.locator('#stats426Year').selectOption(String(new Date().getFullYear()));
   await page.waitForFunction(()=>document.querySelector('[data-stats-filter="all"] b')?.textContent==='10건',null,{timeout:5000});
-  assert.equal(await page.locator('[data-sd450-map-site]').count(),33);await verifyDashboard();assert.equal(await page.locator('[data-stats-filter=all] b').innerText(),'10건');await page.locator('[data-stats-filter=all]').click();assert.equal(await page.locator('[data-stats-inc]').count(),1,'aggregate-only rejected record must not disclose details');
+  assert.equal(await page.locator('[data-sd450-map-site]').count(),33);await verifyDashboard();assert.equal(await page.locator('[data-stats-filter=all] b').innerText(),'10건');await page.locator('[data-stats-filter=all]').click();assert.equal(await page.locator('#stats426Drill [data-inc-id]').count(),1,'aggregate-only rejected record must not disclose details');
   await openSite('s29');await page.locator('[data-sd450-open]').click();await page.locator('[data-sd450-info]').waitFor();
   assert.equal(await page.locator('[data-qa-table]').getAttribute('data-edit'),'false');
   await page.locator('[data-inc-id="urgent-prior-year"]').click();assert.equal(await page.evaluate(()=>qaReview.edit),false,'existing review remains read-only');
