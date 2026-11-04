@@ -25,17 +25,32 @@
   function ownKeys(account){
     try{return Object.keys(localStorage).filter(k=>k.startsWith(account));}catch{return [];}
   }
-  function bind(form,u,kind,i,fresh=false){
+  function askToResume(form,caption,choose){
+    const dialog=document.createElement('dialog');
+    dialog.className='draft-resume-dialog';
+    dialog.setAttribute('aria-label','임시저장한 내용 이어쓰기');
+    dialog.innerHTML='<strong>이전에 작성하시던 내용이 있습니다.</strong><p>이어서 작성하시겠습니까?</p><small></small><div><button type="button" class="secondary" data-draft-no>아니오</button><button type="button" class="primary" data-draft-yes autofocus>예</button></div>';
+    dialog.querySelector('small').textContent=caption;
+    const finish=yes=>{dialog.close();dialog.remove();choose(yes);};
+    dialog.querySelector('[data-draft-yes]').onclick=()=>finish(true);
+    dialog.querySelector('[data-draft-no]').onclick=()=>finish(false);
+    dialog.addEventListener('cancel',event=>{event.preventDefault();finish(false);});
+    form.append(dialog);dialog.showModal();
+  }
+  function bind(form,u,kind,i){
     const account=owner(u);
     if(!account||current()!==account)return;
     const slot=account+[kind,i?.id||'new',version(i)].map(encodeURIComponent).join('/')+'/';
-    const copies=fresh?[]:ownKeys(slot).map(key=>({key,d:read(key)})).filter(x=>x.d);
-    let key=copies.find(x=>x.key===selectedKey)?.key||copies.sort((a,b)=>b.d.time-a.d.time)[0]?.key;
+    const copies=ownKeys(slot).map(key=>({key,d:read(key)})).filter(({key,d})=>{
+      if(!d)return false;
+      if(!i&&d.reportId&&record(d.reportId)){localStorage.removeItem(key);return false;}
+      return true;
+    });
+    const explicit=copies.find(x=>x.key===selectedKey);
+    const candidate=explicit||copies.sort((a,b)=>b.d.time-a.d.time)[0];
     selectedKey=null;
-    let saved=key&&read(key), finished=false;
-    if(!key||!saved)key=slot+crypto.randomUUID();
-    if(!i&&saved?.reportId&&record(saved.reportId)){localStorage.removeItem(key);saved=null;}
-    if(!i)form._draftIncidentId=saved?.reportId||uid('inc');
+    let key=slot+crypto.randomUUID(),finished=false,ready=false;
+    if(!i)form._draftIncidentId=uid('inc');
     const type=kind==='action'?'action':['person','property'].includes(kind)?'incident':'';
     const photos=()=>type==='action'?actionPhotos:type==='incident'?incidentPhotos:[];
     const basePhotos=[...photos()];
@@ -50,9 +65,9 @@
     status.className='draft-save-status';status.textContent='작성 내용은 이 기기에 자동 임시저장됩니다.';
     form.querySelector('button[type=submit]')?.parentElement===form
       ?form.querySelector('button[type=submit]').before(status):form.append(status);
-    let revision=saved?.revision||'', lastPayload='';
+    let revision='', lastPayload='';
     function capture(files=photos()){
-      if(finished||current()!==account)return;
+      if(!ready||finished||current()!==account)return;
       const values=Object.fromEntries(fields().map(el=>[el.id,el.type==='checkbox'||el.type==='radio'?el.checked:el.value]));
       const confirmed=fields().filter(el=>el.dataset.enlConfirmed==='1').map(el=>el.id);
       const payload={values,confirmed,files:refs(files),reportId:form._draftIncidentId};
@@ -75,14 +90,15 @@
       invalidate();
     }
     const legacyKey=i&&['action','plan'].includes(kind)?['enl-report-draft',u.personnelId||u.id,i.id,kind,Number(i._syncVersion||0)].join(':'):'';
-    let imported=false;
-    if(!saved&&legacyKey){
+    function legacy(){
+      if(!legacyKey)return null;
       try{
         const old=JSON.parse(sessionStorage.getItem(legacyKey));
-        if(old?.values){saved={values:old.values,files:old.photos||[]};imported=true;}
-      }catch{}
+        return old?.values?{values:old.values,files:old.photos||[]}:null;
+      }catch{return null;}
     }
-    if(saved){
+    function restore(saved){
+      if(!i&&saved.reportId)form._draftIncidentId=saved.reportId;
       const toggle=form.querySelector('#pastReportMode');
       if(toggle&&saved.values.pastReportMode){toggle.checked=true;toggle.dispatchEvent(new Event('change',{bubbles:true}));}
       const timeMode=form.querySelector('#unknownTime410');
@@ -105,9 +121,27 @@
       window.enlRefreshRequiredFields453?.();
       status.textContent='임시저장한 내용을 불러왔습니다.';
     }
-    const thumbs=type&&form.querySelector('#'+type+'Thumbs');
-    if(thumbs)new MutationObserver(()=>{if(form.isConnected)capture();}).observe(thumbs,{childList:true});
-    if(imported){capture();if(revision)sessionStorage.removeItem(legacyKey);}
+    function begin(yes){
+      if(!form.isConnected||current()!==account||finished)return;
+      const saved=yes&&(candidate?read(candidate.key):legacy());
+      if(saved&&(!i||version(record(i.id))===version(i))&&!(saved.reportId&&record(saved.reportId))){
+        if(candidate){key=candidate.key;revision=saved.revision;}
+        restore(saved);
+      }else if(yes){
+        status.textContent='임시본 또는 사고기록이 변경됐습니다. 작성 중인 자료에서 다시 확인해 주세요.';
+      }
+      ready=true;
+      if(!candidate&&saved){capture();if(revision)sessionStorage.removeItem(legacyKey);}
+      const thumbs=type&&form.querySelector('#'+type+'Thumbs');
+      if(thumbs)new MutationObserver(()=>{if(form.isConnected)capture();}).observe(thumbs,{childList:true});
+    }
+    if(explicit)begin(true);
+    else if(candidate||legacy()){
+      const d=candidate?.d,site=d?.values?.reportSite||i?.siteId;
+      const caption=[labels[kind],site&&siteById(site)?.name,d?.values?.incidentPlace410||i?.eventType,
+        d&&new Date(d.time).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})].filter(Boolean).join(' / ');
+      askToResume(form,caption,begin);
+    }else begin(false);
     controllers.set(form,{capture,clear});
     for(const event of ['input','change'])form.addEventListener(event,e=>{if(e.target.matches('input,textarea,select'))capture();});
     return controllers.get(form);

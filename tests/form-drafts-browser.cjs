@@ -15,18 +15,26 @@ async function restart(p,c,logout=false){
 async function run(engine,width){
   const browser=await engine.launch();
   try{
-    for(const kind of ['person','plan','action']){
+    for(const kind of ['person','property','plan','action']){
       const {p:first,c}=await tab(browser,width,kind==='action'?'field':'safety');
       let p=first;await ready(p);
-      if(kind==='person'){
-        await p.locator('[data-shell-view="report"]').click();await p.locator('[data-report-type="person"]').click();
+      const report=['person','property'].includes(kind);
+      const enter=async()=>{
+        if(report){
+          await p.locator('[data-shell-view="report"]').click();
+          await p.locator('button[data-report-type="'+kind+'"]').click();
+        }else await p.evaluate(()=>openUnifiedCorrectiveModal('sample-1',currentUser()));
+      };
+      await enter();
+      assert.equal(await p.locator('dialog.draft-resume-dialog').count(),0);
+      if(report){
         await p.locator('#pastReportMode').check();await p.locator('#pastReportDrafter').fill('시험 기안자');
         await p.locator('#reportSite').selectOption('s01');await p.locator('#occurredDate410').fill('2026-10-15');await p.locator('#unknownTime410').check();
-      }else await p.evaluate(()=>openUnifiedCorrectiveModal('sample-1',currentUser()));
-      const field={person:'#incidentHow410',plan:'#prev429PlanDetail',action:'#prev429ActionDetail'}[kind];
+      }
+      const field={person:'#incidentHow410',property:'#incidentHow410',plan:'#prev429PlanDetail',action:'#prev429ActionDetail'}[kind];
       const typed='자동저장 검수 '+kind;
       await p.locator(field).fill(typed);
-      if(kind==='action'||kind==='person'){
+      if(kind==='action'||report){
         await p.route('**/functions/v1/enl-attachment-v411',route=>{
           const req=route.request();if(req.method()==='OPTIONS')return route.fulfill({status:204});
           return route.fulfill({json:req.postDataJSON().action==='sign'?{ok:true,urls:{}}:{ok:true,attachment:{path:'incident/site-s01/proof.pdf',name:'첨부.pdf',kind:'pdf',mime:'application/pdf',previewUrl:'https://expired.test/private-token'}}});
@@ -37,9 +45,22 @@ async function run(engine,width){
       }
       // Reload a fresh tab with no sessionStorage, including an update logout followed by the fixture login.
       p=await restart(p,c,kind!=='action');
+      const before=await p.evaluate(()=>Object.entries(localStorage).filter(([k])=>k.startsWith('enl-form-draft-v1/')));
+      await enter();
+      const prompt=p.getByRole('dialog',{name:'임시저장한 내용 이어쓰기'});
+      await prompt.waitFor();assert.match(await prompt.innerText(),/이어서 작성하시겠습니까/);
+      assert.notEqual(await p.locator(field).inputValue(),typed,'wait for the choice before restoring');
+      await prompt.getByRole('button',{name:'아니오',exact:true}).click();
+      assert.notEqual(await p.locator(field).inputValue(),typed);
+      assert.deepEqual(await p.evaluate(()=>Object.entries(localStorage).filter(([k])=>k.startsWith('enl-form-draft-v1/'))),before);
+      if(report)await p.locator('[data-change-type]').click();else await p.evaluate(()=>closeModal());
+      await enter();
+      await prompt.getByRole('button',{name:'예',exact:true}).click();
+      assert.equal(await p.locator(field).inputValue(),typed);
+      if(report)await p.locator('[data-change-type]').click();else await p.evaluate(()=>closeModal());
       await p.locator('#localDraftList button').filter({hasText:'이어서 작성'}).click();
       assert.equal(await p.locator(field).inputValue(),typed);
-      if(kind==='person'){
+      if(report){
         assert.equal(await p.locator('#pastReportMode').isChecked(),true);
         assert.equal(await p.locator('#pastReportDrafter').inputValue(),'시험 기안자');
         assert.equal(await p.locator('#reportSite').inputValue(),'s01');
@@ -56,10 +77,11 @@ async function run(engine,width){
         await p.waitForFunction(()=>!document.querySelector('#prev429PlanForm'));
         assert.equal((await p.evaluate(draftKeys)).length,0);
       }else{
-        if(kind==='person')await p.locator('[data-change-type]').click();else await p.evaluate(()=>closeModal());
+        if(report)await p.locator('[data-change-type]').click();else await p.evaluate(()=>closeModal());
         await p.locator('#localDraftList').waitFor();
-        if(kind==='person'){
-          await p.locator('button[data-report-type="person"]').click();
+        if(report){
+          await p.locator('button[data-report-type="'+kind+'"]').click();
+          await prompt.getByRole('button',{name:'아니오',exact:true}).click();
           assert.equal(await p.locator(field).inputValue(),'','a new accident must start empty');
           await p.locator('[data-change-type]').click();
         }else{
