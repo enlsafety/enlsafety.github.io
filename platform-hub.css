@@ -23,3 +23,12 @@
 .platform-accounts{display:grid;gap:6px}.platform-accounts article{display:grid;gap:4px;padding:10px;border-bottom:1px solid #d1e1ed;overflow-wrap:anywhere}.platform-accounts small{color:#4e6880}
 .platform-services [data-platform-history-feed]{position:relative}
 .platform-services .activity-count{box-sizing:border-box;min-width:26px;height:26px;padding:0;font:800 10px/1 system-ui,sans-serif;font-variant-numeric:tabular-nums;top:-5px;right:-2px}
+.feature-card-wrap{position:relative;min-width:0}.feature-card-wrap .platform-card{width:100%;height:100%}
+.feature-card-wrap:has(.feature-controls) .platform-card{padding-top:44px}
+.feature-controls{display:flex;position:absolute;right:6px;top:4px;align-items:center;gap:3px}
+.platform-hub .feature-controls button{min-height:36px;min-width:36px;padding:3px 5px}
+.feature-controls [role=switch]{font-size:11px}.feature-controls [aria-checked=true]{background:#d9efea;color:#154c40}
+.feature-grip{cursor:grab;touch-action:none}.feature-card-wrap.moving{outline:2px solid #4486ba}
+.feature-settings{position:fixed;margin:0;width:min(350px,calc(100vw - 16px));box-sizing:border-box;max-height:calc(100dvh - 16px);overflow:auto;border:1px solid #bdd1e3;border-radius:14px;padding:15px;color:#173d61}
+.feature-settings::backdrop{background:#102c4519}.feature-settings form{display:grid;gap:9px}.feature-settings h3{margin:0}.feature-settings input:not([type=checkbox]),.feature-settings select{max-width:100%;width:100%;min-height:40px}.feature-settings [data-results]{max-height:145px;overflow:auto}.feature-actions{display:flex;gap:4px;flex-wrap:wrap}.feature-settings [hidden]{display:none!important}
+@media(max-width:700px){.system-title-line{display:block}.safety-ui #app .topbar .brand h1,.login-v411 .login-brand h1{white-space:normal;overflow:visible;text-overflow:clip}.safety-ui #app .topbar .brand h1{font-size:clamp(12px,3.1vw,18px)}.login-v411 .login-brand h1{font-size:clamp(16px,4.8vw,24px)}.platform-hub .feature-controls button{min-height:44px;min-width:44px}.feature-card-wrap:has(.feature-controls) .platform-card{padding-top:50px}}

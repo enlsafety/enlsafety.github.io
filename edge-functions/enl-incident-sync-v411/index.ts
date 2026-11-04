@@ -262,7 +262,7 @@ Deno.serve(async(req:Request)=>{
       const visible=safety?sql`true`:sql`(
         (e.module_key='common' and ${field} and e.site_id=${actor.siteId} and split_part(e.kind,'_',1) in ('site','personnel'))
         or (e.module_key in ('risk','tbm','organization','training') and (not ${field} or e.site_id=${actor.siteId}) and exists
-          (select from private.enl_platform_catalog c,jsonb_array_elements(c.modules) m where m->>'key'=e.module_key and (m->'roles') ? ${actor.role}
+          (select from private.enl_platform_catalog c,jsonb_array_elements(c.modules) m where m->>'key'=e.module_key and coalesce(m->>'enabled','true')='true' and (m->'roles') ? ${actor.role}
           and (m->>'state'='live' or (m->>'state'='building' and m->>'preview'='true' and (m->'pilots') ? ${(field?'site:':'hq:')+actor.id}))))
         or (e.module_key='incident' and split_part(e.kind,'_',1) not in ('site','personnel','hq') and exists (
           select 1 from public.enl_incident_active a where a.incident_id=e.incident_id

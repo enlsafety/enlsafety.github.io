@@ -16,17 +16,24 @@ const {tab,noOverflow}=require('./field-entry-table-browser.cjs');
     currentView='platform';window.enlRenderApp(currentUser());
    });
    const card=p.locator('[data-module]');await card.first().waitFor();assert.equal(await card.count(),5);await noOverflow(p);
-   assert.equal(await p.locator('.shell411-nav:visible').count(),0);assert.equal(await p.locator('.platform-edit').count(),role==='safety'?1:0);
+   assert.equal(await p.locator('.shell411-nav:visible').count(),0);assert.equal(await p.locator('.platform-edit').count(),0);assert.equal(await p.locator('.feature-grip').count(),role==='safety'?5:0);
    await p.locator('[data-module=risk]').click();await p.getByText('현재 진입할 수 없는 모듈입니다.').waitFor();
    if(role==='safety'){
     await p.screenshot({path:'qa-output/platform-'+width+'.png',fullPage:true});
-    await p.locator('.platform-edit').click();await p.locator('[data-index="1"] [data-up]').click();
-    await p.locator('[data-save]').click();await card.first().waitFor();assert.equal(await card.first().getAttribute('data-module'),'risk');
+    const risk=p.locator('[data-key=risk]'),toggle=risk.getByRole('switch');
+    await toggle.click();await p.waitForFunction(()=>document.querySelector('[data-key=risk] [role=switch]').getAttribute('aria-checked')==='true');
+    await risk.locator('.feature-grip').click();const panel=p.locator('.feature-settings');
+    await panel.locator('[data-role=field]').uncheck();await panel.locator('[type=submit]').click();await panel.waitFor({state:'detached'});
+    if(engine===chromium){const src=await risk.locator('.feature-grip').boundingBox(),dest=await p.locator('[data-key=incident]').boundingBox();
+      await p.mouse.move(src.x+12,src.y+12);await p.mouse.down();await p.mouse.move(dest.x+10,dest.y+10,{steps:10});await p.mouse.up();}
+    else{await risk.locator('.feature-grip').click();await panel.locator('[data-up]').click();}
+    await p.waitForFunction(()=>document.querySelector('[data-module]').dataset.module==='risk');
     await p.evaluate(()=>openUserModal(null,currentUser()));const box=p.locator('#hqUserForm422 .platform-duties');await box.waitFor();
     await box.locator('[value=health]').check();await box.locator('[value=safety]').check();assert.equal(await box.locator(':checked').count(),2);await p.evaluate(()=>closeModal());
    }
    await p.locator('[data-module=incident]').click();await p.waitForFunction(()=>currentView!=='platform');await p.locator('[data-platform-home]').click();await card.first().waitFor();
    await p.getByRole('button',{name:'통합 히스토리',exact:true}).click();await p.locator('.activity-history').waitFor();await noOverflow(p);
+   let warned=false;p.once('dialog',async d=>{warned=true;await d.dismiss()});await p.locator('[data-platform-home]').click();await card.first().waitFor();assert.equal(warned,false,'history returns without prompting');
    await c.close();
   }
   console.log('PASS platform role menus, ordering, navigation, duties, shared history and viewport',engine.name(),width);

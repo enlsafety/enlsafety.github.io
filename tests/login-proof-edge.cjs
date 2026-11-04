@@ -42,6 +42,25 @@ async function fixture(){
  for(const active of [false,null]){await db.query('update public.enl_site_personnel set active=$1 where personnel_id=$2',[active,field.id]);check((await call({action:'personnel_pull',actor:field,actorPinHash:'qa-auth-field-proof-472',siteId:field.siteId})).status===403,'inactive/null field denied');}
  await db.query('update public.enl_site_personnel set active=true where personnel_id=$1',[field.id]);
  check((await call({action:'personnel_pull',actor:{id:worker.personnelId,role:'field',siteId:field.siteId},actorPinHash:'qa-auth-field-proof-472',siteId:field.siteId})).status===403,'worker ID cannot impersonate field account');
+ const hqLogin={action:'login_hq',name:'QA 안전',affiliationId:'dept:qa',accountKey:'hq:'+safety.id,passwordHash:'qa-auth-safety-proof-472',companyLocal:'qa.safety'};
+ check((await call({...hqLogin,passwordHash:'wrong'})).status===401,'email enrollment requires valid credentials');
+ check((await call(hqLogin)).body.user.email==='qa.safety@enlife.co.kr','enroll corporate email');
+ check((await call({...hqLogin,companyLocal:'new-address'})).status===409,'login cannot replace an existing email');
+ check((await call({...hqLogin,companyLocal:'q@external.test'})).status===400,'server checks fixed domain');
+ check((await call({action:'lookup',name:'QA 안전',fixedAccount:true})).body.options[0].companyLocal==='qa.safety','return saved corporate address');
+ const fieldLogin={action:'login_site',name:'QA 현장',siteId:field.siteId,accountKey:'site:'+field.id,passwordHash:'qa-auth-field-proof-472',companyLocal:'qa.field'};
+ check((await call(fieldLogin)).body.person.email==='qa.field@enlife.co.kr','site-bound email enrollment');
+ check((await call({...fieldLogin,siteId:'different-site'})).status===403,'site cannot be substituted');
+ check((await call({action:'login_site',name:'QA 근로자',siteId:field.siteId,companyLocal:'other'})).status===403,'name-only session cannot enroll mail');
+ const issue={action:'email_registration_code',actor:safety,actorPasswordHash:'qa-auth-safety-proof-472',personnelId:worker.personnelId,siteId:field.siteId};
+ check((await call({...issue,actor:field})).status===403,'enrollment codes issued only by safety manager');
+ const issued=await call(issue);check(issued.status===200,'account-bound worker enrollment code issued');
+ const enroll={action:'login_site',name:'QA 근로자',siteId:field.siteId,companyLocal:'worker.first',registrationCode:issued.body.code};
+ check((await call(enroll)).body.person.email==='worker.first@enlife.co.kr','worker can register at login with own code');
+ check((await call({...enroll,companyLocal:'overwrite'})).status===409,'code cannot overwrite saved address');
+ await db.query("insert into enl_site_personnel(personnel_id,site_id,name,access_role,active) values('qa-double','other-site','QA 안전','worker',true)");
+ const duplicate=await call({action:'lookup',name:'QA 안전',fixedAccount:true});check(duplicate.body.ambiguous&&duplicate.body.options.length===0,'no arbitrary site list for ambiguous names');
+ check((await call({action:'lookup',name:'QA 안전',fixedAccount:true,knownEmail:'qa.safety@enlife.co.kr'})).body.options[0].accountKey==='hq:'+safety.id,'same-name resolution');
  // Retired scripts execute without touching browser account data or emitting credentials.
  const before={users:[{id:'existing',passwordHash:'user-chosen-proof'}],incidents:[{id:'saved'}]};const ctx={window:{},data:before,localStorage:{getItem(){throw Error('seed accessed storage')},setItem(){throw Error('seed wrote storage')}}};vm.createContext(ctx);
  for(const file of ['account-admin-v21.js','site-accounts-v340.js'])vm.runInContext(fs.readFileSync(file,'utf8'),ctx);
