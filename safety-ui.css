@@ -358,3 +358,11 @@ body.safety-ui:has(.shell411-safety-home) {overflow-anchor:none}
 .draft-list-row button{width:auto;min-height:40px}
 
 .draft-list-row details{flex-basis:100%;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
+
+dialog.draft-resume-dialog{position:fixed;inset:0;box-sizing:border-box;width:min(25rem,calc(100% - 32px));height:fit-content;max-height:85dvh;overflow:auto;margin:auto;padding:22px;border:1px solid #c4d9e8;border-radius:14px;background:#fff;color:#193b55;box-shadow:0 12px 48px #152d4938}
+.draft-resume-backdrop{position:fixed;inset:0;z-index:2147483646;background:#142d4566}
+.draft-resume-dialog strong{font-size:1.05rem}
+.draft-resume-dialog p{margin:8px 0;font-size:1rem}
+.draft-resume-dialog small{display:block;color:#536e83;overflow-wrap:anywhere}
+.draft-resume-dialog>div{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+.draft-resume-dialog button{width:auto;min-width:5rem;min-height:44px}
