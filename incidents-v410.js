@@ -109,7 +109,7 @@
 
   function bindModalAttachments(i){const root=document.getElementById('modalRoot');if(root&&typeof window.enlBindAttachmentOpen==='function')window.enlBindAttachmentOpen(root,i.photos||[])}
   function openIncidentModalFn(id,admin,u){
-    const viewer=u||currentUser(),i=(data.incidents||[]).find(x=>String(x.id)===String(id));
+    const viewer=u||currentUser();let i=(data.incidents||[]).find(x=>String(x.id)===String(id));
     if(!i)return alert('해당 사고자료를 찾지 못했습니다. 최신 사고현황을 다시 불러와 주세요.');
     if(!canViewOriginal(i,viewer))return alert('사고보고서 원본 조회 권한이 없습니다.');
     if(typeof openModal!=='function')return alert('사고 검토 화면을 불러오지 못했습니다.');
@@ -150,6 +150,7 @@
     if(hqReader)return;
     if(!safety)return;
     window.enlLayoutReportTables?.(document.querySelector('#modalRoot .modal'));
+    viewModal?.addEventListener('enl-cause-saved',e=>{if(e.detail?.id===i.id)i=e.detail;});
     const note=()=>document.getElementById('safetyNoteEdit')?.value.trim()||'';
     const applyPriority=()=>{const p=document.getElementById('priorityEdit411')?.value;if(['normal','important','urgent'].includes(p)){i.priority=p;i.prioritySource='manual';i.prioritySetBy=viewer.name;i.prioritySetAt=nowISO()}};
     const saveAndRefresh=()=>{applyPriority();i.updatedAt=nowISO();saveData();closeModal();renderShell(viewer)};

@@ -2,7 +2,7 @@
 (function(){
   'use strict';
 
-  const VERSION='4.6.6-r1-cause-auto-draft';
+  const VERSION='4.8.13-r23';
   const PUSH_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-v418';
   const CLIENT='incident-report-v2';
   const MANAGER_POSITIONS=['현장소장','파트장','서무'];
@@ -239,78 +239,119 @@
   // Every statement is a hypothesis to verify, never a confirmed accident cause.
   const CAUSE_DRAFT_RULES=[
     {types:['붕괴/전도','붕괴','전도'],pattern:/안전망|방풍망|펜스|휀스|구조물.{0,12}(?:붕괴|전도|쓰러)|강풍.{0,12}(?:붕괴|전도)|(?:붕괴|전도).{0,12}(?:구조물|시설물)/,
-      environment:'구조물·안전망의 고정·지지 상태와 기상·설치조건 확인 필요.',
-      behavior:'작업 전 고정상태 확인, 위험구역 접근통제 및 작업중지 절차 이행 여부 확인 필요.',
-      mechanism:'구조물 고정·지지 조건과 외력 및 작업·접근 과정의 관련성'},
+      environment:'구조물의 고정 상태와 외력을 받은 방향 확인 필요',
+      behavior:'작업 전 고정상태 확인 및 위험구역 통제 여부',
+      mechanism:'구조물이 지지력을 잃은 경위'},
     {types:['타구','골프공 맞음'],pattern:/골프공|타구|티샷|샷.{0,8}(?:맞|충돌)/,
-      environment:'경기구역과 작업구역의 거리·방호상태 및 타구 노출 환경 확인 필요.',
-      behavior:'경기 진행 확인, 작업중지·대피 및 경기운영자와의 연락 절차 이행 여부 확인 필요.',
-      mechanism:'골프 경기 진행과 작업 위치·동선이 겹친 경위'},
+      environment:'경기구역에서 작업 위치까지의 타구 노출 범위 확인 필요',
+      behavior:'경기 진행 중 작업 위치와 대피 시점 확인 필요',
+      mechanism:'타구 경로와 작업 위치가 겹친 경위'},
     {types:['차량/중장비','차량사고','차량 충돌'],pattern:/카트|지게차|차량|트럭|화물차|승용차|굴삭기|로더|중장비|후진|주행|운행/,
-      environment:'차량·장비와 인원·시설물 간 동선, 시야·사각지대 및 통행 여건 확인 필요.',
-      behavior:'차량 운행·회전 시 주변 확인, 정지·유도 및 안전거리 확보 여부 확인 필요.',
-      mechanism:'차량·장비의 이동 경로와 사람·시설물의 접촉 과정'},
+      environment:'차량과 주변 사람 또는 시설물 사이의 통행 공간 확인 필요',
+      behavior:'차량 이동 전 진행 방향과 주변 간격 확인 여부',
+      mechanism:'차량 이동 경로가 주변 동선과 겹쳤는지'},
     {types:['추락','떨어짐'],pattern:/추락|사다리|고소작업|작업발판|개구부|안전난간|높은 곳.{0,8}떨어/,
-      environment:'작업 높이·발판·난간·개구부 등 추락방지 시설의 상태 확인 필요.',
-      behavior:'고소작업 전 발판·보호구 점검과 안전한 승강·이동방법 준수 여부 확인 필요.',
-      mechanism:'높이 차이와 작업발판·이동동작 및 추락방지조치 간 관련성'},
+      environment:'작업 위치의 높이 차이와 발판 상태 확인 필요',
+      behavior:'추락 직전 작업 자세와 지지점 확인 필요',
+      mechanism:'높이 차이가 있는 구간에서 지지를 잃은 경위'},
     {types:['넘어짐','미끄러짐','낙상'],pattern:/넘어짐|넘어졌|미끄러|걸려 넘어|발을 헛딛|단차|낙상/,
-      environment:'사고 지점의 바닥·경사·단차·수분·장애물 등 넘어짐 위험요인 확인 필요.',
-      behavior:'보행·작업 동선, 이동 중 주변 확인 및 작업에 맞는 신발 착용 여부 확인 필요.',
-      mechanism:'통행·작업 중 바닥 환경과 이동동작이 균형 상실에 미친 영향'},
+      environment:'통행로의 단차와 노면 상태 확인 필요',
+      behavior:'이동 당시 발 디딤 위치와 진행 방향 확인 필요',
+      mechanism:'보행 중 균형을 잃은 경위'},
     {types:['끼임','협착'],pattern:/끼임|협착|말림|회전체|컨베이어|구동부/,
-      environment:'설비 위험점·방호덮개·간격 및 가동·정지 상태 확인 필요.',
-      behavior:'위험점 접근, 설비 정지·에너지 차단 및 안전작업 절차 이행 여부 확인 필요.',
-      mechanism:'작업자 신체와 가동부·구조물 사이 접촉·협착 과정'},
+      environment:'설비 가동부와 신체 사이의 간격 확인 필요',
+      behavior:'작업 당시 설비 정지 여부와 손의 위치 확인 필요',
+      mechanism:'설비 가동부에 신체가 접근한 경위'},
     {types:['베임/찔림','베임','절단'],pattern:/베임|베였|찔림|절단|낫|예초기|칼날|톱날|절삭/,
-      environment:'날이 있는 공구·장비의 상태, 방호장치 및 작업공간 확인 필요.',
-      behavior:'공구 취급 시 손 위치·절단방향·보호구 사용 등 작업방법 확인 필요.',
-      mechanism:'공구·날과 신체의 접촉 경위 및 방호·취급방법 간 관련성'},
+      environment:'공구 날 주변의 작업 공간과 방호 상태 확인 필요',
+      behavior:'공구 사용 시 날의 방향과 손의 위치 확인 필요',
+      mechanism:'공구 날과 신체가 접촉한 경위'},
     {types:['감전'],pattern:/감전|누전|전선|전기설비|활선|콘센트/,
-      environment:'전기설비의 절연·접지·누전보호 및 전선 손상 여부 확인 필요.',
-      behavior:'전원차단·무전압 확인과 전기기기 취급절차 이행 여부 확인 필요.',
-      mechanism:'전기 노출 경로와 설비 보호상태 및 작업방법의 관련성'},
+      environment:'전기를 취급한 지점의 절연 상태 확인 필요',
+      behavior:'작업 전 전원 차단과 무전압 확인 여부',
+      mechanism:'전류가 신체에 흐른 경로'},
     {types:['화재/폭발','화재','폭발'],pattern:/화재|폭발|화상|용접|인화성|발화|점화원/,
-      environment:'점화원, 가연물·인화성 물질과 환기·소화설비 상태 확인 필요.',
-      behavior:'화기작업 통제, 인화물 분리 및 화재예방 절차 이행 여부 확인 필요.',
-      mechanism:'점화원·가연물·작업환경의 상호작용 가능성'},
+      environment:'사고 지점의 열원과 가연물 배치 확인 필요',
+      behavior:'당시 작업에서 열이나 불꽃이 발생했는지 확인 필요',
+      mechanism:'발화 지점과 작업 과정의 관련성'},
     {types:['질식/중독','질식','중독'],pattern:/질식|중독|산소결핍|밀폐공간|유해가스/,
-      environment:'작업공간 환기상태와 산소·유해가스 농도 및 출입 여건 확인 필요.',
-      behavior:'작업 전 측정·환기·감시인 배치와 출입통제 절차 이행 여부 확인 필요.',
-      mechanism:'작업장 공기 상태와 노출경로 및 출입·작업 절차의 관련성'},
+      environment:'사고 장소의 환기 상태와 유해물질 노출 가능성 확인 필요',
+      behavior:'작업 전 공기 상태 확인 및 환기 여부',
+      mechanism:'작업 중 노출된 물질 또는 산소 부족 여부'},
     {types:['근골격','근골격계'],pattern:/근골격|중량물|반복작업|허리.{0,8}(?:통증|다침)|무거운 물건/,
-      environment:'취급물의 무게·작업 높이·동선과 운반보조 장비의 적정성 확인 필요.',
-      behavior:'들기·운반 자세, 반복동작과 2인 작업·보조도구 사용 여부 확인 필요.',
-      mechanism:'취급하중·작업자세·반복빈도에 따른 신체부담 가능성'},
+      environment:'취급물의 무게와 작업 높이 확인 필요',
+      behavior:'작업 자세와 동작 반복 횟수 확인 필요',
+      mechanism:'작업 하중과 신체 부담의 관련성'},
     {types:['낙하/맞음','낙하물','맞음'],pattern:/낙하물|비래|떨어진 물체|물체.{0,8}맞|물건.{0,8}떨어/,
-      environment:'상부 적치물·고정상태와 낙하·비산 방지시설 확인 필요.',
-      behavior:'하부 출입통제, 낙하 위험 작업방법 및 보호구 착용 여부 확인 필요.',
-      mechanism:'물체 이탈·낙하 경로와 작업자 위치 간 관련성'},
+      environment:'물체 위치와 낙하 경로의 방호 상태 확인 필요',
+      behavior:'물체가 이탈했을 때 작업자의 위치 확인 필요',
+      mechanism:'낙하 경로에 작업자가 노출된 경위'},
     {types:['설비/시설 파손'],pattern:/설비.{0,8}파손|시설물.{0,8}파손|기계.{0,8}고장/,
-      environment:'관련 설비·시설물의 이상·손상 상태 및 보호·점검 여건 확인 필요.',
-      behavior:'설비 운전·취급 및 이상 발견 시 사용중지·보고 절차 확인 필요.',
-      mechanism:'설비·시설물의 상태와 사용·접촉 과정의 관련성'}
+      environment:'파손 부위 주변의 간격과 시설 상태 확인 필요',
+      behavior:'파손 직전 설비 조작 또는 이동 경로 확인 필요',
+      mechanism:'시설에 힘이 가해진 지점과 파손 경위'}
   ];
   function buildCauseDraft(i){
     const d=i?.reportDetails||{},event=text(i?.eventType);
-    const how=[d.incidentHow,d.damageDetail,d.injuryDetail].map(text).filter(Boolean).join(' ');
-    const work=[d.workAction,d.job,i?.job].map(text).filter(Boolean).join(' ');
-    // The generated summary may contain proposed prevention measures; avoid
-    // using it to classify causes when firsthand incident fields are present.
-    const source=[event,how,work,d.place,(!how&&!work?i?.summary:'')].map(text).filter(Boolean).join(' ');
-    const rule=CAUSE_DRAFT_RULES.find(x=>x.types.includes(event))
-      ||CAUSE_DRAFT_RULES.find(x=>x.pattern.test(source));
+    const summary=text(i?.summary);
+    const narrative=summary.match(/\[사고 경위\]\s*([^[]+)/)?.[1];
+    const how=text(d.incidentHow)||text(narrative),work=text(d.workAction);
+    // Use firsthand descriptions before a broad classification such as facility damage.
+    // A generated summary also contains later prevention measures; those are not evidence.
+    const legacy=!how&&!work&&!/^\[사고 개요\]/.test(summary)?summary:'';
+    const movement=[how,work,legacy].filter(Boolean).join(' ');
+    const scene=[movement,text(d.place)].join(' ');
+    const damage=[how,d.damagedItem,d.damageDetail,legacy].map(text).join(' ');
+    const vehicle=/차량|자동차|승용차|화물차|트럭|작업차|카트|지게차|트랙터|승용모어|바퀴|타이어/.test(scene+' '+damage);
+    const turn=/회전|선회|유턴|방향.{0,3}전환|차를 돌리|차량을 돌리/.test(movement);
+    const reverse=/후진/.test(movement);
+    const fixture=(scene+' '+text(d.damagedItem)).match(/홀\s*맵\s*지주|안내표지판|안내판|표지판|볼라드|연석|경계석|기둥|펜스/)?.[0];
+    const contact=/충돌|접촉|들이받|부딪|부딫|충격을 가|추돌/.test(how||legacy)&&!/충돌.{0,4}(?:없|않)|접촉.{0,4}(?:없|않)/.test(how||legacy);
+    if(vehicle&&(turn||reverse||fixture&&contact)&&!/회전체|회전날/.test(movement)){
+      const narrow=/좁[은아았고]|좁음|협소|비좁|공간.{0,4}부족/.test(scene);
+      const wheelHit=damage.match(/(뒷바퀴|뒤쪽?\s*바퀴|후륜|뒤\s*타이어|앞바퀴|전륜|타이어)[^.!?]{0,14}?(?:파손|손상|펑크|찢어|터짐)/);
+      const wheel=wheelHit&&!/파손.{0,4}(?:없|아님|않)/.test(damage)?wheelHit[1]:'';
+      const motion=reverse&&turn?'후진 회전':reverse?'후진':turn?'회전':'이동';
+      const path=wheel?wheel+' 이동 경로':'차량 이동 경로';
+      const environmentCause=narrow?'차량 '+motion+' 공간이 좁아 주변과의 간격 확보에 제약'
+        :fixture&&contact?'차량 이동 구간과 '+fixture+' 사이의 여유 공간 확인 필요':'차량 '+motion+' 구간의 통행 폭과 주변 여유 공간 확인 필요';
+      const behaviorCause=motion+' 전 '+path+(fixture?'와 '+fixture+' 사이의 간격':'와 주변 간격')+' 확인 여부';
+      const outcome=wheel?'차량 '+motion+' 중 '+wheel+' 파손':fixture&&contact?'차량 '+motion+' 중 '+fixture+' 접촉':'차량 '+motion+' 중 사고 발생';
+      const mechanism=narrow&&turn&&wheel?'회전 궤적과 주변 간격이 파손에 영향을 주었을 가능성.':path+'와 주변 간격이 사고에 미친 영향 확인 필요.';
+      return {environmentCause,behaviorCause,causeAnalysisNote:outcome+'. '+mechanism};
+    }
+    const fall=/미끄러[져졌짐]|넘어[져졌짐]|헛디[뎌딤]|헛딛/.test(movement);
+    const ice=/빙판|결빙|얼어붙|살얼음/.test(scene),wet=/젖은|젖어|물기|빗물/.test(scene);
+    if(fall&&(ice||wet)){
+      const surface=ice?'결빙된 바닥':'젖은 바닥';
+      return {environmentCause:surface+'으로 미끄러질 위험이 있는 통행 구간',
+        behaviorCause:'이동 전 노면 상태 확인 및 우회 가능 여부 확인 필요',
+        causeAnalysisNote:surface+'에서 이동 중 균형을 잃은 경위와 노면 상태의 관련성 확인 필요.'};
+    }
+    if(/사다리/.test(scene)&&/추락|떨어[져졌짐]/.test(how)){
+      return {environmentCause:'사다리 설치면과 발판의 지지 상태 확인 필요',behaviorCause:'추락 직전 발 디딤 위치와 작업 자세 확인 필요',causeAnalysisNote:'사다리 작업 중 추락. 발판 상태와 작업 자세가 추락에 미친 영향 확인 필요.'};
+    }
+    const blade=movement.match(/예초기|낫|전정가위|칼날|톱날/)?.[0];
+    if(blade&&/베임|베였|베어|찔림|찔렸|절단|날에.{0,12}접촉/.test(how+' '+text(d.injuryDetail))){
+      return {environmentCause:blade+' 날 주변의 작업 여유 공간 확인 필요',behaviorCause:'작업 당시 날의 진행 방향과 신체 위치 확인 필요',causeAnalysisNote:blade+' 작업 중 날과 신체가 접촉한 경위 확인 필요.'};
+    }
+    const categoryRule=CAUSE_DRAFT_RULES.find(x=>x.types.includes(event));
+    const rule=(categoryRule&&!['설비/시설 파손','차량/중장비'].includes(event)?categoryRule:null)
+      ||CAUSE_DRAFT_RULES.find(x=>x.pattern.test(how||legacy))
+      ||categoryRule
+      ||CAUSE_DRAFT_RULES.find(x=>x.pattern.test([work,d.damageDetail,d.injuryDetail,event].map(text).join(' ')));
     if(!rule)return {
-      environmentCause:'사고 장소의 바닥·동선·시설·장비 상태 등 관련 환경요인 확인 필요.',
-      behaviorCause:'사고 직전 작업방법·이동동선과 필요한 안전조치 이행 여부 확인 필요. 근로자 과실은 단정하지 않음.',
-      causeAnalysisNote:(source?'초기 검토(미확정): '+(event||'해당 사고')+'의 직접 원인과 환경·작업방법·관리상 요인의 관계 확인 필요.':'사고경위 자료가 부족해 원인을 특정할 수 없음.')+' 현장 사진·관계자 진술·점검기록 대조 후 최종 판단.'
+      environmentCause:'사고 지점의 작업공간과 시설 상태 확인 필요',
+      behaviorCause:'사고 직전 수행한 작업과 이동 경로 확인 필요',
+      causeAnalysisNote:'현재 경위서만으로는 직접 원인을 특정하기 어려움.'
     };
     return {
       environmentCause:rule.environment,
       behaviorCause:rule.behavior,
-      causeAnalysisNote:'초기 가설(미확정): '+rule.mechanism+' 검토. 사고경위·현장사진·관계자 진술·점검기록으로 인과관계 확인 필요.'
+      causeAnalysisNote:rule.mechanism+' 확인 필요.'
     };
   }
+
   function hasSavedCause(d){
     return ['analyzed','investigating'].includes(text(d?.causeAnalysisStatus))
       ||[d?.environmentCause,d?.behaviorCause,d?.causeAnalysisNote].some(v=>!!text(v));
@@ -378,7 +419,14 @@
     try{
       const next=structuredClone(i);next.reportDetails={...(next.reportDetails||{}),...cause};next.updatedAt=now();
       if(!await window.enlCommitOrNotify(next)){if(box?.querySelector('[data-wf440-cause-message]'))box.querySelector('[data-wf440-cause-message]').textContent='서버 저장을 확인하지 못했습니다. 입력 내용을 유지했으니 다시 시도해 주세요.';return;}
-      closeModal();renderShell(u);alert('안전관리자 원인분석 내용을 서버에 저장했습니다. 사고 승인 전 다시 수정할 수 있습니다.');
+      const modal=box?.closest('.modal'),saved=incident(i.id);
+      if(!modal?.isConnected||!saved||uid(currentUser())!==uid(u))return;
+      const scroll=modal.scrollTop;
+      modal.dispatchEvent(new CustomEvent('enl-cause-saved',{detail:saved}));
+      decorateIncidentModal(i.id,saved);
+      const message=modal.querySelector('[data-wf440-cause-message]');
+      if(message)message.textContent='원인분석을 저장했습니다.';
+      modal.scrollTop=scroll;
     }finally{if(button){button.disabled=false;button.textContent='원인분석 별도 저장';}}
   }
 
@@ -397,7 +445,11 @@
     if(i.supplement)i.supplement={...i.supplement,status:'accepted',approvedBy:u.name,approvedById:uid(u),approvedAt:ts};
     const w=workflow(i);w.phase='report_approved';w.finalApprovedAt=ts;w.finalApprovedBy=u.name;w.finalApprovedById=uid(u);i.updatedAt=ts;
     const attempt=window.enlStableSaveAttempt?.(document.querySelector('#modalRoot .modal'),i,['approvedAt','prioritySetAt','supplement.approvedAt','reportWorkflow.finalApprovedAt'])||i;
-    if(!await window.enlCommitOrNotify(attempt))return;closeModal();renderShell(u);alert('사고보고를 최종승인했습니다. 이제 재발방지계획을 수립할 수 있습니다.');
+    const review=document.querySelector('#modalRoot .modal');
+    if(!await window.enlCommitOrNotify(attempt))return;
+    if(!review?.isConnected||uid(currentUser())!==uid(u))return;
+    closeModal();renderShell(u);
+    window.openUnifiedCorrectiveModal?.(i.id,u);
   }
 
   async function pushApi(action,extra={}){
@@ -439,9 +491,9 @@
   }
 
   function decorateIncidentModal(id,override=null){
-    const i=override||incident(id),u=currentUser?.(),modal=document.querySelector('#modalRoot .modal');if(!i||!u||!modal||modal.querySelector('#official439DeleteForm,#prev429PlanForm,#prev429FieldForm,#prev429ReviewForm'))return;
+    const i=override||incident(id),u=currentUser?.(),modal=document.querySelector('#modalRoot .modal');if(!i||!u||!modal||modal.querySelector('#wf440RequestForm,#official439DeleteForm,#prev429PlanForm,#prev429FieldForm,#prev429ReviewForm'))return;
     activeId=String(i.id);modal.dataset.wf440Incident=activeId;
-    const decorSig=[i.updatedAt||'',i.status||'',i.supplement?.status||'',i.corrective?.status||'',(i.acknowledgements||[]).length].join('|');
+    const decorSig=[i._syncVersion||0,i.updatedAt||'',i.status||'',i.supplement?.status||'',i.corrective?.status||'',(i.acknowledgements||[]).length].join('|');
     if(modal.dataset.wf440DecorSig===decorSig)return;
     modal.dataset.wf440DecorSig=decorSig;
     modal.querySelectorAll('.wf440-stage,.wf440-supplement-note[data-wf440-modal]').forEach(x=>x.remove());
@@ -451,11 +503,11 @@
       modal.querySelector('#closeInc')?.remove();
       modal.querySelector('.wf440-safety-actions')?.remove();
       const baseApprove=modal.querySelector('#approveInc');if(baseApprove)baseApprove.remove();
-      const reject=modal.querySelector('#rejectInc');if(reject){reject.textContent='보고 반려(오류·중복)';reject.classList.add('wf440-invalid-btn')}
+      const reject=modal.querySelector('#rejectInc');if(reject){reject.textContent='보고 반려(오류·중복)';reject.title='보고서 자체에 오류나 중복이 있을 때 사유를 적어 현장에 돌려보냅니다.';reject.classList.add('wf440-invalid-btn')}
       if(['reported','supplement','supplement_submitted'].includes(String(i.status||''))){
         const actions=document.createElement('div');actions.className='wf440-safety-actions';
         if(String(i.status)==='supplement')actions.innerHTML='<button type="button" class="wf440-supp-btn" data-wf440-supp>보완요청 수정</button><button type="button" disabled style="background:#eef2f5;color:#778797">현장 보완자료 대기 중</button>';
-        else actions.innerHTML='<button type="button" class="wf440-supp-btn" data-wf440-supp>'+(i.status==='supplement_submitted'?'보완 재요청':'보완요청')+'</button><button type="button" class="wf440-final-btn" data-wf440-final>사고보고 최종승인</button>';
+        else actions.innerHTML='<button type="button" class="wf440-supp-btn" data-wf440-supp>'+(i.status==='supplement_submitted'?'자료 보완 재요청':'자료 보완요청')+'</button><button type="button" class="wf440-final-btn" data-wf440-final>사고보고 최종승인</button>';
         const target=modal.querySelector('.modal-actions')||modal.lastElementChild;target?.insertAdjacentElement('beforebegin',actions);
         actions.querySelector('[data-wf440-supp]')?.addEventListener('click',()=>openSupplementRequest(i,u));
         actions.querySelector('[data-wf440-final]')?.addEventListener('click',()=>finalApprove(i,u));
