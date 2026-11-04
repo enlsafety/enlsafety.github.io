@@ -44,6 +44,8 @@ i=(await f.call('safety',{action:'pull'})).body.incidents[0];
 await ok('safety',x=>{x.corrective.status='approved'});check(i.executiveApproval.round===3&&i.executiveApproval.stage==='parallel'&&i.executiveApproval.signatures.length===0,'resubmission restarts parallel approvals');
 const thirdVersion=i._syncVersion;for(const who of ['e5','e3','e2','e4']){r=await f.call(who,{action:'executive_decide',incidentId:i.id,decision:'approve',expectedVersion:thirdVersion,approvalRound:3});assert.equal(r.status,200,JSON.stringify(r));i=r.body.incident;}
 r=await f.call('executive',{action:'executive_decide',incidentId:i.id,decision:'approve',expectedVersion:i._syncVersion,approvalRound:3});assert.equal(r.status,200,JSON.stringify(r));i=r.body.incident;check(i.status==='closed','only president closes');
+const activity=(await f.call('safety',{action:'activity_list'})).body.rows.map(row=>row.kind);
+for(const kind of ['create','approve','plan_create','corrective_submit','corrective_approve','executive_sign','executive_reject','final_approval'])check(activity.includes(kind),'history includes '+kind);
 check(i.officialRecord.finalApproval.id==='qa-executive'&&i.officialRecord.finalApproval.method==='parallel_then_president','president final signer preserved');
 check(/^ENL-ACC-\d{4}-00001$/.test(i.officialRecord.documentNumber),'server document number');
 r=await f.call('executive',{action:'executive_decide',incidentId:i.id,decision:'approve',expectedVersion:0});check(r.status===200&&r.body.duplicate,'last approval retry idempotent');

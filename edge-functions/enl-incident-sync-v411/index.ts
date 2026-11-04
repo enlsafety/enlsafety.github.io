@@ -18,6 +18,7 @@ function isBulkImported(i:any){return !!(clean(i?.historicalOrigin?.batchId)&&cl
 function bulkInactive(i:any){return isBulkImported(i)&&i?.bulkInvalidation?.active===true}
 function legacyUnverified(i:any){return isBulkImported(i)&&i.externalInitialApproval?.state==='unverifiable'}
 const versionOf=(v:any)=>{const n=Number(v);return Number.isFinite(n)&&n>=0?Math.trunc(n):0;};
+const validVisit=(visit:string)=>/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(visit);
 function actorFrom(body:any){const a=body?.actor||{};return {id:clean(a.id),name:clean(a.name)||"사용자",role:roleNorm(a.role||body?.role),position:clean(a.position),siteId:clean(a.siteId||body?.siteId)};}
 async function verifyActor(sql:any,body:any,strong=false){
   const a=actorFrom(body);
@@ -205,6 +206,47 @@ Deno.serve(async(req:Request)=>{
   try{
     let actor=await verifyActor(sql,body,true);if(!actor)return json({ok:false,message:"auth_proof_required"},403);
 
+    if(["activity_count","activity_open","activity_list","activity_page","activity_document"].includes(action)){
+      if(actor.role!=="safety")return json({ok:false,message:"forbidden"},403);
+      if(action==="activity_count"){
+        const [r]=await sql`select count(*)::int as unread from private.enl_activity_events e where not exists
+          (select 1 from private.enl_activity_reads r where r.actor_id=${actor.id} and r.event_id=e.id)`;
+        return json({ok:true,unread:r.unread});
+      }
+      if(action==="activity_document"){
+        const id=clean(body.incidentId);
+        const [r]=await sql`select case when d.deleted_at is not null then s.payload end as payload,s.site_id,d.deleted_at,d.deleted_by_name,d.reason from public.enl_incident_shared s
+          left join private.enl_incident_deletions d using(incident_id) where s.incident_id=${id}`;
+        if(r&&!r.deleted_at)return json({ok:true,archived:false});
+        if(r){
+          if(body.visitId){
+            const visit=clean(body.visitId);
+            if(!validVisit(visit))return json({ok:false,message:"invalid_visit"},400);
+            await sql`select private.enl_activity_add(${"archive:"+actor.id+":"+id+":"+visit},${id},${now}::timestamptz,${actor.id},${actor.name},${actor.role},${r.site_id},'archive_view',payload)
+              from public.enl_incident_shared where incident_id=${id}`;
+          }
+          return json({ok:true,archived:true,incident:parsePayload(r.payload),deletedAt:r.deleted_at,deletedBy:r.deleted_by_name,reason:r.reason});
+        }
+        const [old]=await sql`select coalesce(before_payload,private.enl_evidence_get(before_hash)) as doc,changed_at,editor_name
+          from public.enl_incident_audit where incident_id=${id} and action='delete' order by changed_at desc limit 1`;
+        if(!old?.doc)return json({ok:false,message:"archive_not_found"},404);
+        return json({ok:true,archived:true,incident:parsePayload(old.doc),deletedAt:old.changed_at,deletedBy:old.editor_name});
+      }
+      const cursor=action==="activity_page"?clean(body.before):"";
+      if(action==="activity_page"&&!/^\d{1,18}$/.test(cursor))return json({ok:false,message:"invalid_cursor"},400);
+      // One statement, one MVCC snapshot. Concurrent later commits remain unread,
+      // even if their sequence values or timestamps precede the displayed rows.
+      const rows=await sql`with marked as (
+          insert into private.enl_activity_reads(actor_id,event_id) select ${actor.id},e.id from private.enl_activity_events e
+          where ${action==="activity_open"} and not exists(select 1 from private.enl_activity_reads r where r.actor_id=${actor.id} and r.event_id=e.id)
+          on conflict do nothing returning event_id)
+        select id::text as id,incident_id,happened_at,actor_name,actor_role,site_name,site_id,incident_title,occurred_text,kind
+        from private.enl_activity_events e where nullif(${cursor},'') is null or (happened_at,id) <
+          (select happened_at,id from private.enl_activity_events where id=nullif(${cursor},'')::bigint)
+        order by e.happened_at desc,e.id desc limit 51`;
+      return json({ok:true,rows:rows.slice(0,50),more:rows.length>50});
+    }
+
     // Shared dashboard: authenticated HQ read access, no incident content or writes.
     if(action==="dashboard_read"){
       if(!["safety","manager","executive"].includes(actor.role))return json({ok:false,message:"forbidden"},403);
@@ -300,9 +342,14 @@ Deno.serve(async(req:Request)=>{
         const rows=await sql`select site_id,payload from public.enl_incident_active where incident_id=${incidentId} for update`,row=rows[0],prev=parsePayload(row?.payload);
         if(!prev)return json({ok:false,message:"not_found"},404);
         if(!["safety","manager","executive"].includes(actor.role)&&clean(row.site_id)!==actor.siteId)return json({ok:false,message:"forbidden"},403);
-        if(actor.role==="worker")return json({ok:false,message:"forbidden"},403);
+        if(actor.role==="worker"&&!(action==="view"&&body.visitId&&isMine(prev,actor)))return json({ok:false,message:"forbidden"},403);
         if(action==="view"){
+          const visit=clean(body.visitId);
+          if(visit&&!validVisit(visit))return json({ok:false,message:"invalid_visit"},400);
+          const source="visit:"+actor.id+":"+incidentId+":"+visit;
+          if(visit)await sql`select set_config('enl.activity_visit',${source},true)`;
           await sql`insert into public.enl_document_views(incident_id,document_type,viewer_id,viewer_name,viewer_role,first_viewed_at) values(${incidentId},'incident_report',${actor.id},${actor.name},${actor.role},${now}) on conflict do nothing`;
+          if(visit)await sql`select private.enl_activity_add(${source},${incidentId},${now}::timestamptz,${actor.id},${actor.name},${actor.role},${row.site_id},'view',${sql.json({category:prev.category,eventType:prev.eventType,occurredAt:prev.occurredAt,reportDetails:{place:prev.reportDetails?.place}})}::jsonb)`;
           return json({ok:true,viewed:true});
         }
         if(action==="revision_list"){
