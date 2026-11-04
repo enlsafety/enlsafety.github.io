@@ -1,3 +1,4 @@
+import { platformRequest } from "./platform-api.ts";
 import "./site-contract-v451.js";
 import "./executive-approval-v482.js";
 import { validateLifecycle, correctedIncident, isHistoricalEditable } from "./lifecycle-policy.ts";
@@ -206,31 +207,64 @@ Deno.serve(async(req:Request)=>{
   try{
     let actor=await verifyActor(sql,body,true);if(!actor)return json({ok:false,message:"auth_proof_required"},403);
 
-    if(["activity_count","activity_open","activity_list","activity_page","activity_document","activity_delete"].includes(action)){
+    if(action.startsWith("platform_"))return await platformRequest(sql,actor,body,json);
+    if(action==="activity_cleanup_audit"){
+      if(actor.role!=="safety")return json({ok:false,message:"forbidden"},403);
+      const rows=await sql`select id::text,actor_name,at,mode,scope,reason,cardinality(event_ids) as count,restored_at,restored_by,restore_reason
+        from private.enl_platform_cleanup where id<coalesce(nullif(${clean(body.before)},'')::bigint,9223372036854775807) order by id desc limit 51`;
+      return json({ok:true,rows:rows.slice(0,50),more:rows.length>50});
+    }
+    if(["activity_count","activity_open","activity_list","activity_page","activity_document","activity_delete","activity_restore"].includes(action)){
       const safety=actor.role==="safety",field=actor.role==="field"&&!!actor.siteId&&["현장소장","파트장","서무"].includes(actor.position);
       if(!safety&&!field&&!["manager","executive"].includes(actor.role))return json({ok:false,message:"forbidden"},403);
       const readKey=safety?actor.id:JSON.stringify([actor.role,actor.siteId,actor.id]);
       const from=clean(body.fromDate),to=clean(body.toDate);
       const dayOk=(v:string)=>!v||(/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v&&v>="1900-01-01"&&v<="9998-12-31");
-      if(action==="activity_delete"){
+      if(action==="activity_delete"||action==="activity_restore"){
         if(!safety)return json({ok:false,message:"forbidden"},403);
-        const mode=clean(body.mode),id=clean(body.id);
-        if(body.confirmed!==true||!["one","range","all"].includes(mode)||
-           (mode==="one"?!/^\d{1,18}$/.test(id):!!id)||
+        const mode=action==="activity_restore"?"restore":clean(body.mode),id=clean(body.id);
+        if(body.confirmed!==true||!["one","range","all","restore"].includes(mode)||((mode==="restore")!==(action==="activity_restore"))||
+           (["one","restore"].includes(mode)?!/^\d{1,18}$/.test(id):!!id)||
            (mode==="range"?(!from||!to||!dayOk(from)||!dayOk(to)||from>to):!!from||!!to))
           return json({ok:false,message:"invalid_delete_scope"},400);
-        const [result]=await sql`with removed as (
-          update private.enl_activity_events set listed=false where listed
-          and (${mode}<>'one' or id=nullif(${id},'')::bigint)
-          and (${mode}<>'range' or happened_at >= (nullif(${from},'')::date::timestamp at time zone 'Asia/Seoul')
-            and happened_at < ((nullif(${to},'')::date+1)::timestamp at time zone 'Asia/Seoul')) returning 1)
-          select count(*)::int as removed from removed`;
-        return json({ok:true,removed:result.removed});
+        const reason=clean(body.reason),password=body.password;
+        if(reason.length<2||reason.length>1000||typeof password!=="string"||!password||password.length>256)return json({ok:false,message:"reauth_and_reason_required"},400);
+        const entered=await sha256Hex(password);
+        return await sql.begin(async(tx:any)=>{
+          const [credential]=await tx`select password_hash from public.enl_hq_users where user_id=${actor.id} and active and role='safety' for share`;
+          if(!credential)return json({ok:false,message:"forbidden"},403);
+          await tx`insert into private.enl_incident_delete_attempts(actor_id) values(${actor.id}) on conflict do nothing`;
+          const [attempt]=await tx`select * from private.enl_incident_delete_attempts where actor_id=${actor.id} for update`;
+          const fresh=Date.now()-new Date(attempt.window_started_at).getTime()<900000,failures=fresh?attempt.failures:0;
+          if(failures>=5)return json({ok:false,message:"password_attempts_exceeded"},429);
+          if(credential.password_hash!==entered){
+            await tx`update private.enl_incident_delete_attempts set failures=${failures+1},window_started_at=case when ${fresh} then window_started_at else now() end where actor_id=${actor.id}`;
+            return json({ok:false,message:"password_incorrect"},403);
+          }
+          await tx`update private.enl_incident_delete_attempts set failures=0 where actor_id=${actor.id}`;
+          if(mode==="restore"){
+            const [restored]=await tx`with batch as (update private.enl_platform_cleanup set restored_at=now(),restored_by=${actor.id},restore_reason=${reason}
+              where id=${id}::bigint and restored_at is null returning event_ids),
+              changed as (update private.enl_activity_events set listed=true where not listed and id in (select unnest(event_ids) from batch) returning id)
+              select count(*)::int as count from changed`;
+            return json({ok:true,restored:restored.count});
+          }
+          const [result]=await tx`with removed as (update private.enl_activity_events set listed=false where listed
+            and (${mode}<>'one' or id=nullif(${id},'')::bigint)
+            and (${mode}<>'range' or happened_at >= (nullif(${from},'')::date::timestamp at time zone 'Asia/Seoul')
+              and happened_at < ((nullif(${to},'')::date+1)::timestamp at time zone 'Asia/Seoul')) returning id)
+            insert into private.enl_platform_cleanup(actor_id,actor_name,mode,scope,reason,event_ids)
+            select ${actor.id},${actor.name},${mode},${tx.json({id,from,to})}::jsonb,${reason},coalesce(array_agg(id),'{}'::bigint[]) from removed returning cardinality(event_ids) as removed`;
+          return json({ok:true,removed:result.removed});
+        });
       }
       // Both the unread count and every search/page use this same server-verified scope.
       const visible=safety?sql`true`:sql`(
-        (${field} and e.site_id=${actor.siteId} and split_part(e.kind,'_',1) in ('site','personnel'))
-        or (split_part(e.kind,'_',1) not in ('site','personnel','hq') and exists (
+        (e.module_key='common' and ${field} and e.site_id=${actor.siteId} and split_part(e.kind,'_',1) in ('site','personnel'))
+        or (e.module_key in ('risk','tbm','organization','training') and (not ${field} or e.site_id=${actor.siteId}) and exists
+          (select from private.enl_platform_catalog c,jsonb_array_elements(c.modules) m where m->>'key'=e.module_key and (m->'roles') ? ${actor.role}
+          and (m->>'state'='live' or (m->>'state'='building' and m->>'preview'='true' and (m->'pilots') ? ${(field?'site:':'hq:')+actor.id}))))
+        or (e.module_key='incident' and split_part(e.kind,'_',1) not in ('site','personnel','hq') and exists (
           select 1 from public.enl_incident_active a where a.incident_id=e.incident_id
           and (not ${field} or (a.site_id=${actor.siteId} and e.site_id=a.site_id))
           and (${field} or a.payload->>'status' in ('reported','supplement','supplement_submitted','approved','closed'))
@@ -238,7 +272,7 @@ Deno.serve(async(req:Request)=>{
             and coalesce(a.payload#>>'{historicalOrigin,batchId}','')<>'' and coalesce(a.payload#>>'{historicalOrigin,candidateId}','')<>''
             and coalesce(a.payload#>>'{externalInitialApproval,state}','') in ('verified','unverifiable')))))`;
       if(action==="activity_count"){
-        const [r]=await sql`select count(*)::int as unread from private.enl_workflow_history e
+        const [r]=await sql`select count(*)::int as unread from private.enl_platform_history e
           left join private.enl_history_checkpoints c on c.actor_id=${readKey}
           where ${visible} and (c.seen is null or (e.write_xid>=pg_snapshot_xmin(c.seen) and not pg_visible_in_snapshot(e.write_xid,c.seen))) and not exists
           (select 1 from private.enl_activity_reads r where r.actor_id=${readKey} and r.event_id=e.id)`;
@@ -275,13 +309,18 @@ Deno.serve(async(req:Request)=>{
           select ${readKey},pg_current_snapshot(),statement_timestamp() where ${action==="activity_open"}
           on conflict(actor_id) do update set seen=excluded.seen,marked_at=excluded.marked_at
           where excluded.marked_at>=enl_history_checkpoints.marked_at returning actor_id)
-        select id::text as id,incident_id,happened_at,actor_name,actor_role,site_name,site_id,incident_title,occurred_text,kind,sentence,role_label
-        from private.enl_workflow_history e where ${visible} and (nullif(${cursor},'') is null or (happened_at,id) <
+        select id::text as id,incident_id,happened_at,actor_name,actor_role,site_name,site_id,incident_title,occurred_text,kind,display_sentence as sentence,role_label,module_key,result_label
+        from private.enl_platform_history e where ${visible} and (nullif(${cursor},'') is null or (happened_at,id) <
           (select happened_at,id from private.enl_activity_events where id=nullif(${cursor},'')::bigint))
         and (nullif(${from},'') is null or happened_at >= (nullif(${from},'')::date::timestamp at time zone 'Asia/Seoul'))
         and (nullif(${to},'') is null or happened_at < ((nullif(${to},'')::date+1)::timestamp at time zone 'Asia/Seoul'))
+        and (nullif(${clean(body.module)},'') is null or module_key=${clean(body.module)})
+        and (nullif(${clean(body.result)},'') is null or result_label=${clean(body.result)})
+        and (nullif(${clean(body.kind)},'') is null or kind=${clean(body.kind)})
+        and (nullif(${clean(body.site)},'') is null or strpos(coalesce(site_name,'')||' '||coalesce(site_id,''),${clean(body.site)})>0)
+        and (nullif(${clean(body.person)},'') is null or strpos(coalesce(actor_name,'')||' '||coalesce(actor_id,''),${clean(body.person)})>0)
         and not exists(select 1 from unnest(string_to_array(${term},' ')) word where
-          strpos(replace(lower(concat_ws(' ',sentence,role_label,incident_id,occurred_text,
+          strpos(replace(lower(concat_ws(' ',display_sentence,role_label,incident_id,occurred_text,
             case when kind='view' then '최초조회 열람' when kind in ('supplement_request','corrective_reject') then '보완요청'
             when kind='corrective_approve' then '재발방지조치승인 최종사고승인' when kind='plan_create' then '재발방지계획작성 현장조치요청'
             when kind='corrective_submit' then '재발방지조치작성 안전관리자제출' when kind='final_approval' then '최종결재 종결처리'

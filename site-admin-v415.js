@@ -96,21 +96,23 @@
   }
 
   function tabsHtml(){
-    return `<div class="sa415-tabs"><button type="button" data-sa415-tab="sites" class="${activeTab==='sites'?'on':''}">현장정보 관리</button><button type="button" data-sa415-tab="hq" class="${activeTab==='hq'?'on':''}">본사 사용자</button></div>`;
+    return `<div class="sa415-tabs"><button type="button" data-sa415-tab="sites" class="${activeTab==='sites'?'on':''}">현장정보 관리</button><button type="button" data-sa415-tab="hq" class="${activeTab==='hq'?'on':''}">본사 사용자</button><button type="button" data-sa415-tab="directory">직무 담당자</button><button type="button" data-platform-modules>모듈 관리</button><button type="button" data-platform-history>히스토리 관리</button></div>`;
   }
 
   function bindTabs(root,u){
+    root.querySelector('[data-platform-modules]').onclick=()=>window.enlPlatformOpenEditor(u);
+    root.querySelector('[data-platform-history]').onclick=()=>{window.enlRequestHistory();currentView='history';renderShell(u)};
     root.querySelectorAll('[data-sa415-tab]').forEach(button=>{
       button.onclick=()=>{
         activeTab=button.dataset.sa415Tab;
-        if(activeTab==='hq')renderHq(root,u);else renderSites(root,u);
+        if(activeTab==='directory')directory(root,u);else if(activeTab==='hq')renderHq(root,u);else renderSites(root,u);
       };
     });
   }
 
   function renderSites(root,u){
     const pageData=sitePageData();
-    root.innerHTML=`<div class="sa415"><section class="panel"><div class="sa415-head"><div><div class="ey">SITE & USER SETTINGS</div><h2>설정</h2><p>현장 기본정보와 일반근로자·현장소장·파트장·서무를 한 곳에서 관리합니다.</p></div>${tabsHtml()}</div></section><section class="panel"><div class="sa415-tools"><div class="sa415-search"><input id="sa415SiteSearch" value="${escx(siteQuery)}" placeholder="사업장명, 지역, 소장 검색"><button type="button" id="sa415SiteSearchBtn">검색</button></div><button type="button" class="sa415-primary" id="sa415CreateSite">+ 사업장 추가</button></div><label class="sa415-status-label">목록 선택 <select id="sa415SiteStatus">${[['active','기본 목록'],['all','전체'],['closed','보관함']].map(([v,t])=>`<option value="${v}" ${v===siteStatus?'selected':''}>${t}</option>`).join('')}</select></label><div class="sa415-sites">${pageData.rows.map(s=>`<button type="button" class="sa415-site" data-sa415-site="${escx(s.site_id)}"><div><h3>${escx(siteName(s))}</h3><p>${escx(text(s.region)||'지역 미등록')}${text(s.address)?' · '+escx(s.address):''}</p></div><div class="sa415-counts"><span>상용<b>${number(s.regular_count)}</b></span><span>일용<b>${number(s.daily_count)}</b></span><span>합계<b>${total(s)}</b></span></div><div><b>소장 ${escx(text(s.manager_name)||'미등록')}</b><p>등록 근무자 ${number(s.worker_login_count)}명</p></div><span class="sa415-arrow">정보 수정 ›</span></button>`).join('')||'<div class="sa415-empty">조건에 맞는 사업장이 없습니다.</div>'}</div><div class="sa415-page">${Array.from({length:pageData.pages},(_,i)=>i+1).slice(Math.max(0,sitePage-3),Math.max(0,sitePage-3)+5).map(p=>`<button type="button" data-sa415-site-page="${p}" class="${p===sitePage?'on':''}">${p}</button>`).join('')}</div></section></div>`;
+    root.innerHTML=`<div class="sa415"><section class="panel"><div class="sa415-head"><div><div class="ey">SITE & USER SETTINGS</div><h2>시스템 관리</h2><p>현장 기본정보와 일반근로자·현장소장·파트장·서무를 한 곳에서 관리합니다.</p></div>${tabsHtml()}</div></section><section class="panel"><div class="sa415-tools"><div class="sa415-search"><input id="sa415SiteSearch" value="${escx(siteQuery)}" placeholder="사업장명, 지역, 소장 검색"><button type="button" id="sa415SiteSearchBtn">검색</button></div><button type="button" class="sa415-primary" id="sa415CreateSite">+ 사업장 추가</button></div><label class="sa415-status-label">목록 선택 <select id="sa415SiteStatus">${[['active','기본 목록'],['all','전체'],['closed','보관함']].map(([v,t])=>`<option value="${v}" ${v===siteStatus?'selected':''}>${t}</option>`).join('')}</select></label><div class="sa415-sites">${pageData.rows.map(s=>`<button type="button" class="sa415-site" data-sa415-site="${escx(s.site_id)}"><div><h3>${escx(siteName(s))}</h3><p>${escx(text(s.region)||'지역 미등록')}${text(s.address)?' · '+escx(s.address):''}</p></div><div class="sa415-counts"><span>상용<b>${number(s.regular_count)}</b></span><span>일용<b>${number(s.daily_count)}</b></span><span>합계<b>${total(s)}</b></span></div><div><b>소장 ${escx(text(s.manager_name)||'미등록')}</b><p>등록 근무자 ${number(s.worker_login_count)}명</p></div><span class="sa415-arrow">정보 수정 ›</span></button>`).join('')||'<div class="sa415-empty">조건에 맞는 사업장이 없습니다.</div>'}</div><div class="sa415-page">${Array.from({length:pageData.pages},(_,i)=>i+1).slice(Math.max(0,sitePage-3),Math.max(0,sitePage-3)+5).map(p=>`<button type="button" data-sa415-site-page="${p}" class="${p===sitePage?'on':''}">${p}</button>`).join('')}</div></section></div>`;
     bindTabs(root,u);
     document.getElementById('sa415SiteStatus').onchange=e=>{siteStatus=e.target.value;sitePage=1;renderSites(root,u)};
     const search=()=>{siteQuery=document.getElementById('sa415SiteSearch').value;sitePage=1;renderSites(root,u);};
@@ -190,13 +192,14 @@
     document.getElementById('sa415PersonSearchBtn').onclick=search;
     document.getElementById('sa415PersonSearch').onkeydown=ev=>{if(ev.key==='Enter'){ev.preventDefault();search();}};
 
+    const newDuties=window.enlDutyEditor?.(box.querySelector('.sa415-add'),'site','');
     document.getElementById('sa415AddWorkers').onclick=async()=>{
       const names=[...new Set(document.getElementById('sa415NewNames').value.split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean))].slice(0,50);
       if(!names.length)return alert('이름을 입력해 주세요.');
       const button=document.getElementById('sa415AddWorkers');button.disabled=true;
       try{
         for(const name of names){
-          await authApi({action:'personnel_upsert',actor:actor(u),siteId:site.site_id,person:{siteId:site.site_id,name,jobTitle:'일반근로자',accessRole:'worker',phone:'',active:true}});
+          await authApi({action:'personnel_upsert',actor:actor(u),siteId:site.site_id,person:{...newDuties?.(),siteId:site.site_id,name,jobTitle:'일반근로자',accessRole:'worker',phone:'',active:true}});
         }
         await loadPeople(site,u);
       }catch(err){alert('일부 근로자를 등록하지 못했습니다.');}
@@ -216,6 +219,7 @@
 
     const form=document.getElementById('sa415PersonForm');
     if(!form)return;
+    const duties=window.enlDutyEditor?.(form,'site',selected.personnel_id);
     const positionSelect=document.getElementById('sa415PersonPosition');
     const passwordBox=document.getElementById('sa415PasswordBox');
     const syncPasswordBox=()=>{passwordBox.style.display=FIELD_TITLES.includes(positionSelect.value)?'block':'none';};
@@ -236,7 +240,7 @@
       const passwordHash=rawPassword?await sha256(rawPassword):'';
       const submit=form.querySelector('button[type="submit"]');submit.disabled=true;
       try{
-        await authApi({action:'personnel_upsert',actor:actor(u),siteId:site.site_id,person:{personnelId:selected.personnel_id,siteId:site.site_id,name,jobTitle:position,accessRole,phone,email,pushEnabled,emailEnabled,active,passwordHash}});
+        await authApi({action:'personnel_upsert',actor:actor(u),siteId:site.site_id,person:{...duties?.(),personnelId:selected.personnel_id,siteId:site.site_id,name,jobTitle:position,accessRole,phone,email,pushEnabled,emailEnabled,active,passwordHash}});
         state.selectedId='';
         await loadSites(u);
         refreshContactFields(site.site_id);
@@ -309,12 +313,16 @@
     }catch(err){document.getElementById('sa415HqList').innerHTML='<div class="sa415-empty">본사 사용자를 불러오지 못했습니다.</div>';setTimeout(()=>window.enlRenderHqNotificationStatus?.(true),0);}
   }
 
+  function directory(root,u){
+    root.innerHTML='<section class="panel"><h2>시스템 관리</h2>'+tabsHtml()+'</section>';bindTabs(root,u);return window.enlPlatformDirectory(root);
+  }
   async function renderAdmin(root,u){
     installCss();
     if(roleNorm(u?.role)!=='safety'){
       root.innerHTML='<div class="panel permission-empty"><h2>안전관리자 전용 메뉴입니다.</h2></div>';
       return;
     }
+    if(activeTab==='directory')return directory(root,u);
     if(activeTab==='hq')return renderHq(root,u);
     root.innerHTML='<div class="panel"><div class="sa415-empty">현장정보를 불러오는 중입니다.</div></div>';
     try{await loadSites(u);renderSites(root,u);}

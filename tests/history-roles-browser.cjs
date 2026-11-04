@@ -25,20 +25,21 @@ async function check(engine,width){
    const rows=host.locator('li');await rows.first().waitFor();
    assert.equal(await menu.locator('.activity-count').count(),0);
    assert.equal(await host.locator('.history-remove').count(),role==='safety'?3:0);
-   assert.equal(await host.locator('.history-manage').count(),role==='safety'?1:0);
+   assert.equal(await host.locator('.history-manage').count(),role==='safety'?2:0);
    await rows.first().locator('button').first().click();await p.locator('[data-incident-view="sample-1"]').waitFor();await p.evaluate(()=>closeModal());
    const filters=host.locator('.activity-filters');await filters.locator('[name=range]').selectOption('custom');
    if(role==='safety'){
-    const manage=host.locator('.history-manage');await manage.locator('summary').click();await p.evaluate(()=>renderShell(currentUser()));assert.ok(await manage.evaluate(el=>el.open),'background sync preserves the open deletion controls');
+    const manage=host.locator('.history-manage').first();await manage.locator('summary').click();await p.evaluate(()=>renderShell(currentUser()));assert.ok(await manage.evaluate(el=>el.open),'background sync preserves the open deletion controls');
     await noOverflow(p);assert.ok(await host.locator('input:visible,button:visible,select:visible').evaluateAll(els=>els.every(el=>el.getBoundingClientRect().right<=innerWidth+1&&el.getBoundingClientRect().left>=0)));
     const [x,body]=await Promise.all([rows.first().locator('.history-remove').boundingBox(),rows.first().locator('button').first().boundingBox()]);
     assert.ok(x.width>=44&&x.height>=44&&x.x>=body.x+body.width-1);
     await p.screenshot({path:'qa-output/history-roles-'+width+'.png',fullPage:true});
     p.once('dialog',d=>d.dismiss());await host.locator('.history-remove').first().click();assert.equal(await rows.count(),3);
-    p.on('dialog',d=>d.accept());await host.locator('.history-remove').first().click();await p.waitForFunction(()=>document.querySelectorAll('.activity-history li').length===2);
-    await manage.locator('[name=start]').fill('2026-11-01');await manage.locator('[name=end]').fill('2026-11-04');await manage.getByText('기간별 삭제').click();
+    async function proof(){const dialog=p.locator('.platform-proof');await dialog.locator('textarea').fill('테스트 사유');await dialog.locator('input').fill('test-only');await dialog.locator('[type=submit]').click();}
+    p.on('dialog',d=>d.accept());await host.locator('.history-remove').first().click();await proof();await p.waitForFunction(()=>document.querySelectorAll('.activity-history li').length===2);
+    await manage.locator('[name=start]').fill('2026-11-01');await manage.locator('[name=end]').fill('2026-11-04');await manage.getByText('기간별 삭제').click();await proof();
     await p.waitForFunction(()=>window.lastDelete.mode==='range');assert.equal(await p.evaluate(()=>lastDelete.fromDate),'2026-11-01');
-    await manage.getByText('전체 삭제').click();await p.waitForFunction(()=>window.lastDelete.mode==='all');
+    await manage.getByText('전체 삭제').click();await proof();await p.waitForFunction(()=>window.lastDelete.mode==='all');
    }else if(role==='field'){await p.locator('[data-field-back]').click();await menu.waitFor();}
    await noOverflow(p);await c.close();
   }

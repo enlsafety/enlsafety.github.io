@@ -278,7 +278,7 @@
   /* Dashboard is the initial landing only for HQ/admin readers; field users keep the field home. */
   const baseRenderApp=window.enlRenderApp;
   if(typeof baseRenderApp==='function'){
-    window.enlRenderApp=function(u){if(canDashboard(u))currentView='stats';dashboardBooted=true;const out=baseRenderApp.apply(this,arguments);queuePatch();return out};
+    window.enlRenderApp=function(u){if(canDashboard(u)&&currentView!=='platform')currentView='stats';dashboardBooted=true;const out=baseRenderApp.apply(this,arguments);queuePatch();return out};
   }
   const initial=currentUser?.();
   if(initial&&canDashboard(initial)&&!dashboardBooted){
