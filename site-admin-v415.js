@@ -220,6 +220,12 @@
     const form=document.getElementById('sa415PersonForm');
     if(!form)return;
     const duties=window.enlDutyEditor?.(form,'site',selected.personnel_id);
+    if(u.role==='safety'&&selected.active!==false&&selected.access_role==='worker'&&!text(selected.email)){
+      const btn=document.createElement('button'),out=document.createElement('p');btn.type='button';btn.textContent='회사 이메일 최초 등록코드 발급';out.setAttribute('role','status');form.append(btn,out);
+      btn.onclick=async()=>{btn.disabled=true;try{const r=await authApi({action:'email_registration_code',actor:actor(u),siteId:site.site_id,personnelId:selected.personnel_id});
+        out.textContent=selected.name+' / '+r.code+' (30분간 유효). 본인에게 전달해 주세요.';
+      }catch{out.textContent='등록코드를 발급하지 못했습니다.'}finally{btn.disabled=false}};
+    }
     const positionSelect=document.getElementById('sa415PersonPosition');
     const passwordBox=document.getElementById('sa415PasswordBox');
     const syncPasswordBox=()=>{passwordBox.style.display=FIELD_TITLES.includes(positionSelect.value)?'block':'none';};

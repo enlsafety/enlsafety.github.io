@@ -17,13 +17,13 @@
     currentView=view;window.renderShell(u);
   }
   window.enlReturnToPlatform=u=>{
-    if(document.querySelector('#view form:not(.activity-filters)')&&!confirm('현재 입력 화면을 벗어나 통합 메인으로 이동할까요?'))return;
+    if(document.querySelector('#view form:not(.activity-filters):not(.activity-history form)')&&!confirm('현재 입력 화면을 벗어나 통합 메인으로 이동할까요?'))return;
     if(history.state?.enlModuleEntry===sessionKey(u)){history.back();return;}
     go('platform',u);
   };
   window.addEventListener('popstate',ev=>{
     const u=currentUser?.();if(!u||ev.state?.enlHub!==sessionKey(u))return;
-    if(document.querySelector('dialog[open],#modalRoot .modal,#view form:not(.activity-filters)')&&
+    if(document.querySelector('dialog[open],#modalRoot .modal,#view form:not(.activity-filters):not(.activity-history form)')&&
       !confirm('현재 화면을 벗어나 통합 메인으로 이동할까요?')){history.pushState({enlModuleEntry:sessionKey(u)},'');return;}
     if(document.querySelector('#modalRoot .modal'))window.closeModal?.();
     go('platform',u);
@@ -58,12 +58,11 @@
     }
     form.onsubmit=ev=>{ev.preventDefault();load(true)};more.onclick=()=>load(false);await load(true);
   };
-  let openEditor=false;
-  window.enlPlatformOpenEditor=u=>{openEditor=true;go('platform',u)};
+  window.enlPlatformOpenEditor=u=>go('platform',u);
   window.enlPlatformHome=async(root,u)=>{
     if(root.querySelector('.platform-hub'))return;
     const host=document.createElement('section');host.className='platform-hub';root.replaceChildren(host);
-    host.innerHTML='<div class="platform-heading"><div class="ey">E&L SAFETY</div><h2>업무모듈 선택</h2><p>사용할 업무를 선택해 주세요.</p></div><div class="platform-modules"></div><section class="platform-services"><h2>공통 업무지원 서비스</h2><div class="platform-grid"></div></section><p role="status"></p>';
+    host.innerHTML='<div class="platform-heading"><div class="ey">E&L SAFETY</div><h2>업무기능 선택</h2><p>사용할 업무를 선택해 주세요.</p></div><div class="platform-modules"></div><section class="platform-services"><h2>공통 업무지원 서비스</h2><div class="platform-grid"></div></section><p role="status"></p>';
     host.querySelector('.platform-heading p').textContent=[u.name,roles[u.role]||'본사실무자',u.siteId?(siteById(u.siteId)?.name||u.siteId):(u.department||'본사')].filter(Boolean).join(' / ');
     const area=host.querySelector('.platform-modules'),services=host.querySelector('.platform-grid'),status=host.querySelector('[role=status]');
     const admin=u.role==='safety';
@@ -75,50 +74,87 @@
     }
     for(const name of ['통합 결재함','알림센터','문서 및 증빙관리','통합 대시보드'])service(name,false);
     if(admin)service('시스템 관리',true,()=>go('more',u));
-    let config;
-    function cards(){
-      area.innerHTML=(admin?'<button type="button" class="secondary platform-edit">모듈 편집</button>':'')+'<div class="platform-grid">'+config.modules.filter(m=>m.state!=='hidden').map(m=>
-        '<button class="platform-card" type="button" data-module="'+e(m.key)+'" style="--pic:var(--icon-'+icons[m.key]+')"><span class="platform-icon"></span><strong>'+names[m.key]+'</strong><small>'+states[m.state]+'</small></button>').join('')+'</div>';
-      area.querySelector('.platform-edit')?.addEventListener('click',edit);
-      for(const b of area.querySelectorAll('[data-module]'))b.onclick=async()=>{
-        b.disabled=true;status.textContent='';
-        try{const r=await api({action:'platform_enter',key:b.dataset.module});if(!host.isConnected)return;
-          if(r.key==='incident')go(['worker','field'].includes(u.role)?'home':'stats',u);
-          else {area.innerHTML='<section class="panel"><h2>'+names[r.key]+'</h2><p>'+states[r.state]+'입니다. 세부 업무 화면은 준비 중입니다.</p><button type="button">← 업무모듈 선택</button></section>';area.querySelector('button').onclick=cards;}
-        }catch{status.textContent='현재 진입할 수 없는 모듈입니다.';}finally{b.disabled=false;}
+    let config,saving=false,dragged=false;
+    const isOn=m=>m.enabled!==false&&m.state!=='hidden'&&(m.state==='live'||m.preview);
+    async function save(modules){
+      if(saving)return false;
+      const before=config.modules.find(m=>m.key==='incident'),after=modules.find(m=>m.key==='incident');
+      const disable=isOn(before)&&!isOn(after),hide=before.state!=='hidden'&&after.state==='hidden';
+      if((disable||hide)&&!confirm('모든 사용자의 통합 메인에서 사고보고 진입을 끌까요?'))return false;
+      saving=true;area.inert=true;
+      try{const r=await api({action:'platform_save',revision:config.revision,modules,confirmDisableIncident:disable,confirmHideIncident:hide});
+        config={revision:r.revision??config.revision+1,modules};cards();status.textContent='설정을 저장했습니다.';return true;
+      }catch(err){
+        status.textContent=err.message==='catalog_changed'?'다른 관리자가 먼저 변경했습니다. 최신 설정을 다시 확인해 주세요.':'저장하지 못했습니다. 연결 상태와 사용자 설정을 확인하세요.';
+        if(err.message==='catalog_changed')await load();return false;
+      }finally{saving=false;area.inert=false;}
+    }
+    function move(key,destination){
+      const modules=[...config.modules],i=modules.findIndex(m=>m.key===key),j=modules.findIndex(m=>m.key===destination);
+      if(i<0||j<0||i===j)return;modules.splice(j,0,modules.splice(i,1)[0]);return save(modules);
+    }
+    function settings(m,grip){
+      const draft=structuredClone(m),dialog=document.createElement('dialog');dialog.className='feature-settings';
+      dialog.innerHTML='<form><h3>'+names[m.key]+' 접근 설정</h3><label>공개 상태<select name="state">'+Object.entries(states).filter(([k])=>k!=='building'||m.key!=='incident').map(([k,v])=>'<option value="'+k+'">'+v+'</option>').join('')+'</select></label><fieldset><legend>접근할 수 있는 역할</legend>'+Object.entries(roles).filter(([k])=>k!=='safety').map(([k,v])=>'<label><input type="checkbox" data-role="'+k+'"> '+v+'</label>').join('')+'</fieldset><section data-trial><strong>시험 사용자</strong><p>구현 중에는 허용 역할에 해당하고 아래에 지정된 사용자만 진입합니다.</p><div data-selected></div><label>이름 또는 사업장<input name="search" autocomplete="off"></label><button type="button" data-search>사용자 찾기</button><div data-results></div></section><div class="feature-actions"><button type="button" data-up>앞으로</button><button type="button" data-down>뒤로</button><button type="button" data-close>닫기</button><button type="submit">저장</button></div><small role="status"></small></form>';
+      host.append(dialog);const form=dialog.querySelector('form'),note=form.querySelector('[role=status]'),index=config.modules.indexOf(m);
+      form.elements.state.value=m.state;
+      function showTrial(){form.querySelector('[data-trial]').hidden=form.elements.state.value!=='building'}
+      form.elements.state.onchange=showTrial;showTrial();
+      for(const box of form.querySelectorAll('[data-role]'))box.checked=m.roles.includes(box.dataset.role);
+      const labels=new Map();
+      function selected(){const box=form.querySelector('[data-selected]');box.replaceChildren();for(const id of draft.pilots){
+        const b=document.createElement('button');b.type='button';b.textContent=(labels.get(id)||id)+' ×';b.onclick=()=>{draft.pilots=draft.pilots.filter(p=>p!==id);selected()};box.append(b);}}
+      selected();let lookup=0;
+      form.querySelector('[data-search]').onclick=async()=>{
+        const seq=++lookup,q=form.elements.search.value.trim(),box=form.querySelector('[data-results]');box.replaceChildren();if(!q){note.textContent='이름 또는 사업장을 입력해 주세요.';return;}
+        try{const r=await api({action:'platform_directory',query:q});if(seq!==lookup||!dialog.isConnected)return;
+          for(const x of r.rows.filter(x=>x.active)){const id=x.source+':'+x.id,b=document.createElement('button');b.type='button';labels.set(id,x.name+' / '+x.site_name);b.textContent=labels.get(id);b.onclick=()=>{if(!draft.pilots.includes(id))draft.pilots.push(id);selected()};box.append(b);}
+          selected();note.textContent=box.children.length?(r.more?'검색어를 더 구체적으로 입력하면 범위를 좁힐 수 있습니다.':''):'검색 결과가 없습니다.';
+        }catch{note.textContent='사용자를 불러오지 못했습니다.'}
       };
+      form.elements.search.onkeydown=ev=>{if(ev.key==='Enter'){ev.preventDefault();form.querySelector('[data-search]').click()}};
+      const close=()=>dialog.close();form.querySelector('[data-close]').onclick=close;
+      for(const [sel,offset] of [['[data-up]',-1],['[data-down]',1]]){
+        const b=form.querySelector(sel),target=config.modules[index+offset];b.disabled=!target;b.onclick=async()=>{if(await move(m.key,target.key))close()};
+      }
+      form.onsubmit=async ev=>{ev.preventDefault();draft.state=form.elements.state.value;draft.roles=['safety',...Array.from(form.querySelectorAll('[data-role]:checked'),x=>x.dataset.role)];
+        if(draft.state==='building'&&m.state!=='building')draft.preview=draft.enabled!==false;
+        if(await save(config.modules.map(x=>x.key===m.key?draft:x)))close();else note.textContent=status.textContent;};
+      dialog.onclose=()=>{dialog.remove();area.querySelector('[data-key="'+m.key+'"] .feature-grip')?.focus()};
+      dialog.onclick=ev=>{if(ev.target===dialog){const r=dialog.getBoundingClientRect();if(ev.clientX<r.left||ev.clientX>r.right||ev.clientY<r.top||ev.clientY>r.bottom)close()}};
+      dialog.showModal();const r=grip.getBoundingClientRect();
+      dialog.style.left=Math.max(8,Math.min(r.right-dialog.offsetWidth,innerWidth-dialog.offsetWidth-8))+'px';dialog.style.top=Math.max(8,Math.min(r.bottom+4,innerHeight-dialog.offsetHeight-8))+'px';
     }
-    function edit(){
-      const draft=structuredClone(config.modules);
-      function move(a,b){if(a===b||b<0||b>=draft.length)return;draft.splice(b,0,draft.splice(a,1)[0]);draw();}
-      function draw(){
-        area.innerHTML='<h3>모듈 순서 및 공개 설정</h3><p>위아래 버튼이나 이동 손잡이로 순서를 바꿀 수 있습니다.</p><div class="platform-order"></div><div class="platform-tools"><button data-save>전체 설정 저장</button><button data-cancel>취소</button></div>';
-        const list=area.querySelector('.platform-order');let drag=-1;
-        draft.forEach((m,i)=>{
-          const row=document.createElement('section');row.dataset.index=i;const locked=m.key==='incident';
-          row.innerHTML='<div class="platform-order-head"><span draggable="true" class="platform-grip" aria-label="끌어서 이동">☰</span><strong>'+names[m.key]+'</strong><button data-up aria-label="위로 이동">↑</button><button data-down aria-label="아래로 이동">↓</button></div>'+
-            (locked?'<label>메인 카드 <select data-incident-state><option value="live">운영 중</option><option value="hidden">숨김</option></select></label><small>기존 사고보고서와 결재 연결은 계속 사용할 수 있습니다.</small>':'<label>공개 상태 <select>'+Object.entries(states).map(([k,n])=>'<option value="'+k+'" '+(m.state===k?'selected':'')+'>'+n+'</option>').join('')+'</select></label><label><input type="checkbox" data-preview '+(m.preview?'checked':'')+'> 구현 중 시험 진입 허용</label><fieldset><legend>접근 가능한 역할</legend>'+Object.entries(roles).filter(([k])=>k!=='safety').map(([k,v])=>'<label><input type="checkbox" data-role="'+k+'" '+(m.roles.includes(k)?'checked':'')+'> '+v+'</label>').join('')+'</fieldset><label>시험 사용자 ID (쉼표로 구분)<input data-pilots value="'+e(m.pilots.join(', '))+'" placeholder="hq:본사ID 또는 site:현장ID"></label>');
-          list.append(row);row.querySelector('[data-up]').disabled=i===0;row.querySelector('[data-down]').disabled=i===draft.length-1;
-          row.querySelector('[data-up]').onclick=()=>move(i,i-1);row.querySelector('[data-down]').onclick=()=>move(i,i+1);
-          const grip=row.querySelector('.platform-grip');grip.ondragstart=ev=>{drag=i;ev.dataTransfer.setData('text/plain',String(i))};row.ondragover=ev=>ev.preventDefault();row.ondrop=ev=>{ev.preventDefault();if(drag>=0)move(drag,i)};
-          grip.ontouchend=ev=>{const t=ev.changedTouches[0],dest=document.elementFromPoint(t.clientX,t.clientY)?.closest('[data-index]');if(list.contains(dest))move(i,Number(dest.dataset.index))};
-          if(locked){const select=row.querySelector('select');select.value=m.state;select.onchange=()=>m.state=select.value;return;}
-          row.querySelector('select').onchange=ev=>m.state=ev.target.value;
-          row.querySelector('[data-preview]').onchange=ev=>m.preview=ev.target.checked;
-          row.querySelectorAll('[data-role]').forEach(box=>box.onchange=()=>m.roles=['safety',...Array.from(row.querySelectorAll('[data-role]:checked'),x=>x.dataset.role)]);
-          row.querySelector('[data-pilots]').oninput=ev=>m.pilots=ev.target.value.split(',').map(x=>x.trim()).filter(Boolean);
-        });
-        area.querySelector('[data-cancel]').onclick=cards;
-        area.querySelector('[data-save]').onclick=async ev=>{
-          const button=ev.target;button.disabled=true;
-          const hiding=draft.find(m=>m.key==='incident').state==='hidden'&&config.modules.find(m=>m.key==='incident').state!=='hidden';
-          if(hiding&&!confirm('모든 사용자의 통합 메인에서 사고보고 카드를 숨길까요? 기존 사고 문서와 결재 링크는 유지됩니다.')){button.disabled=false;return;}
-          try{await api({action:'platform_save',revision:config.revision,modules:draft,confirmHideIncident:hiding});await load();status.textContent='모듈 설정을 저장했습니다.'}
-          catch(err){status.textContent=err.message==='catalog_changed'?'다른 관리자가 변경했습니다. 통합 메인을 다시 열어 최신 설정을 확인하세요.':'저장하지 못했습니다. 시험 사용자 ID와 연결 상태를 확인하세요.'}finally{button.disabled=false}
+    function cards(){
+      const grid=document.createElement('div');grid.className='platform-grid';area.replaceChildren(grid);
+      for(const m of config.modules.filter(m=>admin||m.state!=='hidden')){
+        const row=document.createElement('article');row.className='feature-card-wrap';row.dataset.key=m.key;
+        row.innerHTML='<button class="platform-card" type="button" data-module="'+e(m.key)+'" style="--pic:var(--icon-'+icons[m.key]+')"><span class="platform-icon"></span><strong>'+names[m.key]+'</strong><small>'+states[m.state]+(!isOn(m)&&m.state==='live'?' / 접근 꺼짐':'')+'</small></button>';
+        grid.append(row);row.querySelector('[data-module]').onclick=async()=>{
+          if(!isOn(m)){status.textContent='현재 진입할 수 없는 모듈입니다.';return;}
+          try{const r=await api({action:'platform_enter',key:m.key});if(!host.isConnected)return;
+            if(r.key==='incident')go(['worker','field'].includes(u.role)?'home':'stats',u);
+            else{area.innerHTML='<section class="panel"><h2>'+names[r.key]+'</h2><p>세부 업무 화면은 준비 중입니다.</p><button>← 업무기능 선택</button></section>';area.querySelector('button').onclick=cards;}
+          }catch{status.textContent='현재 진입할 수 없는 모듈입니다.'}
         };
-      }draw();
+        if(!admin)continue;
+        const tools=document.createElement('div');tools.className='feature-controls';
+        tools.innerHTML='<button type="button" role="switch" aria-label="'+names[m.key]+' 진입" aria-checked="'+isOn(m)+'">'+(isOn(m)?'ON':'OFF')+'</button><button type="button" class="feature-grip" aria-haspopup="dialog" aria-label="'+names[m.key]+' 접근 설정 및 순서 이동">☰</button>';row.append(tools);
+        tools.firstElementChild.onclick=()=>{
+          const enabled=!isOn(m),updated={...m,enabled};
+          if(enabled&&updated.state==='hidden')updated.state=m.key==='incident'?'live':'building';
+          if(updated.state==='building')updated.preview=enabled;
+          save(config.modules.map(x=>x===m?updated:x));
+        };
+        const grip=tools.lastElementChild;let start=null;
+        grip.onclick=()=>{if(!dragged)settings(m,grip);dragged=false};
+        grip.onpointerdown=ev=>{if(ev.button!==0)return;dragged=false;start=[ev.clientX,ev.clientY];grip.setPointerCapture(ev.pointerId)};
+        grip.onpointermove=ev=>{if(!start)return;if(Math.hypot(ev.clientX-start[0],ev.clientY-start[1])>7){dragged=true;row.classList.add('moving')}};
+        grip.onpointercancel=()=>{start=null;row.classList.remove('moving')};
+        grip.onpointerup=ev=>{if(!start)return;start=null;row.classList.remove('moving');if(dragged){const dest=document.elementFromPoint(ev.clientX,ev.clientY)?.closest('[data-key]');if(dest&&grid.contains(dest))move(m.key,dest.dataset.key);}};
+      }
     }
-    async function load(){config=await api({action:'platform_catalog'});if(host.isConnected){if(admin&&openEditor){openEditor=false;edit()}else cards()}}
-    try{await load()}catch{area.innerHTML='<p>모듈 설정을 불러오지 못했습니다.</p><button>다시 시도</button> <button>사고보고 열기</button>';area.firstElementChild.nextElementSibling.onclick=()=>{host.remove();window.enlPlatformHome(root,u)};area.lastElementChild.onclick=()=>go(['field','worker'].includes(u.role)?'home':'stats',u);}
+    async function load(){config=await api({action:'platform_catalog'});if(host.isConnected)cards()}
+    try{await load()}catch{area.innerHTML='<p>업무기능을 불러오지 못했습니다.</p><button>다시 시도</button>';area.querySelector('button').onclick=()=>{host.remove();window.enlPlatformHome(root,u)};}
   };
 })();

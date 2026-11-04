@@ -22,8 +22,8 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
   const [config]=await sql`select revision,modules from private.enl_platform_catalog where singleton`;
   const modules=config.modules;
   const principal=(['field','worker'].includes(actor.role)?'site:':'hq:')+actor.id;
-  const enter=(m:any)=>m&&m.state!=='hidden'&&(admin||m.roles.includes(actor.role))&&(m.state==='live'||(m.preview&&(admin||m.pilots.includes(principal))));
-  if(action==='platform_catalog')return reply({ok:true,revision:config.revision,modules:admin?modules:modules.filter((m:any)=>m.state!=='hidden').map((m:any)=>({key:m.key,state:m.state,canEnter:!!enter(m)}))});
+  const enter=(m:any)=>m&&m.enabled!==false&&m.state!=='hidden'&&(admin||m.roles.includes(actor.role))&&(m.state==='live'||(m.preview&&(admin||m.pilots.includes(principal))));
+  if(action==='platform_catalog')return reply({ok:true,revision:config.revision,modules:admin?modules:modules.filter((m:any)=>m.state!=='hidden').map((m:any)=>({key:m.key,state:m.state,enabled:m.enabled!==false,preview:m.preview,canEnter:!!enter(m)}))});
   if(action==='platform_enter'){
     const m=modules.find((m:any)=>m.key===body.key);
     return enter(m)?reply({ok:true,key:m.key,state:m.state}):reply({ok:false,message:'module_unavailable'},403);
@@ -32,12 +32,12 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
   const next=body.modules;
   if(!Array.isArray(next)||next.length!==moduleKeys.length||!moduleKeys.every(k=>next.some(m=>m?.key===k)))return reply({ok:false,message:'invalid_catalog'},400);
   for(const m of next){
-    if(!m||!['live','building','hidden'].includes(m.state)||typeof m.preview!=='boolean'||
+    if(!m||!['live','building','hidden'].includes(m.state)||typeof m.preview!=='boolean'||(m.enabled!==undefined&&typeof m.enabled!=='boolean')||
        !Array.isArray(m.roles)||m.roles.some((r:any)=>!systemRoles.includes(r))||
        !Array.isArray(m.pilots)||m.pilots.length>100||m.pilots.some((p:any)=>typeof p!=='string'||!/^(hq|site):.{1,150}$/.test(p)))return reply({ok:false,message:'invalid_catalog'},400);
-    if(m.key==='incident'&&(m.state==='building'||(m.state==='hidden'&&modules.find((x:any)=>x.key==='incident').state!=='hidden'&&body.confirmHideIncident!==true)||!systemRoles.every(r=>m.roles.includes(r))))return reply({ok:false,message:'incident_protected'},409);
+    if(m.key==='incident'&&(m.state==='building'||(m.state==='hidden'&&modules.find((x:any)=>x.key==='incident').state!=='hidden'&&body.confirmHideIncident!==true)||(m.enabled===false&&modules.find((x:any)=>x.key==='incident').enabled!==false&&body.confirmDisableIncident!==true)))return reply({ok:false,message:'incident_protected'},409);
   }
-  const clean=next.map(({key,state,preview,roles,pilots}:any)=>({key,state,preview,roles:[...new Set(roles)],pilots:[...new Set(pilots)]}));
+  const clean=next.map(({key,state,enabled,preview,roles,pilots}:any)=>({key,state,enabled:enabled??(modules.find((m:any)=>m.key===key).enabled!==false),preview,roles:[...new Set(roles)],pilots:[...new Set(pilots)]}));
   const pilots=Array.from(new Set(clean.flatMap(m=>m.pilots))) as string[];
   if(pilots.length){
     const valid=await sql`select source||':'||id as key from private.enl_master_accounts where active and (source||':'||id) in(select jsonb_array_elements_text(${sql.json(pilots)}::jsonb))`;

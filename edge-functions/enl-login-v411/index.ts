@@ -53,14 +53,73 @@ Deno.serve(async(req:Request)=>{
     async function clearOldMasterIfOwned(prev:any,newTitle:string,newActive:boolean){if(!prev)return;const oldTitle=clean(prev.job_title);if(!isFieldTitle(oldTitle)||(newActive&&oldTitle===newTitle))return;const rows=await sql`select manager_name,part_name,clerk_name from public.enl_site_master where site_id=${prev.site_id} limit 1`;const m=rows[0];if(!m)return;if(oldTitle==="현장소장"&&norm(m.manager_name)===norm(prev.name))await sql`update public.enl_site_master set manager_name='',manager_phone='',updated_at=${now} where site_id=${prev.site_id}`;if(oldTitle==="파트장"&&norm(m.part_name)===norm(prev.name))await sql`update public.enl_site_master set part_name='',part_phone='',updated_at=${now} where site_id=${prev.site_id}`;if(oldTitle==="서무"&&norm(m.clerk_name)===norm(prev.name))await sql`update public.enl_site_master set clerk_name='',clerk_phone='',updated_at=${now} where site_id=${prev.site_id}`;}
     async function syncMasterForField(saved:any){if(saved.active===false||clean(saved.access_role)!=="field")return;const t=clean(saved.job_title);if(t==="현장소장")await sql`update public.enl_site_master set manager_name=${clean(saved.name)},manager_phone=${clean(saved.phone)},updated_at=${now} where site_id=${saved.site_id}`;else if(t==="파트장")await sql`update public.enl_site_master set part_name=${clean(saved.name)},part_phone=${clean(saved.phone)},updated_at=${now} where site_id=${saved.site_id}`;else if(t==="서무")await sql`update public.enl_site_master set clerk_name=${clean(saved.name)},clerk_phone=${clean(saved.phone)},updated_at=${now} where site_id=${saved.site_id}`;}
 
+    async function enrollmentCode(p:any,expiry:number){
+      const secret=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");if(!secret)throw Error("enrollment_key_unavailable");
+      const enc=new TextEncoder(),key=await crypto.subtle.importKey("raw",enc.encode(secret),{name:"HMAC",hash:"SHA-256"},false,["sign"]);
+      const message=JSON.stringify(["company-email",p.personnel_id,p.site_id,p.name,p.key_version,expiry]);
+      const mac=new Uint8Array(await crypto.subtle.sign("HMAC",key,enc.encode(message)));
+      return expiry.toString(36)+"-"+Array.from(mac.slice(0,7),x=>x.toString(16).padStart(2,"0")).join("");
+    }
+    if(action==="email_registration_code"){
+      const v=await verifiedActor();if(v?.role!=="safety")return json({ok:false,message:"forbidden"},403);
+      const [p]=await sql`select personnel_id,site_id,name,updated_at::text as key_version from public.enl_site_personnel
+        where personnel_id::text=${clean(body.personnelId)} and site_id=${clean(body.siteId)} and active and access_role='worker' and coalesce(trim(email),'')=''`;
+      if(!p)return json({ok:false,message:"account_unavailable"},404);
+      const expiry=Math.floor(Date.now()/60000)+30;return json({ok:true,code:await enrollmentCode(p,expiry),expiresAt:new Date(expiry*60000).toISOString()});
+    }
+    const companyDomain="@enlife.co.kr";
+    const localPart=(email:any)=>{const v=clean(email).toLowerCase();return v.endsWith(companyDomain)?v.slice(0,-companyDomain.length):""};
+    const entered=clean(body.companyLocal).toLowerCase();
+    if(entered&&(!/^[a-z0-9](?:[a-z0-9._+-]{0,62}[a-z0-9])?$/.test(entered)||entered.includes("..")))return json({ok:false,message:"invalid_company_email"},400);
+    const address=entered?entered+companyDomain:"";
     if(action==="lookup"){
-      const name=clean(body.name);if(!name)return json({ok:false,message:"name_required"},400);const names=await siteMap();const people=await sql`select personnel_id,site_id,name,job_title,access_role,active from public.enl_site_personnel where active=true`;const grouped=new Map<string,any>();for(const p of people){if(norm(p.name)!==norm(name))continue;const siteId=clean(p.site_id);if(!siteId)continue;const position=clean(p.job_title)||(clean(p.access_role)==="field"?"현장관리":"일반근로자"),accessRole=clean(p.access_role)==="field"?"field":"worker";const c={kind:"site",siteId,affiliationId:`site:${siteId}`,affiliationLabel:names.get(siteId)||siteId,name:clean(p.name),position,accessRole,requiresPassword:accessRole==="field"||isFieldTitle(position)};const cur=grouped.get(siteId);if(!cur||(c.accessRole==="field"&&cur.accessRole!=="field")||(isFieldTitle(c.position)&&!isFieldTitle(cur.position)))grouped.set(siteId,c);}const options=[...grouped.values()];const hq=await findHqByName(name);if(hq?.active&&hqAllowed(hq.role)){const a=affiliation(hq),role=hqRole(hq.role);options.push({kind:"hq",affiliationId:a.id,affiliationLabel:a.label,name:clean(hq.name),position:clean(hq.position)||roleLabel(role),role,roleLabel:roleLabel(role),requiresPassword:true});}options.sort((a,b)=>String(a.affiliationLabel).localeCompare(String(b.affiliationLabel),"ko"));return json({ok:true,name,options});
+      const name=clean(body.name);if(!name)return json({ok:false,message:"name_required"},400);
+      const sites=await siteMap(),people=await sql`select personnel_id,site_id,name,email,job_title,access_role from public.enl_site_personnel where active=true and regexp_replace(lower(name),'[[:space:]]','','g')=${norm(name)}`;
+      const options:any[]=people.map((p:any)=>({accountKey:'site:'+p.personnel_id,kind:'site',siteId:p.site_id,affiliationId:'site:'+p.site_id,affiliationLabel:sites.get(p.site_id)||p.site_id,
+        name:p.name,position:p.job_title,accessRole:p.access_role,requiresPassword:p.access_role==='field'||isFieldTitle(p.job_title),companyLocal:localPart(p.email),hasEmail:!!clean(p.email)}));
+      const hq=await findHqByName(name);
+      if(hq?.active&&hqAllowed(hq.role)){const a=affiliation(hq);options.push({accountKey:'hq:'+hq.user_id,kind:'hq',affiliationId:a.id,affiliationLabel:a.label,name:hq.name,role:hqRole(hq.role),position:hq.position,requiresPassword:true,companyLocal:localPart(hq.email),hasEmail:!!clean(hq.email)});}
+      if(body.fixedAccount&&options.length>1){
+        const key=clean(body.accountKey),email=clean(body.knownEmail).toLowerCase();
+        const matched=options.filter(o=>(key&&o.accountKey===key)||(email&&o.companyLocal&&o.companyLocal+companyDomain===email));
+        return json({ok:true,name,ambiguous:matched.length!==1,options:matched.length===1?matched:[]});
+      }
+      // Older clients only need affiliation choices, not identifiers or addresses.
+      if(!body.fixedAccount)return json({ok:true,name,options:options.map(({accountKey,companyLocal,hasEmail,...choice})=>choice)});
+      return json({ok:true,name,options});
     }
     if(action==="login_site"){
-      const name=clean(body.name),siteId=clean(body.siteId),passwordHash=clean(body.passwordHash);if(!name||!siteId)return json({ok:false,message:"input_required"},400);const rows=await sql`select personnel_id,site_id,name,job_title,access_role,active,pin_hash from public.enl_site_personnel where site_id=${siteId} and active=true`;const matches=rows.filter((p:any)=>norm(p.name)===norm(name));if(!matches.length)return json({ok:false,message:"person_not_found"},404);const p=matches.sort((a:any,b:any)=>(clean(b.access_role)==="field"?1:0)-(clean(a.access_role)==="field"?1:0))[0],manager=clean(p.access_role)==="field"||isFieldTitle(p.job_title);if(manager&&(!passwordHash||!clean(p.pin_hash)||clean(p.pin_hash)!==passwordHash))return json({ok:false,message:"invalid_login"},401);const names=await siteMap();return json({ok:true,person:{personnel_id:p.personnel_id,site_id:p.site_id,site_name:names.get(clean(p.site_id))||clean(p.site_id),name:p.name,job_title:p.job_title,access_role:manager?"field":"worker",active:true}});
+      const name=clean(body.name),siteId=clean(body.siteId),passwordHash=clean(body.passwordHash),key=clean(body.accountKey);
+      if(!name||!siteId)return json({ok:false,message:"input_required"},400);
+      const rows=await sql`select personnel_id,site_id,name,email,job_title,access_role,pin_hash,updated_at::text as key_version from public.enl_site_personnel where site_id=${siteId} and active=true`;
+      const matches=rows.filter((p:any)=>norm(p.name)===norm(name)&&(!key||key==='site:'+p.personnel_id));
+      if(matches.length!==1)return json({ok:false,message:"account_not_unique"},403);
+      const p=matches[0],manager=p.access_role==='field'||isFieldTitle(p.job_title);
+      if(manager&&(!passwordHash||!p.pin_hash||!sameProof(p.pin_hash,passwordHash)))return json({ok:false,message:"invalid_login"},401);
+      if(address&&!clean(p.email)){
+        if(!manager){
+          const code=clean(body.registrationCode).toLowerCase(),expiry=parseInt(code.split("-")[0],36),minute=Math.floor(Date.now()/60000);
+          if(!/^[0-9a-z]{5,8}-[0-9a-f]{14}$/.test(code)||expiry<=minute||expiry>minute+30||!sameProof(code,await enrollmentCode(p,expiry)))
+            return json({ok:false,message:"registration_code_required"},403);
+        }
+        const changed=await sql`update public.enl_site_personnel set email=${address},updated_at=now(),updated_by_id=${String(p.personnel_id)},updated_by_name=${p.name},updated_by_role=${p.access_role}
+          where personnel_id=${p.personnel_id} and site_id=${siteId} and name=${p.name} and active and access_role=${p.access_role} and job_title is not distinct from ${p.job_title} and updated_at::text is not distinct from ${p.key_version}
+          and (not ${manager} or pin_hash=${passwordHash}) and coalesce(trim(email),'')='' returning email`;
+        if(!changed.length)return json({ok:false,message:"account_changed"},409);p.email=changed[0].email;
+      }else if(address&&address!==clean(p.email).toLowerCase())return json({ok:false,message:"account_changed"},409);
+      const names=await siteMap();return json({ok:true,person:{personnel_id:p.personnel_id,site_id:p.site_id,site_name:names.get(p.site_id)||p.site_id,name:p.name,job_title:p.job_title,access_role:manager?'field':'worker',active:true,email:p.email||''}});
     }
     if(action==="login_hq"){
-      const name=clean(body.name),affiliationId=clean(body.affiliationId),passwordHash=clean(body.passwordHash);if(!name||!affiliationId||!passwordHash)return json({ok:false,message:"input_required"},400);const hq=await findHqByName(name);if(!hq||!hq.active||!hqAllowed(hq.role))return json({ok:false,message:"invalid_login"},401);const a=affiliation(hq);if(affiliationId!==a.id||clean(hq.password_hash)!==passwordHash)return json({ok:false,message:"invalid_login"},401);return json({ok:true,user:publicHq(hq)});
+      const name=clean(body.name),affiliationId=clean(body.affiliationId),passwordHash=clean(body.passwordHash);
+      if(!name||!affiliationId||!passwordHash)return json({ok:false,message:"input_required"},400);
+      const hq=await findHqByName(name);
+      if(!hq?.active||!hqAllowed(hq.role)||affiliation(hq).id!==affiliationId||(body.accountKey&&body.accountKey!=='hq:'+hq.user_id)||!sameProof(clean(hq.password_hash),passwordHash))return json({ok:false,message:"invalid_login"},401);
+      if(address&&!clean(hq.email)){
+        const updated=await sql`update public.enl_hq_users set email=${address},updated_at=now(),updated_by_id=${hq.user_id},updated_by_name=${hq.name},updated_by_role=${hq.role}
+          where user_id=${hq.user_id} and active and name=${hq.name} and password_hash=${passwordHash} and coalesce(trim(email),'')='' returning email`;
+        if(!updated.length)return json({ok:false,message:"account_changed"},409);hq.email=updated[0].email;
+      }else if(address&&address!==clean(hq.email).toLowerCase())return json({ok:false,message:"account_changed"},409);
+      return json({ok:true,user:publicHq(hq)});
     }
     if(action==="hq_list"){
       const v=await verifiedActor();if(v?.role!=="safety")return json({ok:false,message:"forbidden"},403);const rows=await sql`select * from public.enl_hq_users order by active desc,name`;return json({ok:true,users:rows.map(publicHq)});

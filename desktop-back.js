@@ -122,7 +122,7 @@
     }
     const unsaved = edited.has(scope) || [...scope.querySelectorAll('form,' + editControls)].some(el => edited.has(el)) ||
       scope.querySelector('[data-wf440-dirty="1"]') || window.enlIncidentHasUnsavedChanges?.();
-    if (unsaved && !confirm('저장되지 않은 내용이 있을 수 있습니다. 이전 화면으로 이동할까요?\n계속 작성하려면 취소를 누르세요.')) return;
+    if (unsaved && !scope.querySelector('.activity-history') && !confirm('저장되지 않은 내용이 있을 수 있습니다. 이전 화면으로 이동할까요?\n계속 작성하려면 취소를 누르세요.')) return;
     goBack();
   });
 })();
