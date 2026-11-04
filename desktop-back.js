@@ -75,6 +75,8 @@
 
   function backAction(user, modal) {
     if (modal) {
+      if (modal.matches('[data-incident-view],[data-cumulative-incident],[data-wf440-incident]') ||
+          modal.querySelector('[data-lifecycle-final]')) return null;
       const button = modal.querySelector('[data-close]:not(:disabled)');
       return button && (() => button.click());
     }
