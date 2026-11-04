@@ -35,7 +35,12 @@ async function fixture(){
  const actors={safety:{id:'qa-safety',role:'safety'},manager:{id:'qa-manager',role:'manager'},executive:{id:'qa-executive',role:'executive'},field:{id:'qa-field',role:'field',siteId:'qa-site'},other:{id:'qa-other',role:'field',siteId:'other-site'}};
  async function raw(body){const r=await handler(new Request('https://isolated.test',{method:'POST',headers:{'content-type':'application/json','x-enl-app':'incident-report-v2',origin:'https://enlsafety.github.io'},body:JSON.stringify(body)}));return {status:r.status,body:await r.json()};}
  const call=(who,body)=>raw({actor:actors[who],actorPasswordHash:'qa-proof',actorPinHash:'qa-proof',...body});
- return {db,call,raw,actors};
+ async function seedLegacy(record){
+  // Set up an already-imported row without calling a retired creation endpoint.
+  const result=await db.query('insert into enl_incident_shared(incident_id,site_id,payload,created_at,updated_at) values($1,$2,$3,now(),now()) returning payload',[record.id,record.siteId,JSON.stringify(record)]);
+  return result.rows[0].payload;
+ }
+ return {db,call,raw,actors,seedLegacy};
 }
 async function run(){const f=await fixture();await f.db.exec(read("supabase/migrations/20261030004902_executive_closure.sql"));let checks=0;const check=(condition,label)=>{assert.ok(condition,label);checks++;};
  const base={id:'qa-final-normal',siteId:'qa-site',status:'reported',category:'property',summary:'가상 카트 접촉 사고',eventType:'충돌',occurredAt:'2026-10-12T01:00:00Z',reportDetails:{incidentHow:'가상 사고경위',repairCost:null},corrective:null,photos:[],_syncBaseVersion:0,_syncMutationId:'first'};
@@ -86,7 +91,7 @@ async function run(){const f=await fixture();await f.db.exec(read("supabase/migr
  await assert.rejects(()=>f.db.exec('delete from enl_incident_revisions'),/evidence_is_append_only/);checks++;
  await assert.rejects(()=>f.db.exec('delete from enl_incident_shared'),/incident_deletion_disabled/);checks++;
  const manual={...base,id:'qa-manual',_syncMutationId:'manual',recordMode:'historical_manual',status:'approved',approvedBy:'QA 안전',approvedAt:new Date().toISOString(),historicalImport:{enabled:true,erpApproved:false,workflowExempt:false,transferState:'approved'},historicalTransfer:{mode:'historical_manual',erpApproved:false}};
- r=await f.call('safety',{action:'push',incidents:[manual]});assert.equal(r.status,200,JSON.stringify(r));check(r.body.incidents[0].status==='approved','manual historic incident gets safety approval');
+ r=await f.call('safety',{action:'push',incidents:[manual]});check(r.status===410,'retired transfer cannot create an approved report');
  check(await count("select count(*)::int n from enl_push_events where kind in ('incident_new','urgent_incident')")===3,'supplement and corrections never repeat first awareness');
  console.log(JSON.stringify({passed:checks,failed:0,environment:'local isolated PostgreSQL and actual Edge handler'}));await f.db.close();
 }

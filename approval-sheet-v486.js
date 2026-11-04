@@ -70,6 +70,10 @@
   const safetyApproved=reviewIsCurrent&&(c.status==='approved'||!!a?.requestedAt&&c.reviewedAt===a.requestedAt);
   const safetyRejected=reviewIsCurrent&&c.status==='rejected';
   const first=[{role:'현장관리자',name:c.submittedBy||'',state:c.submittedAt?'기안':'제출대기',at:c.submittedAt,done:!!c.submittedAt},{role:'안전관리자',name:c.reviewedBy||c.planBy||'',state:safetyApproved?'승인':safetyRejected?'보완요청':'승인대기',at:safetyApproved||safetyRejected?c.reviewedAt:'',done:safetyApproved,rejected:safetyRejected}];
+  if(i.pastReport){
+   if(!first[0].name&&!c.submittedAt)Object.assign(first[0],{name:i.pastReport.drafterName,state:'당시 기안자 / 제출대기'});
+   if(!first[1].name&&!c.reviewedAt)Object.assign(first[1],{name:i.pastReport.safetyManagerName,state:'당시 담당 / 승인대기'});
+  }
   const approver=u=>{const s=(a?.signatures||[]).find(x=>x.id===u.id&&x.decision==='approve'),r=a?.state==='rejected'&&a.rejection?.id===u.id?a.rejection:null;return {id:u.id,role:u.position||'경영진',name:u.name||'',state:s?'승인':r?'반려':'결재대기',at:s?.at||r?.at,done:!!s,rejected:!!r,note:s?.note||r?.note};};
   const decisionCols=Math.min(exec.length,maxColumns)+Math.min(final.length,maxColumns);
   const decisions=decisionCols?'<div class="enl-approval486-decisions" style="--decision-cols:'+decisionCols+'">'+group(exec.map(approver),'executives','경영진 결재')+group(final.map(approver),'president','사장 최종결재')+'</div>':'';

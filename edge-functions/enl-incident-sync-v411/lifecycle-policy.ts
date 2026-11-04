@@ -49,7 +49,7 @@ function normalizeCause(prev:any,next:any,actor:any,now:string){
 }
 const costKeys = ['medicalCost','repairCost','damageAmount'];
 const planKeys = ['rootCause','causeStatus','planDetail','ownerName','dueDate','planBy','planById','planAt','planUpdatedBy','planUpdatedAt'];
-const managedKeys = ['officialRecord','executiveApproval','acknowledgements','readReceipts','historicalOrigin','externalInitialApproval','bulkInvalidation','recordMode','historicalImport','historicalTransfer'];
+const managedKeys = ['officialRecord','executiveApproval','acknowledgements','readReceipts','historicalOrigin','externalInitialApproval','bulkInvalidation','recordMode','historicalImport','historicalTransfer','pastReport'];
 const stampKeys = ['approvedBy','approvedAt','closedAt','registeredAt','reporterId','reporterName'];
 const envelopeKeys = ['_syncBaseVersion','_syncVersion','_syncMutationId','updatedAt','lastModifiedBy','lastModifiedRole','lastModifiedPosition','lastModifiedAt'];
 const workflowKeys = ['corrective','reportWorkflow','reviewHistory','lifecycleHistory','safetyNote','priority','prioritySource','prioritySetBy','prioritySetAt','legalReview'];
@@ -60,9 +60,16 @@ export function validateLifecycle(prev:any,next:any,actor:any,now:string){
   if(prev&&text(prev.siteId)!==text(next.siteId))fail('incident_site_locked');
   if(!prev){
     normalizeCause(null,next,actor,now);
-    if(next.recordMode==='historical_manual'){
-      if(actor.role!=='safety'||next.status!=='approved'||next.corrective)fail('manual_archive_safety_approval_required',403);
-    }else if(next.recordMode||next.historicalImport||next.historicalOrigin||next.status!=='reported'||next.corrective)fail('initial_report_state_required');
+    if(next.recordMode||next.historicalImport||next.historicalOrigin||next.historicalTransfer)fail('historical_transfer_retired',410);
+    if(next.status!=='reported'||next.corrective)fail('initial_report_state_required');
+    if(next.pastReport!=null){
+      if(actor.role!=='safety')fail('past_report_safety_only',403);
+      if(!['person','property'].includes(next.category))fail('past_report_category_required',400);
+      const {drafterName,safetyManagerName}=next.pastReport;
+      if(![drafterName,safetyManagerName].every(n=>typeof n==='string'&&n.trim().length>0&&n.trim().length<=80))fail('past_report_names_required',400);
+      next.pastReport={drafterName:drafterName.trim(),safetyManagerName:safetyManagerName.trim()};
+      next.approvedBy='';next.approvedAt=null;
+    }
     next.officialRecord={};next.acknowledgements=[];next.readReceipts=[];
     next.createdAt=now;next.registeredAt=now;next.closedAt=null;
     return {costChanges:[]};

@@ -112,6 +112,7 @@
       occurred=day?day+' (시간 미상)':'';
     }
     put('발생일시 / 장소',join([occurred,d.place]),true);
+    if(i.pastReport){put('당시 기안자',i.pastReport.drafterName,true);put('당시 안전관리자',i.pastReport.safetyManagerName,true);}
     put('보고자 / 보고일시',stamp(i.reporterName,i.createdAt),true);
     put('사고 직전 작업',d.workAction,true);put('사고 발생 경위',d.incidentHow||i.summary,true);
     if(d.incidentHow&&i.summary&&i.summary!==d.generatedSummary&&i.summary!==d.incidentHow)put('사고 요약',i.summary);

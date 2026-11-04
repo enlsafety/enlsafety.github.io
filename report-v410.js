@@ -112,6 +112,7 @@
     const date=clean(i.occurredDate||i.historicalTransfer?.occurredDate||parts.date);
     const when=date?(dateOnly?date+' (시간 미상)':date+' '+parts.time):'';
     row('발생 일시 / 장소',join([when,d.place]));
+    if(i.pastReport){row('당시 기안자',i.pastReport.drafterName);row('당시 안전관리자',i.pastReport.safetyManagerName);}
     row('보고자',i.historicalImport?.originalReporterName||i.historicalTransfer?.originalReporterName||i.reporterName);
     row(person?'부상자':'작업자',join([person?d.injuredName||i.injuredName:d.workerName,d.job||i.job]));
     row('사고 전 작업',d.workAction);
@@ -166,6 +167,7 @@
     const d=i.reportDetails||{};
     if(i.summary&&i.summary!==d.generatedSummary&&i.summary!==d.incidentHow)root.innerHTML+=reportRow('기존 사고 요약',i.summary);
     if(d.preventionPlan&&d.preventionPlan!=='후속 단계에서 안전관리자가 별도 수립')root.innerHTML+=reportRow('최초 보고 당시 예방대책',d.preventionPlan);
+    if(i.pastReport)root.innerHTML+=reportRow('당시 기안자',i.pastReport.drafterName)+reportRow('당시 안전관리자',i.pastReport.safetyManagerName);
     root.innerHTML+=reportRow('보고자 / 보고일시',[i.reporterName,i.createdAt&&fmt(i.createdAt)].filter(Boolean).join(' · '));
     if(includeFiles)root.innerHTML+=`<section class="report410-section"><div class="report410-section-head"><b>현장사진 · PDF</b></div>${reportFiles('photos',i.photos)||'첨부 없음'}${reportFiles('supplement',i.supplement?.attachments)}</section>`;
     return root.outerHTML;
@@ -262,6 +264,21 @@
   window.enlBindCumulativeReport=bindCumulativeReport;
   window.enlScrollReportStage=scrollReportStage;
 
+  function addPastReportFields(form){
+    const section=document.createElement('section');
+    section.className='report410-section';
+    section.innerHTML='<label class="report410-check"><input type="checkbox" id="pastReportMode"><span>과거사고 입력모드</span></label><div id="pastReportPeople" hidden><p>당시 원자료에 기재된 이름을 입력하세요. 등록 후 일반 사고와 같은 절차로 검토합니다.</p><div class="report410-grid"><label class="lbl"><span>당시 기안자</span><input id="pastReportDrafter" maxlength="80" disabled></label><label class="lbl"><span>당시 안전관리자</span><input id="pastReportSafety" maxlength="80" disabled></label></div></div>';
+    form.querySelector('.section-head').after(section);
+    const toggle=section.querySelector('#pastReportMode'),people=section.querySelector('#pastReportPeople');
+    toggle.addEventListener('change',()=>{
+      people.hidden=!toggle.checked;
+      for(const input of people.querySelectorAll('input')){
+        input.disabled=!toggle.checked;
+        input.required=toggle.checked;
+      }
+    });
+  }
+
   function renderTypeForm(root,u,type,i=activeEdit()){
     if(!root)return;if(!['person','property'].includes(type))return renderTypePicker(root,u);activeType=type;
     const person=type==='person',editing=!!i,title=person?'대인사고 경위서':'대물사고 경위서',desc=person?'부상·진단·진료비 등 인적 피해 중심으로 작성합니다.':'파손내용·복구비용·견적 등 물적 피해 중심으로 작성합니다.';
@@ -277,6 +294,7 @@
       if(accepted(i)){form.dataset.reportCorrection='1';for(const el of form.querySelectorAll('[required]'))if(!el.value&&el.id!=='safetyFactEditReason'){el.required=false;el.dataset.allowExistingBlank='1';}const priority=form.querySelector('#priorityManual411');if(priority)priority.disabled=true;}
     }
     layoutReportTables(root.querySelector('#unifiedReportForm'));
+    if(!editing&&u.role==='safety')addPastReportFields(root.querySelector('#unifiedReportForm'));
     incidentPhotos=editing&&Array.isArray(i.photos)?[...i.photos]:[];renderPhotoThumbs('incident');bindPhotoButtons();
     if(editing){const site=document.getElementById('reportSite');if(site){site.disabled=true;site.title='이미 등록된 사고의 사업장은 수정할 수 없습니다.';}}
     if(person){const leave=document.getElementById('leaveEstimate');if(leave)leave.value=i?.leaveEstimate||'unknown'}
@@ -310,8 +328,17 @@
     const siteId=value('reportSite'),date=value('occurredDate410'),time=value('occurredTime410'),severity=value('severity')||'minor',leaveEstimate=type==='person'?(value('leaveEstimate')||'unknown'):'none',potentialMajor=!!document.getElementById('potentialMajor')?.checked,summary=buildSummary(type,siteId),eventType=value('eventType'),autoPriority=computePriority(type,severity,eventType,potentialMajor,leaveEstimate),priorityChoice=u?.role==='safety'?(value('priorityManual411')||'auto'):'auto',priority=priorityChoice==='auto'?autoPriority:priorityChoice,prioritySource=priorityChoice==='auto'?'auto':'manual',details={...(existing?.reportDetails||{}),templateVersion:'v411',reportType:type,place:value('incidentPlace410'),workAction:value('workAction410'),incidentHow:value('incidentHow410'),preventionPlan:existing?.reportDetails?.preventionPlan||'',specialNote:value('specialNote410'),generatedSummary:summary,recordedAt:existing?.reportDetails?.recordedAt||nowISO()};
     if(type==='person')Object.assign(details,{injuredName:value('injuredName'),job:value('job'),injuryDetail:value('injuryDetail410'),diagnosis:value('diagnosis410'),doctorOpinion:value('doctorOpinion410'),medicalCost:money(value('medicalCost410')),medicalCostPending:!value('medicalCost410'),medicalCostDetail:value('medicalCostDetail410')});else{const repairRaw=value('repairCost410'),repairValue=money(repairRaw),repairPending=!repairRaw||repairRaw===PENDING_COST||repairValue<=0,repairDetail=value('repairCostDetail410')||PENDING_COST;Object.assign(details,{workerName:value('propertyWorker410'),job:value('job'),damagedItem:value('damagedItem410'),damageDetail:value('damageDetail410'),repairCost:repairPending?0:repairValue,repairCostPending:repairPending,repairCostDetail:repairDetail})}
     const common={siteId,category:type,eventType,severity,leaveEstimate,potentialMajor,injuredName:type==='person'?value('injuredName'):'',job:value('job'),summary,immediateAction:value('immediateAction'),photos:[...incidentPhotos].map(persistAttachment),occurredAt:new Date(`${date}T${time||'00:00'}:00+09:00`).toISOString(),updatedAt:nowISO(),priority,prioritySource,prioritySetBy:prioritySource==='manual'?u.name:'',prioritySetAt:prioritySource==='manual'?nowISO():null,legalReview:computeLegalReview(type,severity,leaveEstimate),reportDetails:details};
+    if(!existing&&u.role==='safety'&&e.currentTarget.querySelector('#pastReportMode:checked')){
+      if(!required('pastReportDrafter','당시 기안자')||!required('pastReportSafety','당시 안전관리자'))return;
+      common.pastReport={drafterName:value('pastReportDrafter'),safetyManagerName:value('pastReportSafety')};
+    }
     if(existing){const original=occurredParts(existing);if(date===original.date&&(unknownTime(existing)||time===original.time))common.occurredAt=existing.occurredAt;}
-    if(window.ENLContracts&&(!existing||existing.siteId!==siteId||String(existing.occurredAt||'')!==common.occurredAt))common.siteContractSnapshot=window.ENLContracts.capture(siteId,date,u,false);
+    if(window.ENLContracts&&(!existing||existing.siteId!==siteId||String(existing.occurredAt||'')!==common.occurredAt)){
+      const snap=window.ENLContracts.capture(siteId,date,u,false);
+      const needsConfirmation=common.pastReport&&(snap.outsideContractPeriod===true||(snap.currentStatus==='closed'&&snap.statusAtOccurrence==='unknown'));
+      if(needsConfirmation&&!confirm('사고일이 계약기간 밖이거나 계약기간을 확인할 수 없습니다. 원자료의 사업장과 날짜를 확인했습니까?'))return;
+      common.siteContractSnapshot=needsConfirmation?window.ENLContracts.capture(siteId,date,u,true):snap;
+    }
     if(existing){
       // Defaults help first-time entry; opening an existing report must never persist them as new facts.
       const initial=e.currentTarget._initialValues||{},unchanged=id=>{const el=e.currentTarget.querySelector('#'+id);return !el||(el.type==='checkbox'?el.checked:el.value)===initial[id];};
