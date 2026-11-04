@@ -15,9 +15,7 @@ const {chromium,webkit}=require('playwright');
       historicalTransfer:{mode:'historical_manual',erpApproved:false,erpReference:'ERP-TPO',originalReporterName:'기록자',occurredDate:'2026-10-08',occurredTime:'12:00',occurredTimeKnown:true},
       approvedBy:'QA 안전',approvedAt:'2026-10-13T01:00:00Z',
       _syncBaseVersion:0,_syncMutationId:'create-history'};
-    let r=await who('safety',{action:'push',incidents:[source]});
-    assert.equal(r.status,200,JSON.stringify(r));checks++;
-    let i=r.body.incidents[0];
+    let i=await f.seedLegacy(source),r;
     const approval={by:i.approvedBy,at:i.approvedAt};
     const request=(role,action,extra={})=>who(role,{action,incidentId:i.id,...extra});
     const count=async()=>Number((await f.db.query('select count(*)::int n from enl_incident_revisions')).rows[0].n);

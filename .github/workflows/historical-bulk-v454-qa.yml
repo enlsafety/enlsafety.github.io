@@ -13,6 +13,6 @@ jobs:
         with:
           node-version: '24'
       - run: |
-          node --check historical-transfer-v449.js
+          npm install --no-save --package-lock=false @electric-sql/pglite@0.3.10
           node --check workflow-prevention-v429.js
-          node tests/manual-historical-v2-policy.cjs
+          node tests/past-report-policy.cjs

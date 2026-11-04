@@ -171,7 +171,6 @@
     if(roleOf(viewer)==='safety'&&['approved','closed'].includes(String(i.status||''))){
       return typeof window.enlOpenApprovedCorrection==='function'?window.enlOpenApprovedCorrection(i,viewer):alert('승인 후 정정 화면을 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.');
     }
-    if(historicalClosed(i)&&roleOf(viewer)==='safety'&&typeof window.enlEditHistoricalTransfer449==='function')return window.enlEditHistoricalTransfer449(i,viewer);
     if(roleOf(viewer)!=='safety'&&typeof window.enlEditIncidentInReportForm==='function')return window.enlEditIncidentInReportForm(i,viewer);
     if(!canEditIncident(i,viewer))return alert('수정 권한이 없습니다.');
     if(typeof window.enlEditIncidentInReportForm==='function'&&['person','property'].includes(i.category))return window.enlEditIncidentInReportForm(i,viewer);

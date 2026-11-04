@@ -95,42 +95,6 @@ function semanticAction(prev:any,next:any,requestedStatus:string,prevReportHash:
   return "update";
 }
 const isManualArchive=(i:any)=>clean(i?.recordMode)==="historical_manual"&&clean(i?.historicalTransfer?.mode)==="historical_manual";
-const manualExtraFields=["medicalCost","repairCost","damageAmount","medicalCostDetail","repairCostDetail","diagnosis","doctorOpinion"];
-function manualArchiveIntegrity(prev:any,next:any,actor:any){
- if(!isManualArchive(next))rejectWrite("manual_archive_scope_locked",409);
- if(!prev){
-  if(actor.role!=="safety"||clean(next.status)!=="approved"||clean(next.approvedBy)!==actor.name||!clean(next.approvedAt)||next.corrective||next.historicalImport?.workflowExempt!==false)
-   rejectWrite("manual_archive_safety_approval_required",403);
-  if(next.historicalImport?.erpApproved===true||next.historicalTransfer?.erpApproved===true)
-   rejectWrite("manual_archive_erp_not_verified",409);
-  return;
- }
- if(!isManualArchive(prev)||clean(prev.approvedAt)!==clean(next.approvedAt)||clean(prev.approvedBy)!==clean(next.approvedBy))
-  rejectWrite("manual_archive_initial_approval_locked",409);
- if(!['approved','closed'].includes(clean(next.status))||(clean(prev.status)==='closed'&&clean(next.status)!=='closed'))rejectWrite('manual_archive_state_locked',409);
- if(clean(next?.corrective?.status)==='approved'&&clean(prev?.corrective?.status)!=='submitted')rejectWrite('manual_archive_action_not_submitted',409);
- if(clean(next.status)==='closed'&&actor.role!=='safety')rejectWrite('manual_archive_safety_close_only',403);
- const comparable=structuredClone(next);
- const previousDetails=prev.reportDetails||{},incomingDetails=next.reportDetails||{};
- comparable.reportDetails={...incomingDetails};
- for(const key of manualExtraFields){
-  const old=previousDetails[key],fresh=incomingDetails[key];
-  if(JSON.stringify(canonicalValue(old??null))===JSON.stringify(canonicalValue(fresh??null)))continue;
-  if(old!==null&&old!==undefined&&clean(old)!=="")rejectWrite("manual_archive_existing_supplement_locked",409);
-  if(["medicalCost","repairCost","damageAmount"].includes(key)){
-   if(!/^(?:0|[1-9]\d{0,11})$/.test(clean(fresh)))
-    rejectWrite("manual_archive_cost_invalid",409);
-  }else if(clean(fresh).length>1000)rejectWrite("manual_archive_supplement_invalid",409);
-  comparable.reportDetails[key]=old;
- }
- if(JSON.stringify(canonicalValue(reportForHash(prev)))!==JSON.stringify(canonicalValue(reportForHash(comparable))))
-  rejectWrite("manual_archive_report_locked",409);
- if(actor.role!=="safety"){
-  const cs=clean(next?.corrective?.status);
-  if(["approved"].includes(cs)||clean(next.status)==="closed"||(!["approved","closed"].includes(clean(prev.status))))
-   rejectWrite("manual_archive_safety_close_only",403);
- }
-}
 function isHistoricalTransfer(i:any){
   if(!i||typeof i!=="object")return false;
   const h=i.historicalImport&&typeof i.historicalImport==="object"?i.historicalImport:{};
@@ -453,14 +417,13 @@ Deno.serve(async(req:Request)=>{
         if(actor.role==="worker"&&prev&&!isMine(prev,actor)){ignored++;continue;}
         if(prev&&isHistoricalTransfer(prev)&&actor.role!=="safety")rejectWrite("historical_transfer_locked",403);
         if(prev&&isHistoricalTransfer(prev)&&!incomingHistorical)rejectWrite("historical_transfer_locked",409);
-        if(!prev&&isManualArchive(raw0))manualArchiveIntegrity(prev,raw0,actor);
         let next={...raw0,id,siteId};
         const contract=(globalThis as any).ENLContracts;
         const occurrenceDate=(i:any)=>{if(clean(i?.historicalTransfer?.occurredDate))return clean(i.historicalTransfer.occurredDate);const d=new Date(i?.occurredAt||"");return Number.isFinite(d.getTime())?new Date(d.getTime()+9*60*60*1000).toISOString().slice(0,10):""};
         if(!prev||clean(prev.siteId)!==siteId||occurrenceDate(prev)!==occurrenceDate(next)){
           const masterRows=await sql`select site_id,active,start_date,to_jsonb(enl_site_master)->>'contract_end_date' as contract_end_date,to_jsonb(enl_site_master)->>'contract_period' as contract_period from public.enl_site_master where site_id=${siteId} limit 1`;
           const master=masterRows[0]||{site_id:siteId},date=occurrenceDate(next),check=contract.assess(master,date);
-          const needsConfirmation=(incomingHistorical||isManualArchive(raw0))&&(check.outsideContractPeriod===true||(check.currentStatus==="closed"&&check.statusAtOccurrence==="unknown"));
+          const needsConfirmation=(incomingHistorical||isManualArchive(raw0)||!!raw0.pastReport)&&(check.outsideContractPeriod===true||(check.currentStatus==="closed"&&check.statusAtOccurrence==="unknown"));
           const confirmed=actor.role==="safety"&&raw0.siteContractSnapshot?.confirmation?.confirmed===true;
           if(needsConfirmation&&!confirmed)rejectWrite("contract_period_confirmation_required",409,check.warning);
           next.siteContractSnapshot=contract.snapshot(master,date,actor,needsConfirmation&&confirmed);
@@ -473,16 +436,9 @@ Deno.serve(async(req:Request)=>{
         if(!prev)delete next.executiveApproval;
         const official:any=structuredClone(prev?.officialRecord||next?.officialRecord||{});
         if(!prev){
-          if(incomingHistorical){
-            const hm=historicalMeta(next);
-            next.reporterName=hm.originalReporterName||clean(next.reporterName)||"기존 ERP 자료";next.reporterId="";next.registeredAt=now;next.status="closed";next.corrective=null;next.approvedBy="";next.approvedAt=null;next.closedAt=hm.closedAt||now;
-            official.transferRegistration={id:actor.id,name:actor.name,role:actor.role,position:actor.position,at:now,proof:actor.proof,source:"erp",erpApproved:true,erpApprovalDate:hm.erpApprovalDate,erpReference:hm.erpReference};
-            official.originalReporter=hm.originalReporterName?{name:hm.originalReporterName,source:"erp_record"}:null;
-          }else{
-            next.reporterName=actor.name;next.reporterId=actor.id;next.registeredAt=now;
-            official.reporter={id:actor.id,name:actor.name,role:actor.role,position:actor.position,siteId:actor.siteId,at:now,proof:actor.proof};
-            if(actor.role!=="safety"){next.status="reported";next.safetyNote="";next.approvedBy="";next.approvedAt=null;next.closedAt=null;}
-          }
+          next.reporterName=actor.name;next.reporterId=actor.id;next.registeredAt=now;
+          official.reporter={id:actor.id,name:actor.name,role:actor.role,position:actor.position,siteId:actor.siteId,at:now,proof:actor.proof};
+          next.status="reported";next.safetyNote="";next.approvedBy="";next.approvedAt=null;next.closedAt=null;
         }else if(isBulkImported(prev)){next.reporterName=prev.reporterName||"";next.reporterId=prev.reporterId||"";}else{next.reporterName=prev.reporterName||next.reporterName||(incomingHistorical?"기존 ERP 자료":actor.name);next.reporterId=prev.reporterId||next.reporterId||(incomingHistorical?"":actor.id);}
         const nextReportHash=await reportHash(next);
         if(prev&&!policy.costChanges.length&&!isManualArchive(prev)&&["approved","closed"].includes(clean(prev.status))&&prevReportHash!==nextReportHash){
