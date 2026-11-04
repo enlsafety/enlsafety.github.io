@@ -85,6 +85,11 @@
     if(saved){
       const toggle=form.querySelector('#pastReportMode');
       if(toggle&&saved.values.pastReportMode){toggle.checked=true;toggle.dispatchEvent(new Event('change',{bubbles:true}));}
+      const timeMode=form.querySelector('#unknownTime410');
+      if(timeMode&&!timeMode.disabled&&Object.hasOwn(saved.values,timeMode.id)){
+        timeMode.checked=!!saved.values[timeMode.id];
+        timeMode.dispatchEvent(new Event('change',{bubbles:true}));
+      }
       for(const el of fields()){
         if(!Object.hasOwn(saved.values,el.id))continue;
         if(el.type==='checkbox'||el.type==='radio')el.checked=!!saved.values[el.id];

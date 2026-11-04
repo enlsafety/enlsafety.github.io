@@ -25,8 +25,9 @@
   const persistAttachment=a=>typeof window.enlPersistAttachment==='function'?window.enlPersistAttachment(a):a;
   const pad=n=>String(n).padStart(2,'0');
   const accepted=i=>['approved','closed'].includes(String(i?.status||''));
-  const unknownTime=i=>i?.occurrenceTimeKnown===false||i?.historicalImport?.occurrenceTimeKnown===false||i?.historicalTransfer?.occurredTimeKnown===false;
-  const occurredParts=i=>{if(i?.occurredAt){const d=new Date(new Date(i.occurredAt).getTime()+9*3600000);if(!Number.isNaN(d.getTime()))return {date:d.toISOString().slice(0,10),time:d.toISOString().slice(11,16)}}return {date:'',time:''}};
+  const dateOnlyValue=v=>/^\d{4}-\d{2}-\d{2}$/.test(v||'');
+  const unknownTime=i=>dateOnlyValue(i?.occurredAt)||i?.occurrenceTimeKnown===false||i?.historicalImport?.occurrenceTimeKnown===false||i?.historicalTransfer?.occurredTimeKnown===false;
+  const occurredParts=i=>{if(dateOnlyValue(i?.occurredAt))return {date:i.occurredAt,time:''};if(i?.occurredAt){const d=new Date(new Date(i.occurredAt).getTime()+9*3600000);if(!Number.isNaN(d.getTime()))return {date:d.toISOString().slice(0,10),time:d.toISOString().slice(11,16)}}return {date:'',time:''}};
 
   function backHome(u){activeType=null;activeEditId=null;if(isSiteUser(u)&&typeof window.enlFieldHome==='function')return window.enlFieldHome(u);currentView='home';renderShell(u)}
   function backRecords(u){activeType=null;activeEditId=null;currentView='incidents';renderShell(u)}
@@ -60,7 +61,30 @@
     const leave=root.querySelector('#leaveEstimate');if(leave)leave.value=i?.leaveEstimate||'unknown';
     const severity=root.querySelector('#severity');if(severity)severity.value=i?.severity||'minor';
     const potential=root.querySelector('#potentialMajor');if(potential)potential.checked=!!i?.potentialMajor;
-    if(unknownTime(i)){const time=root.querySelector('#occurredTime410');if(time){time.value='';time.disabled=true;time.required=false;time.dataset.allowExistingBlank='1';time.closest('label').querySelector('span').textContent='발생 시간 (미상)';time.parentElement.querySelector('.report410-picker-placeholder')?.remove();}}
+
+  }
+  function bindOccurrenceTime(form,i){
+    const input=form.querySelector('#occurredTime410'),label=input.closest('label');
+    const group=document.createElement('div');group.className='report410-time-choice';
+    label.before(group);group.append(label);
+    const choice=document.createElement('label');choice.className='report410-unknown-choice';
+    choice.innerHTML='<input id="unknownTime410" type="checkbox"><span>시간 미상</span>';
+    group.append(choice);
+    const toggle=choice.querySelector('input');
+    toggle.checked=unknownTime(i);
+    // Migrated records keep their original source metadata in the historical correction flow.
+    toggle.disabled=!!(i?.historicalTransfer||i?.historicalImport?.enabled);
+    function sync(){
+      input.disabled=toggle.checked;
+      input.required=!toggle.checked;
+      if(toggle.checked){input.value='';input.dataset.allowExistingBlank='1';}
+      else delete input.dataset.allowExistingBlank;
+      const wrap=input.closest('.report410-picker-wrap');
+      wrap.classList.toggle('has-value',!!input.value);
+      wrap.querySelector('.report410-picker-placeholder').textContent=toggle.checked?'—':'선택하세요';
+      window.enlRefreshRequiredFields453?.();
+    }
+    toggle.addEventListener('change',sync);sync();
   }
   const reportValue=v=>esc(v===0?'0':v||'미입력');
   const reportRow=(label,v)=>`<div class="report410-record-row"><b>${esc(label)}</b><div>${reportValue(v)}</div></div>`;
@@ -293,6 +317,7 @@
       if(accepted(i)){form.dataset.reportCorrection='1';for(const el of form.querySelectorAll('[required]'))if(!el.value&&el.id!=='safetyFactEditReason'){el.required=false;el.dataset.allowExistingBlank='1';}const priority=form.querySelector('#priorityManual411');if(priority)priority.disabled=true;}
     }
     layoutReportTables(root.querySelector('#unifiedReportForm'));
+    bindOccurrenceTime(root.querySelector('#unifiedReportForm'),i);
     if(!editing&&u.role==='safety')addPastReportFields(root.querySelector('#unifiedReportForm'));
     incidentPhotos=editing&&Array.isArray(i.photos)?[...i.photos]:[];renderPhotoThumbs('incident');bindPhotoButtons();
     if(editing){const site=document.getElementById('reportSite');if(site){site.disabled=true;site.title='이미 등록된 사고의 사업장은 수정할 수 없습니다.';}}
@@ -307,7 +332,7 @@
   }
 
   function required(id,label){const el=document.getElementById(id);if(el?.dataset.allowExistingBlank==='1')return true;if(el&&String(el.value||'').trim())return true;el?.focus();el?.scrollIntoView({behavior:'smooth',block:'center'});alert(`${label}을(를) 입력해 주세요.`);return false}
-  function formatOccurred(date,time){if(!date)return '';const p=date.split('-');return p.length===3?`${Number(p[0])}년 ${Number(p[1])}월 ${Number(p[2])}일 ${time||''}경`.trim():`${date} ${time}`.trim()}
+  function formatOccurred(date,time){if(!date)return '';const p=date.split('-');return p.length===3?`${Number(p[0])}년 ${Number(p[1])}월 ${Number(p[2])}일 ${time?time+'경':'(시간 미상)'}`.trim():`${date} ${time}`.trim()}
   function buildSummary(type,siteId){const when=formatOccurred(value('occurredDate410'),value('occurredTime410')),site=currentSiteName(siteId),place=value('incidentPlace410'),work=value('workAction410'),how=value('incidentHow410'),prevention=value('preventionPlan410'),special=value('specialNote410');let damage='';if(type==='person'){const cost=money(value('medicalCost410'));damage=[`${value('injuredName')||'피해 직원'}: ${value('injuryDetail410')}`,value('diagnosis410')&&`진단명: ${value('diagnosis410')}`,value('doctorOpinion410')&&`의사 소견: ${value('doctorOpinion410')}`,cost&&`진료비: ${moneyText(cost)}`].filter(Boolean).join(' / ')}else{const raw=value('repairCost410'),cost=money(raw),costText=raw===PENDING_COST||!cost?PENDING_COST:moneyText(cost);damage=[value('propertyWorker410')&&`작업자: ${value('propertyWorker410')}`,`${value('damagedItem410')}: ${value('damageDetail410')}`,`복구 예상비용: ${costText}`,value('repairCostDetail410')&&`견적 상세: ${value('repairCostDetail410')}`].filter(Boolean).join(' / ')}return [`[사고 개요] ${when} ${site} ${place}`,`[사고 경위] ${work} 중 ${how}`,`[피해 상황] ${damage}`,prevention&&`[재발 방지 대책] ${prevention}`,special&&`[특이사항] ${special}`].filter(Boolean).join('  ')}
 
   async function submitIncident410(e,u,type,existing=null){
@@ -328,12 +353,12 @@
 
     const siteId=value('reportSite'),date=value('occurredDate410'),time=value('occurredTime410'),severity=value('severity')||'minor',leaveEstimate=type==='person'?(value('leaveEstimate')||'unknown'):'none',potentialMajor=!!document.getElementById('potentialMajor')?.checked,summary=buildSummary(type,siteId),eventType=value('eventType'),autoPriority=computePriority(type,severity,eventType,potentialMajor,leaveEstimate),priorityChoice=u?.role==='safety'?(value('priorityManual411')||'auto'):'auto',priority=priorityChoice==='auto'?autoPriority:priorityChoice,prioritySource=priorityChoice==='auto'?'auto':'manual',details={...(existing?.reportDetails||{}),templateVersion:'v411',reportType:type,place:value('incidentPlace410'),workAction:value('workAction410'),incidentHow:value('incidentHow410'),preventionPlan:existing?.reportDetails?.preventionPlan||'',specialNote:value('specialNote410'),generatedSummary:summary,recordedAt:existing?.reportDetails?.recordedAt||nowISO()};
     if(type==='person')Object.assign(details,{injuredName:value('injuredName'),job:value('job'),injuryDetail:value('injuryDetail410'),diagnosis:value('diagnosis410'),doctorOpinion:value('doctorOpinion410'),medicalCost:money(value('medicalCost410')),medicalCostPending:!value('medicalCost410'),medicalCostDetail:value('medicalCostDetail410')});else{const repairRaw=value('repairCost410'),repairValue=money(repairRaw),repairPending=!repairRaw||repairRaw===PENDING_COST||repairValue<=0,repairDetail=value('repairCostDetail410')||PENDING_COST;Object.assign(details,{workerName:value('propertyWorker410'),job:value('job'),damagedItem:value('damagedItem410'),damageDetail:value('damageDetail410'),repairCost:repairPending?0:repairValue,repairCostPending:repairPending,repairCostDetail:repairDetail})}
-    const common={siteId,category:type,eventType,severity,leaveEstimate,potentialMajor,injuredName:type==='person'?value('injuredName'):'',job:value('job'),summary,immediateAction:value('immediateAction'),photos:[...incidentPhotos].map(persistAttachment),occurredAt:new Date(`${date}T${time||'00:00'}:00+09:00`).toISOString(),updatedAt:nowISO(),priority,prioritySource,prioritySetBy:prioritySource==='manual'?u.name:'',prioritySetAt:prioritySource==='manual'?nowISO():null,legalReview:computeLegalReview(type,severity,leaveEstimate),reportDetails:details};
+    const common={siteId,category:type,eventType,severity,leaveEstimate,potentialMajor,injuredName:type==='person'?value('injuredName'):'',job:value('job'),summary,immediateAction:value('immediateAction'),photos:[...incidentPhotos].map(persistAttachment),occurredAt:time?new Date(`${date}T${time}:00+09:00`).toISOString():date,updatedAt:nowISO(),priority,prioritySource,prioritySetBy:prioritySource==='manual'?u.name:'',prioritySetAt:prioritySource==='manual'?nowISO():null,legalReview:computeLegalReview(type,severity,leaveEstimate),reportDetails:details};
     if(!existing&&u.role==='safety'&&e.currentTarget.querySelector('#pastReportMode:checked')){
       if(!required('pastReportDrafter','당시 기안자')||!required('pastReportSafety','당시 안전관리자'))return;
       common.pastReport={drafterName:value('pastReportDrafter'),safetyManagerName:value('pastReportSafety')};
     }
-    if(existing){const original=occurredParts(existing);if(date===original.date&&(unknownTime(existing)||time===original.time))common.occurredAt=existing.occurredAt;}
+    if(existing){const original=occurredParts(existing);if(date===original.date&&(unknownTime(existing)?!time:time===original.time))common.occurredAt=existing.occurredAt;}
     if(window.ENLContracts&&(!existing||existing.siteId!==siteId||String(existing.occurredAt||'')!==common.occurredAt)){
       const snap=window.ENLContracts.capture(siteId,date,u,false);
       const needsConfirmation=common.pastReport&&(snap.outsideContractPeriod===true||(snap.currentStatus==='closed'&&snap.statusAtOccurrence==='unknown'));
@@ -347,7 +372,7 @@
       const fields={place:'incidentPlace410',workAction:'workAction410',incidentHow:'incidentHow410',specialNote:'specialNote410',job:'job',injuredName:'injuredName',injuryDetail:'injuryDetail410',diagnosis:'diagnosis410',doctorOpinion:'doctorOpinion410',medicalCost:'medicalCost410',medicalCostPending:'medicalCost410',medicalCostDetail:'medicalCostDetail410',workerName:'propertyWorker410',damagedItem:'damagedItem410',damageDetail:'damageDetail410',repairCost:'repairCost410',repairCostPending:'repairCost410',repairCostDetail:'repairCostDetail410'};
       for(const [key,id] of Object.entries(fields))if(unchanged(id))preserve(details,existing.reportDetails,key);
       for(const [key,id] of Object.entries({eventType:'eventType',severity:'severity',leaveEstimate:'leaveEstimate',potentialMajor:'potentialMajor',injuredName:'injuredName',job:'job',immediateAction:'immediateAction'}))if(unchanged(id))preserve(common,existing,key);
-      if(unchanged('occurredDate410')&&unchanged('occurredTime410'))common.occurredAt=existing.occurredAt;
+      if(unchanged('unknownTime410')&&unchanged('occurredDate410')&&unchanged('occurredTime410'))common.occurredAt=existing.occurredAt;
       const panel=document.querySelector('#unifiedReportForm [data-wf440-cause]');
       if(u?.role==='safety'&&panel?.dataset.wf440Dirty==='1'){
         const cause=window.enlCollectCause?.({root:panel,allowAutoDraft:true});if(!cause)return;Object.assign(details,cause);

@@ -21,7 +21,7 @@ function localParts(iso:any){
   if(Number.isNaN(d.getTime()))return {date:"",time:"",weekday:""};
   const parts=new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23",weekday:"short"}).formatToParts(d);
   const get=(t:string)=>parts.find(x=>x.type===t)?.value||"";
-  return {date:`${get("year")}-${get("month")}-${get("day")}`,time:`${get("hour")}:${get("minute")}`,weekday:get("weekday").replace("요일","")};
+  return {date:`${get("year")}-${get("month")}-${get("day")}`,time:/^\d{4}-\d{2}-\d{2}$/.test(clean(iso))?"":`${get("hour")}:${get("minute")}`,weekday:get("weekday").replace("요일","")};
 }
 function defaultDraft(incident:any,site:any,person:any,actor:any){
   const d=incident?.reportDetails||{},lp=localParts(incident?.occurredAt),cause=[clean(d.environmentCause),clean(d.behaviorCause)].filter(Boolean).join(" / "),prevention=clean(incident?.corrective?.planDetail)||clean(d.preventionPlan);

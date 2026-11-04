@@ -19,7 +19,7 @@
   const fmt=v=>{if(!v)return '-';try{return new Date(v).toLocaleString('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})}catch(e){return String(v)}};
   const site=id=>{try{return siteById?.(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}};
   const isBulkImported=i=>!!(i?.historicalOrigin?.batchId&&i?.historicalOrigin?.candidateId&&['verified','unverifiable'].includes(i?.externalInitialApproval?.state));
-  const occurrenceText=i=>isBulkImported(i)&&i.occurrenceTimeKnown===false?String(i.occurredDate||i.occurredAt||'').slice(0,10)+' · 시간 미확인':fmt(i.occurredAt);
+  const occurrenceText=i=>/^\d{4}-\d{2}-\d{2}$/.test(i.occurredAt)?i.occurredAt+' (시간 미상)':isBulkImported(i)&&i.occurrenceTimeKnown===false?String(i.occurredDate||i.occurredAt||'').slice(0,10)+' · 시간 미확인':fmt(i.occurredAt);
   const historical=i=>!!i&&i?.historicalImport?.enabled===true&&i?.historicalImport?.erpApproved===true&&i?.historicalImport?.workflowExempt===true&&String(i?.historicalImport?.transferState||'')==='closed';
   const actionState=v=>v==='confirmed'?'확인됨':v==='partial'?'일부 확인':v==='not_available'?'확인자료 없음':'미기재';
   const followState=v=>v==='field_check'?'현장 확인 필요':v==='new_improvement'?'신규 개선조치 필요':'추가조치 없음';

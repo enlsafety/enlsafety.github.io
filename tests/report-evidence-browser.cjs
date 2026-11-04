@@ -36,6 +36,17 @@ async function register(browser, category) {
   for(const select of await p.locator('#unifiedReportForm select:enabled').all()){
     if(!await select.inputValue())await select.selectOption({index:1});
   }
+  const time=p.locator('#occurredTime410'),unknown=p.locator('#unknownTime410');
+  const box=await unknown.evaluate(el=>{
+    const t=document.querySelector('#occurredTime410').getBoundingClientRect(),c=el.getBoundingClientRect();
+    const date=document.querySelector('#occurredDate410').getBoundingClientRect();
+    return {aligned:Math.abs(t.left-date.left)<2,within:c.right<=innerWidth&&t.right<=innerWidth,
+      separate:c.top>=t.bottom||(c.left>=t.right&&Math.abs((c.top+c.bottom-t.top-t.bottom)/2)<2)};
+  });
+  assert.ok(box.aligned&&box.within&&box.separate,JSON.stringify(box));
+  await unknown.check();assert.ok(await time.isDisabled());await unknown.uncheck();
+  assert.ok(await time.evaluate(el=>!el.disabled&&el.required&&!el.checkValidity()));
+  if(pdf)await unknown.check();else await time.fill('00:00');
   const submit=p.locator('#unifiedReportForm button[type=submit]');
   await submit.click();
   assert.match(dialogs.at(-1),/현장 첨부자료를 1개 이상/);
@@ -51,6 +62,9 @@ async function register(browser, category) {
   await p.waitForFunction(()=>window.qaSaved);
   const saved=await p.evaluate(()=>window.qaSaved);
   assert.equal(saved.category,category);
+  assert.equal(saved.occurredAt,pdf?'2026-11-03':'2026-11-02T15:00:00.000Z');
+  const summary=await p.evaluate(i=>enlIncidentSummaryHtml(i),saved);
+  assert.match(summary,pdf?/2026-11-03 \(시간 미상\)/:/2026-11-03 00:00/);
   assert.deepEqual(saved.photos.map(a=>a.path),[path]);
   assert.equal(saved.status,'reported');
   await c.close();

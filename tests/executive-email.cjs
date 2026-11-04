@@ -16,6 +16,8 @@ assert.ok(row.id);
 const sql=async(parts,...args)=>(await f.db.query(parts.reduce((s,p,i)=>s+(i?'$'+i:'')+p,''),args)).rows;
 const ctx={Deno:{env:{get:()=> 'qa-only'},serve(){}},postgres:()=>sql,Request,Response,crypto,console,fetch:async(url,init)=>{if(url.endsWith('/senders'))return new Response(JSON.stringify({senders:[{id:1,active:true,name:'이앤엘 사고보고',email:'qa@example.invalid'}]}));assert.ok(url.endsWith('/smtp/email'));sent.push(JSON.parse(init.body));return new Response(JSON.stringify({messageId:'qa-only'}));}};
 vm.createContext(ctx);vm.runInContext(fs.readFileSync('executive-approval-v482.js','utf8'),ctx);vm.runInContext(stripTypeScriptTypes(fs.readFileSync('edge-functions/enl-email-v441/index.ts','utf8').replace(/^import .*;\r?\n/gm,''))+';globalThis.flushMail=flush;',ctx);
+const unknown=ctx.mailContent({occurredAt:'2026-10-10',category:'property'},'검수 현장',false,'incident_new');
+assert.match(unknown.subject,/10\.10 시간 미상/);assert.match(unknown.text,/2026-10-10 \(시간 미상\)/);
 const result=await ctx.flushMail(sql);assert.equal(result.sent,4);assert.equal(result.failed,0);assert.equal(sent.filter(x=>x.to[0].email==='qa-manager@example.invalid').length,2);assert.equal(sent.filter(x=>x.to[0].email==='qa-executive@example.invalid').length,2);assert.equal(sent.filter(x=>x.subject.includes('사장 최종결재 요청')).length,1);
 const events=(await f.db.query('select event_key,last_error from enl_email_events')).rows;
 for(const key of ['staff-request','exec-close'])assert.equal(events.find(x=>x.event_key==='email:'+key).last_error,'role_event_policy');assert.equal(events.find(x=>x.event_key==='email:exec-old').last_error,'approval_no_longer_required');

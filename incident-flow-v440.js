@@ -85,7 +85,8 @@
     if(!i.reportWorkflow.immediateReportedAt)i.reportWorkflow.immediateReportedAt=i.registeredAt||i.createdAt||now();
     if(!i.reportWorkflow.internalSla)i.reportWorkflow.internalSla='사고 인지 후 30분 이내 또는 현장 이탈 전 즉시보고';
     const occurred=Date.parse(i.occurredAt||''),created=Date.parse(i.reportWorkflow.immediateReportedAt||'');
-    if(Number.isFinite(occurred)&&Number.isFinite(created)&&created>=occurred&&!Number.isFinite(Number(i.reportWorkflow.immediateDelayMinutes)))i.reportWorkflow.immediateDelayMinutes=Math.round((created-occurred)/60000);
+    if(/^\d{4}-\d{2}-\d{2}$/.test(i.occurredAt))delete i.reportWorkflow.immediateDelayMinutes;
+    else if(Number.isFinite(occurred)&&Number.isFinite(created)&&created>=occurred&&!Number.isFinite(Number(i.reportWorkflow.immediateDelayMinutes)))i.reportWorkflow.immediateDelayMinutes=Math.round((created-occurred)/60000);
     const st=String(i.status||'');
     i.reportWorkflow.phase=st==='reported'?'immediate_review':st==='supplement'?'supplement_waiting':st==='supplement_submitted'?'supplement_review':st==='approved'?'report_approved':st==='closed'?'closed':st;
     if(['approved','closed'].includes(st)&&i?.externalInitialApproval?.state!=='verified'&&!i.reportWorkflow.finalApprovedAt){
@@ -409,7 +410,7 @@
   function stageBanner(i){
     const s=String(i.status||''),w=i.reportWorkflow||{},delay=w.immediateDelayMinutes==null?NaN:Number(w.immediateDelayMinutes);
     if(s==='approved')return '<section class="wf440-stage approved"><b>사고보고 승인 완료</b></section>';
-    const sla=Number.isFinite(delay)?` · 발생 후 약 ${delay}분에 최초보고`:'';
+    const sla=!/^\d{4}-\d{2}-\d{2}$/.test(i.occurredAt)&&Number.isFinite(delay)?` · 발생 후 약 ${delay}분에 최초보고`:'';
     const desc=s==='reported'?'안전관리자가 즉시보고 내용을 검토 중입니다.':s==='supplement'?'진단·병원비·견적 등 사후 확인자료 보완을 기다리고 있습니다.':s==='supplement_submitted'?'현장에서 보완자료를 제출하여 안전관리자 최종검토를 기다리고 있습니다.':s==='closed'?'사고보고와 재발방지조치 확인이 완료되어 종결되었습니다.':'사고 진행상태를 확인합니다.';
     return `<section class="wf440-stage ${s.includes('supplement')?'supplement':['approved','closed'].includes(s)?'approved':''}"><b>${ex(stateLabel(i))}</b>${ex(desc)}<small>${ex(sla)}</small></section>`;
   }

@@ -46,7 +46,8 @@ function stateLabel(s:string){return s==="reported"?"즉시보고 접수 · 안�
 function mailContent(incident:any,siteName:string,urgent:boolean,kind:string){
   const d=incident?.reportDetails||{},c=incident?.corrective||{},s=incident?.supplement||{};
   const person=clean(incident?.category)==="person",type=person?"대인사고":"대물사고",typeShort=person?"대인":"대물";
-  const when=dateTime(incident?.occurredAt);
+  const dateOnlyOccurrence=/^\d{4}-\d{2}-\d{2}$/.test(clean(incident?.occurredAt));
+  const when=dateOnlyOccurrence?incident.occurredAt+' (시간 미상)':dateTime(incident?.occurredAt);
   const place=clean(d.place)||"-",work=clean(d.workAction),how=clean(d.incidentHow);
   const content=[work?work+" 중":"",how].filter(Boolean).join(" ")||clean(incident?.summary)||"-";
   const immediate=clean(incident?.immediateAction)||"-",state=stateLabel(clean(incident?.status));
@@ -57,7 +58,7 @@ function mailContent(incident:any,siteName:string,urgent:boolean,kind:string){
     if(Number.isFinite(dt.getTime())){
       const p=new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false}).formatToParts(dt);
       const get=(x:string)=>p.find(v=>v.type===x)?.value||"";
-      subjectWhen=`${get("month")}.${get("day")} ${get("hour")}:${get("minute")}`;
+      subjectWhen=`${get("month")}.${get("day")} ${dateOnlyOccurrence?"시간 미상":get("hour")+":"+get("minute")}`;
     }
   }catch(_){}
 
