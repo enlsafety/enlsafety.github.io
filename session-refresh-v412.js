@@ -102,25 +102,15 @@
     try{
       const d=JSON.parse(localStorage.getItem(DRAFT_KEY)||'null');
       if(!d||Date.now()-Number(d.savedAt||0)>DRAFT_MAX_AGE)return null;
-      const uid=actorId();if(d.userId&&uid&&String(d.userId)!==uid)return null;
+      const uid=actorId();if(!uid||!d.userId||String(d.userId)!==uid)return null;
       return d;
     }catch(e){return null}
-  }
-  function saveDraft(){
-    if(!session)return;
-    const form=document.getElementById('unifiedReportForm');if(!form)return;
-    const fields={};
-    form.querySelectorAll('input[id],select[id],textarea[id]').forEach(el=>{
-      if(el.type==='file'||el.type==='password')return;
-      fields[el.id]=el.type==='checkbox'?{checked:!!el.checked}:{value:el.value};
-    });
-    try{localStorage.setItem(DRAFT_KEY,JSON.stringify({savedAt:Date.now(),userId:actorId(),type:form.dataset.reportType||'',fields}))}catch(e){}
   }
   function clearDraft(){try{localStorage.removeItem(DRAFT_KEY)}catch(e){}}
   function applyDraft(form,d){
     if(!form||!d?.fields)return false;
     for(const [id,state] of Object.entries(d.fields)){
-      const el=document.getElementById(id);if(!el)continue;
+      const el=form.querySelector('#'+CSS.escape(id));if(!el||el.disabled||el.readOnly||['hidden','password','file'].includes(el.type))continue;
       if('checked' in state)el.checked=!!state.checked;else if('value' in state)el.value=state.value??'';
       try{el.dispatchEvent(new Event('change',{bubbles:true}))}catch(e){}
     }
@@ -194,10 +184,9 @@
   // The visible logout button is an explicit user action, so clear the durable session before its normal handler runs.
   document.addEventListener('click',e=>{if(e.target?.closest?.('#logoutBtn'))clearSessionExplicit('logout')},true);
 
-  let draftTimer=null;
   function keepCurrent(){
     if(explicitClearArmed||adoptPeerLogout()||!session)return;
-    persistView();saveDraft();
+    persistView();
   }
   function restoreForeground(){
     if(explicitClearArmed||adoptPeerLogout())return;
@@ -211,9 +200,6 @@
   }
   window.addEventListener('storage',e=>{if(e.key===LOGOUT_KEY)adoptPeerLogout()});
 
-  document.addEventListener('input',e=>{if(!e.target?.closest?.('#unifiedReportForm'))return;clearTimeout(draftTimer);draftTimer=setTimeout(saveDraft,250)},true);
-  document.addEventListener('change',e=>{if(e.target?.closest?.('#unifiedReportForm'))saveDraft()},true);
-  document.addEventListener('submit',e=>{if(e.target?.id==='unifiedReportForm')setTimeout(clearDraft,0)},true);
   window.addEventListener('pagehide',keepCurrent,{capture:true});
   window.addEventListener('beforeunload',keepCurrent,{capture:true});
   window.addEventListener('pageshow',restoreForeground,{capture:true});
@@ -227,7 +213,11 @@
     const restore=()=>{
       if(String(currentView||'')!=='report')return false;
       const form=document.getElementById('unifiedReportForm');
-      if(form){applyDraft(form,bootDraft);return true}
+      if(form){
+        if(form.dataset.editing!=='true'&&form.dataset.reportType===bootDraft.type&&
+           !bootDraft.fields?.safetyFactEditReason&&String(bootDraft.userId)===actorId()&&!form.querySelector('.draft-save-status')?.textContent.includes('불러왔습니다'))applyDraft(form,bootDraft);
+        clearDraft();return true;
+      }
       if(!typeClicked&&bootDraft.type){const btn=document.querySelector(`[data-report-type="${CSS.escape(String(bootDraft.type))}"]`);if(btn){typeClicked=true;btn.click()}}
       return false;
     };
