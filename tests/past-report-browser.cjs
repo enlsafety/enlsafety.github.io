@@ -17,6 +17,17 @@ const {tab}=require('./field-entry-table-browser.cjs');
     const toggle=p.locator('#pastReportMode');
     assert.equal(await toggle.isChecked(),false);
     await toggle.check();await p.locator('#pastReportDrafter').fill('가상 기안자');
+    const geometry=await p.evaluate(()=>{
+     const rect=selector=>document.querySelector(selector).getBoundingClientRect();
+     const draft=rect('#pastReportDrafter'),safety=rect('#pastReportSafety');
+     const box=rect('#pastReportMode'),caption=rect('label:has(> #pastReportMode) > span');
+     return {dx:safety.x-draft.x,dy:safety.y-draft.y,widthDelta:safety.width-draft.width,
+       checkboxAligned:caption.left>=box.right&&Math.abs((caption.top+caption.bottom-box.top-box.bottom)/2)<2};
+    });
+    assert.ok(geometry.checkboxAligned,'checkbox sits beside its caption');
+    if(width>700){assert.ok(geometry.dx>0);assert.ok(Math.abs(geometry.dy)<=1,'paired names share their top edge');}
+    else{assert.ok(Math.abs(geometry.dx)<=1&&geometry.dy>0,'stacked names share their left edge');}
+    assert.ok(Math.abs(geometry.widthDelta)<=1);
     await p.locator('#pastReportSafety').fill('가상 안전관리자');
     await toggle.uncheck();assert.equal(await p.locator('#pastReportSafety').isDisabled(),true);
     await toggle.check();
