@@ -251,6 +251,7 @@
   window.enlIncidentAcknowledge=async(incidentId,u=currentUser(),documentType='incident_report')=>call({action:'acknowledge',actor:actor(),incidentId,documentType});
   window.enlIncidentServerReady=()=>serverReady;
   window.enlIncidentPendingWrites=()=>queues.size;
+  window.enlIncidentSaveInProgress=()=>queues.size>0;
   window.enlIncidentHasUnsavedChanges=()=>!!(dirty||queues.size||drafts.size||failures.size);
   window.enlRefreshSharedData=(sessionChanged=false)=>{
     // A local-cache notification is not an authoritative incident response.
