@@ -209,7 +209,9 @@ Deno.serve(async(req:Request)=>{
     if(["activity_count","activity_open","activity_list","activity_page","activity_document"].includes(action)){
       if(actor.role!=="safety")return json({ok:false,message:"forbidden"},403);
       if(action==="activity_count"){
-        const [r]=await sql`select count(*)::int as unread from private.enl_activity_events e where not exists
+        const [r]=await sql`select count(*)::int as unread from private.enl_workflow_history e
+          left join private.enl_history_checkpoints c on c.actor_id=${actor.id}
+          where (c.seen is null or (e.write_xid>=pg_snapshot_xmin(c.seen) and not pg_visible_in_snapshot(e.write_xid,c.seen))) and not exists
           (select 1 from private.enl_activity_reads r where r.actor_id=${actor.id} and r.event_id=e.id)`;
         return json({ok:true,unread:r.unread});
       }
@@ -219,12 +221,6 @@ Deno.serve(async(req:Request)=>{
           left join private.enl_incident_deletions d using(incident_id) where s.incident_id=${id}`;
         if(r&&!r.deleted_at)return json({ok:true,archived:false});
         if(r){
-          if(body.visitId){
-            const visit=clean(body.visitId);
-            if(!validVisit(visit))return json({ok:false,message:"invalid_visit"},400);
-            await sql`select private.enl_activity_add(${"archive:"+actor.id+":"+id+":"+visit},${id},${now}::timestamptz,${actor.id},${actor.name},${actor.role},${r.site_id},'archive_view',payload)
-              from public.enl_incident_shared where incident_id=${id}`;
-          }
           return json({ok:true,archived:true,incident:parsePayload(r.payload),deletedAt:r.deleted_at,deletedBy:r.deleted_by_name,reason:r.reason});
         }
         const [old]=await sql`select coalesce(before_payload,private.enl_evidence_get(before_hash)) as doc,changed_at,editor_name
@@ -234,15 +230,28 @@ Deno.serve(async(req:Request)=>{
       }
       const cursor=action==="activity_page"?clean(body.before):"";
       if(action==="activity_page"&&!/^\d{1,18}$/.test(cursor))return json({ok:false,message:"invalid_cursor"},400);
+      const from=clean(body.fromDate),to=clean(body.toDate),term=clean(body.search).toLowerCase().replace(/\s+/g," ");
+      const dayOk=(v:string)=>!v||(/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v&&v>="1900-01-01"&&v<="9998-12-31");
+      if(!dayOk(from)||!dayOk(to)||from&&to&&from>to||term.length>120)return json({ok:false,message:"invalid_history_filter"},400);
       // One statement, one MVCC snapshot. Concurrent later commits remain unread,
       // even if their sequence values or timestamps precede the displayed rows.
       const rows=await sql`with marked as (
-          insert into private.enl_activity_reads(actor_id,event_id) select ${actor.id},e.id from private.enl_activity_events e
-          where ${action==="activity_open"} and not exists(select 1 from private.enl_activity_reads r where r.actor_id=${actor.id} and r.event_id=e.id)
-          on conflict do nothing returning event_id)
-        select id::text as id,incident_id,happened_at,actor_name,actor_role,site_name,site_id,incident_title,occurred_text,kind
-        from private.enl_activity_events e where nullif(${cursor},'') is null or (happened_at,id) <
-          (select happened_at,id from private.enl_activity_events where id=nullif(${cursor},'')::bigint)
+          insert into private.enl_history_checkpoints(actor_id,seen,marked_at)
+          select ${actor.id},pg_current_snapshot(),statement_timestamp() where ${action==="activity_open"}
+          on conflict(actor_id) do update set seen=excluded.seen,marked_at=excluded.marked_at
+          where excluded.marked_at>=enl_history_checkpoints.marked_at returning actor_id)
+        select id::text as id,incident_id,happened_at,actor_name,actor_role,site_name,site_id,incident_title,occurred_text,kind,sentence,role_label
+        from private.enl_workflow_history e where (nullif(${cursor},'') is null or (happened_at,id) <
+          (select happened_at,id from private.enl_activity_events where id=nullif(${cursor},'')::bigint))
+        and (nullif(${from},'') is null or happened_at >= (nullif(${from},'')::date::timestamp at time zone 'Asia/Seoul'))
+        and (nullif(${to},'') is null or happened_at < ((nullif(${to},'')::date+1)::timestamp at time zone 'Asia/Seoul'))
+        and not exists(select 1 from unnest(string_to_array(${term},' ')) word where
+          strpos(replace(lower(concat_ws(' ',sentence,role_label,incident_id,occurred_text,
+            case when kind='view' then '최초조회 열람' when kind in ('supplement_request','corrective_reject') then '보완요청'
+            when kind='corrective_approve' then '재발방지조치승인 최종사고승인' when kind='plan_create' then '재발방지계획작성 현장조치요청'
+            when kind='corrective_submit' then '재발방지조치작성 안전관리자제출' when kind='final_approval' then '최종결재 종결처리'
+            when kind='executive_sign' then '결재완료' when kind='approve' then '최초사고승인' when kind='create' then '최초사고등록'
+            when kind like 'personnel_%' or kind like 'hq_%' then '사용자설정' when kind like 'site_%' then '현장설정' end)),' ',''),word)=0)
         order by e.happened_at desc,e.id desc limit 51`;
       return json({ok:true,rows:rows.slice(0,50),more:rows.length>50});
     }
@@ -346,10 +355,8 @@ Deno.serve(async(req:Request)=>{
         if(action==="view"){
           const visit=clean(body.visitId);
           if(visit&&!validVisit(visit))return json({ok:false,message:"invalid_visit"},400);
-          const source="visit:"+actor.id+":"+incidentId+":"+visit;
-          if(visit)await sql`select set_config('enl.activity_visit',${source},true)`;
           await sql`insert into public.enl_document_views(incident_id,document_type,viewer_id,viewer_name,viewer_role,first_viewed_at) values(${incidentId},'incident_report',${actor.id},${actor.name},${actor.role},${now}) on conflict do nothing`;
-          if(visit)await sql`select private.enl_activity_add(${source},${incidentId},${now}::timestamptz,${actor.id},${actor.name},${actor.role},${row.site_id},'view',${sql.json({category:prev.category,eventType:prev.eventType,occurredAt:prev.occurredAt,reportDetails:{place:prev.reportDetails?.place}})}::jsonb)`;
+
           return json({ok:true,viewed:true});
         }
         if(action==="revision_list"){

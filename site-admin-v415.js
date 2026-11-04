@@ -321,6 +321,24 @@
     catch(err){root.innerHTML='<div class="panel"><div class="sa415-empty">현장정보를 불러오지 못했습니다.</div></div>';}
   }
 
+  window.enlOpenHistorySetting=async(row,live)=>{
+    const u=currentUser();if(roleNorm(u?.role)!=='safety'||!live())return;
+    const showRecord=()=>openModal('<div class="modal-head"><h2>설정 변경 기록</h2><button data-close>닫기</button></div><p>'+escx(row.sentence)+'</p><p>현재 설정 목록에는 해당 항목이 없습니다.</p>');
+    if(row.kind==='personnel_delete'||row.kind==='site_delete')return showRecord();
+    if(row.kind.startsWith('hq_')){
+      await window.enlSyncHqUsers?.(u);if(!live())return;
+      const target=userById(row.incident_id);
+      if(target)return window.openUserModal(target,u);
+    }else{
+      await loadSites(u);if(!live())return;
+      const site=sites.find(s=>String(s.site_id)===row.site_id);
+      if(site){
+        stateFor(site.site_id).selectedId=row.kind.startsWith('personnel_')?row.incident_id:'';
+        currentView='more';activeTab='sites';renderShell(u);return openSite(site,u,document.getElementById('view'));
+      }
+    }
+    showRecord();
+  };
   window.renderMore=(root,u)=>renderAdmin(root,u);
   window.enlRenderSiteAdmin411=renderAdmin;
   window.ENL_SITE_ADMIN_VERSION=VERSION;

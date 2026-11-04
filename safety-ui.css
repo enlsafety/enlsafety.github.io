@@ -372,3 +372,7 @@ dialog.draft-resume-dialog{position:fixed;inset:0;box-sizing:border-box;width:mi
 .activity-history li button{display:grid;width:100%;gap:4px;text-align:left;padding:12px 6px;color:#183950;background:transparent;border:0;overflow-wrap:anywhere}
 .activity-history li button:hover{background:#eff7ff}.activity-history small,.activity-history li span{color:#536a7a}
 .activity-archive{width:min(800px,94vw);max-height:85dvh;overflow:auto;border:1px solid #c6d8e6;border-radius:14px;padding:20px}.activity-archive::backdrop{background:#19354e66}
+.activity-filters{display:flex;flex-wrap:wrap;align-items:end;gap:8px;padding:10px 0}
+.activity-filters label{display:grid;gap:3px;font-size:.82rem;color:#405967;min-width:0}
+.activity-filters [hidden]{display:none!important}.activity-filters input,.activity-filters select,.activity-filters button{box-sizing:border-box;min-height:42px;max-width:100%}
+.activity-filters label:has([type=search]){flex:1 1 190px}

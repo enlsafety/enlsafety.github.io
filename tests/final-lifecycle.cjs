@@ -24,6 +24,10 @@ async function fixture(){
  await db.exec(read('tests/fixtures/evidence-storage-schema.sql'));
  await db.exec(read('supabase/migrations/20261103080347_incident_password_deletion_archive.sql'));
  await db.exec(read('supabase/migrations/20261104055704_safety_activity_history.sql'));
+ await db.exec(`create table enl_personnel_audit(audit_id uuid primary key default gen_random_uuid(),personnel_id text,site_id text,action text,editor_id text,editor_name text,editor_role text,changed_at timestamptz,before_payload jsonb,after_payload jsonb);
+ create table enl_site_audit(audit_id uuid primary key default gen_random_uuid(),site_id text,action text,editor_id text,editor_name text,editor_role text,changed_at timestamptz,before_payload jsonb,after_payload jsonb);
+ alter table enl_hq_users add column updated_by_id text,add column updated_by_name text,add column updated_by_role text;`);
+ await db.exec(read('supabase/migrations/20261104062357_workflow_history_search.sql'));
  await db.exec(`create trigger trg_enl_incident_optimistic_sync_guard before insert or update on enl_incident_shared for each row execute function enl_incident_optimistic_sync_guard();create trigger trg_enl_incident_push after insert or update on enl_incident_shared for each row execute function enl_incident_push_trigger();create trigger trg_enl_push_email_bridge after insert on enl_push_events for each row execute function enl_email_from_push_trigger();`);
  let handler,tx=null;
  const sql=async(parts,...args)=>{const query=parts.reduce((s,p,i)=>s+(i?'$'+i:'')+p,'');return (await(tx||db).query(query,args)).rows;};sql.json=JSON.stringify;sql.end=async()=>{};sql.begin=async f=>db.transaction(async t=>{tx=t;try{return await f(sql)}finally{tx=null}});
