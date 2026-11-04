@@ -1,12 +1,14 @@
 'use strict';
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const {stripTypeScriptTypes}=require('node:module'),{PGlite}=require('@electric-sql/pglite');
-(async()=>{const db=new PGlite();await db.exec(fs.readFileSync('tests/fixtures/login-proof-schema.sql','utf8'));let handler,passed=0;
- const sql=async(parts,...args)=>(await db.query(parts.reduce((s,p,i)=>s+(i?'$'+i:'')+p,''),args)).rows;sql.end=async()=>{};
+(async()=>{const db=new PGlite();await db.exec(fs.readFileSync('tests/fixtures/login-proof-schema.sql','utf8'));await db.exec('create schema private;'+fs.readFileSync('supabase/migrations/20261104080927_platform_foundation.sql','utf8').split('create table private.enl_platform_catalog')[0]);let handler,passed=0;
+ const sql=async(parts,...args)=>(await db.query(parts.reduce((s,p,i)=>s+(i?'$'+i:'')+p,''),args)).rows;sql.json=JSON.stringify;sql.end=async()=>{};
  const ctx={Deno:{env:{get:()=> 'isolated'},serve:h=>handler=h},postgres:()=>sql,Request,Response,TextEncoder,crypto};vm.createContext(ctx);
  vm.runInContext(stripTypeScriptTypes(fs.readFileSync('edge-functions/enl-personnel-v434/index.ts','utf8').replace(/^import .*;\r?\n/gm,'')),ctx);
  const call=async b=>{const r=await handler(new Request('https://isolated.test',{method:'POST',headers:{'content-type':'application/json','x-enl-app':'incident-report-v2',origin:'https://enlsafety.github.io'},body:JSON.stringify(b)}));return {status:r.status,body:await r.json()};};
  const check=(v,label)=>{assert.ok(v,label);passed++},safety={id:'qa-auth-safety-472',role:'safety'},field={id:'qa-auth-field-472',role:'field',siteId:'qa-auth-site-472'};
+ const dutyEdit=await call({action:'personnel_upsert',actor:field,actorPinHash:'qa-auth-field-proof-472',person:{personnelId:'qa-auth-worker-472',siteId:field.siteId,name:'QA 근로자',duties:['safety']}});
+ assert.equal(dutyEdit.status,403,'field cannot assign legal duties');
  const worker={personnelId:'qa-auth-worker-472',siteId:field.siteId,name:'QA 근로자',jobTitle:'일반근로자',accessRole:'worker'};
  try{
  for(const actor of [safety,field])for(const b of [{action:'personnel_pull',siteId:field.siteId},{action:'personnel_upsert',person:worker},{action:'personnel_delete',personnelId:worker.personnelId}]){

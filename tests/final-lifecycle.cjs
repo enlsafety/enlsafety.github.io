@@ -28,6 +28,7 @@ async function fixture(){
  create table enl_site_audit(audit_id uuid primary key default gen_random_uuid(),site_id text,action text,editor_id text,editor_name text,editor_role text,changed_at timestamptz,before_payload jsonb,after_payload jsonb);
  alter table enl_hq_users add column updated_by_id text,add column updated_by_name text,add column updated_by_role text;`);
  await db.exec(read('supabase/migrations/20261104062357_workflow_history_search.sql'));
+ await db.exec(read('supabase/migrations/20261104080927_platform_foundation.sql'));
  await db.exec(`create trigger trg_enl_incident_optimistic_sync_guard before insert or update on enl_incident_shared for each row execute function enl_incident_optimistic_sync_guard();create trigger trg_enl_incident_push after insert or update on enl_incident_shared for each row execute function enl_incident_push_trigger();create trigger trg_enl_push_email_bridge after insert on enl_push_events for each row execute function enl_email_from_push_trigger();`);
  let handler,tx=null;
  // Match postgres.js lazy tagged templates, including nested parameterized fragments.
@@ -44,6 +45,7 @@ async function fixture(){
  vm.runInContext(read('edge-functions/enl-incident-sync-v411/site-contract-v451.js'),ctx);
  vm.runInContext(read('executive-approval-v482.js'),ctx);
  vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/lifecycle-policy.ts').replace(/export /g,'')),ctx);
+ vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/platform-api.ts').replace(/export /g,'')),ctx);
  // Put the endpoint in an inner scope because each imported file has its own module scope.
  vm.runInContext('{'+stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/index.ts').replace(/^import .*;\r?\n/gm,''))+'}',ctx);
  const actors={safety:{id:'qa-safety',role:'safety'},manager:{id:'qa-manager',role:'manager'},executive:{id:'qa-executive',role:'executive'},field:{id:'qa-field',role:'field',siteId:'qa-site'},other:{id:'qa-other',role:'field',siteId:'other-site'}};

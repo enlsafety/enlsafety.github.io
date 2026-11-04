@@ -53,7 +53,9 @@ const assert=require('node:assert/strict'),{fixture}=require('./final-lifecycle.
  assert.ok(!(await ok('manager','activity_list')).rows.some(r=>r.kind.startsWith('hq_')));
  for(const args of [{mode:'all'},{mode:'range',fromDate:'2026-01-01',confirmed:true},{mode:'all',id:'1',confirmed:true},{mode:'range',fromDate:'2026-02-31',toDate:'2026-03-01',confirmed:true}])
    assert.equal((await q('safety','activity_delete',args)).status,400);
- const erase=(args)=>ok('safety','activity_delete',{confirmed:true,...args});
+ const hash=require('node:crypto').createHash('sha256').update('test-password').digest('hex');
+ await f.db.query("update enl_hq_users set password_hash=$1 where user_id='qa-safety'",[hash]);
+ const erase=(args)=>ok('safety','activity_delete',{confirmed:true,reason:'가상 중복 기록',password:'test-password',actorPasswordHash:hash,...args});
  assert.equal((await erase({mode:'one',id:jan[0].id})).removed,1);
  assert.equal((await erase({mode:'one',id:jan[0].id})).removed,0);
  await f.db.exec(`insert into enl_site_audit(site_id,action,editor_role,changed_at) values
@@ -61,6 +63,7 @@ const assert=require('node:assert/strict'),{fixture}=require('./final-lifecycle.
  ('qa-site','update','safety','2026-03-01T14:59:59Z'),('qa-site','update','safety','2026-03-01T15:00:00Z')`);
  assert.equal((await erase({mode:'range',fromDate:'2026-03-01',toDate:'2026-03-01'})).removed,2);
  assert.ok((await erase({mode:'all'})).removed>50);
+ await f.db.query("update enl_hq_users set password_hash='qa-proof' where user_id='qa-safety'");
  for(const who of ['safety','manager','executive','field']){assert.equal((await ok(who,'activity_count')).unread,0);assert.equal((await ok(who,'activity_list')).rows.length,0);}
  assert.ok((await ok('safety','activity_document',{incidentId:id})).archived);
  await f.db.exec("insert into enl_site_audit(site_id,action,editor_role,changed_at) values('qa-site','update','safety',now())");

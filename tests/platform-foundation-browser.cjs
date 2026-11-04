@@ -1,0 +1,34 @@
+'use strict';
+const {chromium,webkit}=require('playwright'),assert=require('node:assert/strict');
+const {tab,noOverflow}=require('./field-entry-table-browser.cjs');
+(async()=>{for(const [engine,width] of [[chromium,1365],[webkit,390],[webkit,820],[chromium,320]]){
+ const browser=await engine.launch();
+ try{
+  for(const role of ['safety','manager','field']){
+   const {p,c}=await tab(browser,width,role);await p.waitForFunction(()=>!!currentUser()&&!!window.enlPlatformHome);
+   await p.evaluate(()=>{
+    const base=window.enlIncidentApi;let revision=1,modules=['incident','risk','tbm','organization','training'].map(key=>({key,state:key==='incident'?'live':'building',roles:['worker','field','safety','manager','executive'],preview:false,pilots:[]}));
+    window.enlIncidentApi=async b=>{
+     if(b.action==='platform_catalog')return {modules,revision};if(b.action==='platform_save'){modules=b.modules;revision++;return {ok:true};}
+     if(b.action==='platform_enter'){if(b.key!=='incident')throw Error('module_unavailable');return {key:'incident',state:'live'};}
+     if(b.action==='platform_duties')return {duties:['safety','health']};return base(b);
+    };
+    currentView='platform';window.enlRenderApp(currentUser());
+   });
+   const card=p.locator('[data-module]');await card.first().waitFor();assert.equal(await card.count(),5);await noOverflow(p);
+   assert.equal(await p.locator('.shell411-nav:visible').count(),0);assert.equal(await p.locator('.platform-edit').count(),role==='safety'?1:0);
+   await p.locator('[data-module=risk]').click();await p.getByText('현재 진입할 수 없는 모듈입니다.').waitFor();
+   if(role==='safety'){
+    await p.screenshot({path:'qa-output/platform-'+width+'.png',fullPage:true});
+    await p.locator('.platform-edit').click();await p.locator('[data-index="1"] [data-up]').click();
+    await p.locator('[data-save]').click();await card.first().waitFor();assert.equal(await card.first().getAttribute('data-module'),'risk');
+    await p.evaluate(()=>openUserModal(null,currentUser()));const box=p.locator('#hqUserForm422 .platform-duties');await box.waitFor();
+    await box.locator('[value=health]').check();await box.locator('[value=safety]').check();assert.equal(await box.locator(':checked').count(),2);await p.evaluate(()=>closeModal());
+   }
+   await p.locator('[data-module=incident]').click();await p.waitForFunction(()=>currentView!=='platform');await p.locator('[data-platform-home]').click();await card.first().waitFor();
+   await p.getByRole('button',{name:'통합 히스토리',exact:true}).click();await p.locator('.activity-history').waitFor();await noOverflow(p);
+   await c.close();
+  }
+  console.log('PASS platform role menus, ordering, navigation, duties, shared history and viewport',engine.name(),width);
+ }finally{await browser.close()}
+}})().catch(e=>{console.error(e);process.exitCode=1});

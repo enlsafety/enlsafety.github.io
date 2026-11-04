@@ -82,12 +82,12 @@
   function bindLogin(){const n=document.getElementById('loginName411');if(!n||n.dataset.bound==='1')return;n.dataset.bound='1';n.addEventListener('input',()=>{clearTimeout(lookupTimer);clearChoice();status('이름 확인 중…');lookupTimer=setTimeout(()=>lookup(false),350)});n.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();clearTimeout(lookupTimer);lookup(true)}})}
   function renderLogin411(){
     css();if(document.querySelector('.login-v411')){bindLogin();return}
-    app.innerHTML=`<div class="login-page login-v411"><div class="login-card"><div class="login-brand"><div class="logo">E&L</div><div><h1>이앤엘 사고보고앱</h1><p>이름과 소속을 확인하고 로그인합니다.</p></div></div><label><span>이름</span><input id="loginName411" autocomplete="name" inputmode="text" enterkeyhint="done" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="예: 김건모"></label><div id="loginStatus411" class="login411-status">이름을 입력하면 소속이 표시됩니다.</div><div id="loginAff411" hidden></div><div id="loginPwWrap411" hidden></div><div class="login411-note">이앤엘 사고보고앱 v${ex(deployedVersion())}</div>${DEMO_ENABLED?`<a id="zerowizDemoEntry" class="login411-demo-entry" href="zerowiz-demo.html?v=2.0.0" target="_blank" rel="noopener noreferrer"><span>제로위즈 ERP 기술검토 데모<small>운영 사고·계정에 연결되지 않는 가상 업무 체험</small></span><span aria-hidden="true">→</span></a>`:''}</div></div>`;bindLogin();
+    app.innerHTML=`<div class="login-page login-v411"><div class="login-card"><div class="login-brand"><div class="logo">E&L</div><div><h1>이앤엘 안전보건관리 통합시스템</h1><p>이름과 소속을 확인하고 로그인합니다.</p></div></div><label><span>이름</span><input id="loginName411" autocomplete="name" inputmode="text" enterkeyhint="done" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="예: 김건모"></label><div id="loginStatus411" class="login411-status">이름을 입력하면 소속이 표시됩니다.</div><div id="loginAff411" hidden></div><div id="loginPwWrap411" hidden></div><div class="login411-note">이앤엘 안전보건관리 통합시스템 v${ex(deployedVersion())}</div>${DEMO_ENABLED?`<a id="zerowizDemoEntry" class="login411-demo-entry" href="zerowiz-demo.html?v=2.0.0" target="_blank" rel="noopener noreferrer"><span>제로위즈 ERP 기술검토 데모<small>운영 사고·계정에 연결되지 않는 가상 업무 체험</small></span><span aria-hidden="true">→</span></a>`:''}</div></div>`;bindLogin();
   }
   renderLogin=renderLogin411;window.enlRenderLogin=renderLogin411;
 
   function enterApp(){
-    currentView='home';try{enlPlatformSection='hub';localStorage.setItem(ENL_PLATFORM_SECTION_KEY,'hub')}catch(e){}
+    currentView='platform';try{enlPlatformSection='hub';localStorage.setItem(ENL_PLATFORM_SECTION_KEY,'hub')}catch(e){}
     const u=currentUser();
     try{if(typeof window.enlRenderApp==='function')window.enlRenderApp(u);else if(typeof renderShell==='function')renderShell(u)}
     catch(e){console.error('post-login render failed',e);if(typeof window.enlRenderFatal==='function')window.enlRenderFatal(e);else alert('로그인은 완료됐지만 화면을 불러오지 못했습니다. 최신화 후 다시 시도해 주세요.')}

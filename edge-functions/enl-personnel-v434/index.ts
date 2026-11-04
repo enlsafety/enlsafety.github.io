@@ -88,10 +88,12 @@ Deno.serve(async(req:Request)=>{
       const p=body.person||{},siteId=clean(p.siteId||body.siteId),name=stripTitle(p.name),targetId=clean(p.personnelId),requestedRole=clean(p.accessRole)==="field"?"field":"worker",requestedTitle=clean(p.jobTitle),phone=clean(p.phone),hasEmail=Object.prototype.hasOwnProperty.call(p,"email"),hasPush=Object.prototype.hasOwnProperty.call(p,"pushEnabled"),hasMail=Object.prototype.hasOwnProperty.call(p,"emailEnabled"),active=p.active!==false,passwordHash=clean(p.passwordHash),v=await verifiedActor();
       if(!siteId||!name)return json({ok:false,message:"invalid_personnel"},400);
       if(!(v?.role==="safety"||(v?.role==="field"&&v.siteId===siteId)))return json({ok:false,message:"forbidden"},403);
+      if(p.duties!==undefined&&(!Array.isArray(p.duties)||p.duties.some((d:any)=>!['supervisor','safety','responsible','health'].includes(d))))return json({ok:false,message:'invalid_duty'},400);
       const list=await sql`select * from public.enl_site_personnel where site_id=${siteId}`;
       const prev=targetId?list.find((x:any)=>String(x.personnel_id)===targetId):null;const email=hasEmail?clean(p.email).toLowerCase():clean(prev?.email),pushEnabled=hasPush?p.pushEnabled!==false:prev?.push_enabled!==false,emailEnabled=hasMail?p.emailEnabled!==false:prev?.email_enabled!==false;
       if(targetId&&!prev)return json({ok:false,message:"person_not_found"},404);
       if(v.role==="field"){
+        if(p.duties!==undefined)return json({ok:false,message:"forbidden"},403);
         if(prev&&(clean(prev.access_role)!=="worker"||isFieldTitle(prev.job_title)))return json({ok:false,message:"manager_edit_safety_only"},403);
         if(requestedRole!=="worker"||isFieldTitle(requestedTitle))return json({ok:false,message:"role_change_safety_only"},403);
       }
@@ -124,8 +126,8 @@ Deno.serve(async(req:Request)=>{
         }
       }
       let rows:any[];
-      if(prev)rows=await sql`update public.enl_site_personnel set name=${name},job_title=${jobTitle},access_role=${accessRole},phone=${phone},email=${email},push_enabled=${pushEnabled},email_enabled=${emailEnabled},active=${active},pin_hash=${accessRole==="field"?pinHash:null},updated_at=${now},updated_by_id=${v.id},updated_by_name=${v.name},updated_by_role=${v.role},updated_by_position=${v.position},source=${prev.source||"app-v434"} where personnel_id=${prev.personnel_id} returning *`;
-      else rows=await sql`insert into public.enl_site_personnel(site_id,name,job_title,access_role,phone,email,push_enabled,email_enabled,active,pin_hash,source,created_at,updated_at,updated_by_id,updated_by_name,updated_by_role,updated_by_position) values(${siteId},${name},${jobTitle},${accessRole},${phone},${email},${pushEnabled},${emailEnabled},${active},${accessRole==="field"?pinHash:null},'app-v434',${now},${now},${v.id},${v.name},${v.role},${v.position}) returning *`;
+      if(prev)rows=await sql`update public.enl_site_personnel set name=${name},job_title=${jobTitle},access_role=${accessRole},phone=${phone},email=${email},push_enabled=${pushEnabled},email_enabled=${emailEnabled},active=${active},pin_hash=${accessRole==="field"?pinHash:null},updated_at=${now},updated_by_id=${v.id},updated_by_name=${v.name},updated_by_role=${v.role},updated_by_position=${v.position},source=${prev.source||"app-v434"} where personnel_id=${prev.personnel_id} returning *,private.enl_assign_duties('site',personnel_id::text,site_id,${p.duties===undefined?null:sql.json(p.duties)}::jsonb,${v.id}) as duty_saved`;
+      else rows=await sql`insert into public.enl_site_personnel(site_id,name,job_title,access_role,phone,email,push_enabled,email_enabled,active,pin_hash,source,created_at,updated_at,updated_by_id,updated_by_name,updated_by_role,updated_by_position) values(${siteId},${name},${jobTitle},${accessRole},${phone},${email},${pushEnabled},${emailEnabled},${active},${accessRole==="field"?pinHash:null},'app-v434',${now},${now},${v.id},${v.name},${v.role},${v.position}) returning *,private.enl_assign_duties('site',personnel_id::text,site_id,${p.duties===undefined?null:sql.json(p.duties)}::jsonb,${v.id}) as duty_saved`;
       const saved=rows[0];await audit(saved,prev,v,!prev?"create":prev.active&&!active?"retire":!prev.active&&active?"reactivate":"update");await syncMaster(saved);
       return json({ok:true,person:{...saved,pin_hash:undefined},counts:await counts(siteId)});
     }

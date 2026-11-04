@@ -1,7 +1,7 @@
 {
-  "name": "이앤엘 사고보고앱",
-  "short_name": "사고보고",
-  "description": "이앤엘 현장 사고보고, 사고조치, 승인 및 안전문의 앱",
+  "name": "이앤엘 안전보건관리 통합시스템",
+  "short_name": "이앤엘 안전보건",
+  "description": "이앤엘 안전보건 업무와 사고보고 통합시스템",
   "lang": "ko-KR",
   "id": "/stable412.html",
   "start_url": "/stable412.html?source=pwa",
