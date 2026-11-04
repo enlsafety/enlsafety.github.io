@@ -41,12 +41,14 @@ const fs=require('node:fs'),crypto=require('node:crypto'),assert=require('node:a
    await page.locator('#wf440EnvironmentCause').fill('가상 시설물과 통행구간 간섭 확인');
    await page.locator('#wf440BehaviorCause').fill('작업 전 주행동선 확인 누락 확인');
    await page.locator('#wf440CausePending').uncheck();
+   await page.evaluate(()=>{window.originalReview=document.querySelector('#modalRoot .modal');});
    await page.locator('[data-wf440-cause-save]').click();
    await page.waitForFunction(()=>data.incidents[0].reportDetails.causeAnalysisStatus==='analyzed');
    const saved=(await f.call('safety',{action:'pull'})).body.incidents[0];
    assert.equal(saved.status,'reported');assert.equal(saved.reportDetails.environmentCause,'가상 시설물과 통행구간 간섭 확인');
    assert.equal(saved.reportDetails.causeAnalyzedBy,'QA 안전');
-   await page.evaluate(()=>enlOpenIncidentReview('qa-cause-ui',true,currentUser()));
+   await page.waitForFunction(()=>document.querySelector('[data-wf440-cause-message]')?.textContent.includes('저장했습니다'));
+   assert.ok(await page.evaluate(()=>originalReview===document.querySelector('#modalRoot .modal')));
    await page.locator('#wf440EnvironmentCause').waitFor();
    assert.equal(await page.locator('#wf440EnvironmentCause').inputValue(),'가상 시설물과 통행구간 간섭 확인');
    assert.equal(await page.locator('#wf440CausePending').isChecked(),false);
