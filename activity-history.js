@@ -11,10 +11,10 @@
   const userId=()=>{const a=actor();return a?.id&&canView(a)?JSON.stringify([a.role,a.siteId,a.id]):'';};
   const api=body=>window.enlIncidentApi({...body,actor:actor()});
   const safe=v=>esc(String(v??''));
-  let account='',count=0,checked=0,serial=0,opening=0,requested=false;
+  let account='',count=0,checked=0,serial=0,opening=0,requested=false,activeHistory=null;
   function owner(){
     const id=userId();
-    if(account!==id){account=id;count=0;checked=0;serial++;opening=0;requested=false;}
+    if(account!==id){account=id;count=0;checked=0;serial++;opening=0;requested=false;activeHistory=null;}
     return id;
   }
   function paint(){
@@ -26,7 +26,8 @@
     badge.textContent=String(count);b.setAttribute('aria-label','사용자 기록, 미확인 '+count+'건');
   }
   async function refresh(force=false){
-    const id=owner();if(!id||!document.querySelector(menuSelector))return;
+    const id=owner();if(activeHistory&&!activeHistory.isConnected)activeHistory=null;
+    if(!id||!document.querySelector(menuSelector))return;
     paint();if(opening||document.hidden||!window.enlIncidentApi||(!force&&Date.now()-checked<30000))return;
     checked=Date.now();const token=++serial;
     try{const r=await api({action:'activity_count'});if(token===serial&&userId()===id){count=r.unread;paint();}}
@@ -56,7 +57,9 @@
   function render(root){
     const id=owner();if(!id)return;
     const mark=requested;requested=false;
-    const host=document.createElement('section');host.className='panel activity-history';root.replaceChildren(host);
+    // Background sync may rebuild the shell while the user is editing search or removal dates.
+    if(!mark&&activeHistory){if(activeHistory.parentElement!==root)root.replaceChildren(activeHistory);return;}
+    const host=document.createElement('section');host.className='panel activity-history';root.replaceChildren(host);activeHistory=host;
     host.innerHTML='<div class="section-head"><h2>사용자 기록</h2><button type="button" class="secondary" data-refresh>새로고침</button></div><form class="activity-filters"><label>기간<select name="range"><option value="recent">최근 30일</option><option value="month">월별 조회</option><option value="custom">기간 지정</option><option value="all">전체 기간</option></select></label><label hidden data-month>조회 월<input type="month" name="month"></label><label hidden data-custom>시작일<input type="date" name="start"></label><label hidden data-custom>종료일<input type="date" name="end"></label><label>검색어<input type="search" name="q" maxlength="120" placeholder="이름, 사업장, 사고, 처리 내용"></label><button class="secondary" type="submit">검색</button></form><p role="status"></p><ol></ol><button type="button" class="secondary" data-more hidden>이전 기록 더 보기</button>';
     const list=host.querySelector('ol'),status=host.querySelector('[role=status]'),more=host.querySelector('[data-more]');
     const form=host.querySelector('form'),controls=form.elements;

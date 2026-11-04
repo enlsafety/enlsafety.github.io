@@ -29,7 +29,7 @@ async function check(engine,width){
    await rows.first().locator('button').first().click();await p.locator('[data-incident-view="sample-1"]').waitFor();await p.evaluate(()=>closeModal());
    const filters=host.locator('.activity-filters');await filters.locator('[name=range]').selectOption('custom');
    if(role==='safety'){
-    const manage=host.locator('.history-manage');await manage.locator('summary').click();
+    const manage=host.locator('.history-manage');await manage.locator('summary').click();await p.evaluate(()=>renderShell(currentUser()));assert.ok(await manage.evaluate(el=>el.open),'background sync preserves the open deletion controls');
     await noOverflow(p);assert.ok(await host.locator('input:visible,button:visible,select:visible').evaluateAll(els=>els.every(el=>el.getBoundingClientRect().right<=innerWidth+1&&el.getBoundingClientRect().left>=0)));
     const [x,body]=await Promise.all([rows.first().locator('.history-remove').boundingBox(),rows.first().locator('button').first().boundingBox()]);
     assert.ok(x.width>=44&&x.height>=44&&x.x>=body.x+body.width-1);
