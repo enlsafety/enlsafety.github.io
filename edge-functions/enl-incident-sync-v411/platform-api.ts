@@ -1,8 +1,22 @@
 const moduleKeys=['incident','risk','tbm','organization','training'];
 const systemRoles=['worker','field','manager','executive','safety'];
+const serviceKeys=['history','approvals','notices','documents','dashboard','system'];
+function canEnter(item:any,actor:any){
+  if(!item||item.enabled===false||item.state==='hidden')return false;
+  const admin=actor.role==='safety';
+  if(item.key==='system'&&!admin)return false;
+  if(item.key==='history'&&!admin&&!['manager','executive'].includes(actor.role)&&!(actor.role==='field'&&actor.siteId&&['현장소장','파트장','서무'].includes(actor.position)))return false;
+  const principal=(['field','worker'].includes(actor.role)?'site:':'hq:')+actor.id;
+  return (admin||item.roles.includes(actor.role))&&(item.state==='live'||(item.preview&&(admin||item.pilots.includes(principal))));
+}
+export async function serviceAllowed(sql:any,actor:any,key:string){
+  const [row]=await sql`select item from private.enl_platform_catalog cross join lateral jsonb_array_elements(services) item where singleton and item->>'key'=${key}`;
+  return canEnter(row?.item,actor);
+}
 export async function platformRequest(sql:any,actor:any,body:any,reply:any){
   const admin=actor.role==='safety',action=body.action;
   if(action==='platform_notices'||action==='platform_notice_set'){
+    if(!await serviceAllowed(sql,actor,'notices'))return reply({ok:false,message:'service_unavailable'},403);
     const hq=['safety','manager','executive'].includes(actor.role),source=hq?'hq':'site';
     if(action==='platform_notice_set'){
       const {key,channel,enabled}=body;
@@ -38,22 +52,23 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
     const rows=await sql`select duty from private.enl_duty_assignments where source=${body.source} and account_id=${body.accountId} and ended_at is null`;
     return reply({ok:true,duties:rows.map((r:any)=>r.duty)});
   }
-  const [config]=await sql`select revision,modules from private.enl_platform_catalog where singleton`;
-  const modules=config.modules;
-  const principal=(['field','worker'].includes(actor.role)?'site:':'hq:')+actor.id;
-  const enter=(m:any)=>m&&m.enabled!==false&&m.state!=='hidden'&&(admin||m.roles.includes(actor.role))&&(m.state==='live'||(m.preview&&(admin||m.pilots.includes(principal))));
-  if(action==='platform_catalog')return reply({ok:true,revision:config.revision,modules:admin?modules:modules.filter((m:any)=>m.state!=='hidden').map((m:any)=>({key:m.key,state:m.state,enabled:m.enabled!==false,preview:m.preview,canEnter:!!enter(m)}))});
+  const [config]=await sql`select revision,modules,services from private.enl_platform_catalog where singleton`;
+  const publicItems=(items:any[])=>admin?items:items.filter(m=>m.state!=='hidden'&&m.key!=='system').map(m=>({key:m.key,state:m.state,enabled:m.enabled!==false,preview:m.preview,canEnter:canEnter(m,actor)}));
+  if(action==='platform_catalog')return reply({ok:true,revision:config.revision,modules:publicItems(config.modules),services:publicItems(config.services)});
   if(action==='platform_enter'){
-    const m=modules.find((m:any)=>m.key===body.key);
-    return enter(m)?reply({ok:true,key:m.key,state:m.state}):reply({ok:false,message:'module_unavailable'},403);
+    const m=[...config.modules,...config.services].find(m=>m.key===body.key);
+    return canEnter(m,actor)?reply({ok:true,key:m.key,state:m.state}):reply({ok:false,message:'module_unavailable'},403);
   }
   if(action!=='platform_save'||!admin)return reply({ok:false,message:'forbidden'},403);
+  if(body.group!==undefined&&!['modules','services'].includes(body.group))return reply({ok:false,message:'invalid_catalog'},400);
+  const services=body.group==='services',keys=services?serviceKeys:moduleKeys,modules=services?config.services:config.modules;
   const next=body.modules;
-  if(!Array.isArray(next)||next.length!==moduleKeys.length||!moduleKeys.every(k=>next.some(m=>m?.key===k)))return reply({ok:false,message:'invalid_catalog'},400);
+  if(!Array.isArray(next)||next.length!==keys.length||!keys.every(k=>next.some(m=>m?.key===k)))return reply({ok:false,message:'invalid_catalog'},400);
   for(const m of next){
     if(!m||!['live','building','hidden'].includes(m.state)||typeof m.preview!=='boolean'||(m.enabled!==undefined&&typeof m.enabled!=='boolean')||
        !Array.isArray(m.roles)||m.roles.some((r:any)=>!systemRoles.includes(r))||
        !Array.isArray(m.pilots)||m.pilots.length>100||m.pilots.some((p:any)=>typeof p!=='string'||!/^(hq|site):.{1,150}$/.test(p)))return reply({ok:false,message:'invalid_catalog'},400);
+    if(m.key==='system'&&m.roles.some((r:any)=>r!=='safety'))return reply({ok:false,message:'forbidden'},403);
     if(m.key==='incident'&&(m.state==='building'||(m.state==='hidden'&&modules.find((x:any)=>x.key==='incident').state!=='hidden'&&body.confirmHideIncident!==true)||(m.enabled===false&&modules.find((x:any)=>x.key==='incident').enabled!==false&&body.confirmDisableIncident!==true)))return reply({ok:false,message:'incident_protected'},409);
   }
   const clean=next.map(({key,state,enabled,preview,roles,pilots}:any)=>({key,state,enabled:enabled??(modules.find((m:any)=>m.key===key).enabled!==false),preview,roles:[...new Set(roles)],pilots:[...new Set(pilots)]}));
@@ -62,7 +77,8 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
     const valid=await sql`select source||':'||id as key from private.enl_master_accounts where active and (source||':'||id) in(select jsonb_array_elements_text(${sql.json(pilots)}::jsonb))`;
     if(valid.length!==pilots.length)return reply({ok:false,message:'unknown_pilot'},400);
   }
-  const rows=await sql`update private.enl_platform_catalog set modules=${sql.json(clean)}::jsonb,revision=revision+1,updated_at=now(),updated_by=${actor.id}
+  const column=services?sql`services`:sql`modules`;
+  const rows=await sql`update private.enl_platform_catalog set ${column}=${sql.json(clean)}::jsonb,revision=revision+1,updated_at=now(),updated_by=${actor.id}
     where singleton and revision=${body.revision} returning revision`;
   return rows.length?reply({ok:true,revision:rows[0].revision}):reply({ok:false,message:'catalog_changed'},409);
 }

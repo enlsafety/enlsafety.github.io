@@ -13,6 +13,8 @@
   function cancel(){active=false;moved=false;suppressUntil=0}
   function guardClick(e){if(Date.now()>suppressUntil)return;const interactive=e.target?.closest?.('button,a,[role="button"],[data-view],[data-home-go],[data-field-task],[data-manager-site],[data-manager-inc],[data-unified-action],summary');if(!interactive)return;e.preventDefault();e.stopImmediatePropagation();suppressUntil=0}
 
+  // A new press is a separate interaction, even immediately after a touch drag.
+  document.addEventListener('pointerdown',()=>{suppressUntil=0},{capture:true,passive:true});
   document.addEventListener('touchstart',begin,{capture:true,passive:true});
   document.addEventListener('touchmove',move,{capture:true,passive:true});
   document.addEventListener('touchend',end,{capture:true,passive:true});

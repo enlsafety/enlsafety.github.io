@@ -6,7 +6,7 @@ const {webkit,chromium}=require('playwright'),{tab}=require('./field-entry-table
  if(body.action==='register_company_email'){submitted=body.companyLocal;data={email:submitted+'@enlife.co.kr'};assert.equal(body.registrationPassword,'gate-test');}
  if(body.action==='login_hq')loginBody=body;
  if(body.action==='login_hq')data={user:{id:'qa-login',name:'통합검수',department:'QA',role:'safety',active:true}};
- if(body.action==='platform_catalog')data={revision:1,modules:['incident','risk','tbm','organization','training'].map(key=>({key,state:key==='incident'?'live':'building'}))};
+ if(body.action==='platform_catalog')data={revision:1,services:[],modules:['incident','risk','tbm','organization','training'].map(key=>({key,state:key==='incident'?'live':'building'}))};
  if(!data)return route.fallback();return route.fulfill({json:{ok:true,...data}});
  });
  await p.evaluate(()=>{session=null;renderLogin()});await p.locator('#loginName411').fill('통합검수');await p.locator('#loginPassword411').waitFor();
