@@ -366,3 +366,9 @@ dialog.draft-resume-dialog{position:fixed;inset:0;box-sizing:border-box;width:mi
 .draft-resume-dialog small{display:block;color:#536e83;overflow-wrap:anywhere}
 .draft-resume-dialog>div{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
 .draft-resume-dialog button{width:auto;min-width:5rem;min-height:44px}
+
+.shell411-nav .activity-count{display:inline-grid;place-items:center;flex:none;height:21px;min-width:21px;padding:0 4px;box-sizing:border-box;border-radius:99px;background:#bb2038;color:white;font:bold 12px/1 sans-serif}
+.activity-history ol{padding:0;list-style:none}.activity-history li+li{border-top:1px solid #dbe6ed}
+.activity-history li button{display:grid;width:100%;gap:4px;text-align:left;padding:12px 6px;color:#183950;background:transparent;border:0;overflow-wrap:anywhere}
+.activity-history li button:hover{background:#eff7ff}.activity-history small,.activity-history li span{color:#536a7a}
+.activity-archive{width:min(800px,94vw);max-height:85dvh;overflow:auto;border:1px solid #c6d8e6;border-radius:14px;padding:20px}.activity-archive::backdrop{background:#19354e66}
