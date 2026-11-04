@@ -40,7 +40,7 @@ async function run(engine,width){
    if(i.category==='person')assert.equal(await page.locator('#modalRoot .modal').getAttribute('data-incident-view'),i.id,'masked person modal tracked');
    await page.evaluate(id=>{closeModal();data.incidents.find(x=>x.id===id)._syncVersion++;openIncidentModal(id)},i.id);await page.waitForTimeout(50);
   }
-  assert.equal(calls.filter(b=>b.action==='view'&&b.incidentId==='person-reported').length,4,'reopening the document records another visit per viewer');
+  assert.equal(calls.filter(b=>b.action==='view'&&b.incidentId==='person-reported').length,2,'first visit only per viewer');
   await page.evaluate(()=>{qaUser={id:'qa-manager',role:'manager'};closeModal();data.incidents.find(x=>x.id==='dashboard').occurredAt='2026-10-31';renderShell(qaUser)});await page.locator('[data-reader-open="dashboard"]').click();await waitSaved('dashboard','qa-manager');assert.equal(await count('dashboard'),1,'actual dashboard row recorded');
   await page.evaluate(()=>{qaUser={id:'qa-manager',role:'manager'};closeModal();enlOpenIncidentReview('urgent',false,qaUser)});await waitSaved('urgent','qa-manager');assert.equal(await count('urgent'),1,'urgent fallback recorded');
   await page.evaluate(()=>{qaUser={id:'qa-executive',role:'executive'};closeModal();renderShell()});await page.locator('[data-exec-open="approval-queue"]').click();await waitSaved('approval-queue','qa-executive');assert.equal(await count('approval-queue'),1,'approval queue recorded');

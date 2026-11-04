@@ -1,14 +1,14 @@
 /* One event per visible detail opening. Retries retain the same visit ID. */
 (function(){
  'use strict';
- const sessions=new WeakMap();
+ const sessions=new WeakMap(),confirmed=new Set();
  let queued=false,retryTimer;
  const actor=()=>window.enlCurrentActor?.()||window.currentUser?.();
  function visibleView(){
-   const u=actor();if(!u||document.visibilityState==='hidden')return null;
+   const u=actor();if(!['safety','manager','final','executive'].includes(u?.role)||document.visibilityState==='hidden')return null;
    const modal=document.querySelector('#modalRoot .modal');
    if(!modal||!modal.getClientRects().length||getComputedStyle(modal).visibility==='hidden')return null;
-   const id=modal.dataset.incidentView||modal.dataset.cumulativeIncident||modal.querySelector('[data-lifecycle-final]')?.dataset.lifecycleFinal;
+   const id=modal.dataset.incidentView||modal.querySelector('[data-executive-record]')?.dataset.executiveRecord;
    if(!id)return null;
    const key=JSON.stringify([u.id,u.role,id]);
    let visit=sessions.get(modal);
@@ -17,12 +17,12 @@
  }
  async function track(){
    queued=false;const v=visibleView();
-   if(!v||v.done||v.pending||v.attempts>=3||v.retryAt>Date.now()||typeof window.enlIncidentApi!=='function')return;
+   if(!v||confirmed.has(v.key)||v.done||v.pending||v.attempts>=3||v.retryAt>Date.now()||typeof window.enlIncidentApi!=='function')return;
    v.pending=true;v.attempts++;
    try{
      const result=await window.enlIncidentApi({action:'view',incidentId:v.id,visitId:v.token,actor:v.actor});
      if(result?.ok!==true)throw Error('view_not_saved');
-     v.done=true;
+     v.done=true;confirmed.add(v.key);
      if(actor()?.id===v.actor.id){
        if(['manager','final'].includes(v.actor.role))window.dispatchEvent(new CustomEvent('enl-report-view-saved',{detail:{incidentId:v.id}}));
        if(['manager','executive','final'].includes(v.actor.role))window.enlPushFlush?.();

@@ -1,19 +1,6 @@
 /* Safety-only activity feed. The server owns both the audit trail and each user's read state. */
 (()=>{
   'use strict';
-  const verbs={
-    create:'사고를 등록했습니다',update:'사고보고를 수정했습니다',delete:'사고보고를 삭제했습니다',restore:'사고기록 복구를 처리했습니다',
-    view:'사고를 조회했습니다',archive_view:'삭제된 사고 보관본을 조회했습니다',action_view:'재발방지조치를 조회했습니다',final_view:'종결 결재본을 조회했습니다',
-    approve:'최초 사고보고를 승인했습니다',reject:'사고보고를 반려했습니다',resubmit:'사고보고를 수정해 다시 제출했습니다',
-    supplement_request:'자료 보완을 요청했습니다',supplement_submit:'보완자료를 제출했습니다',supplement_resubmit:'보완자료를 다시 제출했습니다',
-    plan_create:'재발방지계획을 작성했습니다',plan_edit:'재발방지계획을 수정했습니다',action_save:'재발방지조치 내용을 저장했습니다',
-    corrective_submit:'재발방지조치를 작성해 제출했습니다',corrective_reject:'재발방지조치 보완을 요청했습니다',corrective_approve:'재발방지조치를 승인했습니다',
-    executive_sign:'경영진 결재를 완료했습니다',executive_reject:'경영진 결재를 반려했습니다',final_approval:'최종 결재를 완료하여 사고가 종결됐습니다',
-    acknowledge:'문서 확인을 기록했습니다',correct_closed:'사고보고를 정정했습니다',post_approval_revision:'승인된 사고보고를 수정했습니다',
-    attachment_add:'첨부자료를 등록했습니다',attachment_delete:'첨부자료를 삭제했습니다',cost_added:'사고 비용을 추가했습니다',
-    cause_save:'원인분석을 저장했습니다',erp_record:'ERP 기안 기록을 저장했습니다'
-  };
-  const roles={system:'시스템',safety:'안전관리자',executive:'경영진',manager:'본사실무자',final:'본사실무자',field:'현장관리자',worker:'근로자'};
   const stamp=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
   const day=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul'});
   const occurred=raw=>raw&&Number.isFinite(Date.parse(raw))?day.format(new Date(raw)):'';
@@ -45,7 +32,10 @@
   async function openDoc(row,host,id){
     const live=()=>host.isConnected&&userId()===id;
     try{
-      const r=await api({action:'activity_document',incidentId:row.incident_id,visitId:crypto.randomUUID()});if(!live())return;
+      if(/^(site|hq|personnel)_/.test(row.kind)){
+        await window.enlOpenHistorySetting(row,live);return;
+      }
+      const r=await api({action:'activity_document',incidentId:row.incident_id});if(!live())return;
       if(r.archived){
         // Use a separate read-only dialog so the ordinary review decorators cannot add edit actions.
         const dialog=document.createElement('dialog');dialog.className='activity-archive';
@@ -62,27 +52,48 @@
     const id=owner();if(!id)return;
     const mark=requested;requested=false;
     const host=document.createElement('section');host.className='panel activity-history';root.replaceChildren(host);
-    host.innerHTML='<div class="section-head"><h2>히스토리</h2><button type="button" class="secondary" data-refresh>새로고침</button></div><p role="status"></p><ol></ol><button type="button" class="secondary" data-more hidden>이전 기록 더 보기</button>';
+    host.innerHTML='<div class="section-head"><h2>히스토리</h2><button type="button" class="secondary" data-refresh>새로고침</button></div><form class="activity-filters"><label>기간<select name="range"><option value="recent">최근 30일</option><option value="month">월별 조회</option><option value="custom">기간 지정</option><option value="all">전체 기간</option></select></label><label hidden data-month>조회 월<input type="month" name="month"></label><label hidden data-custom>시작일<input type="date" name="start"></label><label hidden data-custom>종료일<input type="date" name="end"></label><label>검색어<input type="search" name="q" maxlength="120" placeholder="이름, 사업장, 사고, 처리 내용"></label><button class="secondary" type="submit">검색</button></form><p role="status"></p><ol></ol><button type="button" class="secondary" data-more hidden>이전 기록 더 보기</button>';
     const list=host.querySelector('ol'),status=host.querySelector('[role=status]'),more=host.querySelector('[data-more]');
-    let before='',busy=false;
+    const form=host.querySelector('form'),controls=form.elements;
+    const today=day.format(new Date()),recent=day.format(new Date(Date.parse(today+'T12:00:00+09:00')-29*86400000));
+    controls.month.value=today.slice(0,7);controls.start.value=recent;controls.end.value=today;
+    let before='',busy=false,request=0,filters={fromDate:recent,toDate:today,search:''};
+    function apply(){
+      let fromDate='',toDate='';
+      if(controls.range.value==='recent'){fromDate=recent;toDate=today;}
+      if(controls.range.value==='custom'){fromDate=controls.start.value;toDate=controls.end.value;}
+      if(controls.range.value==='month'){
+        const month=controls.month.value;if(!/^\d{4}-\d{2}$/.test(month)){status.textContent='조회할 월을 선택해 주세요.';return;}
+        fromDate=month+'-01';const last=new Date(fromDate+'T12:00:00Z');last.setUTCMonth(last.getUTCMonth()+1,0);toDate=last.toISOString().slice(0,10);
+      }
+      if(fromDate&&toDate&&fromDate>toDate){status.textContent='종료일은 시작일 이후로 선택해 주세요.';return;}
+      filters={fromDate,toDate,search:controls.q.value.trim()};load(true,false);
+    }
+    controls.range.onchange=()=>{
+      form.querySelector('[data-month]').hidden=controls.range.value!=='month';
+      form.querySelectorAll('[data-custom]').forEach(el=>el.hidden=controls.range.value!=='custom');
+      apply();
+    };
+    controls.month.onchange=apply;form.onsubmit=e=>{e.preventDefault();apply();};
     async function load(first,ack){
-      if(busy||!id||userId()!==id)return;busy=true;more.disabled=true;
+      if(busy&&!first||!id||userId()!==id)return;const seq=++request;busy=true;more.disabled=true;
       const token=ack?++serial:0;if(ack)opening=token;
+      if(first){before='';more.hidden=true;list.replaceChildren();}
       status.textContent='기록을 불러오는 중입니다.';
       try{
-        const r=await api({action:first?(ack?'activity_open':'activity_list'):'activity_page',before});
+        const r=await api({action:first?(ack?'activity_open':'activity_list'):'activity_page',before,...filters});
         if(userId()!==id)return;
         if(ack&&token===serial){count=0;checked=Date.now();paint();}
-        if(!host.isConnected)return;
+        if(!host.isConnected||seq!==request)return;
         if(first)list.replaceChildren();
         for(const row of r.rows){
           const item=document.createElement('li'),button=document.createElement('button');button.type='button';
-          button.innerHTML='<small>'+safe(stamp.format(new Date(row.happened_at)))+'　'+safe(roles[row.actor_role]||row.actor_role||'역할 미기록')+'</small><strong>'+safe(row.actor_name||'작성자 미기록')+'　'+safe(verbs[row.kind]||'사고 업무를 처리했습니다')+'</strong><span>'+safe(row.site_name||row.site_id||'현장 미기록')+' / '+safe([occurred(row.occurred_text),row.incident_title||row.incident_id].filter(Boolean).join(' / '))+'</span>';
+          button.innerHTML='<small>'+safe(stamp.format(new Date(row.happened_at)))+'　'+safe(row.role_label)+(row.occurred_text?'　사고일 '+safe(occurred(row.occurred_text)):'')+'</small><strong>'+safe(row.sentence)+'</strong>';
           button.onclick=()=>openDoc(row,host,id);item.append(button);list.append(item);before=row.id;
         }
-        more.hidden=!r.more;status.textContent=list.childElementCount?'최신순 / 한국시간':'기록된 활동이 없습니다.';
-      }catch{if(host.isConnected)status.textContent='기록을 불러오지 못했습니다. 다시 시도해 주세요.';}
-      finally{if(opening===token)opening=0;busy=false;more.disabled=false;}
+        more.hidden=!r.more;status.textContent=list.childElementCount?'최신순 / 한국시간':'조건에 맞는 기록이 없습니다.';
+      }catch{if(host.isConnected&&seq===request)status.textContent='기록을 불러오지 못했습니다. 다시 시도해 주세요.';}
+      finally{if(opening===token)opening=0;if(seq===request){busy=false;more.disabled=false;}}
     }
     host.querySelector('[data-refresh]').onclick=()=>load(true,true);more.onclick=()=>load(false,false);load(true,mark);
   }
