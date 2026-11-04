@@ -2,7 +2,7 @@
 const assert=require('node:assert/strict');
 const {fixture}=require('./final-lifecycle.cjs');
 (async()=>{
- const f=await fixture();
+ const f=await fixture({hubNotices:true});
  try{
   for(const category of ['person','property']){
    const draft={id:'qa-past-'+category,siteId:'qa-site',category,status:'reported',occurredAt:'2026-01-01T00:00:00Z',pastReport:{drafterName:'당시 기안자',safetyManagerName:'당시 안전'},photos:[],reportDetails:{},corrective:null};
@@ -16,6 +16,10 @@ const {fixture}=require('./final-lifecycle.cjs');
    const record=response.body.incidents[0];
    assert.equal(record.status,'reported');assert.equal(record.approvedAt,null);
    assert.deepEqual(record.pastReport,draft.pastReport);
+   assert.equal((await f.db.query("select count(*)::int n from enl_push_events where incident_id=$1",[draft.id])).rows[0].n,0);
+   const approved=await push('safety',{...record,status:'approved',reportDetails:{causeAnalysisStatus:'investigating'},_syncBaseVersion:record._syncVersion});
+   assert.equal(approved.status,200,JSON.stringify(approved));
+   for(const table of ['enl_push_events','enl_email_events'])assert.equal((await f.db.query('select count(*)::int n from '+table+" where incident_id=$1 and kind in ('incident_new','incident_approved','urgent_incident')",[draft.id])).rows[0].n,0);
    assert.equal(record.officialRecord.reporter.id,f.actors.safety.id);
    assert.equal((await push('field',{...record,pastReport:null,_syncBaseVersion:record._syncVersion})).status,409);
   }

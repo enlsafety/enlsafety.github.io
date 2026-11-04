@@ -208,16 +208,19 @@ Deno.serve(async(req:Request)=>{
     let actor=await verifyActor(sql,body,true);if(!actor)return json({ok:false,message:"auth_proof_required"},403);
 
     if(action.startsWith("platform_"))return await platformRequest(sql,actor,body,json);
+    const feed=clean(body.feed);
+    if(feed&&!["common","incident"].includes(feed))return json({ok:false,message:"invalid_feed"},400);
     if(action==="activity_cleanup_audit"){
       if(actor.role!=="safety")return json({ok:false,message:"forbidden"},403);
       const rows=await sql`select id::text,actor_name,at,mode,scope,reason,cardinality(event_ids) as count,restored_at,restored_by,restore_reason
-        from private.enl_platform_cleanup where id<coalesce(nullif(${clean(body.before)},'')::bigint,9223372036854775807) order by id desc limit 51`;
+        from private.enl_platform_cleanup where (${feed}='' or scope->>'feed'=${feed}) and id<coalesce(nullif(${clean(body.before)},'')::bigint,9223372036854775807) order by id desc limit 51`;
       return json({ok:true,rows:rows.slice(0,50),more:rows.length>50});
     }
     if(["activity_count","activity_open","activity_list","activity_page","activity_document","activity_delete","activity_restore"].includes(action)){
       const safety=actor.role==="safety",field=actor.role==="field"&&!!actor.siteId&&["현장소장","파트장","서무"].includes(actor.position);
       if(!safety&&!field&&!["manager","executive"].includes(actor.role))return json({ok:false,message:"forbidden"},403);
-      const readKey=safety?actor.id:JSON.stringify([actor.role,actor.siteId,actor.id]);
+      const legacyKey=safety?actor.id:JSON.stringify([actor.role,actor.siteId,actor.id]);
+      const readKey=feed?'hub-history:'+feed+':'+legacyKey:legacyKey;
       const from=clean(body.fromDate),to=clean(body.toDate);
       const dayOk=(v:string)=>!v||(/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v&&v>="1900-01-01"&&v<="9998-12-31");
       if(action==="activity_delete"||action==="activity_restore"){
@@ -244,23 +247,25 @@ Deno.serve(async(req:Request)=>{
           await tx`update private.enl_incident_delete_attempts set failures=0 where actor_id=${actor.id}`;
           if(mode==="restore"){
             const [restored]=await tx`with batch as (update private.enl_platform_cleanup set restored_at=now(),restored_by=${actor.id},restore_reason=${reason}
-              where id=${id}::bigint and restored_at is null returning event_ids),
+              where id=${id}::bigint and restored_at is null and (${feed}='' or scope->>'feed'=${feed}) returning event_ids),
               changed as (update private.enl_activity_events set listed=true where not listed and id in (select unnest(event_ids) from batch) returning id)
               select count(*)::int as count from changed`;
             return json({ok:true,restored:restored.count});
           }
           const [result]=await tx`with removed as (update private.enl_activity_events set listed=false where listed
+            and (${feed}='' or coalesce(module_key,case when split_part(kind,'_',1) in ('hq','site','personnel') then 'common' else 'incident' end)=${feed})
             and (${mode}<>'one' or id=nullif(${id},'')::bigint)
             and (${mode}<>'range' or happened_at >= (nullif(${from},'')::date::timestamp at time zone 'Asia/Seoul')
               and happened_at < ((nullif(${to},'')::date+1)::timestamp at time zone 'Asia/Seoul')) returning id)
             insert into private.enl_platform_cleanup(actor_id,actor_name,mode,scope,reason,event_ids)
-            select ${actor.id},${actor.name},${mode},${tx.json({id,from,to})}::jsonb,${reason},coalesce(array_agg(id),'{}'::bigint[]) from removed returning cardinality(event_ids) as removed`;
+            select ${actor.id},${actor.name},${mode},${tx.json({id,from,to,feed})}::jsonb,${reason},coalesce(array_agg(id),'{}'::bigint[]) from removed returning cardinality(event_ids) as removed`;
           return json({ok:true,removed:result.removed});
         });
       }
       // Both the unread count and every search/page use this same server-verified scope.
-      const visible=safety?sql`true`:sql`(
-        (e.module_key='common' and ${field} and e.site_id=${actor.siteId} and split_part(e.kind,'_',1) in ('site','personnel'))
+      const permitted=safety?sql`true`:sql`(
+        (e.module_key='common' and ((${field} and e.site_id=${actor.siteId} and (split_part(e.kind,'_',1) in ('site','personnel') or e.kind='email_registered')) or
+          (${feed}='common' and (e.actor_id=${actor.id} or e.incident_id=${actor.id}))))
         or (e.module_key in ('risk','tbm','organization','training') and (not ${field} or e.site_id=${actor.siteId}) and exists
           (select from private.enl_platform_catalog c,jsonb_array_elements(c.modules) m where m->>'key'=e.module_key and coalesce(m->>'enabled','true')='true' and (m->'roles') ? ${actor.role}
           and (m->>'state'='live' or (m->>'state'='building' and m->>'preview'='true' and (m->'pilots') ? ${(field?'site:':'hq:')+actor.id}))))
@@ -271,11 +276,12 @@ Deno.serve(async(req:Request)=>{
           and not (coalesce(a.payload#>>'{bulkInvalidation,active}','false')='true'
             and coalesce(a.payload#>>'{historicalOrigin,batchId}','')<>'' and coalesce(a.payload#>>'{historicalOrigin,candidateId}','')<>''
             and coalesce(a.payload#>>'{externalInitialApproval,state}','') in ('verified','unverifiable')))))`;
+      const visible=sql`(${feed}='' or e.module_key=${feed}) and (${permitted})`;
       if(action==="activity_count"){
         const [r]=await sql`select count(*)::int as unread from private.enl_platform_history e
           left join private.enl_history_checkpoints c on c.actor_id=${readKey}
           where ${visible} and (c.seen is null or (e.write_xid>=pg_snapshot_xmin(c.seen) and not pg_visible_in_snapshot(e.write_xid,c.seen))) and not exists
-          (select 1 from private.enl_activity_reads r where r.actor_id=${readKey} and r.event_id=e.id)`;
+          (select 1 from private.enl_activity_reads r where r.actor_id=${legacyKey} and r.event_id=e.id)`;
         return json({ok:true,unread:r.unread});
       }
       if(action==="activity_document"){

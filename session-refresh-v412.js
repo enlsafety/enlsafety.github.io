@@ -9,7 +9,7 @@
   const COOKIE_MAX_AGE=12*60*60;
   const LOGOUT_KEY='enl_explicit_logout_v489';
   const DRAFT_MAX_AGE=12*60*60*1000;
-  const VALID_VIEWS=new Set(['platform','history','home','dashboard','report','incidents','actions','more','field-inquiry','inquiry','closed','personnel']);
+  const VALID_VIEWS=new Set(['platform','history','common-history','notice-center','home','dashboard','report','incidents','actions','more','field-inquiry','inquiry','closed','personnel']);
   let explicitClearArmed=false;
   function logoutGeneration(){try{return localStorage.getItem(LOGOUT_KEY)||''}catch(e){return ''}}
   let observedLogout=logoutGeneration(),wasSignedIn=!!session;

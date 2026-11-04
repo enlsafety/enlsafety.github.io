@@ -1,9 +1,9 @@
 'use strict';
 const assert=require('node:assert/strict'),fs=require('node:fs');
 const {fixture}=require('./final-lifecycle.cjs');
-async function run(){const f=await fixture();await f.db.exec(fs.readFileSync('supabase/migrations/20261030004902_executive_closure.sql','utf8'));await f.db.exec(fs.readFileSync('supabase/migrations/20261030025355_parallel_president_approval.sql','utf8'));for(let n=2;n<=5;n++){await f.db.query("insert into enl_hq_users values($1,$2,'executive','임원','QA',true,'qa-proof')",['qa-e'+n,'QA 임원'+n]);f.actors['e'+n]={id:'qa-e'+n,role:'executive'}}
+async function run(past=false){const f=await fixture({hubNotices:past});await f.db.exec(fs.readFileSync('supabase/migrations/20261030004902_executive_closure.sql','utf8'));await f.db.exec(fs.readFileSync('supabase/migrations/20261030025355_parallel_president_approval.sql','utf8'));for(let n=2;n<=5;n++){await f.db.query("insert into enl_hq_users values($1,$2,'executive','임원','QA',true,'qa-proof')",['qa-e'+n,'QA 임원'+n]);f.actors['e'+n]={id:'qa-e'+n,role:'executive'}}
 let checks=0;const check=(x,msg)=>{assert.ok(x,msg);checks++};
-let r=await f.call('field',{action:'push',incidents:[{id:'qa-exec',siteId:'qa-site',status:'reported',category:'property',summary:'가상 사고',eventType:'접촉',occurredAt:'2026-10-12T01:00:00Z',reportDetails:{incidentHow:'가상 경위'},corrective:null,photos:[],_syncBaseVersion:0,_syncMutationId:'create'}]});assert.equal(r.status,200,JSON.stringify(r));let i=r.body.incidents[0];
+let r=await f.call(past?'safety':'field',{action:'push',incidents:[{...(past?{pastReport:{drafterName:'QA 작성자',safetyManagerName:'QA 안전'},priority:'urgent'}:{}),id:'qa-exec',siteId:'qa-site',status:'reported',category:'property',summary:'가상 사고',eventType:'접촉',occurredAt:'2026-10-12T01:00:00Z',reportDetails:{incidentHow:'가상 경위'},corrective:null,photos:[],_syncBaseVersion:0,_syncMutationId:'create'}]});assert.equal(r.status,200,JSON.stringify(r));let i=r.body.incidents[0];
 const push=async(who,fn)=>{let n=structuredClone(i);fn(n);n._syncBaseVersion=i._syncVersion;n._syncMutationId=crypto.randomUUID();let r=await f.call(who,{action:'push',incidents:[n]});if(r.status===200)i=r.body.incidents[0];return r;};
 const ok=async(who,fn)=>{const r=await push(who,fn);assert.equal(r.status,200,JSON.stringify(r));checks++};
 await ok('safety',x=>{x.status='approved';x.reportDetails.causeAnalysisStatus='investigating'});
@@ -15,6 +15,11 @@ await f.db.exec("update enl_hq_users set position='사장' where user_id in ('qa
 r=await push('safety',x=>{x.corrective.status='approved'});check(r.status===409&&r.body.message==='president_approver_required','ambiguous presidents cannot start approval');
 await f.db.exec("update enl_hq_users set position='부사장' where user_id='qa-e2'");
 await ok('safety',x=>{x.corrective.status='approved';x.status='closed'});check(i.status==='approved'&&i.executiveApproval.state==='pending'&&!i.closedAt,'old client cannot auto close');check(i.executiveApproval.roster.length===5,'five approvers captured');
+if(past)for(const table of ['enl_push_events','enl_email_events']){
+ const events=(await f.db.query('select kind from '+table)).rows;
+ check(events.filter(e=>e.kind==='executive_approval_requested').length===4,'four initial executive requests for historical report');
+ check(!events.some(e=>['incident_new','urgent_incident','incident_approved'].includes(e.kind)),'historical initial stages suppressed');
+}
 const initial=i;
 const requests=async()=>(await f.db.query("select user_id,data from enl_push_events where kind='executive_approval_requested' order by id")).rows;
 check(i.executiveApproval.stage==='parallel'&&i.executiveApproval.finalApproverId==='qa-executive','parallel stage and president snapshot');
@@ -64,4 +69,4 @@ check(ev.filter(x=>x.user_id==='qa-manager'&&x.kind==='incident_closed').length=
 check(ev.filter(x=>x.user_id==='qa-executive'&&x.kind==='executive_approval_requested').length===2,'one president request per completed parallel round');
 const mails=(await f.db.query("select user_id,kind from enl_email_events")).rows;check(mails.some(x=>x.user_id==='qa-executive'&&x.kind==='executive_approval_requested'),'approval email queued');check(!mails.some(x=>x.user_id==='qa-executive'&&x.kind==='incident_closed'),'no closure email for executives');
 console.log(JSON.stringify({passed:checks,failed:0}));await f.db.close();}
-run().catch(e=>{console.error(e);process.exitCode=1});
+run().then(()=>run(true)).catch(e=>{console.error(e);process.exitCode=1});

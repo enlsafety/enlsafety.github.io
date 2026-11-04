@@ -1,7 +1,16 @@
 'use strict';
 const assert=require('node:assert/strict'),{fixture}=require('./final-lifecycle.cjs');
-(async()=>{const f=await fixture();try{
+(async()=>{const f=await fixture({hubNotices:true});try{
  const api=(u,action,extra={})=>f.call(u,{action,...extra});
+ const pref=(role,key,channel,enabled)=>api(role,'platform_notice_set',{key,channel,enabled});
+ assert.equal((await pref('manager','risk','push',false)).status,200);
+ assert.equal((await pref('manager','incident','email',false)).status,200);
+ const settings=async who=>(await api(who,'platform_notices')).body.rows;
+ assert.equal((await settings('manager')).find(x=>x.key==='risk').push,false);
+ assert.equal((await settings('manager')).find(x=>x.key==='risk').email,true);
+ assert.equal((await settings('manager')).find(x=>x.key==='incident').email,false);
+ assert.equal((await settings('safety')).find(x=>x.key==='incident').email,true);
+ assert.equal((await pref('manager','incident','urgent',false)).status,400);
  const list=await api('safety','platform_catalog');assert.equal(list.body.modules.length,5);
  const draft=list.body.modules.reverse(),risk=draft.find(m=>m.key==='risk');
  assert.equal((await api('field','platform_enter',{key:'risk'})).status,403);
@@ -38,5 +47,11 @@ const assert=require('node:assert/strict'),{fixture}=require('./final-lifecycle.
  assert.equal((await api('safety','activity_restore',{...operation,mode:'restore',id})).body.restored,2);
  assert.equal((await api('safety','activity_restore',{...operation,mode:'restore',id})).body.restored,0);
  assert.equal((await api('safety','activity_list',auth)).body.rows.length,2);
+ await f.db.query("update enl_site_personnel set email='first@example.invalid',updated_by_id='qa-field',updated_by_name='QA 현장',updated_by_role='field' where personnel_id='qa-field'");
+ const common=(await api('safety','activity_list',{...auth,feed:'common'})).body.rows;
+ assert.ok(common.some(x=>x.kind==='email_registered'));assert.ok(common.every(x=>x.module_key==='common'));
+ await api('safety','activity_delete',{...operation,feed:'common'});
+ assert.equal((await api('safety','activity_list',{...auth,feed:'common'})).body.rows.length,0);
+ assert.equal((await api('safety','activity_list',{...auth,module:'risk'})).body.rows.length,1);
  console.log('PASS verified role and individual module gates, shared order, write conflict, audit reauthentication, reversible history cleanup and scoped filters');
 }finally{await f.db.close()}})().catch(e=>{console.error(e);process.exitCode=1});

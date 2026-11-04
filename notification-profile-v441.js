@@ -31,7 +31,7 @@
     ensureCss();
     const anchor=overlay.querySelector('#enl418Message');if(!anchor)return;
     const box=document.createElement('section');box.className='enl441-profile';
-    box.innerHTML=`<h3>사용자 알림 정보</h3><div class="enl441-grid"><label class="enl441-field"><span>이메일</span><input id="enl441Email" type="email" placeholder="name@company.com"></label><label class="enl441-field"><span>앱 푸시</span><select id="enl441Push"><option value="1">ON</option><option value="0">OFF</option></select></label><label class="enl441-field"><span>이메일 알림</span><select id="enl441Mail"><option value="1">ON</option><option value="0">OFF</option></select></label></div><div id="enl441Force" class="enl441-note"></div><button type="button" id="enl441Save" class="enl441-save">이메일·알림 설정 저장</button><div id="enl441Msg" class="enl441-note">기본값은 앱 푸시 ON · 이메일 알림 ON입니다.</div>`;
+    box.innerHTML=`<h3>사고보고 알림 설정</h3><div class="enl441-grid"><label class="enl441-field"><span>이메일</span><input id="enl441Email" type="email" placeholder="name@company.com"></label><label class="enl441-field"><span>앱 푸시</span><select id="enl441Push"><option value="1">ON</option><option value="0">OFF</option></select></label><label class="enl441-field"><span>이메일 알림</span><select id="enl441Mail"><option value="1">ON</option><option value="0">OFF</option></select></label></div><div id="enl441Force" class="enl441-note"></div><button type="button" id="enl441Save" class="enl441-save">이메일·알림 설정 저장</button><div id="enl441Msg" class="enl441-note">기본값은 앱 푸시 ON · 이메일 알림 ON입니다.</div>`;
     anchor.parentElement.insertBefore(box,anchor);
     const msg=t=>{const x=document.getElementById('enl441Msg');if(x)x.textContent=t};
     try{

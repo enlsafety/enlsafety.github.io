@@ -199,8 +199,13 @@ async function run(engine){
     await page.getByRole('button',{name:'결재 승인',exact:true}).waitFor();
     assert.equal(await page.evaluate(()=>currentUser()?.id),actor.id);
     await page.evaluate(()=>closeModal());
+    if(engine===chromium)await page.setViewportSize({width:390,height:844});
     await page.locator('[data-update-later]').click();
     await check();assert.equal(await page.locator('#enlUpdateNotice').count(),0);
+    if(engine===chromium){
+      assert.equal(await page.locator('.topbar-tools [data-resume-update]').count(),0);
+      await page.locator('#userChip').click();await page.locator('#userMenu [data-resume-update]').waitFor();
+    }
     await page.locator('[data-resume-update]').click();
     await Promise.all([page.waitForURL('**/*_latest=*'),page.locator('[data-update-now]').click()]);
     assert.equal(await page.evaluate(()=>currentUser()?.id),actor.id);
