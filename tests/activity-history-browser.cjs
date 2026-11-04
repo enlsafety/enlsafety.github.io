@@ -12,7 +12,7 @@ const assert=require('node:assert/strict'),{fixture}=require('./final-lifecycle.
  await p.exposeFunction('historyApi',async body=>{const r=await f.call('safety',body);if(r.status!==200)throw Error(r.body.message);return r.body;});
  await p.evaluate(()=>{const old=enlIncidentApi;window.enlIncidentApi=b=>{if(b.action.startsWith('activity_')||b.action==='view'){const {actor,...body}=b;return historyApi(body);}return old(b);};enlRefreshHistoryCount(true);});
  const menu=p.locator('[data-shell-view="history"]');await menu.locator('.activity-count').waitFor();assert.equal(await menu.locator('.activity-count').innerText(),'2');
- await menu.click();const rows=p.locator('.activity-history li button');await rows.first().waitFor();assert.equal(await menu.locator('.activity-count').count(),0);assert.equal(await rows.count(),2);
+ await menu.click();const rows=p.locator('.activity-history li button:first-child');await rows.first().waitFor();assert.equal(await menu.locator('.activity-count').count(),0);assert.equal(await rows.count(),2);
  assert.match(await rows.last().innerText(),/2026-10-02/);await p.locator('.activity-filters input[type=search]').fill('중복없는검색');await p.locator('.activity-filters button').click();await p.getByText('조건에 맞는 기록이 없습니다.').waitFor();await p.locator('.activity-filters input[type=search]').fill('');await p.locator('.activity-filters button').click();await rows.first().click();await p.locator('.activity-archive').waitFor();assert.match(await p.locator('.activity-archive').innerText(),/중복 신고/);
  await p.locator('.activity-archive button').first().click();await rows.last().click();await p.locator('[data-incident-view="sample-2"]').waitFor();
  await p.waitForFunction(()=>document.querySelector('.activity-count')?.textContent==='1');
@@ -24,7 +24,7 @@ const assert=require('node:assert/strict'),{fixture}=require('./final-lifecycle.
  await filters.locator('[type=search]').fill('검색검수 삭제');await filters.getByRole('button',{name:'검색'}).click();
  await rows.getByText(/QA 현장님이 .*검색검수 사용자 계정을 삭제했습니다/).click();await p.getByRole('heading',{name:'설정 변경 기록'}).waitFor();
  await p.evaluate(()=>closeModal());await filters.locator('[name=range]').selectOption('recent');await p.getByText('조건에 맞는 기록이 없습니다.').waitFor();
- const other=await tab(browser,width,'executive');await other.p.waitForFunction(()=>typeof window.enlRenderHistory==='function');assert.equal(await other.p.locator('[data-shell-view="history"]').count(),0);
+ const other=await tab(browser,width,'executive');await other.p.waitForFunction(()=>typeof window.enlRenderHistory==='function');await other.p.locator('[data-shell-view="history"]').click();await other.p.locator('.activity-history').waitFor();assert.equal(await other.p.locator('.history-manage,.history-remove').count(),0);
  console.log('PASS activity menu, unread/reset, linked and archived reports, new activity',engine.name(),width);
  }finally{await browser.close();await f.db.close();}
 }})().catch(e=>{console.error(e);process.exitCode=1;});

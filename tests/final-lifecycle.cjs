@@ -30,7 +30,16 @@ async function fixture(){
  await db.exec(read('supabase/migrations/20261104062357_workflow_history_search.sql'));
  await db.exec(`create trigger trg_enl_incident_optimistic_sync_guard before insert or update on enl_incident_shared for each row execute function enl_incident_optimistic_sync_guard();create trigger trg_enl_incident_push after insert or update on enl_incident_shared for each row execute function enl_incident_push_trigger();create trigger trg_enl_push_email_bridge after insert on enl_push_events for each row execute function enl_email_from_push_trigger();`);
  let handler,tx=null;
- const sql=async(parts,...args)=>{const query=parts.reduce((s,p,i)=>s+(i?'$'+i:'')+p,'');return (await(tx||db).query(query,args)).rows;};sql.json=JSON.stringify;sql.end=async()=>{};sql.begin=async f=>db.transaction(async t=>{tx=t;try{return await f(sql)}finally{tx=null}});
+ // Match postgres.js lazy tagged templates, including nested parameterized fragments.
+ const sql=(parts,...args)=>{
+  const tokens=[];
+  parts.forEach((part,i)=>{if(i){const value=args[i-1];tokens.push(...(value?.sqlTokens||[{value}]));}tokens.push(part);});
+  return {sqlTokens:tokens,then(resolve,reject){
+   const params=[],query=tokens.map(t=>typeof t==='string'?t:'$'+params.push(t.value)).join('');
+   return (tx||db).query(query,params).then(r=>r.rows).then(resolve,reject);
+  }};
+ };
+ sql.json=JSON.stringify;sql.end=async()=>{};sql.begin=async f=>db.transaction(async t=>{tx=t;try{return await f(sql)}finally{tx=null}});
  const ctx={Deno:{env:{get:()=> 'isolated'},serve:h=>handler=h},postgres:()=>sql,Request,Response,TextEncoder,crypto,structuredClone,console};vm.createContext(ctx);
  vm.runInContext(read('edge-functions/enl-incident-sync-v411/site-contract-v451.js'),ctx);
  vm.runInContext(read('executive-approval-v482.js'),ctx);

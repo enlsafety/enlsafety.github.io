@@ -39,7 +39,7 @@ body.safety-ui {background:var(--canvas);color:var(--ink)}
 .safety-ui #app .shell411-nav button:hover {background:#f1f6fb}
 .safety-ui :is(button,a,input,select,textarea,summary):focus-visible {outline:3px solid #5195ce;outline-offset:3px}
 .safety-ui .shell411-nav button {--glyph:var(--icon-list)}
-.safety-ui .shell411-nav [data-shell-view="history"] {--glyph:var(--icon-history)}
+.safety-ui [data-field-task="history"],.safety-ui .shell411-nav [data-shell-view="history"] {--glyph:var(--icon-history)}
 .safety-ui :is([data-shell-view="stats"],.stats426-head h2) {--glyph:var(--icon-dashboard)}
 .safety-ui :is([data-shell-view="home"],.shell411-head h2,[data-safety-status="all"]) {--glyph:var(--icon-stats)}
 .safety-ui :is([data-shell-view="report"],[data-field-task="accident_report"],.report-type-picker h2,.incident410-form h2,[data-stats-filter="all"]) {--glyph:var(--icon-report)}
@@ -378,3 +378,26 @@ dialog.draft-resume-dialog{position:fixed;inset:0;box-sizing:border-box;width:mi
 .activity-filters label{display:grid;gap:3px;font-size:.82rem;color:#405967;min-width:0}
 .activity-filters [hidden]{display:none!important}.activity-filters input,.activity-filters select,.activity-filters button{box-sizing:border-box;min-height:42px;max-width:100%}
 .activity-filters label:has([type=search]){flex:1 1 190px}
+
+.activity-history li{display:flex;align-items:center;gap:6px}
+.activity-history li button:first-child{flex:1;min-width:0}
+.activity-history li .history-remove{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;padding:0;border-radius:8px;color:#98404d;font-size:22px}
+.activity-history li .history-remove:hover{background:#ffedf0}
+.history-manage{border-block:1px solid #dbe6ed;padding:6px 0}
+.history-manage summary{cursor:pointer;color:#85444c;padding:8px 0}
+.history-manage form{display:flex;align-items:end;flex-wrap:wrap;gap:8px;padding:6px 0}
+.history-manage label{display:grid;gap:4px;font-size:.85rem}
+.history-manage :is(button,input){box-sizing:border-box;min-height:44px;min-width:0;max-width:100%}
+.history-manage button{color:#953947;background:#fff5f5;border:1px solid #e6bbc1;border-radius:8px;padding:6px 12px}
+.activity-history [role=status]:empty{display:none}
+.safety-ui .field-six-btn[data-field-task="history"] .activity-count{top:5px;right:5px;box-sizing:border-box;min-width:26px;height:26px;padding:0;font:800 10px/1 system-ui,sans-serif;font-variant-numeric:tabular-nums}
+@media(max-width:600px){
+  .activity-history :is(.activity-filters,.history-manage form){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:end}
+  .activity-history label:has(input[type=search]){grid-column:1/-1}
+  .activity-history :is(input,select){width:100%;min-width:0}
+}
+.history-manage label{flex:0 1 150px;min-width:0}
+.history-manage input{width:100%}
+@media(max-width:600px){
+  .activity-filters label:has([name=range]),.activity-filters button[type=submit]{grid-column:1/-1}
+}
