@@ -40,6 +40,7 @@
   }
 
   const accountKey=u=>(roleNorm(u.role)==='field'?'site:':'hq:')+(u.id||u.personnelId);
+  const acknowledged=new Set();
   function openSelfChange(firstLogin=false){
     const u=currentUser?.();if(!eligibleSelf(u))return;
     const initial=firstLogin===true,key=accountKey(u);
@@ -55,8 +56,14 @@
     let dialog=null;
     if(initial){
       dialog=document.createElement('dialog');dialog.className='enl420-device-dialog';dialog.setAttribute('aria-labelledby','enl420PwTitle');dialog.innerHTML=html;
-      document.body.append(dialog);dialog.onclose=()=>dialog.remove();
-      dialog.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>dialog.close());
+      const acknowledge=()=>{
+        acknowledged.add(key);
+        try{localStorage.setItem('enl.firstPasswordPrompt.ack.'+key,'1')}catch{}
+      };
+      document.body.append(dialog);
+      dialog.onclose=()=>{if(dialog.returnValue==='confirmed')acknowledge();dialog.remove()};
+      dialog.oncancel=event=>{event.preventDefault();dialog.close('confirmed')};
+      dialog.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>dialog.close('confirmed'));
       dialog.showModal();dialog.querySelector('h2').focus();
     }else openModal(html);
     const form=(dialog||document).querySelector('#enl420SelfForm');
@@ -73,7 +80,7 @@
         if(!currentUser?.()||accountKey(currentUser())!==key)return;
         syncLocalPassword(newPasswordHash);
         form.reset();
-        if(dialog?.open)dialog.close();else if(!dialog&&form.isConnected)closeModal();
+        if(dialog?.open)dialog.close('confirmed');else if(!dialog&&form.isConnected)closeModal();
         await window.enlUpdateRememberedProof?.(key,newPasswordHash);
         alert('비밀번호를 변경했습니다. 다음 로그인부터 새 비밀번호를 사용해 주세요.');
       }catch(e){
@@ -82,14 +89,12 @@
     };
   }
   window.enlOpenSelfPasswordChange420=openSelfChange;
-  const shown=new Set();
   window.enlOfferDevicePasswordChange=u=>{
-    if(!eligibleSelf(u))return;
-    const key='enl.firstPasswordPrompt.v1.'+accountKey(u);
-    if(shown.has(key))return;
-    try{if(localStorage.getItem(key)==='1')return;}catch{}
+    if(!eligibleSelf(u)||document.querySelector('.enl420-device-dialog[open]'))return;
+    const key=accountKey(u);
+    if(acknowledged.has(key))return;
+    try{if(localStorage.getItem('enl.firstPasswordPrompt.ack.'+key)==='1')return}catch{}
     openSelfChange(true);
-    shown.add(key);try{localStorage.setItem(key,'1');}catch{}
   };
 
   function safetyResetTarget(target){

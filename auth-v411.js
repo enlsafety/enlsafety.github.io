@@ -11,7 +11,7 @@
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   const ex=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const siteLabel=id=>{try{return siteById?.(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}};
-  const deployedVersion=()=>{const raw=String(window.ENL_DEPLOY_VERSION||document.querySelector('meta[name="enl-build"]')?.content||VERSION||'').trim();return raw.replace(/-r\d+.*$/,'')||raw||'-'};
+  const deployedVersion=()=>document.querySelector('meta[name="enl-build"]')?.content||VERSION;
 
   currentUser=function(){
     try{
@@ -167,6 +167,7 @@
     if(input.dataset.restored==='native')input.value='';
     delete input.dataset.restored;
     input.required=true;input.placeholder='비밀번호를 입력하세요';
+    const hint=document.getElementById('rememberStatus411');if(hint)hint.textContent='';
   }
   function bindRemember(field){
     const id=document.querySelector('#rememberId411'),password=document.querySelector('#rememberPw411');
@@ -212,30 +213,54 @@
   window.enlUpdateRememberedProof=async(accountKey,proof)=>{
     if(pref(rememberAccount)===accountKey)await saveDeviceProof(accountKey,proof);
   };
+  // Older releases could remember consent without writing a device credential.
+  let migration;
+  window.addEventListener('pageshow',()=>{
+    const user=typeof session!=='undefined'&&(session?.manager||session?.worker);
+    if(!user||pref(ticketKey))return;
+    const field=user.role==='field'||user.role==='worker';
+    const account=(field?'site:':'hq:')+(user.id||user.personnelId);
+    const proof=field?user.pinHash:user.passwordHash;
+    if(pref(rememberAccount)===account&&/^[0-9a-f]{64}$/i.test(proof||''))migration=saveDeviceProof(account,proof);
+  });
   async function restorePassword(o){
     const input=document.querySelector('#loginPassword411'),box=document.querySelector('#rememberPw411');
     box.disabled=!input;box.checked=!!input&&pref(rememberAccount)===o.accountKey;
     if(!input)return;
     input.autocomplete=box.checked?'current-password':'off';
+    const hint=document.getElementById('rememberStatus411');
     let edited=false;
-    input.addEventListener('input',()=>{edited=true;delete input.dataset.restored;input.required=true;input.placeholder='비밀번호를 입력하세요'});
+    input.addEventListener('input',()=>{
+      if(!input.value&&!edited&&input.dataset.restored)return;
+      edited=true;
+      delete input.dataset.restored;
+      input.required=true;input.placeholder='비밀번호를 입력하세요';hint.textContent='';
+    });
     const eligible=()=>input.isConnected&&selected===o&&box.checked&&pref(rememberAccount)===o.accountKey&&!input.value&&!edited;
     if(!box.checked)return;
-    try{
-      const ticket=pref(ticketKey);
-      if(ticket){
-        const record=await deviceStore('readonly',store=>store.get(ticket));
-        if(eligible()&&pref(ticketKey)===ticket&&record?.accountKey===o.accountKey){
-          input.dataset.restored=ticket;input.required=false;input.placeholder='저장된 비밀번호 사용';
-        }
-      }else if(window.PasswordCredential&&navigator.credentials?.get){
-        // Migrate a previously saved browser credential after the next successful login.
-        const c=await navigator.credentials.get({password:true,mediation:'silent'});
-        if(eligible()&&c?.id===o.accountKey){input.value=c.password;input.dataset.restored='native'}
+    const ticket=pref(ticketKey);
+    if(ticket){
+      input.dataset.restored=ticket;input.required=false;input.placeholder='●●●●●●●●';
+      hint.textContent='이 기기에 기억된 비밀번호로 바로 로그인할 수 있습니다.';
+      await migration;
+      const record=await deviceStore('readonly',store=>store.get(ticket)).catch(()=>null);
+      if(record?.accountKey!==o.accountKey&&eligible()&&pref(ticketKey)===ticket){
+        resetPasswordField(input);
+        pref(ticketKey,'');
+        hint.textContent='이 기기에서 저장 정보를 찾을 수 없습니다. 비밀번호를 한 번 입력해 로그인해 주세요.';
       }
-    }catch{/* Manual password entry remains available when browser storage is restricted. */}
+      return;
+    }
+    hint.textContent='기억하기는 켜져 있습니다. 비밀번호를 한 번 입력해 로그인하면 이 기기에 저장됩니다.';
+    try{
+      if(window.PasswordCredential&&navigator.credentials?.get){
+        const c=await navigator.credentials.get({password:true,mediation:'silent'});
+        if(eligible()&&c?.id===o.accountKey&&c.password){input.value=c.password;input.dataset.restored='native';hint.textContent='브라우저에 기억된 비밀번호로 로그인할 수 있습니다.'}
+      }
+    }catch{/* Leave the one-time entry instruction visible. */}
   }
   async function readDeviceProof(accountKey,ticket){
+    await migration;
     const record=await deviceStore('readonly',store=>store.get(ticket));
     if(record?.accountKey!==accountKey||pref(ticketKey)!==ticket||pref(rememberAccount)!==accountKey)throw new Error('credential_unavailable');
     const bytes=await crypto.subtle.decrypt({name:'AES-GCM',iv:record.iv,additionalData:new TextEncoder().encode(accountKey)},record.key,record.sealed);
@@ -294,7 +319,7 @@
   }
   function renderPassword(o){
     const box=document.getElementById('loginPwWrap411'),needsPassword=o.kind==='hq'||o.requiresPassword;box.hidden=false;
-    box.innerHTML='<form id="loginPwForm411" class="login411-pw">'+(needsPassword?'<label><span>비밀번호</span><input id="loginPassword411" placeholder="비밀번호를 입력하세요" type="password" autocomplete="current-password" required></label>':'')+'<button id="loginSubmit411" class="login411-submit" type="submit">로그인</button></form>';
+    box.innerHTML='<form id="loginPwForm411" class="login411-pw">'+(needsPassword?'<label><span>비밀번호</span><input id="loginPassword411" placeholder="비밀번호를 입력하세요" type="password" autocomplete="current-password" required></label>':'')+'<small id="rememberStatus411" role="status"></small><button id="loginSubmit411" class="login411-submit" type="submit">로그인</button></form>';
     box.querySelector('form').onsubmit=loginPassword;
     if(needsPassword){const id=document.createElement('input');id.name='username';id.type='text';id.autocomplete='username';id.hidden=true;id.value=o.accountKey;box.querySelector('form').prepend(id);box.querySelector('[type=password]').name='password';}
     restorePassword(o);
@@ -317,6 +342,7 @@
     try{hash=ticket?await readDeviceProof(o.accountKey,ticket):pw?await sha256(pw):''}
     catch{
       if(selected!==o)return;
+      if(ticket&&pref(ticketKey)===ticket)pref(ticketKey,'');
       if(input)resetPasswordField(input);
       btn.disabled=false;btn.textContent='로그인';status('저장된 정보를 사용할 수 없습니다. 비밀번호를 다시 입력해 주세요.','err');input?.focus();return;
     }

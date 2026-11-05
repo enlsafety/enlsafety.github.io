@@ -5,7 +5,6 @@
   const GLOBAL_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-global-refresh';
   const CLIENT='incident-report-v2';
   const BUILD_KEY='enl_last_loaded_build_v412';
-  const CONTROL_KEY='enl_global_update_epoch_v415';
   const CURRENT_BUILD=document.querySelector('meta[name="enl-build"]')?.content||'4.1.2-r16';
   const VERSION=String(CURRENT_BUILD).replace(/-r\d+$/,'');
   const UPDATE_LABEL='최신버전으로 업데이트';
@@ -45,9 +44,17 @@
     if(target.ver!==VERSION)return versionOlder(VERSION,target.ver);
     return Number(target.build.split('-r').pop())>Number(CURRENT_BUILD.split('-r').pop());
   }
-  function rememberCurrentBuild(){try{localStorage.setItem(BUILD_KEY,CURRENT_BUILD)}catch(e){}}
-  function readEpoch(){try{return Number(localStorage.getItem(CONTROL_KEY)||0)||0}catch(e){return 0}}
-  function saveEpoch(v){try{localStorage.setItem(CONTROL_KEY,String(Number(v)||0))}catch(e){}}
+  const APPLIED_KEY='enl_update_applied_notice';
+  function rememberCurrentBuild(){
+    try{
+      const previous=localStorage.getItem(BUILD_KEY)||'';
+      const match=/^(\d+\.\d+\.\d+)-r(\d+)$/.exec(previous);
+      if(match&&(versionOlder(match[1],VERSION)||(match[1]===VERSION&&Number(match[2])<Number(CURRENT_BUILD.split('-r').pop())))){
+        localStorage.setItem(APPLIED_KEY,CURRENT_BUILD);
+      }
+      localStorage.setItem(BUILD_KEY,CURRENT_BUILD);
+    }catch{}
+  }
   rememberCurrentBuild();
 
   function goLatest(t){
@@ -66,37 +73,43 @@
       return j;
     }finally{if(timer)clearTimeout(timer)}
   }
-  let checkingGlobal=false,checkedEpoch=null,pendingUpdate=null,deferredBuild='';
+  let checkingGlobal=false,pendingUpdate=null,deferredBuild='';
   function updateBusy(){
     return document.visibilityState==='hidden'||!!document.querySelector('#unifiedReportForm,#reportForm,.modal,dialog[open]')||
       !!window.enlUiModalBusy?.()||!!window.enlIncidentHasUnsavedChanges?.();
   }
   function refreshUpdateNotice(){
     const existing=document.getElementById('enlUpdateNotice');
-    if(!pendingUpdate||!currentUser?.()||updateBusy()||deferredBuild===pendingUpdate.build){existing?.remove();return}
-    if(existing)return;
+    let applied=false;
+    try{applied=!pendingUpdate&&localStorage.getItem(APPLIED_KEY)===CURRENT_BUILD}catch{}
+    if((!pendingUpdate&&!applied)||updateBusy()||(pendingUpdate&&deferredBuild===pendingUpdate.build)){existing?.remove();return}
+    const build=pendingUpdate?.build||CURRENT_BUILD;
+    if(existing?.dataset.build===build)return;
+    existing?.remove();
+    style();
     const panel=document.createElement('aside');panel.id='enlUpdateNotice';panel.setAttribute('aria-label','앱 업데이트');
-    panel.innerHTML='<strong role="status">새 버전이 있습니다</strong><p>로그인은 유지됩니다. 지금 업데이트하면 현재 화면을 다시 엽니다.</p><div><button type="button" data-update-later>나중에</button><button type="button" data-update-now>지금 업데이트</button></div>';
+    panel.dataset.build=build;
+    if(applied){
+      panel.innerHTML='<strong role="status">업데이트가 적용되었습니다</strong><p></p><div><button type="button">확인</button></div>';
+      panel.querySelector('p').textContent='현재 버전 v'+CURRENT_BUILD;
+      panel.querySelector('button').onclick=()=>{try{localStorage.removeItem(APPLIED_KEY)}catch{}panel.remove()};
+      document.body.appendChild(panel);
+      return;
+    }
+    panel.innerHTML='<strong role="status">새 버전이 있습니다</strong><p>지금 업데이트하면 최신 버전으로 화면을 다시 엽니다.</p><div><button type="button" data-update-later>나중에</button><button type="button" data-update-now>지금 업데이트</button></div>';
     panel.querySelector('[data-update-later]').onclick=()=>{deferredBuild=pendingUpdate.build;panel.remove();refreshControls()};
     panel.querySelector('[data-update-now]').onclick=()=>{
-      if(!currentUser?.()||updateBusy()){refreshUpdateNotice();return}
+      if(updateBusy()){refreshUpdateNotice();return}
       window.enlSaveBackgroundState?.();goLatest(pendingUpdate);
     };
     document.body.appendChild(panel);
   }
   async function checkGlobalControl(){
-    if(checkingGlobal||!currentUser?.()||document.visibilityState==='hidden')return false;
+    if(checkingGlobal||document.visibilityState==='hidden')return false;
     checkingGlobal=true;
     try{
-      const r=await globalCall('GET'),epoch=Number(r.epoch);
-      if(!Number.isSafeInteger(epoch)||epoch<=0||epoch<readEpoch())return false;
-      if(epoch!==checkedEpoch){
-        const target=newest(await latestMeta());
-        if(!currentUser?.()||epoch<readEpoch())return false;
-        // Recheck metadata on the next poll if publication and its signal differ.
-        if(target.build===r.version)checkedEpoch=epoch;
-        pendingUpdate=isNewer(target)?target:null;saveEpoch(epoch);
-      }
+      const target=newest(await latestMeta());
+      pendingUpdate=isNewer(target)?target:null;
       refreshUpdateNotice();return !!pendingUpdate;
     }catch(e){return false}finally{checkingGlobal=false}
   }
@@ -129,8 +142,8 @@
     const btn=document.querySelector('[data-enl-global-update]');if(btn){btn.disabled=true;btn.textContent='전체 업데이트 중…'}
     try{
       const target=newest(await latestMeta());
-      const r=await globalCall('POST',{action:'global-refresh',actor:a,passwordHash:await sha256(pw),version:target.build});
-      saveEpoch(r.epoch);pendingUpdate=isNewer(target)?target:null;deferredBuild='';refreshUpdateNotice();
+      await globalCall('POST',{action:'global-refresh',actor:a,passwordHash:await sha256(pw),version:target.build});
+      pendingUpdate=isNewer(target)?target:null;deferredBuild='';refreshUpdateNotice();
       if(!pendingUpdate)alert('업데이트를 요청했습니다. 이 기기는 이미 최신 버전입니다.');return true;
     }catch(e){
       const m=String(e?.message||'');
@@ -145,7 +158,7 @@
   window.enlForceLatestRefresh=safetyGlobalUpdate;
   window.enlRefreshDataNow=refreshData;
   window.enlCheckGlobalUpdate=checkGlobalControl;
-  window.enlCheckLatestVersion=()=>Promise.resolve(false);
+  window.enlCheckLatestVersion=checkGlobalControl;
 
   function style(){if(document.getElementById('enlStableControlStyle410'))return;const s=document.createElement('style');s.id='enlStableControlStyle410';s.textContent=`
     #enlUpdateNotice{position:fixed;z-index:1000;right:12px;bottom:max(12px,env(safe-area-inset-bottom));width:min(340px,calc(100% - 24px));box-sizing:border-box;padding:16px;border:1px solid #adc2d0;border-radius:12px;background:white;color:#142f45;box-shadow:0 4px 24px #18324c33}#enlUpdateNotice p{margin:6px 0 12px;line-height:1.45}#enlUpdateNotice div{display:flex;justify-content:flex-end;gap:8px}#enlUpdateNotice button{padding:9px 12px;border:1px solid #9fb5c7;border-radius:8px;background:white;color:#173e60}#enlUpdateNotice [data-update-now]{background:#174d78;color:white}

@@ -11,7 +11,10 @@
 .safety-ui .login-v411 .login-brand .login-shield{display:block;width:68px;height:68px;min-width:0;padding:0;background:none;border:0;border-radius:0;box-shadow:none}
 .safety-ui .login-v411 .login-brand .login-shield .enl-system-mark{display:block;width:100%;height:100%}
 .safety-ui .login-v411 .login-brand h1{font-size:clamp(26px,1.85vw,36px);font-weight:800;line-height:1.28;letter-spacing:-1px;color:#071539;margin:0}
-.safety-ui .login-v411 .login-brand p,.safety-ui .login-v411 .login411-note{display:none}
+.safety-ui .login-v411 .login-brand p{display:none}
+.safety-ui .login-v411 .login411-note{grid-column:1/-1;margin:0;color:#45627e;font-size:11px;text-align:right}
+#rememberStatus411:empty{display:none}
+#rememberStatus411{font-size:13px;color:#235b55}
 .safety-ui .login-v411 .login-card>label{grid-column:1;grid-row:2;min-width:0;margin:0;position:relative}
 .safety-ui .login-v411 .aff-field411{grid-column:2;grid-row:2;min-width:0}
 .safety-ui .login-v411 .login-card>label>span,.safety-ui .login-v411 .aff-field411>span,.safety-ui .login-v411 #loginEmail411>label,.safety-ui .login-v411 .login411-pw>label>span,.safety-ui .login-v411 .login-preview-password>label>span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;margin:-1px;padding:0;border:0}

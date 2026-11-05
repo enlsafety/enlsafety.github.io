@@ -29,7 +29,10 @@ const {webkit,chromium}=require('playwright'),{tab}=require('./field-entry-table
    window.confirm=()=>true;window.alert=()=>{};
    Object.defineProperty(window,'PasswordCredential',{configurable:true,value:undefined});
 
- });await p.locator('#loginName411').fill('통합검수');await p.locator('#loginPassword411').waitFor();
+ });
+ // A previous version recorded that it opened the dialog, even without acknowledgement.
+ await p.evaluate(k=>localStorage.setItem('enl.firstPasswordPrompt.v1.'+k,'1'),accountKey);
+ await p.locator('#loginName411').fill('통합검수');await p.locator('#loginPassword411').waitFor();
  await p.waitForFunction(id=>document.activeElement?.id===id,width>500?'loginPassword411':'companyLocal411');
  await p.locator('#loginPassword411').focus();
  await p.keyboard.type('focus-check');
@@ -63,8 +66,9 @@ const {webkit,chromium}=require('playwright'),{tab}=require('./field-entry-table
  await logout();await p.reload();
  assert.equal(await p.locator('#loginName411').inputValue(),width>500?'통합검수':'');
  if(width<=500)await p.locator('#loginName411').fill('통합검수');
- const ready=()=>p.locator('#loginPassword411[placeholder="저장된 비밀번호 사용"]').waitFor();
+ const ready=()=>p.locator('#loginPassword411[placeholder="●●●●●●●●"]').waitFor();
  await ready();
+ await p.getByText('이 기기에 기억된 비밀번호로 바로 로그인할 수 있습니다.').waitFor();
  assert.equal(await p.locator('#loginPassword411').inputValue(),'');
  await p.locator('#loginSubmit411').click();await p.locator('[data-module=incident]').waitFor();
  await logout();if(width<=500)await p.locator('#loginName411').fill('통합검수');
@@ -83,5 +87,27 @@ const {webkit,chromium}=require('playwright'),{tab}=require('./field-entry-table
  await p.locator('#loginPassword411').waitFor();
  assert.ok(await p.locator('#loginPassword411').evaluate(el=>el.required&&!el.value));
  assert.ok(!await p.locator('#rememberPw411').isChecked());
+ // Exercise a legacy consent-only installation with no browser password manager.
+ await p.evaluate(k=>localStorage.setItem('enl.login.rememberPasswordFor',k),accountKey);
+ await p.reload();if(width<=500)await p.locator('#loginName411').fill('통합검수');
+ await p.getByText('기억하기는 켜져 있습니다.',{exact:false}).waitFor();
+ await p.locator('#loginPassword411').fill(width>500?'changed-in-fixture':'isolated');
+ await p.locator('#loginSubmit411').click();await p.locator('[data-module=incident]').waitFor();
+ if(width>500){
+   await p.evaluate(()=>localStorage.removeItem('enl.login.deviceCredential'));
+   await p.reload();await p.locator('[data-module=incident]').waitFor();
+ }
+ await logout();if(width<=500)await p.locator('#loginName411').fill('통합검수');
+ await ready();await p.locator('#loginSubmit411').click();await p.locator('[data-module=incident]').waitFor();
+ await logout();
+ const meta=require(process.cwd()+'/version.json');
+ await p.route('**/version.json?*',r=>r.fulfill({json:{...meta,build:meta.build.replace(/\d+$/,v=>String(Number(v)+1))}}));
+ await p.waitForFunction(()=>window.enlCheckLatestVersion());
+ await p.locator('[data-update-later]').click();
+ await p.evaluate(()=>localStorage.setItem('enl_last_loaded_build_v412','4.8.13-r71'));
+ await p.unroute('**/version.json?*');await p.reload();
+ await p.getByText('업데이트가 적용되었습니다').waitFor();
+ await p.locator('#enlUpdateNotice button').click();await p.reload();
+ assert.equal(await p.getByText('업데이트가 적용되었습니다').count(),0);
  console.log('PASS verified login and independent consent across login screens',engine.name(),width);
  }finally{await b.close()}}})().catch(e=>{console.error(e);process.exitCode=1});
