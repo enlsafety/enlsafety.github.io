@@ -19,6 +19,9 @@ async function check(browser, role, width) {
       if (url.pathname === '/stable412.html') {
         body = body.toString().replace('<head>', '<head><script src="tests/integrated-home-fixture.js"></script>');
       }
+      if(url.pathname==='/tests/integrated-home-fixture.js'){
+        body=body.toString().replace('localStorage.clear();sessionStorage.clear();','');
+      }
       return route.fulfill({ body, contentType:mime[path.extname(file)] || 'application/octet-stream' });
     });
     await page.goto(origin + '/stable412.html?role=' + role);
@@ -52,6 +55,35 @@ async function check(browser, role, width) {
     await active('home');
     assert.equal(await page.locator('[data-worktab]').count(), 1);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+    await side('feature:incident');
+    await active('incident');
+    if(role==='safety')await page.locator('[data-shell-view=incidents]').click();
+    await page.evaluate(()=>window.enlSaveBackgroundState());
+    await page.goto(origin + '/stable412.html?_latest=update-test&role=' + role);
+    await page.waitForFunction(()=>document.querySelector('#view')?.innerText.trim().length>5);
+    assert.equal(await page.locator('.hub-sidebar').count(),1,'the sidebar must mount on an update directly into a saved module');
+    await page.locator('.hub-sidebar [data-hub="feature:incident"]').waitFor({state:'attached'});
+    await page.evaluate(()=>window.enlRefreshDataNow());
+    assert.equal(await page.locator('.hub-worktabs').count(),1);
+    if(width<600)assert.ok(await page.locator('.hub-mobile-menu').isVisible());
+    else assert.ok(await page.locator('.hub-sidebar').isVisible());
+    await side('home');
+    await active('home');
+    await page.reload();
+    await active('home');
+    await page.evaluate(()=>window.enlRefreshDataNow());
+    await side('support');
+    await active('support');
+    if(role==='safety'){
+      await side('feature:system');
+      await active('system');
+      await page.reload();
+      await active('system');
+      await side('home');
+      await active('home');
+    }
+    assert.equal(await page.locator('.hub-sidebar').count(),1);
+    assert.equal(await page.locator('.hub-mobile-menu').count(),1);
     console.log('PASS workspace tab navigation, reuse, access and closing:', role, width);
   } finally {
     await page.close();

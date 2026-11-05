@@ -107,9 +107,29 @@
     go('system-admin',u);
     return document.querySelector('#view > .system-admin')?.ready;
   };
+  // Keep navigation owned by the signed-in shell, even when a module replaces #view.
+  window.enlEnsureWorkspace=(root,u)=>{
+    const shell=root.closest('.app-shell');
+    if(!shell)return;
+    const frame=shell.enlWorkspaceFrame;
+    if(!frame||frame.enlActorKey!==sessionKey(u)){
+      if(frame){frame.remove();shell.querySelector('.hub-worktabs')?.remove();delete shell.enlWorkspaceFrame;}
+      window.enlPlatformHome(root,u);
+    }else if(!shell.contains(frame)||!shell.querySelector('.hub-mobile-menu')){
+      frame.restoreIncidentFrame(root,u);
+    }
+    return shell.enlWorkspaceFrame;
+  };
   window.enlPlatformHome=async(root,u)=>{
-    if(root.querySelector('.platform-hub'))return;
-    const host=document.createElement('section');host.className='platform-hub';root.replaceChildren(host);
+    const shell=root.closest('.app-shell');
+    if(!shell)return;
+    if(shell.enlWorkspaceFrame){
+      shell.enlWorkspaceFrame.syncWorkView(root,u);
+      return;
+    }
+    const host=document.createElement('section');host.className='platform-hub';
+    host.enlActorKey=sessionKey(u);shell.enlWorkspaceFrame=host;
+    if(currentView==='platform')root.replaceChildren(host);else root.before(host);
     const admin=u.role==='safety';
     const dashboard=window.ENLHub.mount(host,u,{go:view=>go(view,u),icons,names,featureName,manageCards});
     const {area,services,status}=dashboard;
@@ -372,7 +392,22 @@
       if(!host.isConnected||config&&Number(next.revision)<Number(config.revision))return;
       config=next;cards();
     }
-    host.reloadCatalog=()=>load().catch(()=>{status.textContent='업무 목록을 새로 불러오지 못했습니다.'});
-    try{await load()}catch{area.innerHTML='<p>업무기능을 불러오지 못했습니다.</p><button>다시 시도</button>';area.querySelector('button').onclick=()=>{host.remove();window.enlPlatformHome(root,u)};}
+    host.reloadCatalog=async()=>{
+      try{
+        await load();
+        if(status.textContent==='업무 목록을 불러오지 못했습니다.')status.textContent='';
+      }catch{
+        if(!host.isConnected)return;
+        status.textContent='업무 목록을 불러오지 못했습니다.';
+        if(!config){
+          const nav=host.querySelector('.hub-sidebar nav');
+          if(!nav.querySelector('[data-retry-catalog]')){
+            const retry=document.createElement('button');retry.type='button';retry.dataset.retryCatalog='';
+            retry.textContent='메뉴 다시 불러오기';retry.onclick=host.reloadCatalog;nav.append(retry);
+          }
+        }
+      }
+    };
+    await host.reloadCatalog();
   };
 })();

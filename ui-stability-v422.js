@@ -48,7 +48,7 @@
       const systemShell=u.role==='safety'&&['more','system-admin'].includes(currentView);
       if(shell&&root&&mountedUserId===id&&shell.hasAttribute('data-system-shell')===systemShell){
         if(modalBusy()||transientViewBusy())return root;
-        if(currentView!=='platform'&&!document.querySelector('.hub-incident-workspace'))window.ENLHub?.cleanup();
+        window.enlEnsureWorkspace?.(root,u)?.syncWorkView(root,u);
         syncNavState();
         try{
           if(typeof window.renderCurrentView==='function')return window.renderCurrentView(u)||root;

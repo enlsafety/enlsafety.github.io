@@ -113,7 +113,7 @@
   strip.className='hub-worktabs';strip.setAttribute('aria-label','열린 업무');
   function tabTitle(key){
     if(Object.hasOwn(builtins,key))return builtins[key];
-    const m=entry(key);return m?featureName(m):key;
+    const m=entry(key);return m?featureName(m):(names[key]||key);
   }
   function paintTabs(){
     const header=host.closest('.app-shell')?.querySelector('.topbar');
@@ -212,6 +212,7 @@
   };
   host.restoreIncidentFrame=(view,actor)=>{
     if(JSON.stringify([actor.id||actor.personnelId,actor.role,actor.siteId||''])!==userKey)return;
+    view.closest('.app-shell').enlWorkspaceFrame=host;
     view.before(host);host.syncWorkView(view,actor);bindHeader();
   };
   paintTabs();
@@ -223,7 +224,7 @@
   function navigation(){
     const nav=host.querySelector('.hub-sidebar > nav');
     nav.innerHTML=action('home',sidebarIcon('home')+'<span>홈</span>',host.classList.contains('hub-incident-workspace')?'':'on');
-    for(const key of catalog.homeOrder){
+    for(const key of catalog?.homeOrder||[]){
       const m=entry(key);
       if(key==='support'){nav.insertAdjacentHTML('beforeend',action('support',sidebarIcon('support')+'<span>공통업무지원서비스</span>'));continue;}
       if(!m||(!admin&&m.state==='hidden'))continue;
@@ -266,7 +267,7 @@
   host.querySelectorAll('[data-hub]').forEach(b=>b.onclick=()=>dispatch(b.dataset.hub));
   function afterCards(c){catalog=c;navigation();paintTabs();paintApprovals();renderArtwork(host);}
   const refresh=()=>{if(sameUser())paintApprovals();else window.removeEventListener('enl-incidents-pulled',refresh)};window.addEventListener('enl-incidents-pulled',refresh);
-  loadContent();loadRecent();
+  navigation();loadContent();loadRecent();
   return {area,services,status,addSupportCard,afterCards,selectTab};
  }
  document.addEventListener('input',ev=>{
