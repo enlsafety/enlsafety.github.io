@@ -1,4 +1,4 @@
-# Integrated home release r43
+# Integrated home release r44
 
 The integrated home follows the supplied 1672x941 reference. The reference asset supplies the original golf-course banner. The logo is an independent background-free SVG and the feature/calendar illustrations use a transparent 3-by-3 atlas, so card backgrounds never include cropped screenshot rectangles. Text, navigation, cards, search results and records are accessible HTML controls. Identity, dates, counts and records come from the signed-in account and existing scoped data; the example person, records and badges in the reference are not seeded.
 
@@ -38,3 +38,11 @@ Revert the static release commit to restore the previous home; retain the additi
 - No authentication, backend, account, permission or incident-workflow changes. Static entry and PWA cache keys increment together.
 
 Validation: JS syntax, release/cache asset checks and diff checks passed. Managed Chromium isolated fixture verified search, menu rename/save, support menu, and responsive layout. Native Safari/iPhone hardware was not available.
+
+## Artwork quality r44
+
+The generated PNG atlas had noisy transparent edges even at rest. Replaced the active feature/calendar atlas with a self-contained native SVG using continuous paths and gradients, retaining the nine subjects and color assignments. No raster embedding, external fonts, filters or cross-cell clipping is used. The original PNG remains in the repository for recovery but is no longer requested or precached.
+
+Desktop hover keeps the 2 CSS pixel lift using relative top positioning in two whole-pixel steps. Removed the parent brightness filter and transform animation so the artwork is neither filtered nor scaled during hover. Border and shadow supply selection feedback. Hover motion is limited to fine pointers and disabled for reduced-motion users.
+
+Validation: managed Chromium isolated fixture confirmed resting and actual hovered rendering. Animation-frame samples showed top 0/-1/-2px, filter/transform none, and unchanged artwork dimensions through the transition. Responsive widths 393, 360 and 768 (inner client widths 378, 345 and 753 with scrollbar) had no horizontal overflow or description/arrow collisions. Incident entry/return worked. SVG XML parsing, release/cache checks and diff checks passed. Native Safari and physical iPhone testing was not performed for this revision. No application logic, role rules, accounts or production data were changed.
