@@ -103,11 +103,21 @@ const {webkit,chromium}=require('playwright'),{tab}=require('./field-entry-table
  const meta=require(process.cwd()+'/version.json');
  await p.route('**/version.json?*',r=>r.fulfill({json:{...meta,build:meta.build.replace(/\d+$/,v=>String(Number(v)+1))}}));
  await p.waitForFunction(()=>window.enlCheckLatestVersion());
- await p.locator('[data-update-later]').click();
- await p.evaluate(()=>localStorage.setItem('enl_last_loaded_build_v412','4.8.13-r71'));
+ const notice=p.getByRole('dialog',{name:'새 버전이 있습니다'});await notice.waitFor();
+ assert.deepEqual(await notice.getByRole('button').allTextContents(),['나중에','지금 업데이트']);
+ const centered=await notice.evaluate(el=>{
+   const box=el.getBoundingClientRect();
+   return el.matches(':modal')&&Math.abs(box.x+box.width/2-innerWidth/2)<2&&Math.abs(box.y+box.height/2-innerHeight/2)<2;
+ });
+ assert.ok(centered,'update choice stays in the center of the viewport');
+ const previousUrl=p.url();
+ await notice.getByRole('button',{name:'나중에'}).click();
+ await p.evaluate(()=>window.enlCheckLatestVersion());
+ assert.equal(await notice.count(),0);assert.equal(p.url(),previousUrl);
+ // No after-the-fact popup when a current page opens with legacy acknowledgement data.
+ await p.evaluate(build=>localStorage.setItem('enl_update_applied_notice',build),meta.version+'-r'+meta.build.split('-r')[1]);
  await p.unroute('**/version.json?*');await p.reload();
- await p.getByText('업데이트가 적용되었습니다').waitFor();
- await p.locator('#enlUpdateNotice button').click();await p.reload();
- assert.equal(await p.getByText('업데이트가 적용되었습니다').count(),0);
+ await p.evaluate(()=>window.enlCheckLatestVersion());
+ assert.equal(await p.locator('#enlUpdateNotice').count(),0);
  console.log('PASS verified login and independent consent across login screens',engine.name(),width);
  }finally{await b.close()}}})().catch(e=>{console.error(e);process.exitCode=1});

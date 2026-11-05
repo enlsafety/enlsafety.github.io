@@ -19,12 +19,13 @@
     `;document.head.appendChild(s);
   }
 
-  function modalBusy(){
+  function modalBusy(except=null){
     const root=document.getElementById('modalRoot');
     if(root&&root.children.length>0)return true;
     if(document.getElementById('enl418Overlay'))return true;
-    if(document.querySelector('.modal-overlay,.modal-backdrop,[role="dialog"],dialog[open]'))return true;
-    return false;
+    const selector='.modal-overlay,.modal-backdrop,[role="dialog"],dialog[open]';
+    if(!except)return !!document.querySelector(selector);
+    return Array.from(document.querySelectorAll(selector)).some(el=>el!==except);
   }
   function transientViewBusy(){
     return ['field-inquiry','inquiry'].includes(currentView)&&!!document.querySelector('#view .wf412-page');

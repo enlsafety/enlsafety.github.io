@@ -143,6 +143,11 @@ async function run(engine){
         if(url.pathname==='/version.json')return metadataOffline?route.abort():route.fulfill({json:release});
         const name=url.pathname.slice(1);
         if(!/^[\w.-]+$/.test(name)||!fs.existsSync(name))return route.abort();
+        if(name==='stable412.html'&&release===newer){
+          const revision=release.version+'-r'+release.build.split('-r')[1];
+          const html=fs.readFileSync(name,'utf8').replace(/(name="enl-build" content=")[^"]+/,(_,prefix)=>prefix+revision);
+          return route.fulfill({contentType:'text/html',body:html});
+        }
         return route.fulfill({contentType:mime[path.extname(name)]||'application/octet-stream',body:fs.readFileSync(name)});
       }
       if(url.pathname.endsWith('/enl-push-v418')&&req.postDataJSON()?.action==='view_list'){
@@ -210,6 +215,8 @@ async function run(engine){
     await Promise.all([page.waitForURL('**/*_latest=*'),page.locator('[data-update-now]').click()]);
     assert.equal(await page.evaluate(()=>currentUser()?.id),actor.id);
     assert.equal(await page.evaluate(k=>JSON.parse(localStorage.getItem(k)).manager.passwordHash,primary),actor.passwordHash);
+    assert.equal(await check(),false,'the updated page matches the published version');
+    assert.equal(await page.locator('#enlUpdateNotice').count(),0);
     const pull=()=>page.evaluate(()=>window.enlIncidentPullNow(false).catch(()=>false));
     for(const failure of ['offline','forbidden','auth_proof_required','auth_proof_required']){pullError=failure;await pull()}
     assert.equal(messages.filter(m=>m.includes('다시 로그인')).length,1);

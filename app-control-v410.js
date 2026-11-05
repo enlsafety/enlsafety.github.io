@@ -4,7 +4,6 @@
   const META_URL='version.json';
   const GLOBAL_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-global-refresh';
   const CLIENT='incident-report-v2';
-  const BUILD_KEY='enl_last_loaded_build_v412';
   const CURRENT_BUILD=document.querySelector('meta[name="enl-build"]')?.content||'4.1.2-r16';
   const VERSION=String(CURRENT_BUILD).replace(/-r\d+$/,'');
   const UPDATE_LABEL='최신버전으로 업데이트';
@@ -44,19 +43,6 @@
     if(target.ver!==VERSION)return versionOlder(VERSION,target.ver);
     return Number(target.build.split('-r').pop())>Number(CURRENT_BUILD.split('-r').pop());
   }
-  const APPLIED_KEY='enl_update_applied_notice';
-  function rememberCurrentBuild(){
-    try{
-      const previous=localStorage.getItem(BUILD_KEY)||'';
-      const match=/^(\d+\.\d+\.\d+)-r(\d+)$/.exec(previous);
-      if(match&&(versionOlder(match[1],VERSION)||(match[1]===VERSION&&Number(match[2])<Number(CURRENT_BUILD.split('-r').pop())))){
-        localStorage.setItem(APPLIED_KEY,CURRENT_BUILD);
-      }
-      localStorage.setItem(BUILD_KEY,CURRENT_BUILD);
-    }catch{}
-  }
-  rememberCurrentBuild();
-
   function goLatest(t){
     const now=Date.now(),u=new URL(t.entry,location.href);
     u.searchParams.set('_latest',t.build||t.ver||CURRENT_BUILD);
@@ -75,34 +61,28 @@
   }
   let checkingGlobal=false,pendingUpdate=null,deferredBuild='';
   function updateBusy(){
-    return document.visibilityState==='hidden'||!!document.querySelector('#unifiedReportForm,#reportForm,.modal,dialog[open]')||
-      !!window.enlUiModalBusy?.()||!!window.enlIncidentHasUnsavedChanges?.();
+    return document.visibilityState==='hidden'||!!document.querySelector('#unifiedReportForm,#reportForm,.modal,dialog[open]:not(#enlUpdateNotice)')||
+      !!window.enlUiModalBusy?.(document.getElementById('enlUpdateNotice'))||!!window.enlIncidentHasUnsavedChanges?.();
   }
   function refreshUpdateNotice(){
     const existing=document.getElementById('enlUpdateNotice');
-    let applied=false;
-    try{applied=!pendingUpdate&&localStorage.getItem(APPLIED_KEY)===CURRENT_BUILD}catch{}
-    if((!pendingUpdate&&!applied)||updateBusy()||(pendingUpdate&&deferredBuild===pendingUpdate.build)){existing?.remove();return}
-    const build=pendingUpdate?.build||CURRENT_BUILD;
-    if(existing?.dataset.build===build)return;
+    if(!pendingUpdate||updateBusy()||deferredBuild===pendingUpdate.build){existing?.remove();return}
+    if(existing?.dataset.build===pendingUpdate.build)return;
     existing?.remove();
     style();
-    const panel=document.createElement('aside');panel.id='enlUpdateNotice';panel.setAttribute('aria-label','앱 업데이트');
-    panel.dataset.build=build;
-    if(applied){
-      panel.innerHTML='<strong role="status">업데이트가 적용되었습니다</strong><p></p><div><button type="button">확인</button></div>';
-      panel.querySelector('p').textContent='현재 버전 v'+CURRENT_BUILD;
-      panel.querySelector('button').onclick=()=>{try{localStorage.removeItem(APPLIED_KEY)}catch{}panel.remove()};
-      document.body.appendChild(panel);
-      return;
-    }
-    panel.innerHTML='<strong role="status">새 버전이 있습니다</strong><p>지금 업데이트하면 최신 버전으로 화면을 다시 엽니다.</p><div><button type="button" data-update-later>나중에</button><button type="button" data-update-now>지금 업데이트</button></div>';
-    panel.querySelector('[data-update-later]').onclick=()=>{deferredBuild=pendingUpdate.build;panel.remove();refreshControls()};
+    const panel=document.createElement('dialog');
+    panel.id='enlUpdateNotice';panel.dataset.build=pendingUpdate.build;
+    panel.setAttribute('aria-labelledby','enlUpdateTitle');
+    panel.setAttribute('aria-describedby','enlUpdateDescription');
+    panel.innerHTML='<strong id="enlUpdateTitle">새 버전이 있습니다</strong><p id="enlUpdateDescription">지금 업데이트하면 최신 버전으로 화면을 다시 엽니다.</p><div><button type="button" data-update-later autofocus>나중에</button><button type="button" data-update-now>지금 업데이트</button></div>';
+    const later=()=>{deferredBuild=panel.dataset.build;panel.close();panel.remove();refreshControls()};
+    panel.querySelector('[data-update-later]').onclick=later;
+    panel.oncancel=event=>{event.preventDefault();later()};
     panel.querySelector('[data-update-now]').onclick=()=>{
-      if(updateBusy()){refreshUpdateNotice();return}
+      if(!pendingUpdate||pendingUpdate.build!==panel.dataset.build||updateBusy()){refreshUpdateNotice();return}
       window.enlSaveBackgroundState?.();goLatest(pendingUpdate);
     };
-    document.body.appendChild(panel);
+    document.body.appendChild(panel);panel.showModal();
   }
   async function checkGlobalControl(){
     if(checkingGlobal||document.visibilityState==='hidden')return false;
@@ -161,7 +141,7 @@
   window.enlCheckLatestVersion=checkGlobalControl;
 
   function style(){if(document.getElementById('enlStableControlStyle410'))return;const s=document.createElement('style');s.id='enlStableControlStyle410';s.textContent=`
-    #enlUpdateNotice{position:fixed;z-index:1000;right:12px;bottom:max(12px,env(safe-area-inset-bottom));width:min(340px,calc(100% - 24px));box-sizing:border-box;padding:16px;border:1px solid #adc2d0;border-radius:12px;background:white;color:#142f45;box-shadow:0 4px 24px #18324c33}#enlUpdateNotice p{margin:6px 0 12px;line-height:1.45}#enlUpdateNotice div{display:flex;justify-content:flex-end;gap:8px}#enlUpdateNotice button{padding:9px 12px;border:1px solid #9fb5c7;border-radius:8px;background:white;color:#173e60}#enlUpdateNotice [data-update-now]{background:#174d78;color:white}
+    #enlUpdateNotice{position:fixed;inset:0;margin:auto;height:fit-content;max-height:calc(100dvh - 32px);overflow:auto;width:min(340px,calc(100% - 24px));box-sizing:border-box;padding:16px;border:1px solid #adc2d0;border-radius:12px;background:white;color:#142f45;box-shadow:0 4px 24px #18324c33}#enlUpdateNotice::backdrop{background:rgba(20,42,62,.38)}#enlUpdateNotice p{margin:6px 0 12px;line-height:1.45}#enlUpdateNotice div{display:flex;justify-content:flex-end;gap:8px}#enlUpdateNotice button{padding:9px 12px;border:1px solid #9fb5c7;border-radius:8px;background:white;color:#173e60}#enlUpdateNotice [data-update-now]{background:#174d78;color:white}
     html,body{overscroll-behavior-y:none}.header-update-control{display:flex;align-items:center;gap:5px;margin-left:auto;margin-right:6px;white-space:nowrap}.header-version{font-size:10px;font-weight:900;color:#174d78;background:#eef8ff;border:1px solid #c9dfed;border-radius:999px;padding:6px 8px}.header-refresh-btn,.header-global-update-btn{border:1px solid #1e5d91;background:#fff;color:#174d78;border-radius:9px;padding:7px 9px;font-size:11px;font-weight:900;cursor:pointer}.header-global-update-btn{background:#1e5d91;color:#fff}.header-refresh-btn:disabled,.header-global-update-btn:disabled{opacity:.65;cursor:wait}@media(max-width:720px){.header-update-control{gap:3px;margin-right:2px}.header-version{padding:5px 6px;font-size:9px}.header-refresh-btn,.header-global-update-btn{padding:6px 7px;font-size:9px}}`;
     document.head.appendChild(s)
   }
