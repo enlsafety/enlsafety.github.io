@@ -1,0 +1,6 @@
+# E&L integrated system UI requirements
+
+- Preserve user-approved artwork, shapes, materials and colors when fixing resolution or rendering. Do not replace illustrations with a new drawing style or vectors unless the user requests that change.
+- Decorative illustrations inserted into the safety management system must use a genuine transparent background with clean edges. Do not carry rectangular screenshot backgrounds into the UI. Keep deliberate full-scene banners separate from cutout icons.
+- Preserve original assets non-destructively. Inspect the actual source resolution and alpha before changing assets. Distinguish source resolution from screen rendering resolution; do not claim extra image detail from simple interpolation.
+- Check resting and hovered rendering, high-density buffers, mobile layout and role-specific entry controls. Keep incident workflows, permissions and production records unchanged during visual work.

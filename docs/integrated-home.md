@@ -1,4 +1,4 @@
-# Integrated home release r44
+# Integrated home release r45
 
 The integrated home follows the supplied 1672x941 reference. The reference asset supplies the original golf-course banner. The logo is an independent background-free SVG and the feature/calendar illustrations use a transparent 3-by-3 atlas, so card backgrounds never include cropped screenshot rectangles. Text, navigation, cards, search results and records are accessible HTML controls. Identity, dates, counts and records come from the signed-in account and existing scoped data; the example person, records and badges in the reference are not seeded.
 
@@ -46,3 +46,13 @@ The generated PNG atlas had noisy transparent edges even at rest. Replaced the a
 Desktop hover keeps the 2 CSS pixel lift using relative top positioning in two whole-pixel steps. Removed the parent brightness filter and transform animation so the artwork is neither filtered nor scaled during hover. Border and shadow supply selection feedback. Hover motion is limited to fine pointers and disabled for reduced-motion users.
 
 Validation: managed Chromium isolated fixture confirmed resting and actual hovered rendering. Animation-frame samples showed top 0/-1/-2px, filter/transform none, and unchanged artwork dimensions through the transition. Responsive widths 393, 360 and 768 (inner client widths 378, 345 and 753 with scrollbar) had no horizontal overflow or description/arrow collisions. Incident entry/return worked. SVG XML parsing, release/cache checks and diff checks passed. Native Safari and physical iPhone testing was not performed for this revision. No application logic, role rules, accounts or production data were changed.
+
+## Original artwork restoration r45 (supersedes r44 artwork)
+
+The user requires the previously approved 3D illustrations, not a replacement vector style. Restored `assets/hub-icons-r43.png` byte-for-byte (SHA-256 `ae07551a7809af0a2015c98260dc6ab8d6c6bd3b78c62720425782d5625659a4`). The source remains 1254x1254 RGBA, with 418x418 cells; no artificial source-resolution claim is made. An attempted generative restoration was rejected because it did not increase resolution and did not reliably preserve edges.
+
+The home now draws each original transparent cell directly to its own canvas, with a minimum 2x sampling buffer and higher buffers for higher device pixel ratios. Canvas placement is aligned to physical pixels and uses no CSS transform/filter. Resize and device-density changes repaint from the original source, not from an already downsampled intermediate. The old background rendering remains as a fallback until the original image loads. Observers and density listeners are released on navigation/re-render. Hover displacement is quantized to whole physical pixels at each animation step, including fractional display scaling.
+
+Replaced the thin text arrow with a rounded SVG arrow using consistent 2.8-unit strokes, inside a softly shaded white round badge (32px desktop, 28px narrow layout). This changes only the navigation arrow, not the approved illustrations. The root AGENTS.md records artwork preservation and clean-alpha requirements for future visual work.
+
+Validation: original-source hash equality, JS syntax, cache assets and diff checks passed. Managed Chromium fixture verified original illustrations, arrow appearance, resting/hovered canvas alignment, responsive resize and 3x density buffer allocation (276px for a 92 CSS pixel icon). The density check uses a test-only simulated devicePixelRatio, not physical Retina/Safari hardware. Production account, role, database and incident logic remain unchanged.

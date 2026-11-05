@@ -3,7 +3,7 @@
  'use strict';
  const safe=v=>esc(String(v??''));
  const api=body=>window.enlIncidentApi({...body,actor:window.enlCurrentActor()});
- const paths={home:'<path d="m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9"/>',search:'<circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/>',bell:'<path d="M4 17h16l-2-4V9a6 6 0 0 0-12 0v4zM9 21h6"/>',support:'<path d="m2 7 10-5 10 5-10 5zM2 12l10 5 10-5M2 17l10 5 10-5"/>',calendar:'<rect x="3" y="5" width="18" height="17" rx="2"/><path d="M7 2v6m10-6v6M3 11h18M7 15h2m3 0h2m3 0h1M7 18h2m3 0h2"/>',notice:'<path d="M3 10h5l11-6v16L8 14H3zM7 14l2 7h3l-2-6M22 9v6"/>',clock:'<circle cx="12" cy="13" r="9"/><path d="M9 1h6m-3 3v9l4 2"/>',file:'<path d="M14 3H5v18h14V8zM14 3v5h5M8 12h8m-8 4h6"/>',star:'<path d="m12 2 3 6 7 1-5 5 1 8-6-4-6 4 1-8-5-5 7-1z"/>',grid:'<rect x="2" y="2" width="8" height="8" rx="2"/><rect x="14" y="2" width="8" height="8" rx="2"/><rect x="2" y="14" width="8" height="8" rx="2"/><rect x="14" y="14" width="8" height="8" rx="2"/>',shield:'<path d="M12 2C9 5 5 5 3 5v8c0 5 5 8 9 10 4-2 9-5 9-10V5c-4 0-7-1-9-3Z"/><path d="M12 7v11M7 12h10"/>'};
+ const paths={arrow:'<path d="M5 12h14m-6-6 6 6-6 6"/>',home:'<path d="m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9"/>',search:'<circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/>',bell:'<path d="M4 17h16l-2-4V9a6 6 0 0 0-12 0v4zM9 21h6"/>',support:'<path d="m2 7 10-5 10 5-10 5zM2 12l10 5 10-5M2 17l10 5 10-5"/>',calendar:'<rect x="3" y="5" width="18" height="17" rx="2"/><path d="M7 2v6m10-6v6M3 11h18M7 15h2m3 0h2m3 0h1M7 18h2m3 0h2"/>',notice:'<path d="M3 10h5l11-6v16L8 14H3zM7 14l2 7h3l-2-6M22 9v6"/>',clock:'<circle cx="12" cy="13" r="9"/><path d="M9 1h6m-3 3v9l4 2"/>',file:'<path d="M14 3H5v18h14V8zM14 3v5h5M8 12h8m-8 4h6"/>',star:'<path d="m12 2 3 6 7 1-5 5 1 8-6-4-6 4 1-8-5-5 7-1z"/>',grid:'<rect x="2" y="2" width="8" height="8" rx="2"/><rect x="14" y="2" width="8" height="8" rx="2"/><rect x="2" y="14" width="8" height="8" rx="2"/><rect x="14" y="14" width="8" height="8" rx="2"/>',shield:'<path d="M12 2C9 5 5 5 3 5v8c0 5 5 8 9 10 4-2 9-5 9-10V5c-4 0-7-1-9-3Z"/><path d="M12 7v11M7 12h10"/>'};
  Object.assign(paths,{
   incident:'<path d="m12 3 10 18H2z"/><path d="M12 9v5m0 3h.01"/>',
   risk:'<path d="M12 2c3 2 6 3 9 3v7c0 5-4 8-9 10-5-2-9-5-9-10V5c3 0 6-1 9-3Z"/><path d="M12 7v9m-4-4h8"/>',
@@ -22,10 +22,49 @@
  const date=v=>v?day(new Date(v)).replaceAll('-','.'):'';
  function relative(v){const t=Date.parse(v);if(!Number.isFinite(t))return '';const m=Math.max(0,Math.floor((Date.now()-t)/60000));return m<1?'방금 전':m<60?m+'분 전':m<1440?Math.floor(m/60)+'시간 전':date(v)}
  function dialog(host,title){const d=document.createElement('dialog');d.className='hub-dialog';d.innerHTML='<header><h2>'+safe(title)+'</h2><button type="button" aria-label="닫기">×</button></header><div class="hub-dialog-body"></div>';host.append(d);d.querySelector('header button').onclick=()=>d.close();d.onclose=()=>d.remove();d.showModal();return d;}
+ const artworkCells={incident:0,risk:1,tbm:2,organization:3,training:4,msds:5,support:6,system:7};
+ let artworkImage,stopArtwork=()=>{};
+ function loadArtwork(){
+  if(!artworkImage)artworkImage=new Promise((resolve,reject)=>{const im=new Image();im.onload=()=>resolve(im);im.onerror=()=>{artworkImage=null;reject(new Error('artwork_load_failed'))};im.src='assets/hub-icons-r43.png'});
+  return artworkImage;
+ }
+ function renderArtwork(host){
+  stopArtwork();let stopped=false,frame=0,observer,ratioQuery;
+  const nodes=Array.from(host.querySelectorAll('.hub-art'));
+  const schedule=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(paint)};
+  function watchRatio(){ratioQuery?.removeEventListener('change',onRatio);ratioQuery=matchMedia('(resolution: '+(window.devicePixelRatio||1)+'dppx)');ratioQuery.addEventListener('change',onRatio)}
+  function onRatio(){watchRatio();schedule()}
+  async function paint(){
+   let im;try{im=await loadArtwork()}catch{return}
+   if(stopped||!host.isConnected)return;
+   const dpr=window.devicePixelRatio||1,cell=im.naturalWidth/3;
+   host.style.setProperty('--hub-hover-lift',(-2*Math.max(1,Math.round(dpr))/dpr)+'px');
+   for(const node of nodes){
+    if(!node.isConnected)continue;
+    const key=Object.keys(artworkCells).find(k=>node.classList.contains('hub-art-'+k));if(key===undefined)continue;
+    const width=node.getBoundingClientRect().width;if(!width)continue;
+    const physical=Math.max(1,Math.round(width*dpr)),size=physical/dpr;
+    const pixels=Math.max(physical,Math.round(size*2)); // At least 2x sampling, including ordinary desktop displays.
+    let canvas=node.querySelector('canvas');if(!canvas){canvas=document.createElement('canvas');canvas.setAttribute('aria-hidden','true');node.append(canvas)}
+    canvas.width=pixels;canvas.height=pixels;
+    const ctx=canvas.getContext('2d');if(!ctx)continue;
+    ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+    const n=artworkCells[key];ctx.drawImage(im,(n%3)*cell,Math.floor(n/3)*cell,cell,cell,0,0,pixels,pixels);
+    // Align the finished bitmap to physical pixels; avoid a transformed raster layer.
+    node.classList.add('hub-art-ready');const rect=node.getBoundingClientRect();
+    canvas.style.width=size+'px';canvas.style.height=size+'px';
+    canvas.style.left=(Math.round(rect.left*dpr)/dpr-rect.left)+'px';
+    canvas.style.top=(Math.round((rect.top-size/2)*dpr)/dpr-rect.top)+'px';
+   }
+  }
+  observer=new ResizeObserver(schedule);nodes.forEach(n=>{observer.observe(n);if(n.parentElement)observer.observe(n.parentElement)});
+  window.addEventListener('resize',schedule);watchRatio();schedule();
+  stopArtwork=()=>{stopped=true;cancelAnimationFrame(frame);observer.disconnect();window.removeEventListener('resize',schedule);ratioQuery?.removeEventListener('change',onRatio)};
+ }
  function decorateCard(row,m,support){if(support&&m.key!=='system')return;
   const b=row.querySelector('.platform-card'),icon=b.querySelector('.platform-icon');icon.className='hub-art hub-art-'+m.key;icon.replaceChildren();
   b.querySelector('strong').classList.add('hub-card-title');
-  b.insertAdjacentHTML('beforeend','<span class="hub-card-description">'+(descriptions[m.key]||'')+'</span><span class="hub-card-arrow" aria-hidden="true">→</span>');
+  b.insertAdjacentHTML('beforeend','<span class="hub-card-description">'+(descriptions[m.key]||'')+'</span><span class="hub-card-arrow" aria-hidden="true">'+svg('arrow')+'</span>');
  }
  function mount(host,u,{go,icons,names,featureName}){
   const admin=u.role==='safety',userKey=JSON.stringify([u.id||u.personnelId,u.role,u.siteId||'']);let catalog=null,content={notices:[],events:[],favorites:[]},loaded=false,contentError='',recent=[],recentError='',busy=false;
@@ -48,7 +87,7 @@
   async function allowed(key){const m=entry(key);if(!m||m.enabled===false||m.state==='hidden'||m.canEnter===false||m.state!=='live'&&!m.preview){status.textContent='현재 접근할 수 없는 업무입니다.';return false}try{await api({action:'platform_enter',key});return sameUser()}catch{status.textContent='접근 권한 또는 연결 상태를 확인해 주세요.';return false}}
   function clickFeature(key){const b=host.querySelector('[data-module="'+key+'"],[data-service="'+key+'"]');if(b)b.click();else status.textContent='현재 접근할 수 없는 업무입니다.';host.classList.remove('hub-menu-open')}
   function support(){host.querySelector('.hub-support').showModal()}
-  function addSupportCard(grid){const r=document.createElement('article');r.className='hub-support-card';r.innerHTML=action('support','<span class="hub-art hub-art-support" aria-hidden="true"></span><strong class="hub-card-title">공통업무지원<wbr>서비스</strong><span class="hub-card-description">'+descriptions.support+'</span><span class="hub-card-arrow" aria-hidden="true">→</span>','platform-card');r.firstElementChild.onclick=support;grid.append(r)}
+  function addSupportCard(grid){const r=document.createElement('article');r.className='hub-support-card';r.innerHTML=action('support','<span class="hub-art hub-art-support" aria-hidden="true"></span><strong class="hub-card-title">공통업무지원<wbr>서비스</strong><span class="hub-card-description">'+descriptions.support+'</span><span class="hub-card-arrow" aria-hidden="true">'+svg('arrow')+'</span>','platform-card');r.firstElementChild.onclick=support;grid.append(r)}
   function navigation(){const nav=host.querySelector('.hub-sidebar nav');nav.innerHTML=action('home',svg('home')+'<span>홈</span>','on')+catalog.modules.filter(m=>admin||m.state!=='hidden').map(m=>action('feature:'+m.key,svg(m.key,icons)+'<span>'+safe(featureName(m))+'</span>')).join('')+action('support',svg('support')+'<span>공통업무지원서비스</span>')+(admin?action('feature:system',svg('system',icons)+'<span>'+safe(featureName(entry('system'))||'시스템관리')+'</span>'):'');nav.querySelectorAll('button').forEach(b=>b.onclick=()=>dispatch(b.dataset.hub));paintFavorites()}
   function favoriteChoices(){return [...items().filter(m=>m.state!=='hidden'&&(m.key!=='system'||admin)).map(m=>({key:m.key,title:featureName(m)})),{key:'bulletins',title:'공지사항'},{key:'schedule',title:'전체 일정'}]}
   function paintFavorites(){const box=host.querySelector('.hub-favorites>div'),choices=favoriteChoices();box.replaceChildren();for(const key of content.favorites){const x=choices.find(v=>v.key===key);if(!x)continue;const b=document.createElement('button');b.type='button';b.innerHTML=svg('file')+'<span>'+safe(x.title)+'</span>';b.onclick=()=>dispatch(['bulletins','schedule'].includes(key)?key:'feature:'+key);box.append(b)}if(!box.children.length)box.innerHTML='<p>자주 쓰는 메뉴를 추가하세요.</p>'}
@@ -79,12 +118,12 @@
   function guide(){const d=dialog(host,'모듈 안내');d.querySelector('.hub-dialog-body').innerHTML='<p>운영 중인 업무는 카드를 눌러 바로 이용할 수 있습니다. 구현 중인 업무는 관리자가 허용한 시험 사용자만 진입합니다.</p><p>공지사항과 일정은 안전관리자가 등록하고 대상 사업장의 사용자에게 공유합니다.</p>'+(admin?'<p>편집을 누르면 이름 수정, 접근 설정, 순서 이동 도구가 나타납니다. 손잡이를 끌거나 접근 설정의 앞으로/뒤로 버튼으로 순서를 변경하세요.</p>':'')}
   function dispatch(key){if(key.startsWith('feature:'))return clickFeature(key.slice(8));if(key==='home'){host.classList.remove('hub-menu-open');window.scrollTo({top:0,behavior:'smooth'})}else if(key==='menu'||key==='close-menu')host.classList.toggle('hub-menu-open',key==='menu');else if(key==='support')support();else if(key==='close-support')host.querySelector('.hub-support').close();else if(key==='search')search();else if(key==='notifications')clickFeature('notices');else if(key==='edit'){host.classList.toggle('hub-editing');host.querySelector('.hub-edit-toggle').textContent=host.classList.contains('hub-editing')?'편집 완료':'편집'}else if(key==='guide')guide();else if(key==='favorites')favorites();else if(key==='bulletins')listContent('notice');else if(key==='schedule')listContent('event');else if(key==='approvals')openApprovalList();else if(key==='recent'){const d=dialog(host,'최근 작업'),box=d.querySelector('.hub-dialog-body');for(const r of recent)rowButton(box,r.sentence,relative(r.happened_at),()=>openActivity(r));if(!recent.length)box.innerHTML='<p class="hub-empty">'+safe(recentError||'최근 작업 기록이 없습니다.')+'</p>'}}
   host.querySelectorAll('[data-hub]').forEach(b=>b.onclick=()=>dispatch(b.dataset.hub));
-  function afterCards(c){catalog=c;navigation();paintApprovals();}
+  function afterCards(c){catalog=c;navigation();paintApprovals();renderArtwork(host);}
   const refresh=()=>{if(sameUser())paintApprovals();else window.removeEventListener('enl-incidents-pulled',refresh)};window.addEventListener('enl-incidents-pulled',refresh);
   loadContent();loadRecent();
   return {area,services,status,addSupportCard,afterCards,showPreparing:title=>{const d=dialog(host,title);d.querySelector('.hub-dialog-body').textContent='이 업무의 세부 기능은 구현 중입니다.'}};
  }
  document.addEventListener('keydown',ev=>{if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==='k'&&currentView==='platform'){ev.preventDefault();document.querySelector('.hub-search')?.click()}});
- function cleanup(){document.querySelectorAll('.topbar .hub-search,.topbar .hub-bell,.topbar .hub-mobile-menu').forEach(n=>n.remove());const logo=document.querySelector('.topbar .logo');if(logo?.dataset.hubOriginal!==undefined){logo.innerHTML=logo.dataset.hubOriginal;delete logo.dataset.hubOriginal}}
+ function cleanup(){stopArtwork();document.querySelectorAll('.topbar .hub-search,.topbar .hub-bell,.topbar .hub-mobile-menu').forEach(n=>n.remove());const logo=document.querySelector('.topbar .logo');if(logo?.dataset.hubOriginal!==undefined){logo.innerHTML=logo.dataset.hubOriginal;delete logo.dataset.hubOriginal}}
  window.ENLHub={mount,decorateCard,cleanup};
 })();
