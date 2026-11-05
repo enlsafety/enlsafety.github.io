@@ -68,7 +68,7 @@ const {webkit,chromium}=require('playwright'),{tab}=require('./field-entry-table
  if(width<=500)await p.locator('#loginName411').fill('통합검수');
  const ready=()=>p.locator('#loginPassword411[placeholder="●●●●●●●●"]').waitFor();
  await ready();
- await p.getByText('이 기기에 기억된 비밀번호로 바로 로그인할 수 있습니다.').waitFor();
+ assert.equal(await p.locator('#rememberStatus411').isVisible(),false);
  assert.equal(await p.locator('#loginPassword411').inputValue(),'');
  await p.locator('#loginSubmit411').click();await p.locator('[data-module=incident]').waitFor();
  await logout();if(width<=500)await p.locator('#loginName411').fill('통합검수');

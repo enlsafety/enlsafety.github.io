@@ -241,7 +241,6 @@
     const ticket=pref(ticketKey);
     if(ticket){
       input.dataset.restored=ticket;input.required=false;input.placeholder='●●●●●●●●';
-      hint.textContent='이 기기에 기억된 비밀번호로 바로 로그인할 수 있습니다.';
       await migration;
       const record=await deviceStore('readonly',store=>store.get(ticket)).catch(()=>null);
       if(record?.accountKey!==o.accountKey&&eligible()&&pref(ticketKey)===ticket){
