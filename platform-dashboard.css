@@ -197,3 +197,57 @@
 .safety-ui #app .main:has(>.hub-incident-workspace:not([data-workspace="incident"]))>.shell411-nav{display:none!important}
 @media(max-width:760px){.hub-worktabs{padding:4px 8px;gap:3px}.hub-worktabs .hub-worktab button{min-height:40px}.hub-worktabs .hub-worktab .hub-tab-close{min-width:36px}}
 @media print{.hub-worktabs{display:none!important}}
+.hub-sidebar-row{display:flex;align-items:center;min-width:0}
+.platform-hub .hub-sidebar-row>button:first-child{min-width:0;flex:1}
+.platform-hub .hub-sidebar-row.is-hidden>button:first-child{color:#8c98a6;background:#f1f3f6;box-shadow:none;cursor:default}
+.hub-sidebar-row.is-hidden svg{filter:grayscale(1);opacity:.32}
+.hub-sidebar-row small{margin-left:auto;font-size:10px;color:#697583;white-space:nowrap}
+.hub-sidebar-row.is-editing{cursor:grab;border:1px dashed #acbdd0;border-radius:9px}
+.platform-hub .hub-sidebar-row .hub-order-step{width:25px;min-height:36px;padding:0;justify-content:center}
+.platform-hub .hub-sidebar button.hub-order-step:disabled{opacity:.28}
+.hub-sidebar-editor{position:relative;z-index:2;display:flex;flex-wrap:wrap;gap:4px;margin:18px 6px 0;padding-top:8px;border-top:1px solid #c9d8e8}
+.platform-hub .hub-sidebar-editor button{width:auto;min-height:34px;justify-content:center;color:#385776;background:#fff9}
+.hub-sidebar-editor small{width:100%;font-size:11px}
+.hub-sidebar-editor [hidden]{display:none!important}
+.incident-overview{display:grid;gap:12px;align-items:start;min-width:0}
+.incident-overview>*,.incident-overview .sd450-map-layout>*{min-width:0}
+.incident-overview .sd450-primary-legend{padding:5px 10px}
+.incident-overview summary{cursor:pointer}
+@media(min-width:901px){
+ .incident-overview{grid-template-columns:minmax(0,1.9fr) minmax(205px,1fr)}
+ .safety-ui #app .incident-overview .stats426-cards{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px}
+ .incident-overview .sd450-map-layout{grid-template-columns:minmax(0,1.7fr) minmax(130px,1fr);gap:8px;margin-top:8px}
+ .incident-overview .sd450-map-wrap{min-height:0;padding:4px}
+ .incident-overview .sd450-map-viewport{width:min(100%,clamp(210px,calc(100dvh - 445px),455px));height:auto;aspect-ratio:1}
+ .incident-overview .sd450-map-side{max-height:clamp(235px,calc(100dvh - 345px),540px);overflow-y:auto}
+}
+@media(max-width:900px){.incident-overview .stats426-cards{grid-row:1}}
+
+.stats426>.stats426-head{order:-3}
+.stats426>.incident-overview{order:-2}
+.stats426>#stats426Drill{order:-1}
+@media(min-width:901px){
+ .incident-overview .sd450-map-source,.incident-overview .sd450-map-help{margin:2px 0;line-height:1.25}
+ .incident-overview .sd450-map-tools{margin-top:3px}
+}
+@media(max-width:900px){
+ .incident-overview .sd450-map-viewport{width:min(100%,clamp(190px,calc(100svh - 445px),440px));height:auto;aspect-ratio:1}
+ .incident-overview .sd450-map-wrap{min-height:0}
+}
+@media(max-width:720px){
+ .safety-ui #app .main:has(.incident-overview)>.shell411-nav{display:flex!important;flex-wrap:nowrap!important;overflow-x:auto;max-width:100%;scrollbar-width:thin}
+ .safety-ui #app .main:has(.incident-overview)>.shell411-nav button{flex:none}
+ .safety-ui #app .incident-overview .stats426-cards{gap:6px}
+ .safety-ui #app .incident-overview .stats426-card{padding:8px 10px!important;gap:1px;min-height:0}
+ .safety-ui #app .incident-overview .stats426-card>span:first-of-type{min-height:18px}
+ .safety-ui #app .incident-overview .stats426-card>b,.safety-ui #app .incident-overview .stats426-card>small{margin:0}
+ .safety-ui #app .incident-overview .stats426-card>b{font-size:22px!important}
+ .incident-overview .sd450-map-viewport{width:min(100%,clamp(160px,calc(100svh - 520px),340px))}
+}
+@media(max-width:720px) and (max-height:740px){
+ .safety-ui #app .incident-overview .stats426-cards{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:4px}
+ .safety-ui #app .incident-overview .stats426-card{padding:6px!important}
+ .safety-ui #app .incident-overview .stats426-card::before{display:none}
+ .safety-ui #app .incident-overview .stats426-card>span:first-of-type{padding:0}
+ .incident-overview .sd450-map-viewport{width:min(100%,clamp(170px,calc(100svh - 470px),260px))}
+}

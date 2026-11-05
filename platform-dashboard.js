@@ -221,19 +221,79 @@
     const customModules=catalog.modules.filter(m=>!sidebarKeys.has(m.key)).sort((a,b)=>a.key.localeCompare(b.key));
     return sidebarIcon(entry(key)?.iconKey,customModules.findIndex(m=>m.key===key)+1);
   }
-  function navigation(){
-    const nav=host.querySelector('.hub-sidebar > nav');
-    nav.innerHTML=action('home',sidebarIcon('home')+'<span>홈</span>',host.classList.contains('hub-incident-workspace')?'':'on');
-    for(const key of catalog?.homeOrder||[]){
-      const m=entry(key);
-      if(key==='support'){nav.insertAdjacentHTML('beforeend',action('support',sidebarIcon('support')+'<span>공통업무지원서비스</span>'));continue;}
-      if(!m||(!admin&&m.state==='hidden'))continue;
-      const label=menuPictogram(key)+'<span>'+safe(featureName(m))+'</span>';
-      nav.insertAdjacentHTML('beforeend',action('feature:'+key,label,key==='incident'&&host.classList.contains('hub-incident-workspace')?'on':''));
-    }
-    nav.querySelectorAll('[data-hub]').forEach(b=>b.onclick=()=>dispatch(b.dataset.hub));paintFavorites();
+  let sidebarDraft=null, sidebarRevision=0, moving='', savingSidebar=false;
+  const sidebar=host.querySelector('.hub-sidebar');
+  const editPanel=document.createElement('div');
+  if(admin){
+    editPanel.className='hub-sidebar-editor';
+    editPanel.innerHTML='<button type="button" data-edit>편집모드</button><button type="button" data-cancel hidden>취소</button><small role="status"></small>';
+    sidebar.querySelector('.hub-favorites').after(editPanel);
+    editPanel.querySelector('[data-edit]').onclick=async()=>{
+      if(!catalog||savingSidebar)return;
+      if(!sidebarDraft){
+        sidebarRevision=catalog.revision;sidebarDraft=[...(catalog.sidebarOrder||catalog.homeOrder)];
+        navigation();return;
+      }
+      savingSidebar=true;navigation();
+      try{
+        const next=[...sidebarDraft];
+        const r=await api({action:'platform_sidebar_order',order:next,revision:sidebarRevision});
+        if(!sameUser())return;
+        catalog.sidebarOrder=next;catalog.revision=r.revision;sidebarDraft=null;
+        editPanel.querySelector('small').textContent='순서를 저장했습니다.';
+        await host.reloadCatalog();
+      }catch(err){
+        if(err.message==='catalog_changed'){
+          sidebarDraft=null;await host.reloadCatalog();
+          editPanel.querySelector('small').textContent='다른 변경을 불러왔습니다. 다시 편집해 주세요.';
+        }else editPanel.querySelector('small').textContent='저장에 실패했습니다. 다시 시도해 주세요.';
+      }finally{savingSidebar=false;navigation();}
+    };
+    editPanel.querySelector('[data-cancel]').onclick=()=>{sidebarDraft=null;editPanel.querySelector('small').textContent='';navigation();};
   }
-  function favoriteChoices(){return [...items().filter(m=>m.state!=='hidden'&&(m.key!=='system'||admin)).map(m=>({key:m.key,title:featureName(m)})),{key:'bulletins',title:'공지사항'},{key:'schedule',title:'전체 일정'}]}
+  function moveSidebar(key,target){
+    if(!sidebarDraft||savingSidebar)return;
+    const from=sidebarDraft.indexOf(key),to=sidebarDraft.indexOf(target);
+    if(from<0||to<0||from===to)return;
+    sidebarDraft.splice(to,0,sidebarDraft.splice(from,1)[0]);navigation();
+  }
+  function navigation(){
+    const nav=sidebar.querySelector('nav');
+    nav.innerHTML=action('home',sidebarIcon('home')+'<span>홈</span>',active==='home'?'on':'');
+    nav.firstElementChild.onclick=()=>dispatch('home');
+    if(admin){
+      const edit=editPanel.querySelector('[data-edit]'),cancel=editPanel.querySelector('[data-cancel]');
+      edit.textContent=sidebarDraft?'순서 저장':'편집모드';edit.disabled=!catalog||savingSidebar;
+      edit.setAttribute('aria-pressed',String(!!sidebarDraft));cancel.hidden=!sidebarDraft;cancel.disabled=savingSidebar;
+    }
+    const order=sidebarDraft||catalog?.sidebarOrder||catalog?.homeOrder||[];
+    for(const [i,key] of order.entries()){
+      const m=entry(key),support=key==='support';
+      const hidden=catalog.omitted?.includes(key)||m?.state==='hidden';
+      if((!m&&!support)||(!admin&&hidden))continue;
+      const label=menuPictogram(key)+'<span>'+safe(support?'공통업무지원서비스':featureName(m))+'</span>';
+      const row=document.createElement('div');row.className='hub-sidebar-row';
+      row.innerHTML=action(support?key:'feature:'+key,label,active===key?'on':'');
+      const button=row.firstElementChild;
+      if(hidden){row.classList.add('is-hidden');button.insertAdjacentHTML('beforeend','<small>숨김</small>');}
+      if(hidden||sidebarDraft){button.setAttribute('aria-disabled','true');}
+      else button.onclick=()=>dispatch(button.dataset.hub);
+      if(sidebarDraft){
+        row.classList.add('is-editing');row.draggable=!savingSidebar;
+        row.ondragstart=e=>{moving=key;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',key);};
+        row.ondragover=e=>{if(moving){e.preventDefault();e.dataTransfer.dropEffect='move';}};
+        row.ondrop=e=>{e.preventDefault();moveSidebar(moving,key);moving='';};row.ondragend=()=>moving='';
+        for(const [offset,symbol,name] of [[-1,'↑','위로'],[1,'↓','아래로']]){
+          const step=document.createElement('button');step.type='button';step.textContent=symbol;step.className='hub-order-step';
+          step.disabled=savingSidebar||!order[i+offset];step.setAttribute('aria-label',button.textContent+' '+name);
+          step.onclick=()=>moveSidebar(key,order[i+offset]);row.append(step);
+        }
+      }
+      nav.append(row);
+    }
+    paintFavorites();
+  }
+  function favoriteChoices(){return [...items().filter(m=>m.state!=='hidden'&&!catalog?.omitted?.includes(m.key)&&(m.key!=='system'||admin)).map(m=>({key:m.key,title:featureName(m)})),{key:'bulletins',title:'공지사항'},{key:'schedule',title:'전체 일정'}]}
   function paintFavorites(){const box=host.querySelector('.hub-favorites>div'),choices=favoriteChoices();box.replaceChildren();for(const key of content.favorites){const x=choices.find(v=>v.key===key);if(!x)continue;const b=document.createElement('button');b.type='button';b.innerHTML=menuPictogram(key)+'<span>'+safe(x.title)+'</span>';b.onclick=()=>dispatch(['bulletins','schedule'].includes(key)?key:'feature:'+key);box.append(b)}if(!box.children.length)box.innerHTML='<p>자주 쓰는 메뉴를 추가하세요.</p>'}
   function favorites(){const d=dialog(host,'즐겨찾기 설정'),box=d.querySelector('.hub-dialog-body');box.innerHTML='<form class="hub-form">'+favoriteChoices().map(x=>'<label class="hub-check"><input type="checkbox" name="favorite" value="'+x.key+'" '+(content.favorites.includes(x.key)?'checked':'')+'>'+safe(x.title)+'</label>').join('')+'<button type="submit">저장</button><p role="status"></p></form>';box.querySelector('form').onsubmit=async ev=>{ev.preventDefault();const form=ev.currentTarget,b=form.querySelector('button');b.disabled=true;try{const favorites=Array.from(form.querySelectorAll(':checked'),x=>x.value);await api({action:'platform_hub_favorites',favorites});if(!sameUser())return;content.favorites=favorites;paintFavorites();d.close()}catch{form.querySelector('[role=status]').textContent='저장하지 못했습니다. 다시 시도해 주세요.'}finally{b.disabled=false}}}
   function scopedIncidents(){return (data.incidents||[]).filter(i=>!i.bulkInvalidation?.active&&(!['field','worker'].includes(u.role)||String(i.siteId)===String(u.siteId)))}

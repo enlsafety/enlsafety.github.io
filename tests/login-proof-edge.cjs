@@ -5,14 +5,19 @@ const safety={id:'qa-auth-safety-472',role:'safety'},field={id:'qa-auth-field-47
 async function fixture(){
  const db=new PGlite();await db.exec(fs.readFileSync('tests/fixtures/login-proof-schema.sql','utf8'));await db.exec('create role anon;create role authenticated;create role service_role;create schema private;'+fs.readFileSync('supabase/migrations/20261104080927_platform_foundation.sql','utf8').split('create table private.enl_platform_catalog')[0]);await db.exec("update enl_hq_users set name='박태영' where user_id='qa-auth-safety-472'");
  await db.exec(fs.readFileSync('supabase/migrations/20261104091401_email_enrollment_gate.sql','utf8'));
- await db.exec("update enl_hq_users set name='QA 안전' where user_id='qa-auth-safety-472'");let handler;
+ await db.exec("update enl_hq_users set name='QA 안전' where user_id='qa-auth-safety-472'");let handler;const mailbox=[];
+ await db.exec('create table private.enl_platform_catalog(singleton boolean)');
+ await db.exec(fs.readFileSync('supabase/migrations/20261105152600_email_challenge_sidebar.sql','utf8'));
  const tag=conn=>async(parts,...args)=>(await conn.query(parts.reduce((s,p,i)=>s+(i?'$'+i:'')+p,''),args)).rows;const sql=tag(db);sql.begin=f=>db.transaction(tx=>f(tag(tx)));sql.json=JSON.stringify;sql.end=async()=>{};
- const ctx={Deno:{env:{get:()=> 'isolated'},serve:h=>handler=h},postgres:()=>sql,Request,Response,TextEncoder,crypto};vm.createContext(ctx);
+ const ctx={Deno:{env:{get:()=> 'isolated'},serve:h=>handler=h},postgres:()=>sql,Request,Response,TextEncoder,crypto,AbortSignal,fetch:async(url,opts)=>{
+  if(url.endsWith('/senders'))return Response.json({senders:[{active:true,email:'qa@example.test'}]});
+  const mail=JSON.parse(opts.body);mailbox.push({to:mail.to[0].email,code:mail.textContent.match(/\d{6}/)[0]});return Response.json({messageId:'isolated'});
+ }};vm.createContext(ctx);
  vm.runInContext(stripTypeScriptTypes(fs.readFileSync('edge-functions/enl-login-v411/index.ts','utf8').replace(/^import .*;\r?\n/gm,'')),ctx);
  const call=async body=>{const response=await handler(new Request('https://isolated.test',{method:'POST',headers:{'content-type':'application/json','x-enl-app':'incident-report-v2',origin:'https://enlsafety.github.io'},body:JSON.stringify(body)}));return {status:response.status,body:await response.json()};};
- return {db,call};
+ return {db,call,mailbox};
 }
-(async()=>{const {db,call}=await fixture();let checks=0;const check=(v,label)=>{assert.ok(v,label);checks++};try{
+(async()=>{const {db,call,mailbox}=await fixture();let checks=0;const check=(v,label)=>{assert.ok(v,label);checks++};try{
  const hqTarget={duties:['safety','supervisor'],id:'qa-auth-target-472',name:'QA 변경대상',role:'manager',department:'QA',passwordHash:'qa-auth-target-proof-472'};
  const worker={personnelId:'qa-auth-worker-472',siteId:field.siteId,name:'QA 근로자',jobTitle:'일반근로자',accessRole:'worker',active:true};
  for(const body of [
@@ -24,6 +29,7 @@ async function fixture(){
  ]){check((await call(body)).status===403,'ID-only request denied');check((await call({...body,actorPasswordHash:'incorrect',actorPinHash:'incorrect'})).status===403,'wrong proof denied');}
  check((await db.query('select count(*) n from public.enl_hq_users')).rows[0].n===2,'denied HQ creation has no writes');
  check((await db.query('select count(*) n from public.enl_personnel_audit')).rows[0].n===0,'denied personnel actions have no audit writes');
+ await db.exec("update enl_hq_users set email='existing@example.test'; update enl_site_personnel set email='site@example.test'");
  let r=await call({action:'login_hq',name:'QA 안전',affiliationId:'dept:qa',passwordHash:'qa-auth-safety-proof-472'});check(r.status===200&&r.body.user.id===safety.id,'normal HQ login unchanged');check(!('password_hash' in r.body.user)&&!('passwordHash' in r.body.user),'login never returns credential hash');
  check((await call({action:'login_hq',name:'QA 안전',affiliationId:'dept:qa',passwordHash:'incorrect'})).status===401,'wrong login password denied');
  r=await call({action:'login_site',name:'QA 현장',siteId:field.siteId,passwordHash:'qa-auth-field-proof-472'});check(r.status===200&&r.body.person.access_role==='field','normal field login unchanged');
@@ -44,22 +50,34 @@ async function fixture(){
  for(const active of [false,null]){await db.query('update public.enl_site_personnel set active=$1 where personnel_id=$2',[active,field.id]);check((await call({action:'personnel_pull',actor:field,actorPinHash:'qa-auth-field-proof-472',siteId:field.siteId})).status===403,'inactive/null field denied');}
  await db.query('update public.enl_site_personnel set active=true where personnel_id=$1',[field.id]);
  check((await call({action:'personnel_pull',actor:{id:worker.personnelId,role:'field',siteId:field.siteId},actorPinHash:'qa-auth-field-proof-472',siteId:field.siteId})).status===403,'worker ID cannot impersonate field account');
- const reg={action:'register_company_email',name:'QA 안전',affiliationId:'dept:qa',accountKey:'hq:'+safety.id,passwordHash:'qa-auth-safety-proof-472',companyLocal:'qa.safety',registrationPassword:'registration-test-only'};
+ await db.exec("update enl_hq_users set email=null;update enl_site_personnel set email=null");
+ const reg={action:'email_code_send',name:'QA 안전',affiliationId:'dept:qa',accountKey:'hq:'+safety.id,passwordHash:'qa-auth-safety-proof-472',companyLocal:'qa.safety',registrationPassword:'registration-test-only'};
  const manage={action:'email_gate_set',actor:safety,actorPasswordHash:'qa-auth-safety-proof-472',newRegistrationPassword:reg.registrationPassword};
  check((await call({...reg,action:'login_hq'})).status===409,'old login cannot save an address');
- check((await call(reg)).body.message==='gate_not_configured','no default registration password');
+ check((await call({...reg,action:'register_company_email'})).status===410,'retired registration cannot bypass OTP');
  await db.exec("insert into enl_hq_users(user_id,name,role,active,password_hash) values('other-safety','동료','safety',true,'proof')");
  check((await call({...manage,actor:{id:'other-safety',role:'safety'},actorPasswordHash:'proof'})).status===403,'other safety cannot configure gate');
  check((await call(manage)).status===200,'designated account sets separate gate');
- check((await call({...reg,registrationPassword:'wrong'})).status===403,'gate password required');
  check((await call({...reg,passwordHash:'wrong'})).status===403,'own account protected');
  check((await call({...reg,companyLocal:'bad@example.com'})).status===400,'fixed email domain');
- check((await call(reg)).body.email==='qa.safety@enlife.co.kr','first registration');
- check((await call({...reg,companyLocal:'other'})).status===409,'existing address locked');
+ check((await call(reg)).status===200&&mailbox.length===1,'deliver only to supplied mailbox');
+ check((await call(reg)).status===429,'resend cooldown');
+ const verify={...reg,action:'email_code_verify',code:mailbox[0].code};
+ check((await call({...verify,companyLocal:'other'})).status===409,'code bound to address');
+ check((await call({...verify,code:verify.code==='999999'?'111111':'999999'})).status===403,'wrong code denied');
+ check((await call({...reg,action:'login_hq'})).body.message==='email_required','cannot skip enrollment');
+ check((await call(verify)).body.email===mailbox[0].to,'verified email persisted');
+ check((await call(verify)).status===409,'consumed challenge rejected');
+ check((await db.query("select email from private.enl_master_accounts where id=$1",[safety.id])).rows[0].email===mailbox[0].to,'master reflects registration');
  const fieldReg={...reg,name:'QA 현장',accountKey:'site:'+field.id,affiliationId:'site:'+field.siteId,passwordHash:'qa-auth-field-proof-472',companyLocal:'qa.field'};
- check((await call({...fieldReg,affiliationId:'site:wrong'})).status===403,'site is fixed');check((await call(fieldReg)).status===200,'field enrollment');
+ check((await call({...fieldReg,affiliationId:'site:wrong'})).status===403,'site is fixed');
+ check((await call(fieldReg)).status===200,'field can request OTP');
+ await db.exec("update private.enl_email_challenges set expires_at=now()-interval '1 minute'");
+ check((await call({...fieldReg,action:'email_code_verify',code:mailbox.at(-1).code})).body.message==='code_expired','expiry enforced');
  const workerReg={...fieldReg,name:'QA 근로자',accountKey:'site:'+worker.personnelId,passwordHash:'',companyLocal:'qa.worker'};
- check((await call(workerReg)).status===200,'future worker registration requires configured gate');
+ check((await call({...workerReg,registrationPassword:''})).status===403,'passwordless worker needs enrollment proof');
+ check((await call(workerReg)).status===200,'worker can receive OTP');
+ check((await call({...workerReg,action:'email_code_verify',code:mailbox.at(-1).code})).status===200,'worker code verified');
  await db.query("insert into enl_site_personnel(personnel_id,site_id,name,access_role,active) values('qa-double','other-site','QA 안전','worker',true)");
  const duplicate=await call({action:'lookup',name:'QA 안전',fixedAccount:true});check(duplicate.body.ambiguous&&duplicate.body.options.length===0,'no arbitrary site list for ambiguous names');
  check((await call({action:'lookup',name:'QA 안전',fixedAccount:true,knownEmail:'qa.safety@enlife.co.kr'})).body.options[0].accountKey==='hq:'+safety.id,'same-name resolution');

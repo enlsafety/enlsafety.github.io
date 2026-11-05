@@ -2,6 +2,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),{fixture}=require('./final-lifecycle.cjs');
 (async()=>{const f=await fixture({hubNotices:true});try{
  await f.db.exec(fs.readFileSync('supabase/migrations/20261104234953_integrated_home_content.sql','utf8'));
+ await f.db.exec(fs.readFileSync('supabase/migrations/20261105152600_email_challenge_sidebar.sql','utf8'));
  const call=(who,action,extra={})=>f.call(who,{action,...extra});
  const notice={kind:'notice',title:'격리 검수 공지',body:'본문 <script> 검수',label:'important',siteId:'qa-site'};
  assert.equal((await call('manager','platform_hub_save',notice)).status,403);
@@ -53,11 +54,19 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),{fixture}=requi
  assert.equal((await call('safety','platform_home_cards',placement)).status,200);
  assert.equal((await call('safety','platform_home_cards',placement)).status,409);
  const updated=(await call('field','platform_catalog')).body;
+ assert.ok(placement.omitted.every(key=>!updated.sidebarOrder.includes(key)));
+ const adminCatalog=(await call('safety','platform_catalog')).body;
+ const sidebarEdit={order:[...adminCatalog.homeOrder].reverse(),revision:adminCatalog.revision};
+ assert.equal((await call('field','platform_sidebar_order',sidebarEdit)).status,403);
+ assert.equal((await call('safety','platform_sidebar_order',sidebarEdit)).status,200);
+ assert.equal((await call('safety','platform_sidebar_order',sidebarEdit)).status,409);
+ const reordered=(await call('safety','platform_catalog')).body;
+ assert.deepEqual(reordered.sidebarOrder,sidebarEdit.order);assert.deepEqual(reordered.homeOrder,adminCatalog.homeOrder);
  assert.deepEqual(updated.omitted,placement.omitted);
  assert.equal(updated.modules.at(-1).iconKey,'rules');
  assert.equal((await call('field','platform_enter',{key:'incident'})).status,200);
  assert.equal((await call('field','platform_enter',{key:'law'})).status,403);
- assert.equal((await call('safety','platform_home_cards',{revision:updated.revision,omitted:[]})).status,200);
+ assert.equal((await call('safety','platform_home_cards',{revision:reordered.revision,omitted:[]})).status,200);
  assert.deepEqual((await call('field','platform_catalog')).body.omitted,[]);
  console.log('PASS hub authentication, role gates, site scoping, Seoul date boundaries, validation, edit conflicts, archive audit, favorites isolation and cached-client compatibility');
 }finally{await f.db.close()}})().catch(e=>{console.error(e);process.exitCode=1});

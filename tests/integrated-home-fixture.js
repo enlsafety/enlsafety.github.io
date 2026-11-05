@@ -20,6 +20,7 @@
    if(b.newCard){const key='custom-'+(++serial);config.modules.push({...make(key),enabled:false,displayName:b.newCard.name,iconKey:b.newCard.icon});config.homeOrder.push(key);}
    out={ok:true,revision:++config.revision};
   }
+  if(b.action==='platform_sidebar_order'){config.sidebarOrder=b.order;out={ok:true,revision:++config.revision}}
   if(b.action==='platform_home_order'){config.homeOrder=b.order;config.revision++;out={ok:true,revision:config.revision}}
   if(b.action==='platform_save'){config[b.group||'modules']=b.modules;config.revision++;out={ok:true,revision:config.revision}}
   if(b.action==='platform_hub')out={ok:true,notices:records.filter(x=>x.kind==='notice'),events:records.filter(x=>x.kind==='event'),favorites};

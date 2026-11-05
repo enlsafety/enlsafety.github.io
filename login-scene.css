@@ -72,3 +72,9 @@
 }
 @media(max-width:360px){.safety-ui .login-v411 .login-card{padding:19px 13px 16px}.safety-ui .login-v411 .login-brand h1{font-size:19px}.safety-ui .login-v411 .login-brand{gap:9px}.safety-ui .login-v411 .company-address{padding-left:30px;gap:4px}.safety-ui .login-v411 .company-address b{font-size:11px;padding-left:5px}.safety-ui .login-v411 .company-address button{font-size:11px}}
 @media(prefers-reduced-motion:reduce){.safety-ui .login-v411 *{scroll-behavior:auto!important}}
+.safety-ui .login-v411 .login-remember{grid-column:1/-1;grid-row:6;color:#3f5871}
+.login-remember>div{display:flex;flex-wrap:wrap;gap:6px 18px}
+.login-v411 .login-remember label{display:inline-flex;align-items:center;gap:6px;min-height:32px;font-size:14px;font-weight:650;cursor:pointer}
+.login-remember input{width:16px;height:16px;accent-color:#1e5d91}
+.login-remember small{display:block;font-size:12px;line-height:1.5}
+.email-gate-dialog [hidden]{display:none!important}

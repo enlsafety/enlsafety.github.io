@@ -15,6 +15,21 @@ const hqAllowed=(v:any)=>["safety","manager","executive"].includes(hqRole(v));
 const roleLabel=(v:any)=>hqRole(v)==="safety"?"안전관리자":hqRole(v)==="executive"?"경영진":"본사실무자";
 const sha256=async(v:string)=>{const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")};
 
+async function sendEnrollmentCode(email:string,code:string){
+  const key=Deno.env.get('BREVO_API_KEY');
+  if(!key)throw Error('provider');
+  const headers={'api-key':key,'content-type':'application/json','accept':'application/json'};
+  const list=await fetch('https://api.brevo.com/v3/senders',{headers,signal:AbortSignal.timeout(5000)});
+  if(!list.ok)throw Error('sender');
+  const senders=(await list.json()).senders||[];
+  const sender=senders.find((s:any)=>s.active&&s.name==='이앤엘 사고보고')||senders.find((s:any)=>s.active);
+  if(!sender?.email)throw Error('sender');
+  const response=await fetch('https://api.brevo.com/v3/smtp/email',{method:'POST',headers,signal:AbortSignal.timeout(7000),
+    body:JSON.stringify({sender:{email:sender.email,name:'이앤엘 사고보고'},to:[{email}],subject:'[이앤엘] 회사 이메일 인증번호',
+      textContent:'이앤엘 안전보건관리 통합시스템의 이메일 인증번호는 '+code+'입니다. 10분 안에 입력해 주세요.'})});
+  if(!response.ok||!(await response.json()).messageId)throw Error('delivery');
+}
+
 Deno.serve(async(req:Request)=>{
   if(req.method==="OPTIONS")return new Response("ok",{headers});
   if(req.method!=="POST")return json({ok:false,message:"method_not_allowed"},405);
@@ -71,35 +86,66 @@ Deno.serve(async(req:Request)=>{
       await sql`update private.enl_email_enrollment_gate set salt=${salt},verifier=${hash},updated_at=now() where singleton and owner_id=${v.id}`;
       return json({ok:true});
     }
-    if(action==="register_company_email"){
-      const key=clean(body.accountKey),name=clean(body.name),site=clean(body.affiliationId),entered=clean(body.companyLocal).toLowerCase();
-      const password=body.registrationPassword,loginProof=clean(body.passwordHash);
-      if(!/^(hq|site):.{1,140}$/.test(key)||!name||!site||!entered||entered.length>64||!/^[a-z0-9_+-]+(?:\.[a-z0-9_+-]+)*$/.test(entered)||
-         typeof password!=='string'||!password||password.length>128)return json({ok:false,message:'invalid_registration'},400);
-      const hq=key.startsWith('hq:'),id=key.slice(key.indexOf(':')+1),email=entered+companyDomain;
+    if(action==='register_company_email')return json({ok:false,message:'update_required'},410);
+    if(action==='email_code_send'||action==='email_code_verify'){
+      const key=clean(body.accountKey), name=clean(body.name), site=clean(body.affiliationId);
+      const local=clean(body.companyLocal).toLowerCase(), email=local+companyDomain;
+      const verify=action==='email_code_verify', code=clean(body.code);
+      if(!/^(hq|site):.{1,140}$/.test(key)||!name||!site||local.length>64||
+         !/^[a-z0-9_+-]+(?:\.[a-z0-9_+-]+)*$/.test(local)||(verify&&!/^\d{6}$/.test(code)))
+        return json({ok:false,message:'invalid_registration'},400);
+      const hq=key.startsWith('hq:'), id=key.slice(key.indexOf(':')+1);
       return await sql.begin(async(tx:any)=>{
         const [account]=hq?await tx`select * from public.enl_hq_users where user_id=${id} and active for update`:
           await tx`select * from public.enl_site_personnel where personnel_id::text=${id} and active for update`;
-        if(!account||norm(account.name)!==norm(name)||(hq?affiliation(account).id:'site:'+account.site_id)!==site)return json({ok:false,message:'invalid_account'},403);
-        if(hq||account.access_role==='field'||isFieldTitle(account.job_title)){
-          const proof=clean(hq?account.password_hash:account.pin_hash);
-          if(!proof||!sameProof(proof,loginProof))return json({ok:false,message:'invalid_login'},403);
-        }
+        if(!account||norm(account.name)!==norm(name)||(hq?affiliation(account).id:'site:'+account.site_id)!==site)
+          return json({ok:false,message:'invalid_account'},403);
         if(clean(account.email))return json({ok:false,message:'email_already_registered'},409);
-        const [gate]=await tx`select salt,verifier from private.enl_email_enrollment_gate where singleton for share`;
-        if(!gate?.verifier)return json({ok:false,message:'gate_not_configured'},409);
         await tx`insert into private.enl_email_enrollment_attempts(account_key) values(${key}) on conflict do nothing`;
         const [attempt]=await tx`select failures,started_at from private.enl_email_enrollment_attempts where account_key=${key} for update`;
-        const fresh=Date.now()-new Date(attempt.started_at).getTime()<900000,failures=fresh?attempt.failures:0;
-        if(failures>=5)return json({ok:false,message:'attempts_exceeded'},429);
-        if(!sameProof(await verifier(password,gate.salt),gate.verifier)){
-          await tx`update private.enl_email_enrollment_attempts set failures=${failures+1},started_at=case when ${fresh} then started_at else now() end where account_key=${key}`;
-          return json({ok:false,message:'incorrect_registration_password'},403);
+        const fresh=Date.now()-new Date(attempt.started_at).getTime()<900000;
+        if(fresh&&attempt.failures>=5)return json({ok:false,message:'attempts_exceeded'},429);
+        const protectedAccount=hq||account.access_role==='field'||isFieldTitle(account.job_title);
+        let authorized=false;
+        if(protectedAccount){
+          const proof=clean(hq?account.password_hash:account.pin_hash);
+          authorized=!!proof&&sameProof(proof,clean(body.passwordHash));
+        }else{
+          const gatePassword=clean(body.registrationPassword);
+          const [gate]=await tx`select salt,verifier from private.enl_email_enrollment_gate where singleton`;
+          if(!gate?.verifier)return json({ok:false,message:'gate_not_configured'},409);
+          authorized=!!gatePassword&&gatePassword.length<=128&&sameProof(await verifier(gatePassword,gate.salt),gate.verifier);
         }
-        if(hq)await tx`update public.enl_hq_users set email=${email},updated_at=now(),updated_by_id=${id},updated_by_name=${account.name},updated_by_role=${account.role} where user_id=${id}`;
-        else await tx`update public.enl_site_personnel set email=${email},updated_at=now(),updated_by_id=${id},updated_by_name=${account.name},updated_by_role=${account.access_role} where personnel_id::text=${id}`;
-        await tx`update private.enl_email_enrollment_attempts set failures=0 where account_key=${key}`;
-        return json({ok:true,email});
+        if(!authorized){
+          await tx`update private.enl_email_enrollment_attempts set failures=${fresh?attempt.failures+1:1},started_at=case when ${fresh} then started_at else now() end where account_key=${key}`;
+          return json({ok:false,message:'invalid_login'},403);
+        }
+        const [challenge]=await tx`select * from private.enl_email_challenges where account_key=${key} for update`;
+        if(verify){
+          if(!challenge||challenge.address!==email||new Date(challenge.expires_at).getTime()<=Date.now())return json({ok:false,message:'code_expired'},409);
+          if(challenge.failures>=5)return json({ok:false,message:'code_locked'},429);
+          if(!sameProof(await verifier(code,challenge.salt),challenge.digest)){
+            await tx`update private.enl_email_challenges set failures=failures+1 where account_key=${key}`;
+            return json({ok:false,message:'incorrect_code'},403);
+          }
+          if(hq)await tx`update public.enl_hq_users set email=${email},updated_at=now(),updated_by_id=${id},updated_by_name=${account.name},updated_by_role=${account.role} where user_id=${id}`;
+          else await tx`update public.enl_site_personnel set email=${email},updated_at=now(),updated_by_id=${id},updated_by_name=${account.name},updated_by_role=${account.access_role} where personnel_id::text=${id}`;
+          await tx`delete from private.enl_email_challenges where account_key=${key}`;
+          return json({ok:true,email});
+        }
+        const recent=challenge&&Date.now()-new Date(challenge.window_start).getTime()<3600000;
+        if(challenge&&Date.now()-new Date(challenge.sent_at).getTime()<60000)return json({ok:false,message:'wait_resend'},429);
+        if(recent&&challenge.sends>=5)return json({ok:false,message:'send_limit'},429);
+        const salt=crypto.randomUUID(), digits=new Uint32Array(1);
+        do{crypto.getRandomValues(digits)}while(digits[0]>=4294000000);
+        const nextCode=String(digits[0]%1000000).padStart(6,'0'),digest=await verifier(nextCode,salt);
+        try{await sendEnrollmentCode(email,nextCode)}catch{return json({ok:false,message:'mail_unavailable'},502)}
+        await tx`insert into private.enl_email_challenges(account_key,address,salt,digest,expires_at,sends)
+          values(${key},${email},${salt},${digest},now()+interval '10 minutes',1)
+          on conflict(account_key) do update set address=excluded.address,salt=excluded.salt,digest=excluded.digest,
+          expires_at=excluded.expires_at,sent_at=now(),failures=0,sends=${recent?challenge.sends+1:1},
+          window_start=case when ${!!recent} then enl_email_challenges.window_start else now() end`;
+        return json({ok:true});
       });
     }
     // Legacy clients may still send the address during login. Never enroll through login.
@@ -128,6 +174,7 @@ Deno.serve(async(req:Request)=>{
       if(matches.length!==1)return json({ok:false,message:"account_not_unique"},403);
       const p=matches[0],manager=p.access_role==='field'||isFieldTitle(p.job_title);
       if(manager&&(!passwordHash||!p.pin_hash||!sameProof(p.pin_hash,passwordHash)))return json({ok:false,message:"invalid_login"},401);
+      if(!clean(p.email))return json({ok:false,message:'email_required'},409);
       if(clean(body.companyLocal)&&clean(body.companyLocal).toLowerCase()!==localPart(p.email))return json({ok:false,message:'use_email_registration'},409);
       const names=await siteMap();return json({ok:true,person:{personnel_id:p.personnel_id,site_id:p.site_id,site_name:names.get(p.site_id)||p.site_id,name:p.name,job_title:p.job_title,access_role:manager?'field':'worker',active:true,email:p.email||''}});
     }
@@ -136,6 +183,7 @@ Deno.serve(async(req:Request)=>{
       if(!name||!affiliationId||!passwordHash)return json({ok:false,message:"input_required"},400);
       const hq=await findHqByName(name);
       if(!hq?.active||!hqAllowed(hq.role)||affiliation(hq).id!==affiliationId||(body.accountKey&&body.accountKey!=='hq:'+hq.user_id)||!sameProof(clean(hq.password_hash),passwordHash))return json({ok:false,message:"invalid_login"},401);
+      if(!clean(hq.email))return json({ok:false,message:'email_required'},409);
       if(clean(body.companyLocal)&&clean(body.companyLocal).toLowerCase()!==localPart(hq.email))return json({ok:false,message:'use_email_registration'},409);
       return json({ok:true,user:publicHq(hq)});
     }

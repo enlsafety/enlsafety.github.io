@@ -34,8 +34,26 @@ async function check(browser, role, width) {
       if (await menu.isVisible()) await menu.click();
       await page.locator('.hub-sidebar [data-hub="' + key + '"]').click();
     };
+    const editor=page.locator('.hub-sidebar-editor [data-edit]');
+    if(role==='safety'){
+      await editor.click();
+      const rows=page.locator('.hub-sidebar-row.is-editing'), first=await rows.nth(0).locator('[data-hub]').getAttribute('data-hub');
+      await rows.nth(0).dragTo(rows.nth(1));await editor.click();
+      await page.waitForFunction(()=>document.querySelector('.hub-sidebar-editor [data-edit]')?.textContent==='편집모드');
+      assert.equal(await page.locator('.hub-sidebar-row').nth(1).locator('[data-hub]').getAttribute('data-hub'),first);
+    }else assert.equal(await editor.count(),0);
     await page.locator('[data-module=incident]').click();
     await active('incident');
+    if(role==='safety'){
+      for(const [w,h] of [[1366,768],[1280,720],[1024,768],[820,1180],[393,852],[375,667]]){
+        await page.setViewportSize({width:w,height:h});
+        const map=page.locator('.incident-overview .sd450-map-viewport');await map.waitFor();
+        const boxes=await page.locator('.incident-overview .stats426-card,.incident-overview .sd450-map-viewport').evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.right,r.bottom]}));
+        assert.equal(boxes.length,5);assert.ok(boxes.every(([x,y,right,bottom])=>x>=0&&y>=0&&right<=w+1&&bottom<=h),JSON.stringify({w,h,boxes}));
+        if(w>900)assert.ok(boxes[0][2]<=boxes[1][0]);console.log('PASS dashboard viewport',w,h);
+      }
+      await page.setViewportSize({width,height:900});
+    }
     await side('feature:incident');
     assert.equal(await tab('incident').count(), 1);
     await side('support');

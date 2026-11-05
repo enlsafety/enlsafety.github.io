@@ -63,6 +63,7 @@
   function status(msg,kind=''){const e=document.getElementById('loginStatus411');if(e){e.textContent=msg||'';e.className=`login411-status ${kind}`.trim()}}
   function clearChoice(){
     selected=null;
+    const remember=document.getElementById('rememberPw411');if(remember){remember.disabled=true;remember.checked=false;}
     for(const id of ['loginEmail411','loginAff411','loginPwWrap411','loginIdentity411']){
       const el=document.getElementById(id);if(el){el.hidden=id!=='loginAff411';el.replaceChildren();if(id==='loginAff411')el.textContent='이름 입력 후 자동 표시';}
     }
@@ -86,38 +87,98 @@
       const o=r.options?.[0];if(!o){status('등록된 이름을 찾지 못했습니다.','err');return;}
       selected=o;const aff=document.getElementById('loginAff411');aff.hidden=false;aff.textContent=o.affiliationLabel;
       const email=document.getElementById('loginEmail411');email.hidden=false;
-      email.innerHTML='<label for="companyLocal411">회사 이메일</label><div class="company-address"><input id="companyLocal411" placeholder="이메일 아이디" aria-label="회사 이메일 아이디" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="64"><b>@enlife.co.kr</b><button type="button" data-enroll>신규등록</button></div>';
+      email.innerHTML='<label for="companyLocal411">회사 이메일</label><div class="company-address"><input id="companyLocal411" placeholder="이메일 아이디" aria-label="회사 이메일 아이디" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="64"><b>@enlife.co.kr</b><button type="button" data-enroll>인증</button></div>';
       const local=email.querySelector('input'),enroll=email.querySelector('[data-enroll]');local.value=o.companyLocal||'';local.readOnly=!!o.hasEmail;enroll.hidden=!!o.hasEmail;
       enroll.onclick=()=>registerEmail(o,local,enroll);
       status(o.hasEmail&&!o.companyLocal?'기존 이메일 변경은 시스템 관리에서 가능합니다.':'등록된 소속을 확인했습니다.');
+      if(!o.hasEmail)status('처음 로그인하려면 회사 이메일을 입력하고 인증해 주세요.');
       renderPassword(o);
       // An identity form is removed on submission, leaving focus on the document.
       if(document.activeElement===nameField||(identity&&document.activeElement===document.body)){
-        document.getElementById('loginPassword411')?.focus();
+        (o.hasEmail?document.getElementById('loginPassword411'):local)?.focus();
       }
     }catch{if(seq===lookupSeq)status('계정 정보를 불러오지 못했습니다. 다시 시도해 주세요.','err');}
   }
   function registerEmail(o,local,button){
     const value=local.value.trim().toLowerCase();
-    if(!value||value.length>64||!/^[a-z0-9_+-]+(?:\.[a-z0-9_+-]+)*$/.test(value)){status('등록할 회사 이메일 아이디를 입력해 주세요.','err');local.focus();return;}
-    const needsLogin=o.kind==='hq'||o.requiresPassword,existing=document.getElementById('loginPassword411')?.value||'';
+    if(value.length>64||!/^[a-z0-9_+-]+(?:\.[a-z0-9_+-]+)*$/.test(value)){status('등록할 회사 이메일 아이디를 입력해 주세요.','err');local.focus();return;}
+    const pw=document.getElementById('loginPassword411'), needsPassword=o.kind==='hq'||o.requiresPassword;
     const d=document.createElement('dialog');d.className='email-gate-dialog';d.setAttribute('aria-labelledby','emailGateTitle411');
-    d.innerHTML='<form><h2 id="emailGateTitle411">회사 이메일 신규등록</h2><p></p>'+(needsLogin&&!existing?'<label>본인 로그인 비밀번호<input type="password" name="login" autocomplete="current-password" required></label>':'')+'<label><span>이메일 등록용 비밀번호 <em class="gate-once">최초 1회</em></span><input type="password" name="gate" aria-describedby="gateHint411" autocomplete="off" maxlength="128" required></label><small id="gateHint411">박태영 안전관리자가 설정한 비밀번호를 회사 이메일 최초 등록 시 한 번만 입력해 주세요.</small><div role="status"></div><footer><button type="button">취소</button><button type="submit">등록</button></footer></form>';
-    d.querySelector('p').textContent=o.affiliationLabel+' / '+value+'@enlife.co.kr';document.body.append(d);const f=d.querySelector('form');
-    d.onclose=()=>{f.reset();d.remove()};f.querySelector('[type=button]').onclick=()=>d.close();
-    f.onsubmit=async ev=>{ev.preventDefault();if(!d.open||selected!==o)return;const submit=f.querySelector('[type=submit]');submit.disabled=true;
-      try{const registrationPassword=f.elements.gate.value;const passwordHash=needsLogin?await sha256(existing||f.elements.login.value):'';
-        await api({action:'register_company_email',accountKey:o.accountKey,name:o.name||document.getElementById('loginName411').value.trim(),affiliationId:o.affiliationId,companyLocal:value,passwordHash,registrationPassword});
-        if(selected===o){o.hasEmail=true;o.companyLocal=value;local.value=value;local.readOnly=true;button.hidden=true;status('회사 이메일을 등록했습니다.','ok');}
-        if(d.open)d.close();
-      }catch(err){f.elements.gate.value='';f.querySelector('[role=status]').textContent=({gate_not_configured:'안전관리자가 아직 등록용 비밀번호를 설정하지 않았습니다.',email_already_registered:'이미 등록되어 있습니다. 이름을 다시 조회해 주세요.',incorrect_registration_password:'등록용 비밀번호가 일치하지 않습니다.',attempts_exceeded:'확인 횟수를 초과했습니다. 15분 후 다시 시도하세요.',invalid_login:'본인 로그인 비밀번호를 확인해 주세요.'})[err.message]||'등록 결과를 확인하지 못했습니다. 이름을 다시 조회해 주세요.';
-      }finally{submit.disabled=false;}
-    };d.showModal();
+    d.innerHTML='<form><h2 id="emailGateTitle411">회사 이메일 인증</h2><p></p><label data-proof><span></span><input name="proof" type="password" maxlength="128" required></label><label data-otp hidden>인증번호 6자리<input name="code" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code"></label><div role="status" aria-live="polite"></div><button type="button" data-resend hidden>인증번호 다시 받기</button><footer><button type="button" data-cancel>취소</button><button type="submit">인증번호 받기</button></footer></form>';
+    const form=d.querySelector('form'), otp=form.querySelector('[data-otp]'), proof=form.querySelector('[data-proof]'), submit=form.querySelector('[type=submit]'), resend=form.querySelector('[data-resend]'), note=form.querySelector('[role=status]');
+    d.querySelector('p').textContent=value+'@enlife.co.kr';
+    proof.firstChild.textContent=needsPassword?'본인 로그인 비밀번호':'일반근로자 최초 등록 비밀번호';
+    form.elements.proof.autocomplete=needsPassword?'current-password':'off';
+    if(needsPassword&&pw?.value)form.elements.proof.value=pw.value;
+    const messages={incorrect_code:'인증번호가 일치하지 않습니다.',code_expired:'인증번호가 만료됐습니다. 다시 받아 주세요.',code_locked:'5회 틀렸습니다. 새 인증번호를 받아 주세요.',invalid_login:'본인 확인 비밀번호를 확인해 주세요.',attempts_exceeded:'확인 횟수를 초과했습니다. 15분 후 다시 시도해 주세요.',wait_resend:'마지막 발송 1분 후에 다시 받을 수 있습니다.',send_limit:'시간당 발송 한도에 도달했습니다. 1시간 후 다시 시도해 주세요.',email_already_registered:'이미 등록된 계정입니다. 이름을 다시 조회해 주세요.',gate_not_configured:'안전관리자에게 최초 등록 비밀번호를 문의해 주세요.',mail_unavailable:'메일 발송을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.'};
+    let busy=false;
+    async function run(verify){
+      if(busy||selected!==o||!d.open)return;
+      busy=true;submit.disabled=resend.disabled=true;note.textContent=verify?'확인 중…':'인증번호를 보내고 있습니다…';
+      try{
+        const secret=form.elements.proof.value;
+        const credentials=needsPassword?{passwordHash:await sha256(secret)}:{registrationPassword:secret};
+        await api({action:verify?'email_code_verify':'email_code_send',accountKey:o.accountKey,name:o.name||document.getElementById('loginName411').value.trim(),affiliationId:o.affiliationId,companyLocal:value,code:verify?form.elements.code.value:undefined,...credentials});
+        if(selected!==o||!d.open)return;
+        if(verify){
+          o.hasEmail=true;o.companyLocal=value;local.value=value;local.readOnly=true;button.hidden=true;
+          if(needsPassword&&pw&&!pw.value)pw.value=secret;
+          status('회사 이메일이 등록됐습니다. 로그인해 주세요.','ok');d.close();document.getElementById('loginSubmit411')?.focus();
+        }else{
+          proof.hidden=true;otp.hidden=resend.hidden=false;form.elements.code.required=true;form.elements.code.value='';
+          submit.textContent='인증 완료';note.textContent='메일로 보낸 6자리 인증번호를 10분 내에 입력해 주세요.';form.elements.code.focus();
+        }
+      }catch(err){note.textContent=messages[err.message]||'연결 상태를 확인하고 다시 시도해 주세요.';}
+      finally{busy=false;submit.disabled=resend.disabled=false;}
+    }
+    form.onsubmit=e=>{e.preventDefault();run(!otp.hidden)};resend.onclick=()=>run(false);
+    form.querySelector('[data-cancel]').onclick=()=>d.close();d.onclose=()=>{form.reset();d.remove()};
+    document.body.append(d);d.showModal();if(form.elements.proof.value)run(false);else form.elements.proof.focus();
+  }
+  // Only the browser password manager handles the reusable password.
+  const rememberName='enl.login.rememberName',rememberAccount='enl.login.rememberPasswordFor';
+  function pref(key,value){
+    try{if(value===undefined)return localStorage.getItem(key)||'';
+      if(value)localStorage.setItem(key,value);else localStorage.removeItem(key);
+    }catch{}return '';
+  }
+  function bindRemember(field){
+    const id=document.querySelector('#rememberId411'),password=document.querySelector('#rememberPw411');
+    const name=pref(rememberName);id.checked=!!name;
+    for(const [box,key] of [[id,rememberName],[password,rememberAccount]])box.onchange=()=>{
+      if(box.checked&&!confirm('본인만 사용하는 잠금 설정된 PC인가요? 공용 PC에서는 기억하기를 사용하지 마세요.'))box.checked=false;
+      if(!box.checked)pref(key,'');
+      if(box===password&&document.querySelector('#loginPassword411')){
+        document.querySelector('#loginPassword411').autocomplete=box.checked?'current-password':'off';
+        if(!box.checked&&document.querySelector('#loginPassword411').dataset.restored)document.querySelector('#loginPassword411').value='';
+      }
+    };
+    if(name){field.value=name;lookup(true,pref(rememberName+'.key'));}
+    id.addEventListener('change',()=>{if(!id.checked)pref(rememberName+'.key','')});
+  }
+  async function rememberLogin(o,pw){
+    if(document.querySelector('#rememberId411')?.checked){pref(rememberName,document.getElementById('loginName411').value.trim());pref(rememberName+'.key',o.accountKey);}
+    if(!pw||!document.querySelector('#rememberPw411')?.checked)return;
+    pref(rememberAccount,o.accountKey);
+    if(window.PasswordCredential&&navigator.credentials?.store){
+      try{await navigator.credentials.store(new PasswordCredential({id:o.accountKey,password:pw,name:o.name||document.getElementById('loginName411').value.trim()}));}catch{}
+    }
+  }
+  function restorePassword(o){
+    const input=document.querySelector('#loginPassword411'),box=document.querySelector('#rememberPw411');
+    box.disabled=!input;box.checked=!!input&&pref(rememberAccount)===o.accountKey;
+    if(!input)return;
+    input.autocomplete=box.checked?'current-password':'off';
+    if(!box.checked||!window.PasswordCredential||!navigator.credentials?.get)return;
+    navigator.credentials.get({password:true,mediation:'silent'}).then(c=>{
+      if(input.isConnected&&selected===o&&box.checked&&!input.value&&c?.id===o.accountKey){input.value=c.password;input.dataset.restored='1';}
+    }).catch(()=>{});
   }
   function bindLogin(){
     const field=document.getElementById('loginName411');
     if(!field||field.dataset.bound==='1')return;
     field.dataset.bound='1';
+    bindRemember(field);
     let previousValue;
     field.addEventListener('input',event=>{
       // Moving focus can commit the last Korean syllable and send the same input again.
@@ -134,7 +195,7 @@
   }
   function renderLogin411(){
     css();if(document.querySelector('.login-v411')){bindLogin();return}
-    app.innerHTML=`<div class="login-page login-v411"><img class="login-scene" src="assets/login-golf-r46.png" alt="" aria-hidden="true"><section class="login-intro" aria-label="이앤엘 안전보건관리 통합시스템 소개"><img src="assets/enl-wordmark.svg" width="176" height="86" alt="이앤엘 E&amp;L"><h2>이앤엘 안전보건관리<br>통합시스템</h2><p>안전한 코스관리, 건강한 일터가<br>최고의 코스 품질을 만듭니다.</p></section><div class="login-card"><div class="login-brand"><div class="login-shield"><img class="enl-system-mark" src="pwa-icon-512.png?v=4813-r53" width="512" height="512" alt="" aria-hidden="true"></div><div><h1>이앤엘 안전보건관리<br>통합시스템</h1><p>이름과 소속을 확인하고 로그인합니다.</p></div></div><label><span>이름</span><input id="loginName411" autocomplete="name" inputmode="text" enterkeyhint="next" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="이름을 입력하세요"></label><div id="loginEmail411" hidden></div><div class="login-preview-email"><div class="company-address"><input disabled aria-label="회사 이메일 아이디, 이름 입력 후 사용 가능" placeholder="이메일 아이디"><b>@enlife.co.kr</b><button disabled type="button">신규등록</button></div></div><div id="loginIdentity411" hidden></div><div id="loginStatus411" class="login411-status" role="status" aria-live="polite">이름 입력 후 소속과 계정 정보가 자동 확인됩니다.</div><div class="aff-field411"><span>소속사업장</span><div id="loginAff411" aria-label="소속사업장" aria-live="polite">이름 입력 후 자동 표시</div></div><div id="loginPwWrap411" hidden></div><div class="login-preview-password"><label><span>비밀번호</span><input type="password" disabled aria-label="비밀번호, 이름 입력 후 사용 가능" placeholder="비밀번호를 입력하세요"></label><button class="login411-submit" type="button" disabled>로그인</button></div><div class="login411-note">이앤엘 안전보건관리 통합시스템 v${ex(deployedVersion())}</div>${DEMO_ENABLED?`<a id="zerowizDemoEntry" class="login411-demo-entry" href="zerowiz-demo.html?v=2.0.0" target="_blank" rel="noopener noreferrer"><span>제로위즈 ERP 기술검토 데모<small>운영 사고·계정에 연결되지 않는 가상 업무 체험</small></span><span aria-hidden="true">→</span></a>`:''}</div></div>`;bindLogin();
+    app.innerHTML=`<div class="login-page login-v411"><img class="login-scene" src="assets/login-golf-r46.png" alt="" aria-hidden="true"><section class="login-intro" aria-label="이앤엘 안전보건관리 통합시스템 소개"><img src="assets/enl-wordmark.svg" width="176" height="86" alt="이앤엘 E&amp;L"><h2>이앤엘 안전보건관리<br>통합시스템</h2><p>안전한 코스관리, 건강한 일터가<br>최고의 코스 품질을 만듭니다.</p></section><div class="login-card"><div class="login-brand"><div class="login-shield"><img class="enl-system-mark" src="pwa-icon-512.png?v=4813-r53" width="512" height="512" alt="" aria-hidden="true"></div><div><h1>이앤엘 안전보건관리<br>통합시스템</h1><p>이름과 소속을 확인하고 로그인합니다.</p></div></div><label><span>이름</span><input id="loginName411" autocomplete="off" inputmode="text" enterkeyhint="next" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="이름을 입력하세요"></label><div id="loginEmail411" hidden></div><div class="login-preview-email"><div class="company-address"><input disabled aria-label="회사 이메일 아이디, 이름 입력 후 사용 가능" placeholder="이메일 아이디"><b>@enlife.co.kr</b><button disabled type="button">인증</button></div></div><div id="loginIdentity411" hidden></div><div id="loginStatus411" class="login411-status" role="status" aria-live="polite">이름 입력 후 소속과 계정 정보가 자동 확인됩니다.</div><div class="aff-field411"><span>소속사업장</span><div id="loginAff411" aria-label="소속사업장" aria-live="polite">이름 입력 후 자동 표시</div></div><div id="loginPwWrap411" hidden></div><div class="login-preview-password"><label><span>비밀번호</span><input type="password" disabled aria-label="비밀번호, 이름 입력 후 사용 가능" placeholder="비밀번호를 입력하세요"></label><button class="login411-submit" type="button" disabled>로그인</button></div><section class="login-remember"><div><label><input type="checkbox" id="rememberId411">아이디 기억하기</label><label><input type="checkbox" id="rememberPw411" disabled>비밀번호 기억하기</label></div><small>잠금 설정된 개인 PC에서만 사용하세요. 비밀번호는 브라우저의 비밀번호 관리자에 저장합니다.</small></section><div class="login411-note">이앤엘 안전보건관리 통합시스템 v${ex(deployedVersion())}</div>${DEMO_ENABLED?`<a id="zerowizDemoEntry" class="login411-demo-entry" href="zerowiz-demo.html?v=2.0.0" target="_blank" rel="noopener noreferrer"><span>제로위즈 ERP 기술검토 데모<small>운영 사고·계정에 연결되지 않는 가상 업무 체험</small></span><span aria-hidden="true">→</span></a>`:''}</div></div>`;bindLogin();
   }
   renderLogin=renderLogin411;window.enlRenderLogin=renderLogin411;
 
@@ -155,12 +216,14 @@
     let person;
     try{const r=await api({action:'login_site',name,siteId:option.siteId,passwordHash,accountKey:option.accountKey});person=r.person;if(!person||norm(person.name)!==norm(name)||String(person.site_id)!==String(option.siteId))throw new Error('mismatch')}
     catch(e){document.querySelectorAll('.login411-aff-btn').forEach(b=>b.disabled=false);const btn=document.getElementById('loginSubmit411');if(btn){btn.disabled=false;btn.textContent='로그인'}const msg=e.message==='registration_code_required'?'등록코드를 확인해 주세요. 코드는 발급 후 30분간 유효합니다.':e.message==='account_changed'?'계정 정보가 변경됐습니다. 이름을 다시 입력해 주세요.':'로그인 정보를 다시 확인해 주세요.';status(msg,'err');return false}
-    if(selected!==option)return false;saveSiteSession(person,passwordHash);enterApp();return true;
+    if(selected!==option)return false;await rememberLogin(option,document.getElementById('loginPassword411')?.value);if(selected!==option)return false;saveSiteSession(person,passwordHash);enterApp();return true;
   }
   function renderPassword(o){
     const box=document.getElementById('loginPwWrap411'),needsPassword=o.kind==='hq'||o.requiresPassword;box.hidden=false;
     box.innerHTML='<form id="loginPwForm411" class="login411-pw">'+(needsPassword?'<label><span>비밀번호</span><input id="loginPassword411" placeholder="비밀번호를 입력하세요" type="password" autocomplete="current-password" required></label>':'')+'<button id="loginSubmit411" class="login411-submit" type="submit">로그인</button></form>';
     box.querySelector('form').onsubmit=loginPassword;
+    if(needsPassword){const id=document.createElement('input');id.name='username';id.type='text';id.autocomplete='username';id.hidden=true;id.value=o.accountKey;box.querySelector('form').prepend(id);box.querySelector('[type=password]').name='password';}
+    restorePassword(o);
   }
   function mergeHq(user,passwordHash=''){
     if(!user?.id||!user?.name)return null;if(!Array.isArray(data.users))data.users=[];
@@ -171,13 +234,14 @@
   }
   async function loginPassword(ev){
     ev.preventDefault();const o=selected,name=document.getElementById('loginName411')?.value.trim()||'',pw=document.getElementById('loginPassword411')?.value||'',btn=document.getElementById('loginSubmit411');if(!o||!name)return;
+    if(!o.hasEmail){status('회사 이메일 인증을 먼저 완료해 주세요.','err');document.getElementById('companyLocal411')?.focus();return;}
     if((o.kind==='hq'||o.requiresPassword)&&!pw)return;
     btn.disabled=true;btn.textContent='확인 중…';status('로그인 정보를 확인하고 있습니다…');const hash=pw?await sha256(pw):'';
     if(o.kind==='site'){await loginSite(o,hash);return}
     let serverUser;
     try{const r=await api({action:'login_hq',name,affiliationId:o.affiliationId,passwordHash:hash,accountKey:o.accountKey});serverUser=r.user;if(!serverUser)throw new Error('invalid_user')}
     catch(e){btn.disabled=false;btn.textContent='로그인';status('이름, 소속과 비밀번호를 다시 확인해 주세요.','err');alert('이름, 소속과 비밀번호를 다시 확인하세요.');return}
-    if(selected!==o)return;const user=mergeHq(serverUser,hash);session={loggedAt:nowISO(),manager:{...user}};saveSession();enterApp();setTimeout(()=>{if(user.role==='safety')syncHqUsers(user)},350);
+    if(selected!==o)return;await rememberLogin(o,pw);if(selected!==o)return;const user=mergeHq(serverUser,hash);session={loggedAt:nowISO(),manager:{...user}};saveSession();enterApp();setTimeout(()=>{if(user.role==='safety')syncHqUsers(user)},350);
   }
 
   let hqSyncing=false;

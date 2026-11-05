@@ -70,7 +70,7 @@
       const token=++seq;more.disabled=true;
       if(first){offset=0;query=form.elements.query.value;duty=form.elements.duty.value;list.replaceChildren();}
       try{const r=await api({action:'platform_directory',query,duty,offset});if(token!==seq||!host.isConnected)return;
-        for(const x of r.rows){const article=document.createElement('article');article.innerHTML='<strong>'+e(x.name)+' / '+e(x.site_name)+'</strong><span>'+e([x.department,x.position,roles[x.role]||x.role,x.active?'사용 중':'비활성'].filter(Boolean).join(' / '))+'</span><small>'+e(x.source+':'+x.id)+' / '+e(x.codes.map(k=>duties[k]).join(', ')||'직무 미지정')+'</small>';list.append(article);}
+        for(const x of r.rows){const article=document.createElement('article');article.innerHTML='<strong>'+e(x.name)+' / '+e(x.site_name)+'</strong><span>'+e([x.department,x.position,roles[x.role]||x.role,x.active?'사용 중':'비활성'].filter(Boolean).join(' / '))+'</span><small>'+(x.email?e(x.email)+' / ':'')+e(x.source+':'+x.id)+' / '+e(x.codes.map(k=>duties[k]).join(', ')||'직무 미지정')+'</small>';list.append(article);}
         offset+=r.rows.length;more.hidden=!r.more;if(!offset)list.textContent='조회 결과가 없습니다.';
       }catch{if(token===seq)list.textContent='사용자 목록을 불러오지 못했습니다.'}finally{if(token===seq)more.disabled=false;}
     }

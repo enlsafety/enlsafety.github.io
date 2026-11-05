@@ -109,10 +109,20 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
   for(const key of [...extras].sort((a,b)=>(config.home_extras?.[a]??Infinity)-(config.home_extras?.[b]??Infinity))){
     order.splice(config.home_extras?.[key]??order.length,0,key);
   }
+  const savedOrder=(config.sidebar_order||[]).filter((k:string)=>order.includes(k));
+  const sidebarOrder=[...savedOrder,...order.filter(k=>!savedOrder.includes(k))];
+  if(action==='platform_sidebar_order'){
+    if(!admin)return reply({ok:false,message:'forbidden'},403);
+    const next=body.order;
+    if(!Array.isArray(next)||next.length!==order.length||!order.every(k=>next.includes(k)))return reply({ok:false,message:'invalid_catalog'},400);
+    const rows=await sql`update private.enl_platform_catalog set sidebar_order=${sql.json(next)}::jsonb,revision=revision+1,
+      updated_at=now(),updated_by=${actor.id} where singleton and revision=${body.revision} returning revision`;
+    return rows.length?reply({ok:true,revision:rows[0].revision}):reply({ok:false,message:'catalog_changed'},409);
+  }
   if(action==='platform_catalog'){
     const modules=publicItems(config.modules),services=publicItems(config.services);
     const visible=new Set([...modules,...services].map(m=>m.key).concat('support'));
-    return reply({ok:true,revision:config.revision,modules,services,omitted:(config.home_omitted||[]).filter((k:string)=>visible.has(k)),homeOrder:order.filter(k=>visible.has(k))});
+    return reply({ok:true,revision:config.revision,modules,services,omitted:(config.home_omitted||[]).filter((k:string)=>visible.has(k)),sidebarOrder:sidebarOrder.filter(k=>visible.has(k)&&(admin||!(config.home_omitted||[]).includes(k))),homeOrder:order.filter(k=>visible.has(k))});
   }
   if(action==='platform_home_cards'){
     if(!admin)return reply({ok:false,message:'forbidden'},403);
