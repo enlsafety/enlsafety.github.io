@@ -1,6 +1,6 @@
 .system-admin{display:grid;gap:12px;min-width:0}.system-admin h1{font-size:1.5rem;margin:4px 0}.system-admin header p{margin:4px 0;color:#526c80}.system-admin [data-admin-content]{min-width:0}
 .platform-return{margin:4px 0 10px;min-height:40px;background:white;border:1px solid #bed5e6;border-radius:10px;padding:6px 14px;color:#184e78}
-.main:has(.platform-hub)>.shell411-nav,.main:has(.platform-hub)>.platform-return,#view:has(.platform-hub)>[data-executive-queue]{display:none!important}
+.main:has(#view > .platform-hub)>.shell411-nav,.main:has(.platform-hub)>.platform-return,#view:has(.platform-hub)>[data-executive-queue]{display:none!important}
 .platform-hub{display:grid;gap:18px;color:#153c5e;max-width:1150px;margin:auto}
 .platform-heading p,.platform-order p{color:#507089}.platform-heading h2,.platform-services h2{margin:5px 0}
 .platform-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,175px),1fr));gap:10px}
@@ -15,7 +15,7 @@
 .platform-order label,.platform-duties label{display:inline-flex;align-items:center;gap:4px}.platform-order input,.platform-order select{min-width:0;max-width:100%}.platform-order input[type=checkbox],.platform-duties input[type=checkbox]{width:18px;height:18px;min-height:0}.platform-duties small{flex-basis:100%}.sa415-add:has(.platform-duties){flex-wrap:wrap}.platform-tools{margin-top:10px}
 @media(max-width:600px){.platform-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.platform-grid .platform-card{padding:12px}.platform-order label:has([data-pilots]){display:grid}.platform-order input[data-pilots]{width:100%}.platform-hub{gap:12px}}
 .platform-proof form,.platform-proof label{display:grid;gap:8px}.platform-proof form{padding:10px}.platform-proof :is(input,textarea,button){min-height:44px;max-width:100%}.history-manage ol li{padding:8px 0;flex-wrap:wrap;overflow-wrap:anywhere}.history-manage li button{width:auto}
-.safety-ui #app .main:has(.platform-hub)>.shell411-nav,.safety-ui #app .main:has(.platform-hub)>.platform-return{display:none!important}
+.safety-ui #app .main:has(#view > .platform-hub)>.shell411-nav,.safety-ui #app .main:has(.platform-hub)>.platform-return{display:none!important}
 @media(max-width:600px){.safety-ui .topbar .brand{min-width:0}.safety-ui .topbar .brand h1{white-space:normal;word-break:keep-all;line-height:1.25}}
 .platform-accounts{display:grid;gap:6px}.platform-accounts article{display:grid;gap:4px;padding:10px;border-bottom:1px solid #d1e1ed;overflow-wrap:anywhere}.platform-accounts small{color:#4e6880}
 .platform-services [data-platform-history-feed]{position:relative}

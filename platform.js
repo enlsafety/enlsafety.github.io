@@ -111,10 +111,10 @@
     root.parentElement.querySelector(':scope > .hub-incident-workspace')?.remove();
     const host=document.createElement('section');host.className='platform-hub';root.replaceChildren(host);
     const admin=u.role==='safety';
-    const dashboard=window.ENLHub.mount(host,u,{go:view=>go(view,u),enterIncident:(target)=>{
+    const dashboard=window.ENLHub.mount(host,u,{go:view=>go(view,u),enterIncident:()=>{
       recordEntry(u);
-      if(currentView==='platform'||!target)currentView=['worker','field'].includes(u.role)?'home':'stats';
-      if(target)target.click();else window.renderShell(u);
+      currentView=['worker','field'].includes(u.role)?'home':'stats';
+      window.renderShell(u);
     },icons,names,featureName,manageCards});
     const {area,services,status}=dashboard;
     let config,saving=false;
