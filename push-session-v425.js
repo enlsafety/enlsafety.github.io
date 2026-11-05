@@ -4,7 +4,7 @@
   const VERSION='4.8.4-approval-mail-link';
   const CLAIM_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-claim-v425';
   const CLIENT='incident-report-v2';
-  const SW_URL='/sw-v418.js?v=4.8.4-r1';
+  const SW_URL='/sw-v418.js?v='+encodeURIComponent(document.querySelector('meta[name="enl-build"]')?.content||'4.8.13-r60');
   const PREF_PREFIX='enl_push_preferences_v1_';
   const PENDING_KEY='enl_pending_push_incident_v425';
   const PENDING_TTL=30*60*1000;
@@ -35,7 +35,7 @@
 
   async function registerSw(){
     if(!('serviceWorker' in navigator))return null;
-    try{await navigator.serviceWorker.register(SW_URL,{scope:'/'});return await navigator.serviceWorker.ready}catch(e){console.warn('push session SW update skipped',e);return null}
+    try{await navigator.serviceWorker.register(SW_URL,{scope:'/',updateViaCache:'none'});return await navigator.serviceWorker.ready}catch(e){console.warn('push session SW update skipped',e);return null}
   }
   async function currentSubscription(){
     const reg=await registerSw();if(!reg||!('pushManager' in reg))return null;

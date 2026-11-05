@@ -4,7 +4,7 @@
   const VERSION='4.4.42-prevention-copy1';
   const PUSH_API='https://wjelumpbjklfrdjxbesj.supabase.co/functions/v1/enl-push-v418';
   const CLIENT='incident-report-v2';
-  const SW_URL='/sw-v418.js?v=4.4.32-startup-cache1';
+  const SW_URL='/sw-v418.js?v='+encodeURIComponent(document.querySelector('meta[name="enl-build"]')?.content||'4.8.13-r60');
   const PREF_PREFIX='enl_push_preferences_v1_';
   const rawFetch=window.fetch.bind(window);
   let deferredInstall=null;
@@ -96,7 +96,7 @@
     return result.readers;
   };
   async function health(){if(healthCache)return healthCache;healthCache=await api('health',{});return healthCache}
-  async function ensureSw(){if(swReg)return swReg;if(!('serviceWorker' in navigator))throw new Error('service_worker_unsupported');swReg=await navigator.serviceWorker.register(SW_URL,{scope:'/'});await navigator.serviceWorker.ready;return swReg}
+  async function ensureSw(){if(swReg)return swReg;if(!('serviceWorker' in navigator))throw new Error('service_worker_unsupported');swReg=await navigator.serviceWorker.register(SW_URL,{scope:'/',updateViaCache:'none'});await navigator.serviceWorker.ready;return swReg}
   function b64ToBytes(v){const pad='='.repeat((4-v.length%4)%4),base=(v+pad).replace(/-/g,'+').replace(/_/g,'/'),raw=atob(base),arr=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i);return arr}
   async function currentSub(){try{const reg=await ensureSw();return await reg.pushManager.getSubscription()}catch(e){return null}}
   async function ensurePushSubscriptionSilently(){const u=actor();if(!u||!supportsPush()||Notification.permission!=='granted'||(isIOS()&&!isStandalone()))return null;try{const reg=await ensureSw(),h=await health();let sub=await reg.pushManager.getSubscription();if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64ToBytes(h.vapidPublicKey)});const prefs=loadPrefs(u);await api('subscribe',{actor:u,subscription:sub.toJSON(),preferences:withDeviceMeta(prefs),userAgent:navigator.userAgent});return sub}catch(e){console.warn('push subscription auto-repair skipped',e?.message||e);return null}}

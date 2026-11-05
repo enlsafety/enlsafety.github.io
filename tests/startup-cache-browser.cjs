@@ -37,14 +37,24 @@ const server=http.createServer((req,res)=>{
     const swUrl=await page.evaluate(()=>navigator.serviceWorker.controller?.scriptURL||'');
     assert.ok(swUrl.includes('/sw-v418.js'),'startup cache service worker is not controlling the PWA page');
 
+    // Simulate an installed app whose saved entry predates the online release.
+    await page.evaluate(async()=>{
+      const active=await navigator.serviceWorker.ready;
+      const build=new URL(active.active.scriptURL).searchParams.get('v');
+      const cache=await caches.open('enl-pwa-'+build);
+      await cache.put('/stable412.html?offline=1',new Response('<title>Outdated shell</title>',{headers:{'Content-Type':'text/html'}}));
+    });
+    await page.reload({waitUntil:'domcontentloaded'});
+    await page.waitForSelector('.login-v411',{timeout:3000});
+    assert.notEqual(await page.title(),'Outdated shell','online PWA first launch must use the published shell');
     slowOrigin=true;
     await page.waitForTimeout(150);
     const start=Date.now();
     await page.reload({waitUntil:'domcontentloaded',timeout:3000});
     await page.waitForSelector('.login-v411',{timeout:3000});
     const elapsed=Date.now()-start;
-    assert.ok(elapsed<2500,'cache-first startup waited for slow origin: '+elapsed+'ms');
-    console.log('PASS: controlled PWA reload bypasses a 10s-slow origin via service-worker cache in '+elapsed+'ms');
+    assert.ok(elapsed<2500,'startup waited for slow origin: '+elapsed+'ms');
+    console.log('PASS: controlled PWA reload falls back promptly on a 10s-slow origin via service-worker cache in '+elapsed+'ms');
     await context.setOffline(true);
     await page.reload({waitUntil:'domcontentloaded',timeout:3000});
     await page.waitForSelector('.login-v411',{timeout:3000});
