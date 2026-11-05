@@ -318,9 +318,16 @@
   }
   function renderPassword(o){
     const box=document.getElementById('loginPwWrap411'),needsPassword=o.kind==='hq'||o.requiresPassword;box.hidden=false;
-    box.innerHTML='<form id="loginPwForm411" class="login411-pw">'+(needsPassword?'<label><span>비밀번호</span><input id="loginPassword411" placeholder="비밀번호를 입력하세요" type="password" autocomplete="current-password" required></label>':'')+'<small id="rememberStatus411" role="status"></small><button id="loginSubmit411" class="login411-submit" type="submit">로그인</button></form>';
+    box.innerHTML='<form id="loginPwForm411" class="login411-pw">'+(needsPassword?'<label><span>비밀번호</span><input id="loginPassword411" inputmode="numeric" placeholder="비밀번호를 입력하세요" type="password" autocomplete="current-password" required></label><button type="button" id="loginKeyboard411">문자 키패드</button>':'')+'<small id="rememberStatus411" role="status"></small><button id="loginSubmit411" class="login411-submit" type="submit">로그인</button></form>';
     box.querySelector('form').onsubmit=loginPassword;
     if(needsPassword){const id=document.createElement('input');id.name='username';id.type='text';id.autocomplete='username';id.hidden=true;id.value=o.accountKey;box.querySelector('form').prepend(id);box.querySelector('[type=password]').name='password';}
+    const keyboard=box.querySelector('#loginKeyboard411');
+    if(keyboard)keyboard.onclick=()=>{
+      const password=box.querySelector('#loginPassword411');
+      password.inputMode=password.inputMode==='numeric'?'text':'numeric';
+      keyboard.textContent=password.inputMode==='numeric'?'문자 키패드':'숫자 키패드';
+      password.focus();
+    };
     restorePassword(o);
   }
   function mergeHq(user,passwordHash=''){

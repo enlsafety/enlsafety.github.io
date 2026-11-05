@@ -129,7 +129,7 @@
     });
   }
 
-  function patchLoginPassword(){const p=document.getElementById('loginPassword411');if(p){p.removeAttribute('inputmode');if(p.required)p.placeholder='설정한 비밀번호'}}
+  function patchLoginPassword(){const p=document.getElementById('loginPassword411');if(p){if(p.required)p.placeholder='설정한 비밀번호'}}
   function apply(){css();injectProfile();injectFieldResetButtons();patchLoginPassword()}
   const mo=new MutationObserver(()=>requestAnimationFrame(apply));mo.observe(document.documentElement,{childList:true,subtree:true});apply();
   window.ENL_ACCOUNT_SECURITY_VERSION=VERSION;

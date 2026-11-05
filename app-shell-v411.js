@@ -19,7 +19,7 @@
   `;document.head.appendChild(s)}
 
   function logout(){session=null;saveSession();currentView='';try{enlPlatformSection='hub';localStorage.setItem(ENL_PLATFORM_SECTION_KEY,'hub')}catch(e){}renderLogin()}
-  function navItems(u){if(isField(u))return [];if(roleNorm(u.role)==='safety')return [['home','사고현황'],['report','사고 등록'],['incidents','전체 사고'],['actions','재발방지 관리'],['more','설정']];return [['home','사고현황'],['incidents','사고 조회'],['actions','확인완료 재발방지조치']]}
+  function navItems(u){if(isField(u))return [];if(roleNorm(u.role)==='safety')return [['home','사고현황'],['report','사고 등록'],['incidents','전체 사고'],['actions','재발방지 관리']];return [['home','사고현황'],['incidents','사고 조회'],['actions','확인완료 재발방지조치']]}
   function navHtml(u){const items=navItems(u);
     if(!items.length)return '';
     return `<nav class="shell411-nav">${items.map(([v,t])=>`<button type="button" data-shell-view="${v}" class="${currentView===v?'on':''}">${t}</button>`).join('')}</nav>`}
@@ -47,7 +47,7 @@
     menu.querySelector('[data-wf-inquiry-menu]').onclick=()=>{toggleAccountMenu(false);const frame=app.querySelector('.app-shell')?.enlWorkspaceFrame;if(frame)frame.activateWorkTab('inquiry');else window.enlRenderSafetyInquiry?.()};
     document.getElementById('logoutBtn').onclick=logout;
     document.getElementById('personnelBtn411')?.addEventListener('click',()=>window.enlRenderPersonnelPage?.(u));document.getElementById('settingsBtn411')?.addEventListener('click',()=>window.enlOpenSystemAdmin(u));
-    document.querySelectorAll('[data-shell-view]').forEach(b=>b.onclick=()=>{listReturn=null;const next=b.dataset.shellView;if(next==='more')return window.enlOpenSystemAdmin(u);if(next==='history')window.enlRequestHistory?.();if(role==='safety'&&next==='report')return openSafetyReport(u);if(next==='actions')window.enlResetActionFilter?.();currentView=next;if(['safety','manager','executive'].includes(role)&&currentView==='incidents')safetyListFilter={status:'',siteId:'',actionStatus:'',actionMissing:false,title:'전체 사고목록'};try{enlPlatformSection=currentView==='home'?'hub':'incident';localStorage.setItem(ENL_PLATFORM_SECTION_KEY,enlPlatformSection)}catch(e){}renderShell(u)});
+    document.querySelectorAll('[data-shell-view]').forEach(b=>b.onclick=()=>{listReturn=null;const next=b.dataset.shellView;if(next==='history')window.enlRequestHistory?.();if(role==='safety'&&next==='report')return openSafetyReport(u);if(next==='actions')window.enlResetActionFilter?.();currentView=next;if(['safety','manager','executive'].includes(role)&&currentView==='incidents')safetyListFilter={status:'',siteId:'',actionStatus:'',actionMissing:false,title:'전체 사고목록'};try{enlPlatformSection=currentView==='home'?'hub':'incident';localStorage.setItem(ENL_PLATFORM_SECTION_KEY,enlPlatformSection)}catch(e){}renderShell(u)});
     document.querySelector('[data-platform-home]').onclick=()=>window.enlReturnToPlatform(u);
     const brand=document.querySelector('.topbar .brand');if(brand&&isField(u)){brand.style.cursor='pointer';brand.onclick=()=>window.enlFieldHome?.(u)}
   }

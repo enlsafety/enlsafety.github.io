@@ -34,6 +34,12 @@ const {webkit,chromium}=require('playwright'),{tab}=require('./field-entry-table
  await p.evaluate(k=>localStorage.setItem('enl.firstPasswordPrompt.v1.'+k,'1'),accountKey);
  await p.locator('#loginName411').fill('통합검수');await p.locator('#loginPassword411').waitFor();
  await p.waitForFunction(id=>document.activeElement?.id===id,width>500?'loginPassword411':'companyLocal411');
+ assert.equal(await p.locator('#loginPassword411').getAttribute('inputmode'),'numeric');
+ if(width<=500){
+   const keyboard=p.locator('#loginKeyboard411');
+   await keyboard.click();assert.equal(await p.locator('#loginPassword411').getAttribute('inputmode'),'text');
+   await keyboard.click();assert.equal(await p.locator('#loginPassword411').getAttribute('inputmode'),'numeric');
+ }
  await p.locator('#loginPassword411').focus();
  await p.keyboard.type('focus-check');
  assert.equal(await p.locator('#loginPassword411').inputValue(),'focus-check');

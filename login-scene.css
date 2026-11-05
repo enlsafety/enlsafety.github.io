@@ -84,3 +84,8 @@
 
 .email-gate-dialog input[name=proof]::placeholder{color:#758697;opacity:1}
 .email-gate-dialog input[name=proof]:focus::placeholder{opacity:0}
+
+#loginKeyboard411{display:none}
+@media (pointer:coarse) {
+  #loginKeyboard411{display:block;justify-self:end;min-height:32px;margin-block:-5px;padding:3px 9px;border:1px solid #b9cedc;border-radius:7px;background:#fff;color:#275777;font:inherit;font-size:13px}
+}
