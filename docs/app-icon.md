@@ -15,3 +15,7 @@ Verification: icon formats/dimensions and alpha inspected; adaptive artwork chec
 ## r48 desktop visible-size adjustment
 
 Repack the unchanged r47 source into a tighter transparent canvas, retaining a four-source-pixel gutter around the visible alpha bounds and a one-output-pixel guard (two at 256/512). This maximizes the shield inside the fixed OS icon slot without stretching or cropping the visible artwork. Desktop/any-purpose 192/512 PNGs, 16/32 favicons and ICO frames at 16/20/24/32/40/48/64/128/192/256 are rebuilt directly from the original source. iOS and adaptive maskable bitmap files remain unchanged. `scripts/build-desktop-icons.cjs` validates a fully transparent outer edge for every generated size. OS taskbar slot dimensions themselves are controlled by Windows; this release increases artwork coverage inside each slot.
+
+## r49 unified system title mark
+
+Login, integrated-home and module/system headers now reuse the same transparent app icon (`pwa-icon-512.png?v=4813-r48`). The integrated-home renderer no longer replaces the shared header image with a cross shield or restores a different mark on navigation. Mobile header displays the same mark with its existing compact title layout. The separate corporate E&L wordmark is preserved. This standard is recorded in AGENTS.md for future screen changes.

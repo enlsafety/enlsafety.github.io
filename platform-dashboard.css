@@ -8,8 +8,8 @@
 .safety-ui #app:has(.platform-hub) .topbar .brand h1{font-size:clamp(20px,1.7vw,27px);font-weight:800;letter-spacing:-1px;color:#080e30;line-height:1.15;white-space:nowrap;overflow:visible;max-width:none;margin:0}
 .safety-ui #app:has(.platform-hub) .system-title-line{display:inline}
 .safety-ui #app:has(.platform-hub) .brand p{display:none}
-.safety-ui #app:has(.platform-hub) .logo{width:35px;height:40px;flex:none;border:0;border-radius:0;background:transparent;color:#0756ff;padding:0;box-shadow:none}
-.safety-ui #app:has(.platform-hub) .logo svg{width:35px;height:39px;stroke-width:2.2}
+.safety-ui #app:has(.platform-hub) .logo{width:40px;height:40px;flex:none;border:0;border-radius:0;background:transparent;color:#0756ff;padding:0;box-shadow:none}
+.safety-ui #app:has(.platform-hub) .logo .enl-system-mark{width:100%;height:100%;object-fit:contain}
 .safety-ui #app:has(.platform-hub) .topbar-tools{display:flex;flex:none;gap:12px;width:auto;max-width:none;margin:0}
 .safety-ui #app:has(.platform-hub) .topbar-tools>:not(.hub-search,.hub-bell){display:none!important}
 .safety-ui #app:has(.platform-hub) .topbar-tools .hub-search{width:clamp(220px,24vw,360px);height:36px;min-height:36px;display:flex;align-items:center;gap:10px;padding:0 16px;background:#f7faff;border:1px solid #c4cdf3;border-radius:26px;color:#354676;box-shadow:inset 0 0 0 3px #fff;white-space:nowrap;font-size:12px}
@@ -88,7 +88,7 @@
  .safety-ui #app:has(.platform-hub) .topbar .user-chip{min-width:34px!important;width:34px!important;padding:0!important}
  .safety-ui #app:has(.platform-hub) .user-chip>div:not(.avatar),.safety-ui #app:has(.platform-hub) .user-chip .chev{display:none!important}
  .safety-ui #app:has(.platform-hub) .avatar{display:flex!important;width:34px;height:34px;font-size:11px}
- .safety-ui #app:has(.platform-hub) .topbar .brand .logo{display:none!important}
+ .safety-ui #app:has(.platform-hub) .topbar .brand .logo{display:flex!important;width:28px;height:32px;min-width:28px;flex:none}
  .safety-ui #app:has(.platform-hub) .topbar .brand h1{font-size:16px;line-height:1.4;white-space:normal;word-break:keep-all;letter-spacing:-.6px}
  .hub-bottom{grid-template-columns:1fr}.hub-welcome{max-width:80%}
 }

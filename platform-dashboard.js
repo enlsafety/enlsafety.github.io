@@ -3,7 +3,7 @@
  'use strict';
  const safe=v=>esc(String(v??''));
  const api=body=>window.enlIncidentApi({...body,actor:window.enlCurrentActor()});
- const paths={arrow:'<path d="M5 12h14m-6-6 6 6-6 6"/>',home:'<path d="m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9"/>',search:'<circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/>',bell:'<path d="M4 17h16l-2-4V9a6 6 0 0 0-12 0v4zM9 21h6"/>',support:'<path d="m2 7 10-5 10 5-10 5zM2 12l10 5 10-5M2 17l10 5 10-5"/>',calendar:'<rect x="3" y="5" width="18" height="17" rx="2"/><path d="M7 2v6m10-6v6M3 11h18M7 15h2m3 0h2m3 0h1M7 18h2m3 0h2"/>',notice:'<path d="M3 10h5l11-6v16L8 14H3zM7 14l2 7h3l-2-6M22 9v6"/>',clock:'<circle cx="12" cy="13" r="9"/><path d="M9 1h6m-3 3v9l4 2"/>',file:'<path d="M14 3H5v18h14V8zM14 3v5h5M8 12h8m-8 4h6"/>',star:'<path d="m12 2 3 6 7 1-5 5 1 8-6-4-6 4 1-8-5-5 7-1z"/>',grid:'<rect x="2" y="2" width="8" height="8" rx="2"/><rect x="14" y="2" width="8" height="8" rx="2"/><rect x="2" y="14" width="8" height="8" rx="2"/><rect x="14" y="14" width="8" height="8" rx="2"/>',shield:'<path d="M12 2C9 5 5 5 3 5v8c0 5 5 8 9 10 4-2 9-5 9-10V5c-4 0-7-1-9-3Z"/><path d="M12 7v11M7 12h10"/>'};
+ const paths={arrow:'<path d="M5 12h14m-6-6 6 6-6 6"/>',home:'<path d="m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9"/>',search:'<circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/>',bell:'<path d="M4 17h16l-2-4V9a6 6 0 0 0-12 0v4zM9 21h6"/>',support:'<path d="m2 7 10-5 10 5-10 5zM2 12l10 5 10-5M2 17l10 5 10-5"/>',calendar:'<rect x="3" y="5" width="18" height="17" rx="2"/><path d="M7 2v6m10-6v6M3 11h18M7 15h2m3 0h2m3 0h1M7 18h2m3 0h2"/>',notice:'<path d="M3 10h5l11-6v16L8 14H3zM7 14l2 7h3l-2-6M22 9v6"/>',clock:'<circle cx="12" cy="13" r="9"/><path d="M9 1h6m-3 3v9l4 2"/>',file:'<path d="M14 3H5v18h14V8zM14 3v5h5M8 12h8m-8 4h6"/>',star:'<path d="m12 2 3 6 7 1-5 5 1 8-6-4-6 4 1-8-5-5 7-1z"/>',grid:'<rect x="2" y="2" width="8" height="8" rx="2"/><rect x="14" y="2" width="8" height="8" rx="2"/><rect x="2" y="14" width="8" height="8" rx="2"/><rect x="14" y="14" width="8" height="8" rx="2"/>'};
  Object.assign(paths,{
   incident:'<path d="m12 3 10 18H2z"/><path d="M12 9v5m0 3h.01"/>',
   risk:'<path d="M12 2c3 2 6 3 9 3v7c0 5-4 8-9 10-5-2-9-5-9-10V5c3 0 6-1 9-3Z"/><path d="M12 7v9m-4-4h8"/>',
@@ -12,8 +12,7 @@
   system:'<path d="m9 2-.6 3-2 .9-2.6-1.3-2.5 4.3 2.2 1.9v2.4l-2.2 1.9 2.5 4.3 2.6-1.3 2 .9.6 3h5l.6-3 2-.9 2.6 1.3 2.5-4.3-2.2-1.9v-2.4l2.2-1.9-2.5-4.3-2.6 1.3-2-.9-.6-3z"/><circle cx="11.5" cy="12" r="3.4"/>',
   approvals:'<path d="M11 4H4v17h17v-9M9 16l1-5L19 2l3 3-9 9zM17 4l3 3"/>',
   bell:'<path d="M5 16V9a7 7 0 0 1 14 0v7l2 3H3l2-3Z"/><path d="M9 22h6M11 2V1h2v1"/>',
-  grid:'<rect x="2" y="2" width="8" height="8" rx="1.5" fill="#244479" stroke="none"/><rect x="14" y="2" width="8" height="8" rx="1.5" fill="#31598e" stroke="none"/><rect x="2" y="14" width="8" height="8" rx="1.5" fill="#2373ff" stroke="none"/><rect x="14" y="14" width="8" height="8" rx="1.5" fill="#1555ed" stroke="none"/>',
-  shield:'<path d="M12 2c3 2 6 3 9 3v7c0 5-4 8-9 10-5-2-9-5-9-10V5c3 0 6-1 9-3Z" fill="#f6fcff" stroke="#1265f3"/><path d="M21 12c0 5-4 8-9 10" stroke="#1ac69d" stroke-width="2.8"/><path d="M12 7v10m-5-5h10" stroke="#1282eb" stroke-width="3"/>'
+  grid:'<rect x="2" y="2" width="8" height="8" rx="1.5" fill="#244479" stroke="none"/><rect x="14" y="2" width="8" height="8" rx="1.5" fill="#31598e" stroke="none"/><rect x="2" y="14" width="8" height="8" rx="1.5" fill="#2373ff" stroke="none"/><rect x="14" y="14" width="8" height="8" rx="1.5" fill="#1555ed" stroke="none"/>'
  });
  const svg=(key,extra={})=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(paths[key]||extra[key]||paths.file)+'</svg>';
  const descriptions={incident:'사고 발생 시<br>신속한 보고 및 관리',risk:'작업 공정별 위험요인<br>발굴 및 개선관리',tbm:'작업 전 안전회의<br><span>(Tool Box Meeting) 관리</span>',organization:'안전보건 조직 및<br>역할 책임 관리',training:'법정 직무 특별교육의<br>계획, 운영, 이력관리',msds:'화학물질정보<br>(MSDS) 등록 관리',support:'전자결재, 문서관리,<br>기준정보 등 공통업무 지원',system:'사용자, 권한, 코드,<br>환경설정 등 시스템 운영'};
@@ -77,7 +76,6 @@
   if(topbar){
    cleanup();
    topbar.querySelector('.user-chip')?.setAttribute('aria-label',(u.name||'사용자')+' 계정 메뉴');
-   const logo=topbar.querySelector('.logo');logo.dataset.hubOriginal=logo.innerHTML;logo.innerHTML=svg('shield');
    topbar.querySelector('.topbar-tools').insertAdjacentHTML('beforeend',action('search',svg('search')+'<span>업무, 문서, 교육, 사고 등 통합검색</span><kbd>Ctrl + K</kbd>','hub-search')+action('notifications',svg('bell'),'hub-bell'));
    topbar.querySelector('.brand').insertAdjacentHTML('beforebegin',action('menu','☰','hub-mobile-menu'));
    topbar.querySelectorAll('[data-hub]').forEach(b=>b.onclick=()=>dispatch(b.dataset.hub));
@@ -124,6 +122,6 @@
   return {area,services,status,addSupportCard,afterCards,showPreparing:title=>{const d=dialog(host,title);d.querySelector('.hub-dialog-body').textContent='이 업무의 세부 기능은 구현 중입니다.'}};
  }
  document.addEventListener('keydown',ev=>{if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==='k'&&currentView==='platform'){ev.preventDefault();document.querySelector('.hub-search')?.click()}});
- function cleanup(){stopArtwork();document.querySelectorAll('.topbar .hub-search,.topbar .hub-bell,.topbar .hub-mobile-menu').forEach(n=>n.remove());const logo=document.querySelector('.topbar .logo');if(logo?.dataset.hubOriginal!==undefined){logo.innerHTML=logo.dataset.hubOriginal;delete logo.dataset.hubOriginal}}
+ function cleanup(){stopArtwork();document.querySelectorAll('.topbar .hub-search,.topbar .hub-bell,.topbar .hub-mobile-menu').forEach(n=>n.remove());}
  window.ENLHub={mount,decorateCard,cleanup};
 })();

@@ -8,8 +8,8 @@
 .safety-ui .login-v411 .login-card{display:grid;grid-template-columns:minmax(0,1.06fr) minmax(0,1fr);gap:12px 12px;align-items:start;width:100%;max-width:760px;margin:0;border:1.5px solid #fffffff2;border-radius:38px;padding:clamp(28px,2.55vw,50px);background:linear-gradient(140deg,#f7fcff86,#e7f3ff6b 60%,#ecfff293);box-shadow:0 8px 30px #2c63851a,inset 0 1px 0 #ffffff8c;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
 .safety-ui .login-v411 [hidden]{display:none!important}
 .safety-ui .login-v411 .login-brand{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;grid-column:1/-1;grid-row:1;margin:0 0 22px;text-align:center}
-.safety-ui .login-v411 .login-brand .login-shield{display:block;width:60px;height:68px;min-width:0;padding:0;background:none;border:0;border-radius:0;box-shadow:none}
-.safety-ui .login-v411 .login-brand .login-shield svg{display:block;width:100%;height:100%}
+.safety-ui .login-v411 .login-brand .login-shield{display:block;width:68px;height:68px;min-width:0;padding:0;background:none;border:0;border-radius:0;box-shadow:none}
+.safety-ui .login-v411 .login-brand .login-shield .enl-system-mark{display:block;width:100%;height:100%}
 .safety-ui .login-v411 .login-brand h1{font-size:clamp(26px,1.85vw,36px);font-weight:800;line-height:1.28;letter-spacing:-1px;color:#071539;margin:0}
 .safety-ui .login-v411 .login-brand p,.safety-ui .login-v411 .login411-note{display:none}
 .safety-ui .login-v411 .login-card>label{grid-column:1;grid-row:2;min-width:0;margin:0;position:relative}
@@ -57,7 +57,7 @@
  .login-v411 .login-intro{display:none}
  .safety-ui .login-v411 .login-card{max-width:460px;gap:10px 8px;padding:22px 17px 18px;border-radius:26px;background:linear-gradient(145deg,#faffffb3,#eaf5ff94);box-shadow:0 5px 20px #295d7a14;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
  .safety-ui .login-v411 .login-brand{flex-direction:row;gap:12px;margin-bottom:14px;text-align:left}
- .safety-ui .login-v411 .login-brand .login-shield{width:39px;height:46px;flex:none}
+ .safety-ui .login-v411 .login-brand .login-shield{width:46px;height:46px;flex:none}
  .safety-ui .login-v411 .login-brand h1{font-size:21px;line-height:1.3;letter-spacing:-.8px}
  .safety-ui .login-v411 #loginName411,.safety-ui .login-v411 #loginPassword411,.safety-ui .login-v411 .login-preview-password input{min-height:48px;height:48px;font-size:16px;padding-left:35px;padding-right:8px;border-radius:11px}
  .safety-ui .login-v411 #loginAff411{min-height:48px;padding:8px 7px 8px 33px;font-size:12px;border-radius:11px}
