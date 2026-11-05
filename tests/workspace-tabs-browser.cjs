@@ -87,9 +87,9 @@ async function check(browser, role, width) {
       const dashboardTiles=await tileBoxes('.stats426-card');
       await page.locator('[data-shell-view=home]').click();
       const [reference]=await tileBoxes('[data-safety-status=all]');
-      assert.ok(dashboardTiles.every(box=>String(box)===String(reference)),'desktop dashboard uses the all-incidents card size');
+      assert.ok(dashboardTiles.every(([w,h])=>w>reference[0] && h<reference[1]),'dashboard restores its wider, shorter cards');
       await page.locator('[data-shell-view=report]').click();
-      assert.ok((await tileBoxes('.report-type-card')).every(box=>String(box)===String(reference)),'report type cards use the all-incidents card size');
+      assert.ok((await tileBoxes('.report-type-card')).every(([w])=>w>2*reference[0]),'report choices restore their larger card layout');
       await page.locator('[data-shell-view=stats]').click();
     }
     await side('feature:incident');
