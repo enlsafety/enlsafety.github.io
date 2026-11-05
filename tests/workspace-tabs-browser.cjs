@@ -63,7 +63,7 @@ async function check(browser, role, width) {
         const map=page.locator('.incident-overview .sd450-map-viewport');await map.waitFor();
         await page.evaluate(async()=>{await document.fonts.ready;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));});
         const boxes=await page.locator('.incident-overview .stats426-card,.incident-overview .sd450-map-viewport').evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.right,r.bottom]}));
-        assert.equal(boxes.length,5);assert.ok(boxes.every(([x,y,right,bottom])=>x>=0&&right<=w+1&&(w<=900||y>=0&&bottom<=h)),JSON.stringify({w,h,boxes}));
+        assert.equal(boxes.length,5);assert.ok(boxes.every(([x,y,right,bottom],i)=>x>=0&&right<=w+1&&(w<=900||y>=0&&(i<4&&h<850||bottom<=h))),JSON.stringify({w,h,boxes}));
         const cards=boxes.slice(0,4),mapBox=boxes[4],mapSize=Math.round(mapBox[2]-mapBox[0]);
         if(w<=900){
           assert.ok(cards.every(([x,y,,bottom],i)=>Math.abs(y-cards[0][1])<1&&bottom<=mapBox[1]&&(!i||x>=cards[i-1][2])),'four cards share one row above the map');
@@ -72,6 +72,15 @@ async function check(browser, role, width) {
         }else assert.ok(cards.every(([left,,right],i)=>left===cards[0][0]&&right<=mapBox[0]&&(!i||cards[i-1][3]<=cards[i][1])),'cards stack to the left of the map');
         assert.ok(mapSize>=(w>=1440?570:w>=1200?455:w>=800?395:235),'map width '+mapSize+' at '+w);
         assert.equal(await page.locator('[data-sd450-map-site]:not([hidden])').count(),33,'all sites fit before zoom');
+        const legendRows=await page.locator('.sd450-primary-legend>span').evaluateAll(rows=>rows.map(row=>[row.textContent.split(':')[0],row.offsetLeft,row.offsetTop,row.offsetHeight]));
+        assert.deepEqual(legendRows.map(([title])=>title),['일반','안전','주의','고위험']);
+        assert.ok(legendRows.every((r,i)=>r[1]===legendRows[0][1]&&(!i||r[2]>=legendRows[i-1][2]+legendRows[i-1][3])),'one level per line');
+        if(w>900){
+          const prior=await page.addStyleTag({content:'.safety-ui #app .incident-overview .stats426-cards .stats426-card{padding-block:10px!important}'});
+          const original=await page.locator('.incident-overview .stats426-card').evaluateAll(es=>es.map(e=>e.getBoundingClientRect().height));
+          await prior.evaluate(e=>e.remove());
+          assert.ok(cards.every((box,i)=>Math.abs(box[3]-box[1]-original[i]-96/2.54)<.1),'each left card gains one CSS centimetre');
+        }
         const bounds=()=>page.locator('.incident-overview :is(.sd450-map-panel,.sd450-map-frame,.sd450-map-viewport,.sd450-primary-legend)').evaluateAll(es=>es.map(e=>e.getBoundingClientRect().toJSON()));
         const original=await bounds();
         const [,frame,,legend]=original;
@@ -113,7 +122,7 @@ async function check(browser, role, width) {
       const dashboardTiles=await tileBoxes('.stats426-card');
       await page.locator('[data-shell-view=home]').click();
       const [reference]=await tileBoxes('[data-safety-status=all]');
-      assert.ok(dashboardTiles.every(([w,h])=>w>reference[0] && h<reference[1]),'dashboard restores its wider, shorter cards');
+      assert.ok(dashboardTiles.every(([w])=>w>reference[0]),'dashboard keeps its own card width');
       await page.locator('[data-shell-view=report]').click();
       assert.ok((await tileBoxes('.report-type-card')).every(([w])=>w>2*reference[0]),'report choices restore their larger card layout');
       await page.locator('[data-shell-view=stats]').click();
