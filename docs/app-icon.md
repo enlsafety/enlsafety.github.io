@@ -1,10 +1,10 @@
-# Current app icon: r50 blue E&L rounded square
+# Current app icon: r53 sky-blue E&L rounded square
 
-The latest user-approved blue icon supersedes the former golf shield everywhere an application/system mark is shown. `assets/enl-app-icon-r50.png` is the cutout master, prepared from the supplied image by removing only the exterior white backdrop. The large white E&L and blue/cyan artwork remain the approved design. Earlier masters are kept for history, not used at runtime.
+`assets/enl-app-icon-r53.png` is the supplied master: a sky-blue gradient tile with white E&L lettering outlined in navy. The icon build strips the exterior white margin during packaging. Earlier masters are kept for history, not used at runtime.
 
-- Login, integrated-home and module/system title marks use `pwa-icon-512.png?v=4813-r50`.
+- Login, integrated-home and module/system title marks use `pwa-icon-512.png?v=4813-r53`.
 - Desktop/Android any-purpose PNGs, small browser favicons and multi-size Windows ICO are rebuilt from the same master.
-- iOS/iPadOS 180px and its root fallback are opaque navy-backed derivatives.
+- iOS/iPadOS 180px and its root fallback are opaque sky-blue derivatives.
 - The adaptive 512px icon fits the full mark inside the standard 40% safe-circle radius.
 - HTML, manifest and service-worker icon cache keys are refreshed. App identity, authentication, workflows and records stay unchanged.
 - Existing installed OS icons may update later than the website. Physical-device installation refresh is not exercised by the cloud-browser checks.

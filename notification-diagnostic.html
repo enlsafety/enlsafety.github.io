@@ -34,7 +34,7 @@ body{font-family:"Malgun Gothic",Arial,sans-serif;background:#f3f8fc;color:#173b
       if(Notification.permission!=='granted')throw new Error('Edge 사이트 알림 권한이 허용되어 있지 않습니다.');
       const reg=await navigator.serviceWorker.register('/sw-v418.js?v=4.1.8-pwa2',{scope:'/'});
       await navigator.serviceWorker.ready;
-      await reg.showNotification('이앤엘 사고보고앱 - PC 자체 테스트',{body:'이 알림이 보이면 Windows 알림 표시 기능은 정상입니다.',icon:'/pwa-icon-192.png',badge:'/pwa-icon-192.png',tag:'enl-local-diagnostic-'+Date.now(),data:{url:'https://enlsafety.github.io/'}});
+      await reg.showNotification('이앤엘 사고보고앱 - PC 자체 테스트',{body:'이 알림이 보이면 Windows 알림 표시 기능은 정상입니다.',icon:'/pwa-icon-192.png?v=4813-r53',badge:'/pwa-icon-192.png?v=4813-r53',tag:'enl-local-diagnostic-'+Date.now(),data:{url:'https://enlsafety.github.io/'}});
       msg.className='msg ok';msg.textContent='알림 표시 요청을 PC에 전달했습니다. 오른쪽 아래 또는 Win + N 알림센터를 확인하세요.';
     }catch(e){msg.className='msg err';msg.textContent='실패: '+(e&&e.message?e.message:String(e));}
     finally{btn.disabled=false;update();}
