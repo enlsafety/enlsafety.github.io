@@ -7,7 +7,7 @@
   const actor=()=>window.enlCurrentActor?.();
   const canView=u=>['safety','manager','final','executive'].includes(u?.role)||(u?.role==='field'&&!!u.siteId&&['현장소장','파트장','서무'].includes(u.position||u.jobTitle));
   window.enlHistoryAvailable=canView;
-  const menuSelector='[data-shell-view="history"],[data-field-task="history"],[data-platform-history-feed]';
+  const menuSelector='[data-recent-history],[data-platform-history-feed]';
   const userId=()=>{const a=actor();return a?.id&&canView(a)?JSON.stringify([a.role,a.siteId,a.id]):'';};
   const api=body=>window.enlIncidentApi({...body,actor:actor()});
   const safe=v=>esc(String(v??''));
@@ -176,4 +176,5 @@
   window.addEventListener('focus',()=>refresh(true));
   for(const event of ['enl-activity-changed','enl-incident-saved'])window.addEventListener(event,()=>refresh(true));
   setInterval(()=>refresh(),30000);refresh();
+  window.dispatchEvent(new Event('enl-history-ready'));
 })();

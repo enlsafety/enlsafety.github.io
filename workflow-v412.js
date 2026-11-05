@@ -97,12 +97,6 @@
   ['enlOpenIncidentReview','openIncidentModal'].forEach(k=>{const f=window[k];if(typeof f==='function'){window[k]=function(id){activeIncidentId=String(id||'');const out=f.apply(this,arguments);setTimeout(mountIncidentExtras,0);return out}}});
   function mountEditModifier(){const form=document.querySelector('#unifiedReportForm[data-editing="true"]');if(!form||form.querySelector('.wf412-mod'))return;const i=activeIncident();if(!i)return;const head=form.querySelector('.section-head');head?.insertAdjacentHTML('afterend',modifierHtml(i))}
 
-  function setInquiryNavActive(active){
-    const nav=document.querySelector('.shell411-nav');if(!nav)return;
-    nav.querySelectorAll('button').forEach(b=>{if(b.matches('[data-wf-inquiry-nav]'))b.classList.toggle('on',active);else if(active)b.classList.remove('on')});
-  }
-  document.addEventListener('click',ev=>{if(ev.target?.closest?.('[data-shell-view]'))setInquiryNavActive(false)},true);
-
   const inquiryLabel=s=>s==='new'?'새 문의':s==='read'?'열람':s==='answered'?'답변완료':s==='closed'?'처리완료':s;
   function inquiryCard(x,safety,deletedView){
     const status=text(x.status)||'new',deleted=!!x.deleted_at;
@@ -112,14 +106,14 @@
     const u=currentUser?.(),a=actor(u),root=document.getElementById('view');if(!u||!a||!root)return;const safety=a.role==='safety',fieldUser=isFieldUser(u),deletedView=filter==='deleted';
     if(!fieldUser&&currentView!=='inquiry')inquiryReturnView=currentView||'home';
     currentView=fieldUser?'field-inquiry':'inquiry';
-    setInquiryNavActive(true);
     root.innerHTML=`<section class="wf412-page"><section class="panel"><div class="wf412-head"><div><div class="ey">SAFETY CONTACT</div><h2>${safety?'안전관리자 문의함':'안전관리자 문의'}</h2><p>${safety?'현장 및 본사에서 등록한 모든 문의를 확인하고 답변·처리합니다.':'문의 구분, 제목, 내용을 입력해 안전관리자에게 전달합니다.'}</p></div></div></section>${safety?`<section class="panel"><div class="wf412-filter">${[['','전체'],['new','새 문의'],['read','열람'],['answered','답변완료'],['closed','처리완료'],['deleted','임시삭제']].map(([v,t])=>`<button type="button" data-wf-filter="${v}" class="${filter===v?'on':''}">${t}</button>`).join('')}</div><div id="wf412InquiryList" class="wf412-inquiries" style="margin-top:10px"><div class="wf412-empty">문의사항을 불러오는 중입니다.</div></div></section>`:`<section class="wf412-new"><form id="wf412InquiryForm"><div class="wf412-formgrid"><label class="wf412-formlabel"><span>문의 구분 *</span><select id="wf412InquiryCategory">${INQUIRY_CATEGORIES.map(x=>`<option>${x}</option>`).join('')}</select></label><label class="wf412-formlabel"><span>제목 *</span><input id="wf412InquirySubject" maxlength="120" required placeholder="문의 제목"></label></div><label class="wf412-formlabel"><span>문의 내용 *</span><textarea id="wf412InquiryBody" maxlength="3000" required placeholder="문의 내용을 구체적으로 입력해 주세요."></textarea></label><button type="submit">안전관리자에게 문의 등록</button></form></section><section class="panel"><h3 style="margin-top:0;color:#174d78">내 문의 내역</h3><div id="wf412InquiryList" class="wf412-inquiries"><div class="wf412-empty">문의사항을 불러오는 중입니다.</div></div></section>`}</section>`;
-    if(fieldUser)window.enlAddFieldBack?.(root,u);
+    const frame=root.closest('.app-shell')?.enlWorkspaceFrame;
+    if(fieldUser&&!frame)window.enlAddFieldBack?.(root,u);
     else {
       root.insertAdjacentHTML('afterbegin','<div class="field-task-back"><button type="button" data-inquiry-back>← 뒤로가기</button></div>');
       root.querySelector('[data-inquiry-back]').onclick=()=>{
+        if(frame)return frame.leaveInquiry();
         currentView=inquiryReturnView;
-        setInquiryNavActive(false);
         renderShell(u);
       };
     }
@@ -143,20 +137,11 @@
     }catch(e){box.innerHTML='<div class="wf412-empty">문의사항을 불러오지 못했습니다.</div>'}
   }
 
-  function canInquiry(u){return ['safety','manager','executive','field','worker'].includes(roleNorm(u?.role))}
-  function rootInquiryOpen(){return (currentView==='inquiry'||currentView==='field-inquiry')&&!!document.querySelector('#view .wf412-page')}
-  function injectInquiryEntry(){
-    const u=currentUser?.();if(!u||!canInquiry(u))return;const r=roleNorm(u.role),nav=document.querySelector('.shell411-nav');
-    if(nav&&!nav.querySelector('[data-wf-inquiry-nav]')){const b=document.createElement('button');b.type='button';b.dataset.wfInquiryNav='1';b.innerHTML=r==='safety'?'문의함':'안전관리자 문의';b.onclick=()=>{setInquiryNavActive(true);renderInquiryCenter('')};nav.appendChild(b)}
-    const menu=document.getElementById('userMenu');if(menu&&['field','worker'].includes(r)&&!menu.querySelector('[data-wf-inquiry-menu]')){const b=document.createElement('button');b.type='button';b.className='wf412-menu-btn';b.dataset.wfInquiryMenu='1';b.textContent='안전관리자 문의';b.onclick=()=>{menu.classList.add('hide');renderInquiryCenter('')};const logout=menu.querySelector('#logoutBtn');menu.insertBefore(b,logout||null)}
-    if(rootInquiryOpen())setInquiryNavActive(true);
-    if(r==='safety')markInquiryButton();
-  }
   async function markInquiryButton(force=false){
     const u=currentUser?.();if(roleNorm(u?.role)!=='safety')return;
-    const b=document.querySelector('[data-wf-inquiry-nav]');if(!b)return;
+    const buttons=document.querySelectorAll('[data-wf-inquiry-sidebar],[data-wf-inquiry-menu]');if(!buttons.length)return;
     const now=Date.now();
-    const paint=n=>{const html=`문의함${n>0?` <span class=\"wf412-nav-badge\">${n>99?'99+':n}</span>`:''}`;if(b.innerHTML!==html)b.innerHTML=html};
+    const paint=n=>{const html=`문의함${n>0?` <span class=\"wf412-nav-badge\">${n>99?'99+':n}</span>`:''}`;for(const b of buttons)if(b.innerHTML!==html)b.innerHTML=html};
     if(inquiryCountBusy)return;
     if(!force&&now-inquiryCountLastAt<15000){if(inquiryCountLastValue!==null)paint(inquiryCountLastValue);return}
     inquiryCountBusy=true;
@@ -165,8 +150,14 @@
     finally{inquiryCountBusy=false}
   }
 
-  const observer=new MutationObserver(()=>{injectInquiryEntry();mountIncidentExtras();mountEditModifier()});
+  window.enlRefreshInquiryCount=markInquiryButton;
+  function syncInquiryEntries(){
+    const menu=document.querySelector('[data-wf-inquiry-menu]'),logout=document.getElementById('logoutBtn');
+    if(menu&&logout&&menu.nextElementSibling!==logout)logout.before(menu);
+    markInquiryButton();
+  }
+  const observer=new MutationObserver(()=>{syncInquiryEntries();mountIncidentExtras();mountEditModifier()});
   observer.observe(document.documentElement,{childList:true,subtree:true});
-  css();injectInquiryEntry();setTimeout(()=>{injectInquiryEntry();mountIncidentExtras();mountEditModifier()},50);
+  css();markInquiryButton();setTimeout(()=>{markInquiryButton();mountIncidentExtras();mountEditModifier()},50);
   window.ENL_WORKFLOW_VERSION=VERSION;
 })();

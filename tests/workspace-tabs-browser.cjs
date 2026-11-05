@@ -34,6 +34,18 @@ async function check(browser, role, width) {
       if (await menu.isVisible()) await menu.click();
       await page.locator('.hub-sidebar [data-hub="' + key + '"]').click();
     };
+    await page.locator('#userChip').click();
+    assert.ok(await page.locator('#userMenu [data-wf-inquiry-menu] + #logoutBtn').isVisible());
+    await page.locator('.hub-hero').click({position:{x:4,y:4}});assert.ok(await page.locator('#userMenu').isHidden());
+    await page.locator('#userChip').click();await page.locator('[data-wf-inquiry-menu]').click();await active('inquiry');
+    await page.locator('.wf412-page').waitFor();await page.locator('[data-inquiry-back]').click();await active('home');
+    const mobileMenu=page.locator('.hub-mobile-menu');
+    if(await mobileMenu.isVisible())await mobileMenu.click();
+    await page.locator('.hub-inquiry').click();await active('inquiry');
+    await page.getByRole('button',{name:(role==='safety'?'문의함':'안전관리자 문의')+' 탭 닫기'}).click();await active('home');
+    await page.locator('[data-hub=recent]').click();await active('recent');
+    await page.locator('.activity-history[data-feed=incident]').waitFor();
+    await page.getByRole('button',{name:'최근 작업 탭 닫기'}).click();await active('home');
     const editor=page.locator('.hub-sidebar-editor [data-edit]');
     if(role==='safety'){
       await editor.click();
@@ -46,20 +58,24 @@ async function check(browser, role, width) {
     await active('incident');
     if(role==='safety'){
       await page.waitForFunction(()=>window.enlDashboardMetrics?.()!==null&&document.querySelectorAll('#sd450Site option').length===34);
-      for(const [w,h] of [[1920,1080],[1440,900],[1366,768],[1280,720],[1024,768],[820,1180],[393,852],[375,667]]){
+      for(const [w,h] of [[1920,1080],[1440,900],[1366,768],[1280,720],[1024,768],[820,1180],[393,852],[375,667],[320,690]]){
         await page.setViewportSize({width:w,height:h});
         const map=page.locator('.incident-overview .sd450-map-viewport');await map.waitFor();
         await page.evaluate(async()=>{await document.fonts.ready;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));});
         const boxes=await page.locator('.incident-overview .stats426-card,.incident-overview .sd450-map-viewport').evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.right,r.bottom]}));
-        assert.equal(boxes.length,5);assert.ok(boxes.every(([x,y,right,bottom])=>x>=0&&y>=0&&right<=w+1&&bottom<=h),JSON.stringify({w,h,boxes}));
+        assert.equal(boxes.length,5);assert.ok(boxes.every(([x,y,right,bottom])=>x>=0&&right<=w+1&&(w<=900||y>=0&&bottom<=h)),JSON.stringify({w,h,boxes}));
         const cards=boxes.slice(0,4),mapBox=boxes[4],mapSize=Math.round(mapBox[2]-mapBox[0]);
-        assert.ok(cards.every(([left,,right],i)=>left===cards[0][0]&&right<=mapBox[0]&&(!i||cards[i-1][3]<=cards[i][1])),'cards stack to the left of the map');
+        if(w<=900){
+          assert.ok(cards.every(([x,y,,bottom],i)=>Math.abs(y-cards[0][1])<1&&bottom<=mapBox[1]&&(!i||x>=cards[i-1][2])),'four cards share one row above the map');
+          assert.ok(await page.locator('#sd450Site').evaluate(el=>el.getBoundingClientRect().top>=document.querySelector('.sd450-map-frame').getBoundingClientRect().bottom));
+          assert.ok(await page.locator('.shell411-nav').evaluate(el=>el.scrollWidth<=el.clientWidth+1));
+        }else assert.ok(cards.every(([left,,right],i)=>left===cards[0][0]&&right<=mapBox[0]&&(!i||cards[i-1][3]<=cards[i][1])),'cards stack to the left of the map');
         assert.ok(mapSize>=(w>=1440?570:w>=1200?455:w>=800?395:235),'map width '+mapSize+' at '+w);
         assert.equal(await page.locator('[data-sd450-map-site]:not([hidden])').count(),33,'all sites fit before zoom');
         const bounds=()=>page.locator('.incident-overview :is(.sd450-map-panel,.sd450-map-frame,.sd450-map-viewport,.sd450-primary-legend)').evaluateAll(es=>es.map(e=>e.getBoundingClientRect().toJSON()));
         const original=await bounds();
         const [,frame,,legend]=original;
-        assert.ok(Math.abs(legend.left-frame.left)<=6 && Math.abs(frame.bottom-legend.bottom)<=6,'legend anchored in the map corner');
+        assert.ok(Math.abs(legend.right-frame.right)<=6 && Math.abs(frame.top-legend.top)<=6,'legend anchored in the map corner');
         assert.doesNotMatch(await page.locator('.sd450-primary-legend').innerText(),/녹색|검정|주황|빨강/);
         assert.ok((await page.locator('.sd450-primary-legend').innerText()).includes('올해 사고 5건 이상 또는 중대재해'));
         assert.ok(await page.locator('[data-sd450-map-site]').evaluateAll(markers=>{
@@ -67,7 +83,17 @@ async function check(browser, role, width) {
           return markers.every(m=>{const r=m.getBoundingClientRect();return r.bottom<=legend.top||r.top>=legend.bottom||r.right<=legend.left||r.left>=legend.right;});
         }),'the legend must leave all default map markers visible');
         await page.locator('#sd450Site').selectOption('s29');await page.locator('[data-sd450-open="s29"]').waitFor();
-        assert.deepEqual(await bounds(),original,'showing a site must not resize the map or panel');
+        const selected=await bounds();
+        const region=w<=900?1:0;
+        assert.deepEqual(selected.slice(region),original.slice(region),'showing a site must not resize the map');
+        assert.equal(await page.locator('.sd450-site-value').innerText(),await page.locator('#sd450Site option:checked').innerText());
+        if(w===320){
+          const longName='사업장 선택 항목이 두 줄 이상이어도 전체 이름이 보이는지 확인하는 사업장';
+          await page.locator('#sd450Site').evaluate((el,name)=>{el.selectedOptions[0].textContent=name;el.dispatchEvent(new Event('change'));},longName);
+          const value=page.locator('.sd450-site-value');
+          assert.equal(await value.innerText(),longName);
+          assert.ok(await value.evaluate(el=>el.scrollWidth<=el.clientWidth && el.scrollHeight<=el.clientHeight && el.clientHeight>46));
+        }
         assert.doesNotMatch(await page.locator('#sd450Site').innerText(),/ · (안전|주의|일반|고위험)/);
         await page.locator('#sd450Site').selectOption('');
         // Use the controls without bringing them into view on a short screen.

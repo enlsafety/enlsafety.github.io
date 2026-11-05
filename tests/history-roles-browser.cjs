@@ -7,9 +7,10 @@ async function check(engine,width){
  try{
   for(const role of ['field','manager','executive','safety','worker']){
    const {c,p}=await tab(browser,width,role);
-   const menu=p.locator('[data-field-task="history"],[data-shell-view="history"]');
+   const menu=p.locator('[data-hub=recent]');
+   await p.locator('[data-worktab=home]').click();
    await p.waitForFunction(()=>typeof enlHistoryAvailable==='function'&&!!document.querySelector('#view'));
-   if(role==='worker'){assert.equal(await menu.count(),0);await c.close();continue;}
+   if(role==='worker'){assert.ok(await menu.isHidden());await c.close();continue;}
    await p.evaluate(async()=>{
     const base=enlIncidentApi;let rows=Array.from({length:3},(_,n)=>({id:String(n+1),kind:'create',incident_id:'sample-1',happened_at:'2026-11-04',role_label:'현장관리자',sentence:'현장관리자님이 테스트 사업장의 작업 차량 접촉 사고 보고서를 최초 등록했습니다.'}));
     window.enlIncidentApi=async b=>{
@@ -40,7 +41,7 @@ async function check(engine,width){
     await manage.locator('[name=start]').fill('2026-11-01');await manage.locator('[name=end]').fill('2026-11-04');await manage.getByText('기간별 삭제').click();await proof();
     await p.waitForFunction(()=>window.lastDelete.mode==='range');assert.equal(await p.evaluate(()=>lastDelete.fromDate),'2026-11-01');
     await manage.getByText('전체 삭제').click();await proof();await p.waitForFunction(()=>window.lastDelete.mode==='all');
-   }else if(role==='field'){await p.locator('[data-field-back]').click();await menu.waitFor();}
+   }else if(role==='field'){await p.locator('[data-worktab=home]').click();await menu.waitFor();}
    await noOverflow(p);await c.close();
   }
   console.log('PASS role menus, badges, document navigation, delete controls, confirmation and geometry',engine.name(),width);

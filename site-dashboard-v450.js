@@ -178,10 +178,10 @@ function injectMap(u){
  if(!overview){overview=document.createElement('div');overview.className='incident-overview';head.before(overview);overview.append(head,cards);}
  overview.insertAdjacentHTML('beforeend',mapHtml());
  const side=root.querySelector('.sd450-map-side'),a=dashboardRows();
- side.insertAdjacentHTML('afterbegin','<label class="sd450-select-label" for="sd450Site">사업장 선택</label><select id="sd450Site"><option value="">사업장을 선택하세요</option>'+a.map(s=>'<option value="'+E(s.site_id)+'">'+E(s.site_name)+(pos(s)?'':' (좌표 확인 필요)')+'</option>').join('')+'</select><div data-sd450-summary role="region" aria-label="사업장 요약" aria-live="polite"></div>');
+ side.insertAdjacentHTML('afterbegin','<label class="sd450-select-label" for="sd450Site">사업장 선택</label><div class="sd450-site-picker"><span class="sd450-site-value" aria-hidden="true">사업장을 선택하세요</span><select id="sd450Site"><option value="">사업장을 선택하세요</option>'+a.map(s=>'<option value="'+E(s.site_id)+'">'+E(s.site_name)+(pos(s)?'':' (좌표 확인 필요)')+'</option>').join('')+'</select></div><div data-sd450-summary role="region" aria-label="사업장 요약" aria-live="polite"></div>');
  bindMap(root,a);
  const select=root.querySelector('#sd450Site'),card=root.querySelector('[data-sd450-summary]');
- const show=id=>{preview=id;select.value=id;root.querySelectorAll('[data-sd450-map-site]').forEach(b=>{const selected=b.dataset.sd450MapSite===id;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',String(selected))});card.innerHTML=id?summary(id):'';const b=card.querySelector('[data-sd450-open]');if(b)b.onclick=()=>window.enlOpenSafetySiteIncidents(id)};
+ const show=id=>{preview=id;select.value=id;select.previousElementSibling.textContent=select.selectedOptions[0]?.textContent||'사업장을 선택하세요';root.querySelectorAll('[data-sd450-map-site]').forEach(b=>{const selected=b.dataset.sd450MapSite===id;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',String(selected))});card.innerHTML=id?summary(id):'';const b=card.querySelector('[data-sd450-open]');if(b)b.onclick=()=>window.enlOpenSafetySiteIncidents(id)};
  select.onchange=()=>{markDashboardInteraction();show(select.value)};
  const viewport=root.querySelector('.sd450-map-viewport'),buttons=Array.from(root.querySelectorAll('[data-sd450-map-site]'));
  const reveal=button=>{buttons.forEach(b=>{const open=b===button;b.classList.toggle('label-open',open);b.setAttribute('aria-expanded',String(open))});if(button)anchorLabel(button,viewport)};

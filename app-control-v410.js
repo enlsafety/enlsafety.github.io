@@ -107,12 +107,7 @@
     if(inquiryOpen&&typeof window.enlRenderSafetyInquiry==='function'){
       try{await window.enlRenderSafetyInquiry('');return}catch(e){}
     }
-    if(a.role==='safety'&&typeof window.enlWorkflowApi==='function'){
-      try{
-        const r=await window.enlWorkflowApi({action:'inquiry_count',actor:a}),n=Number(r?.count||0),b=document.querySelector('[data-wf-inquiry-nav]');
-        if(b)b.innerHTML=`문의함${n>0?` <span class="wf412-nav-badge">${n>99?'99+':n}</span>`:''}`;
-      }catch(e){}
-    }
+    if(a.role==='safety')await window.enlRefreshInquiryCount?.(true);
   }
   let refreshing=false;
   async function refreshData(){

@@ -99,10 +99,13 @@
 
   function inquirySeenKey(u){return INQUIRY_SEEN_PREFIX+uid(u)}
   function inquirySeen(u){try{return Number(localStorage.getItem(inquirySeenKey(u))||0)||0}catch(e){return 0}}
-  function markInquirySeen(u){if(!u)return;try{localStorage.setItem(inquirySeenKey(u),String(Date.now()))}catch(e){}inquiryUnread=false;dot(document.querySelector('[data-wf-inquiry-nav]'),false)}
+  function paintInquiryDots(on){
+    document.querySelectorAll('[data-wf-inquiry-menu],[data-wf-inquiry-sidebar]').forEach(b=>dot(b,on,'안전관리자 문의에 새 답변이 있습니다'));
+  }
+  function markInquirySeen(u){if(!u)return;try{localStorage.setItem(inquirySeenKey(u),String(Date.now()))}catch(e){}inquiryUnread=false;paintInquiryDots(false)}
   async function refreshReaderInquiry(u,force=false){
     if(!isReader(u)||typeof window.enlWorkflowApi!=='function')return;
-    const now=Date.now();if(inquiryBusy||(!force&&now-inquiryLastAt<30000)){dot(document.querySelector('[data-wf-inquiry-nav]'),inquiryUnread,'안전관리자 문의에 새 답변이 있습니다');return}
+    const now=Date.now();if(inquiryBusy||(!force&&now-inquiryLastAt<30000)){paintInquiryDots(inquiryUnread);return}
     inquiryBusy=true;inquiryLastAt=now;
     try{
       const r=await window.enlWorkflowApi({action:'inquiry_my_list',actor:actor(u)}),seen=inquirySeen(u);
@@ -110,7 +113,7 @@
         if(!x?.answer_body&&!['answered','closed'].includes(String(x?.status||'')))return false;
         const t=Date.parse(x.answered_at||x.updated_at||x.created_at||'');return Number.isFinite(t)&&t>seen;
       });
-    }catch(e){}finally{inquiryBusy=false;dot(document.querySelector('[data-wf-inquiry-nav]'),inquiryUnread,'안전관리자 문의에 새 답변이 있습니다')}
+    }catch(e){}finally{inquiryBusy=false;paintInquiryDots(inquiryUnread)}
   }
 
   async function deleteComment(commentId,u){
@@ -163,8 +166,8 @@
 
   css();
   document.addEventListener('click',e=>{
-    const u=currentUser?.(),b=e.target?.closest?.('.shell411-nav button');if(!b)return;
-    if(b.matches('[data-wf-inquiry-nav]')&&isReader(u))markInquirySeen(u);
+    const u=currentUser?.(),b=e.target?.closest?.('.shell411-nav button,[data-wf-inquiry-menu],[data-wf-inquiry-sidebar]');if(!b)return;
+    if(b.matches('[data-wf-inquiry-menu],[data-wf-inquiry-sidebar]')&&isReader(u))markInquirySeen(u);
     setTimeout(schedule,0);
   },true);
   const root=document.getElementById('app')||document.body,mo=new MutationObserver(schedule);mo.observe(root,{childList:true,subtree:true});

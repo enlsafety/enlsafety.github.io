@@ -91,7 +91,7 @@ async function check(engine,width,name){
     if(!baseline){
       await p.locator('[data-closed-site]').selectOption('s02');
       await p.locator('[data-site-closed-records] [data-closed-pdf]').waitFor();
-      await p.locator('[data-wf-inquiry-nav]').click();
+      await p.locator('#userChip').click();await p.locator('[data-wf-inquiry-menu]').click();
       await p.locator('[data-inquiry-back]').click();
       await p.locator('[data-closed-site]').waitFor();
       const popupPromise=p.waitForEvent('popup');

@@ -49,7 +49,7 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  assert.equal(await page.locator('[data-sd450-map-site]').count(),33);
  assert.equal(await page.locator('#sd450Scope').count(),0);
  assert.equal(await page.locator('#sd450Site option[value="s34"]').count(),0);
- assert.ok(await page.locator('.sd450-primary-legend').evaluate(el=>Math.abs(el.getBoundingClientRect().bottom-el.closest('.sd450-map-frame').getBoundingClientRect().bottom)<=6),'legend must stay inside the map frame, including mobile');
+ assert.ok(await page.locator('.sd450-primary-legend').evaluate(el=>Math.abs(el.getBoundingClientRect().top-el.closest('.sd450-map-frame').getBoundingClientRect().top)<=6),'legend must stay inside the map frame, including mobile');
  assert.equal(await page.locator('.sd450-map-note').count(),0);
  const mapLegend=await page.locator('.sd450-primary-legend').innerText();assert.doesNotMatch(mapLegend,/계약종료/);assert.ok(mapLegend.includes('안전: 올해 사고 0건'));assert.ok(mapLegend.includes('일반: 올해 사고 1~2건'));
  assert.equal(await page.locator('.sd450-dot.closed').count(),0);assert.equal(await page.locator('.sd450-dot.safe').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(33, 150, 83)');

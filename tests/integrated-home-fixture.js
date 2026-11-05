@@ -1,6 +1,6 @@
 /* Isolated browser fixture: all external requests are blocked; no production credentials. */
 (()=>{
- const role=new URLSearchParams(location.search).get('role')||'safety',actor={id:'fixture-'+role,name:'검수 담당',position:role==='field'?'현장소장':role==='executive'?'상무':'안전관리자',role,siteId:['field','worker'].includes(role)?'qa-site':'',active:true};
+ const role=new URLSearchParams(location.search).get('role')||'safety',actor={id:'fixture-'+role,name:'검수 담당',position:new URLSearchParams(location.search).get('position')||(role==='field'?'현장소장':role==='executive'?'상무':'안전관리자'),role,siteId:['field','worker'].includes(role)?'qa-site':'',active:true};
  localStorage.clear();sessionStorage.clear();localStorage.setItem('enl_setup_intro_seen_v1','1');localStorage.setItem('enl_safety_session_v3',JSON.stringify({manager:actor,loggedAt:new Date().toISOString()}));
  const sites=[{site_id:'qa-site',site_name:'검수 골프장',active:true,manager_name:'검수 담당'}];
  const incidents=[{id:'qa-incident',siteId:'qa-site',category:'property',status:'reported',summary:'격리된 검수용 작업차량 접촉',eventType:'차량 접촉',occurredAt:'2026-11-04T01:00:00Z',updatedAt:new Date().toISOString(),reporterId:'fixture-field',reporterName:'검수 담당',reportDetails:{place:'검수 구역',incidentHow:'검수용 사고 내용'},photos:[],_syncVersion:1}];
@@ -28,7 +28,7 @@
   if(b.action==='platform_hub_favorites'){favorites=b.favorites;out={ok:true}}
   if(b.action==='platform_hub_save'){const old=records.find(x=>x.id===b.id);if(old)records=records.filter(x=>x.id!==b.id);const row={...b,id:b.id||'00000000-0000-4000-8000-'+String(++serial).padStart(12,'0'),revision:(old?.revision||0)+1,site_id:b.siteId,starts_at:b.startsAt,ends_at:b.endsAt,created_at:new Date().toISOString()};records.push(row);out={ok:true,item:row}}
   if(b.action==='platform_hub_archive'){records=records.filter(x=>x.id!==b.id);out={ok:true}}
-  if(b.action==='activity_list')out={ok:true,rows:[{id:'1',incident_id:'qa-incident',module_key:'incident',sentence:'검수 골프장 사고보고 등록',actor_name:'검수 담당',happened_at:new Date().toISOString()}],more:false};
+  if(['activity_list','activity_open','activity_page'].includes(b.action))out={ok:true,rows:[{id:'1',incident_id:'qa-incident',module_key:'incident',sentence:'검수 골프장 사고보고 등록',actor_name:'검수 담당',happened_at:new Date().toISOString()}],more:false};
   if(b.action==='platform_notices')out={ok:true,rows:moduleKeys.map(key=>({key,push:true,email:true}))};
   if(b.action==='platform_directory')out={ok:true,rows:[],more:false};
   return new Response(JSON.stringify(out),{status,headers:{'content-type':'application/json'}});

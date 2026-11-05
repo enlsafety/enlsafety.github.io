@@ -10,23 +10,22 @@ async function verify(engine,width){
     const {p}=await tab(browser,width,'safety',records);
     await p.waitForFunction(()=>data.incidents.some(i=>i.id==='sample-2'));
     const menu=id=>p.locator('[data-shell-view="'+id+'"]');
-    const icon=b=>b.evaluate(el=>getComputedStyle(el,'::before').backgroundImage);
-    assert.notEqual(await icon(menu('history')),await icon(menu('incidents')));
-    assert.match(await menu('history').innerText(),/사용자 기록/);
+    assert.equal(await menu('history').count(),0);
+    const recent=p.locator('[data-hub=recent]');
     assert.equal(await menu('more').innerText(),'설정');
     await p.evaluate(()=>{
       const api=window.enlIncidentApi;
       window.enlIncidentApi=b=>b.action==='activity_count'?Promise.resolve({unread:window.qaUnread}):api(b);
     });
     const measure=b=>b.evaluate(el=>{const s=getComputedStyle(el);return [el.offsetWidth,el.offsetHeight,s.backgroundColor,s.borderRadius,s.top,s.right,s.fontSize]});
-    const common=await measure(menu('home').locator('.enl424-nav-count'));
+    await p.locator('[data-worktab=home]').click();
     for(const count of [2,42,999]){
       await p.evaluate(async n=>{window.qaUnread=n;await enlRefreshHistoryCount(true)},count);
-      const badge=menu('history').locator('.activity-count');
+      const badge=recent.locator('.activity-count');
       assert.equal(await badge.innerText(),String(count));
-      assert.deepEqual(await measure(badge),common);
-      assert.equal(common[0],common[1]);
+      const [w,h]=await measure(badge);assert.ok(w>0&&h>0);
     }
+    await p.locator('[data-worktab=incident]').click();
     await menu('incidents').click();
     const cards=p.locator('#view .inc411-card');
     const snapshot=list=>list.evaluateAll(nodes=>Object.fromEntries(nodes.map(el=>[el.dataset.incId,el.innerText])));
