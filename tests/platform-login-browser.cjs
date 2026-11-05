@@ -10,6 +10,10 @@ const {webkit,chromium}=require('playwright'),{tab}=require('./field-entry-table
  if(!data)return route.fallback();return route.fulfill({json:{ok:true,...data}});
  });
  await p.evaluate(()=>{session=null;renderLogin()});await p.locator('#loginName411').fill('통합검수');await p.locator('#loginPassword411').waitFor();
+ await p.waitForFunction(()=>document.activeElement?.id==='loginPassword411');
+ await p.keyboard.type('focus-check');
+ assert.equal(await p.locator('#loginPassword411').inputValue(),'focus-check');
+ await p.locator('#loginPassword411').fill('');
  assert.equal(await p.locator('#loginAff411').innerText(),'QA본사');
  assert.equal(await p.locator('#loginAff411 select,#loginAff411 button,#loginAff411 details').count(),0);
  const email=p.locator('#companyLocal411');if(width>500){assert.equal(await email.inputValue(),'qa.saved');assert.ok(await email.evaluate(x=>x.readOnly));}
