@@ -1,0 +1,9 @@
+# Login scene r46
+
+Recreates the supplied golf-course login reference with real HTML controls. The photographic scenery was cleaned to remove the reference's typography, logos, glass panel and controls. `assets/login-golf-r46.png` is a deliberate full-scene background; the wordmark, shield and field symbols are independent vector elements with no screenshot rectangles.
+
+Desktop uses left branding and a right translucent form. At widths up to 900px the form stays at the top and the background is anchored to the golf ball's x-coordinate (20.6% of the original scene), placing the ball at the bottom center. A faded upper edge blends the scene into the sky. Small viewport height units and safe-area padding keep the layout stable; the existing visual-viewport helper now keeps any focused login input visible.
+
+The authentication file changes only three HTML assignments: the initial login template, company-email markup and password placeholder. Name lookup, duplicate-name resolution, email enrollment, password hashing, account proof, role handling and submission handlers are unchanged. Before a name resolves, visibly disabled preview controls match the reference without masquerading as working credentials. After resolution, the existing controls and handlers replace the preview. Visible labels are reduced to the reference style while accessible labels remain.
+
+Validation uses isolated fictional name/API responses with all external requests intercepted. No production credentials or records are used. PC and narrow mobile layouts, duplicate-name form, account lookup and original submit behavior passed alongside release/cache checks. A synthetic password-free worker account submitted through the original form and reached the integrated home; password-protected submission handlers were confirmed unchanged rather than tested against live credentials. Native iPhone Safari keyboard testing is not available in this environment.
