@@ -50,6 +50,12 @@ const {execFileSync}=require('node:child_process');
   console.log(`PASS ${size}x${size}: clear edge, proportional fit`);
  }
  execFileSync('convert',sizes.filter(n=>n<=256).map(n=>path.join(tmp,`${n}.png`)).concat('favicon.ico'));
+ // Published file paths identify the artwork for launchers that cache icons by filename.
+ const iconDir='assets/app-icons/sky-r53';
+ fs.mkdirSync(iconDir,{recursive:true});
+ for(const file of ['favicon.ico','favicon-16.png','favicon-32.png','pwa-icon-180.png','pwa-icon-192.png','pwa-icon-512.png','pwa-icon-maskable-512.png']){
+  fs.copyFileSync(file,path.join(iconDir,file));
+ }
  fs.rmSync(tmp,{recursive:true,force:true});
  console.log('Approved source crop',crop);
 })();
