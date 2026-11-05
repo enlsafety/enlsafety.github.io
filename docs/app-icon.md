@@ -11,3 +11,7 @@ The approved E&L blue shield and green golf fairway mark replaces the previous g
 Manifest identity, scope, start URL, authentication, permissions and operational data are unchanged. Existing OS-installed icons may update on the operating system/browser's schedule; deployment does not force an instant replacement of an already-installed OS shortcut. Native iOS/Android/Windows installation was not exercised in the cloud browser.
 
 Verification: icon formats/dimensions and alpha inspected; adaptive artwork checked inside the safe circle; release/cache test passed. References: https://web.dev/articles/maskable-icon and https://webkit.org/blog/13878/.
+
+## r48 desktop visible-size adjustment
+
+Repack the unchanged r47 source into a tighter transparent canvas, retaining a four-source-pixel gutter around the visible alpha bounds and a one-output-pixel guard (two at 256/512). This maximizes the shield inside the fixed OS icon slot without stretching or cropping the visible artwork. Desktop/any-purpose 192/512 PNGs, 16/32 favicons and ICO frames at 16/20/24/32/40/48/64/128/192/256 are rebuilt directly from the original source. iOS and adaptive maskable bitmap files remain unchanged. `scripts/build-desktop-icons.cjs` validates a fully transparent outer edge for every generated size. OS taskbar slot dimensions themselves are controlled by Windows; this release increases artwork coverage inside each slot.
