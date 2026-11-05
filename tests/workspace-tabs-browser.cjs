@@ -54,8 +54,26 @@ async function check(browser, role, width) {
         assert.equal(boxes.length,5);assert.ok(boxes.every(([x,y,right,bottom])=>x>=0&&y>=0&&right<=w+1&&bottom<=h),JSON.stringify({w,h,boxes}));
         const cards=boxes.slice(0,4),mapBox=boxes[4],mapSize=Math.round(mapBox[2]-mapBox[0]);
         assert.ok(cards.every(([left,,right],i)=>left===cards[0][0]&&right<=mapBox[0]&&(!i||cards[i-1][3]<=cards[i][1])),'cards stack to the left of the map');
-        assert.ok(mapSize>=(w>=1440?610:w>=1200?480:w>=800?405:235),'map width '+mapSize+' at '+w);
+        assert.ok(mapSize>=(w>=1440?570:w>=1200?455:w>=800?395:235),'map width '+mapSize+' at '+w);
         assert.equal(await page.locator('[data-sd450-map-site]:not([hidden])').count(),33,'all sites fit before zoom');
+        const bounds=()=>page.locator('.incident-overview :is(.sd450-map-panel,.sd450-map-frame,.sd450-map-viewport,.sd450-primary-legend)').evaluateAll(es=>es.map(e=>e.getBoundingClientRect().toJSON()));
+        const original=await bounds();
+        const [,frame,,legend]=original;
+        assert.ok(Math.abs(legend.left-frame.left)<=6 && Math.abs(frame.bottom-legend.bottom)<=6,'legend anchored in the map corner');
+        assert.doesNotMatch(await page.locator('.sd450-primary-legend').innerText(),/녹색|검정|주황|빨강/);
+        assert.ok((await page.locator('.sd450-primary-legend').innerText()).includes('올해 사고 5건 이상 또는 중대재해'));
+        assert.ok(await page.locator('[data-sd450-map-site]').evaluateAll(markers=>{
+          const legend=document.querySelector('.sd450-primary-legend').getBoundingClientRect();
+          return markers.every(m=>{const r=m.getBoundingClientRect();return r.bottom<=legend.top||r.top>=legend.bottom||r.right<=legend.left||r.left>=legend.right;});
+        }),'the legend must leave all default map markers visible');
+        await page.locator('#sd450Site').selectOption('s29');await page.locator('[data-sd450-open="s29"]').waitFor();
+        assert.deepEqual(await bounds(),original,'showing a site must not resize the map or panel');
+        assert.doesNotMatch(await page.locator('#sd450Site').innerText(),/ · (안전|주의|일반|고위험)/);
+        await page.locator('#sd450Site').selectOption('');
+        // Use the controls without bringing them into view on a short screen.
+        await page.locator('[data-map-zoom=in]').evaluate(el=>el.click());
+        assert.deepEqual(await bounds(),original,'zoom must not move the legend');
+        await page.locator('[data-map-zoom=reset]').evaluate(el=>el.click());
         console.log('PASS dashboard viewport',w,h,'map',mapSize);
 
       }
@@ -65,6 +83,14 @@ async function check(browser, role, width) {
       await page.locator('[data-map-zoom=in]').click();assert.equal(await page.locator('[data-map-scale]').innerText(),'150%');
       await page.locator('[data-map-zoom=reset]').click();assert.equal(await page.locator('[data-map-scale]').innerText(),'100%');
       await page.setViewportSize({width,height:900});
+      const tileBoxes=selector=>page.locator(selector).evaluateAll(es=>es.map(e=>[e.offsetWidth,e.offsetHeight]));
+      const dashboardTiles=await tileBoxes('.stats426-card');
+      await page.locator('[data-shell-view=home]').click();
+      const [reference]=await tileBoxes('[data-safety-status=all]');
+      assert.ok(dashboardTiles.every(box=>String(box)===String(reference)),'desktop dashboard uses the all-incidents card size');
+      await page.locator('[data-shell-view=report]').click();
+      assert.ok((await tileBoxes('.report-type-card')).every(box=>String(box)===String(reference)),'report type cards use the all-incidents card size');
+      await page.locator('[data-shell-view=stats]').click();
     }
     await side('feature:incident');
     assert.equal(await tab('incident').count(), 1);
