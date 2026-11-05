@@ -8,6 +8,7 @@ async function fixture(){
  await db.exec("update enl_hq_users set name='QA 안전' where user_id='qa-auth-safety-472'");let handler;const mailbox=[];
  await db.exec('create table private.enl_platform_catalog(singleton boolean)');
  await db.exec(fs.readFileSync('supabase/migrations/20261105152600_email_challenge_sidebar.sql','utf8'));
+ await db.exec(fs.readFileSync('supabase/migrations/20261105160000_unique_account_email.sql','utf8'));
  const tag=conn=>async(parts,...args)=>(await conn.query(parts.reduce((s,p,i)=>s+(i?'$'+i:'')+p,''),args)).rows;const sql=tag(db);sql.begin=f=>db.transaction(tx=>f(tag(tx)));sql.json=JSON.stringify;sql.end=async()=>{};
  const ctx={Deno:{env:{get:()=> 'isolated'},serve:h=>handler=h},postgres:()=>sql,Request,Response,TextEncoder,crypto,AbortSignal,fetch:async(url,opts)=>{
   if(url.endsWith('/senders'))return Response.json({senders:[{active:true,email:'qa@example.test'}]});
@@ -29,7 +30,7 @@ async function fixture(){
  ]){check((await call(body)).status===403,'ID-only request denied');check((await call({...body,actorPasswordHash:'incorrect',actorPinHash:'incorrect'})).status===403,'wrong proof denied');}
  check((await db.query('select count(*) n from public.enl_hq_users')).rows[0].n===2,'denied HQ creation has no writes');
  check((await db.query('select count(*) n from public.enl_personnel_audit')).rows[0].n===0,'denied personnel actions have no audit writes');
- await db.exec("update enl_hq_users set email='existing@example.test'; update enl_site_personnel set email='site@example.test'");
+ await db.exec("update enl_hq_users set email=user_id||'@example.test'; update enl_site_personnel set email=personnel_id||'@example.test'");
  let r=await call({action:'login_hq',name:'QA 안전',affiliationId:'dept:qa',passwordHash:'qa-auth-safety-proof-472'});check(r.status===200&&r.body.user.id===safety.id,'normal HQ login unchanged');check(!('password_hash' in r.body.user)&&!('passwordHash' in r.body.user),'login never returns credential hash');
  check((await call({action:'login_hq',name:'QA 안전',affiliationId:'dept:qa',passwordHash:'incorrect'})).status===401,'wrong login password denied');
  r=await call({action:'login_site',name:'QA 현장',siteId:field.siteId,passwordHash:'qa-auth-field-proof-472'});check(r.status===200&&r.body.person.access_role==='field','normal field login unchanged');
@@ -66,6 +67,12 @@ async function fixture(){
  check((await call({...verify,companyLocal:'other'})).status===409,'code bound to address');
  check((await call({...verify,code:verify.code==='999999'?'111111':'999999'})).status===403,'wrong code denied');
  check((await call({...reg,action:'login_hq'})).body.message==='email_required','cannot skip enrollment');
+ // An admin can assign the address to a site user between the send and confirm requests.
+ await db.query('update enl_site_personnel set email=$1 where personnel_id=$2',[' QA.SAFETY@ENLIFE.CO.KR ',field.id]);
+ check((await call(reg)).body.message==='email_in_use'&&mailbox.length===1,'duplicate request never sends mail');
+ check((await call(verify)).body.message==='email_in_use','issued code cannot claim another owner');
+ await assert.rejects(db.query('update enl_hq_users set email=$1 where user_id=$2',[mailbox[0].to,safety.id]),e=>e.code==='23505');
+ await db.query("update enl_site_personnel set email='' where personnel_id=$1",[field.id]);
  check((await call(verify)).body.email===mailbox[0].to,'verified email persisted');
  check((await call(verify)).status===409,'consumed challenge rejected');
  check((await db.query("select email from private.enl_master_accounts where id=$1",[safety.id])).rows[0].email===mailbox[0].to,'master reflects registration');

@@ -78,3 +78,6 @@
 .login-remember input{width:16px;height:16px;accent-color:#1e5d91}
 .login-remember small{display:block;font-size:12px;line-height:1.5}
 .email-gate-dialog [hidden]{display:none!important}
+
+.email-gate-dialog input[name=proof]::placeholder{color:#758697;opacity:1}
+.email-gate-dialog input[name=proof]:focus::placeholder{opacity:0}

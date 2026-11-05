@@ -22,6 +22,10 @@
 
   function css(){if(document.getElementById('account420Css'))return;const s=document.createElement('style');s.id='account420Css';s.textContent=`
     .enl420-pwform{display:grid;gap:12px}.enl420-pwform label{display:grid;gap:6px}.enl420-pwform label span{font-size:13px;font-weight:900;color:#426078}.enl420-pwform input{width:100%;min-height:48px;border:1.5px solid #bfd0dd;border-radius:10px;padding:0 12px;font:inherit;box-sizing:border-box}.enl420-note{padding:11px 12px;border-radius:10px;background:#f1f8fd;color:#526e82;font-size:12px;line-height:1.5}.enl420-actions{display:flex;justify-content:flex-end;gap:8px}.enl420-actions button{min-height:44px;border:1px solid #bdcad6;border-radius:10px;background:#fff;padding:0 14px;font-weight:900}.enl420-actions .primary{background:#173b66;color:#fff;border-color:#173b66}.enl420-row-actions{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}.enl420-row-actions button{min-height:34px;border:1px solid #bdcbd7;border-radius:8px;background:#fff;padding:0 9px;font-weight:850}.enl420-reset{color:#8b4f21!important;border-color:#dfc29f!important;background:#fffaf3!important}@media(max-width:760px){.enl420-row-actions{justify-content:flex-start}}
+    .enl420-device-dialog{box-sizing:border-box;width:min(430px,calc(100% - 24px));max-height:88dvh;overflow:auto;border:1px solid #c1d5e4;border-radius:18px;padding:20px;color:#24445c;background:#fff}
+    .enl420-device-dialog::backdrop{background:#17354c66}
+    .enl420-device-dialog h2{margin:0;font-size:21px}.enl420-device-dialog .modal-head p{font-size:14px;line-height:1.5}
+    .enl420-pwform [role=status]:empty{display:none}.enl420-pwform [role=status]{margin:0;color:#a32a37}
   `;document.head.appendChild(s)}
 
   function syncLocalPassword(newHash){
@@ -29,22 +33,64 @@
       const u=currentUser?.(),isField=roleNorm(u?.role)==='field';if(u){u.passwordHash=newHash;if(isField)u.pinHash=newHash;u.updatedAt=new Date().toISOString()}
       if(session?.manager&&String(session.manager.id||'')===String(u?.id||'')){session.manager.passwordHash=newHash;if(isField)session.manager.pinHash=newHash;}
       if(session?.worker&&String(session.worker.id||'')===String(u?.id||'')){session.worker.passwordHash=newHash;if(isField)session.worker.pinHash=newHash;}
+      const local=(data?.users||[]).find(x=>String(x.id)===String(u?.id));
+      if(local&&['safety','manager','executive'].includes(roleNorm(u.role)))local.passwordHash=newHash;
       if(typeof saveSession==='function')saveSession();if(typeof saveData==='function')saveData();
     }catch(e){}
   }
 
-  function openSelfChange(){
+  const accountKey=u=>(roleNorm(u.role)==='field'?'site:':'hq:')+(u.id||u.personnelId);
+  function openSelfChange(firstLogin=false){
     const u=currentUser?.();if(!eligibleSelf(u))return;
-    openModal(`<div class="modal-head"><div><div class="ey">PASSWORD</div><h2>비밀번호 변경</h2><p>${escx(u.name||'사용자')} · ${escx(roleName?.(roleNorm(u.role))||'사용자')}</p></div><button class="x" data-close>×</button></div><form id="enl420SelfForm" class="enl420-pwform"><label><span>현재 비밀번호 *</span><input id="enl420Current" type="password" autocomplete="current-password" required></label><label><span>새 비밀번호 *</span><input id="enl420New" type="password" autocomplete="new-password" minlength="4" maxlength="32" required placeholder="4자 이상"></label><label><span>새 비밀번호 확인 *</span><input id="enl420New2" type="password" autocomplete="new-password" minlength="4" maxlength="32" required></label><div class="enl420-note">변경 후에는 휴대폰 뒷 4자리가 아니라 <b>직접 설정한 새 비밀번호</b>로 로그인합니다.</div><div class="enl420-actions"><button type="button" data-close>취소</button><button type="submit" class="primary">비밀번호 변경</button></div></form>`);
-    document.getElementById('enl420SelfForm').onsubmit=async ev=>{
-      ev.preventDefault();const current=document.getElementById('enl420Current').value,newPw=document.getElementById('enl420New').value,newPw2=document.getElementById('enl420New2').value;
-      if(newPw.length<4)return alert('새 비밀번호는 4자 이상 입력해 주세요.');if(newPw!==newPw2)return alert('새 비밀번호가 서로 다릅니다.');if(current===newPw)return alert('현재 비밀번호와 다른 비밀번호를 입력해 주세요.');
-      const submit=ev.currentTarget.querySelector('button[type="submit"]');submit.disabled=true;submit.textContent='변경 중…';
-      try{const currentPasswordHash=await hash(current),newPasswordHash=await hash(newPw);await api({action:'password_change_self',actor:actor(u),currentPasswordHash,newPasswordHash});syncLocalPassword(newPasswordHash);closeModal();alert('비밀번호가 변경되었습니다. 다음 로그인부터 새 비밀번호를 사용해 주세요.')}
-      catch(e){submit.disabled=false;submit.textContent='비밀번호 변경';if(e?.message==='current_password_incorrect')alert('현재 비밀번호가 맞지 않습니다.');else if(e?.message==='same_password')alert('현재 비밀번호와 다른 비밀번호를 입력해 주세요.');else alert('비밀번호를 변경하지 못했습니다. 다시 시도해 주세요.')}
+    const initial=firstLogin===true,key=accountKey(u);
+    const title=initial?'이 기기의 첫 로그인':'비밀번호 변경';
+    const description=initial?'초기 비밀번호를 변경할 수 있습니다. 이미 변경했다면 현재 비밀번호를 입력하세요.':escx(u.name||'사용자');
+    const html=`<div class="modal-head"><div><h2 id="enl420PwTitle" tabindex="-1">${title}</h2><p>${description}</p></div><button type="button" aria-label="닫기" data-close>×</button></div>
+    <form id="enl420SelfForm" class="enl420-pwform">
+      <label><span>${initial?'초기 비밀번호 (변경한 경우 현재 비밀번호)':'현재 비밀번호'}</span><input name="currentPw" id="enl420Current" type="password" autocomplete="current-password" required></label>
+      <label><span>새로 설정할 비밀번호</span><input name="newPw" id="enl420New" type="password" autocomplete="new-password" minlength="4" maxlength="32" required placeholder="4자 이상"></label>
+      <label><span>새 비밀번호 확인</span><input name="repeatPw" id="enl420New2" type="password" autocomplete="new-password" minlength="4" maxlength="32" required></label>
+      <div class="enl420-note">변경한 비밀번호는 모든 기기에서 사용합니다.</div><p role="status" aria-live="polite"></p>
+      <div class="enl420-actions"><button type="button" data-close>${initial?'다음에 변경':'취소'}</button><button type="submit" class="primary">비밀번호 변경</button></div></form>`;
+    let dialog=null;
+    if(initial){
+      dialog=document.createElement('dialog');dialog.className='enl420-device-dialog';dialog.setAttribute('aria-labelledby','enl420PwTitle');dialog.innerHTML=html;
+      document.body.append(dialog);dialog.onclose=()=>dialog.remove();
+      dialog.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>dialog.close());
+      dialog.showModal();dialog.querySelector('h2').focus();
+    }else openModal(html);
+    const form=(dialog||document).querySelector('#enl420SelfForm');
+    const note=form.querySelector('[role=status]'),submit=form.querySelector('[type=submit]');
+    form.onsubmit=async ev=>{
+      ev.preventDefault();if(submit.disabled)return;
+      const current=form.elements.currentPw.value,newPw=form.elements.newPw.value;
+      if(newPw!==form.elements.repeatPw.value){note.textContent='새 비밀번호가 서로 다릅니다.';return;}
+      if(current===newPw){note.textContent='현재 비밀번호와 다른 비밀번호를 입력해 주세요.';return;}
+      submit.disabled=true;submit.textContent='변경 중…';note.textContent='';
+      try{
+        const currentPasswordHash=await hash(current),newPasswordHash=await hash(newPw);
+        await api({action:'password_change_self',actor:actor(u),currentPasswordHash,newPasswordHash});
+        if(!currentUser?.()||accountKey(currentUser())!==key)return;
+        syncLocalPassword(newPasswordHash);
+        form.reset();
+        if(dialog?.open)dialog.close();else if(!dialog&&form.isConnected)closeModal();
+        await window.enlUpdateRememberedPassword?.(key,u.name,newPw);
+        alert('비밀번호를 변경했습니다. 다음 로그인부터 새 비밀번호를 사용해 주세요.');
+      }catch(e){
+        note.textContent=e.message==='current_password_incorrect'?'현재 비밀번호가 맞지 않습니다.':e.message==='same_password'?'다른 새 비밀번호를 입력해 주세요.':'변경하지 못했습니다. 다시 시도해 주세요.';
+      }finally{submit.disabled=false;submit.textContent='비밀번호 변경';}
     };
   }
   window.enlOpenSelfPasswordChange420=openSelfChange;
+  const shown=new Set();
+  window.enlOfferDevicePasswordChange=u=>{
+    if(!eligibleSelf(u))return;
+    const key='enl.firstPasswordPrompt.v1.'+accountKey(u);
+    if(shown.has(key))return;
+    try{if(localStorage.getItem(key)==='1')return;}catch{}
+    openSelfChange(true);
+    shown.add(key);try{localStorage.setItem(key,'1');}catch{}
+  };
 
   function safetyResetTarget(target){
     const u=currentUser?.();if(roleNorm(u?.role)!=='safety'||!target?.id)return;

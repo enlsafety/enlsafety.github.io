@@ -1,9 +1,17 @@
 const {webkit,chromium}=require('playwright'),{tab}=require('./field-entry-table-browser.cjs'),assert=require('node:assert/strict');
 (async()=>{for(const [engine,width] of [[chromium,1365],[webkit,390]]){const b=await engine.launch();try{
- const {p}=await tab(b,width,'safety');let submitted='',loginBody;
+ const {p}=await tab(b,width,'safety');let submitted='',loginBody,changes=0;
  await p.route('**/functions/v1/**',async route=>{const req=route.request(),body=req.method()==='POST'?req.postDataJSON():{};
- let data;if(body.action==='lookup')data={options:[{kind:'hq',affiliationId:'dept:qa',affiliationLabel:'QA본사',requiresPassword:true,accountKey:'hq:qa-login',hasEmail:width>500,companyLocal:width>500?'qa.saved':''}]};
- if(body.action==='email_code_send')data={};
+ let data;if(body.action==='lookup')data={options:[{kind:'hq',affiliationId:'dept:qa',affiliationLabel:'QA본사',requiresPassword:true,accountKey:'hq:qa-login',hasEmail:width>500||!!submitted,companyLocal:width>500?'qa.saved':submitted}]};
+ if(body.action==='email_code_send'){
+   if(body.companyLocal==='duplicate')return route.fulfill({status:409,json:{ok:false,message:'email_in_use'}});
+   data={};
+ }
+ if(body.action==='password_change_self'){
+   const hash=v=>require('node:crypto').createHash('sha256').update(v).digest('hex');
+   if(body.currentPasswordHash!==hash('isolated'))return route.fulfill({status:401,json:{ok:false,message:'current_password_incorrect'}});
+   assert.equal(body.newPasswordHash,hash('changed-in-fixture'));changes++;data={};
+ }
  if(body.action==='email_code_verify'){assert.equal(body.code,'123456');submitted=body.companyLocal;data={email:submitted+'@enlife.co.kr'};}
  if(body.action==='login_hq')loginBody=body;
  if(body.action==='login_hq')data={user:{id:'qa-login',name:'통합검수',department:'QA',role:'safety',active:true}};
@@ -11,7 +19,7 @@ const {webkit,chromium}=require('playwright'),{tab}=require('./field-entry-table
  if(!data)return route.fallback();return route.fulfill({json:{ok:true,...data}});
  });
  await p.evaluate(()=>{session=null;renderLogin();
-   window.confirm=()=>true;
+   window.confirm=()=>true;window.alert=()=>{};
    Object.defineProperty(window,'PasswordCredential',{configurable:true,value:class{constructor(v){Object.assign(this,v)}}});
    Object.defineProperty(navigator,'credentials',{configurable:true,value:{store:async c=>{window.testCredential=c},get:async()=>window.testCredential}});
  });await p.locator('#loginName411').fill('통합검수');await p.locator('#loginPassword411').waitFor();
@@ -25,14 +33,33 @@ const {webkit,chromium}=require('playwright'),{tab}=require('./field-entry-table
  const email=p.locator('#companyLocal411');if(width>500){assert.equal(await email.inputValue(),'qa.saved');assert.ok(await email.evaluate(x=>x.readOnly));}
  else{const a=await p.locator('#loginName411').boundingBox(),b=await p.locator('#loginAff411').boundingBox();assert.ok(Math.abs(a.y-b.y)<2);await email.fill('qa.new');
  const rects=await p.locator('.company-address>*').evaluateAll(els=>els.map(el=>el.getBoundingClientRect().x));assert.ok(rects[0]<rects[1]&&rects[1]<rects[2]);
- await p.locator('[data-enroll]').click();const d=p.locator('.email-gate-dialog');await d.locator('[name=proof]').fill('isolated');await d.locator('[type=submit]').click();await d.locator('[name=code]').fill('123456');await d.locator('[type=submit]').click();await d.waitFor({state:'detached'});assert.ok(await email.evaluate(x=>x.readOnly));assert.equal(await p.locator('.login-brand h1').innerText(),'이앤엘 안전보건관리\n통합시스템');}
+ await email.fill('duplicate');await p.locator('[data-enroll]').click();const d=p.locator('.email-gate-dialog'),proof=d.locator('[name=proof]');
+ assert.equal(await proof.getAttribute('placeholder'),'초기 비밀번호: 본인 휴대폰 뒷번호 4자리');
+ const opacity=()=>proof.evaluate(el=>getComputedStyle(el,'::placeholder').opacity);
+ assert.equal(await opacity(),'1');await proof.focus();assert.equal(await opacity(),'0');await proof.blur();assert.equal(await opacity(),'1');
+ await proof.fill('isolated');await d.locator('[type=submit]').click();await d.getByText('이미 다른 사용자에게 등록된 이메일입니다.',{exact:false}).waitFor();
+ assert.equal(await d.locator('[name=code]').isVisible(),false);await d.locator('[data-cancel]').click();
+ await email.fill('qa.new');await p.locator('[data-enroll]').click();await d.locator('[name=proof]').fill('isolated');await d.locator('[type=submit]').click();await d.locator('[name=code]').fill('123456');await d.locator('[type=submit]').click();await d.waitFor({state:'detached'});assert.ok(await email.evaluate(x=>x.readOnly));assert.equal(await p.locator('.login-brand h1').innerText(),'이앤엘 안전보건관리\n통합시스템');}
  await p.locator('#loginPassword411').fill('isolated');if(width>500)await p.locator('#rememberId411').check();await p.locator('#rememberPw411').check();await p.locator('#loginSubmit411').click();
+ const device=p.locator('dialog.enl420-device-dialog');
+ await device.waitFor();assert.equal(await device.locator('input[type=password]').count(),3);
+ if(width>500){
+   await device.locator('[name=currentPw]').fill('wrong');await device.locator('[name=newPw]').fill('changed-in-fixture');
+   await device.locator('[name=repeatPw]').fill('mismatch');await device.locator('[type=submit]').click();
+   await device.getByText('새 비밀번호가 서로 다릅니다.').waitFor();assert.equal(changes,0);
+   await device.locator('[name=repeatPw]').fill('changed-in-fixture');await device.locator('[type=submit]').click();
+   await device.getByText('현재 비밀번호가 맞지 않습니다.').waitFor();
+   await device.locator('[name=currentPw]').fill('isolated');await device.locator('[type=submit]').click();
+ }else await device.getByText('다음에 변경').click();
+ await device.waitFor({state:'detached'});assert.equal(changes,width>500?1:0);
  await p.locator('[data-module=incident]').waitFor();await p.waitForTimeout(450);assert.equal(await p.evaluate(()=>currentView),'platform');assert.equal(submitted,width>500?'':'qa.new');assert.equal(loginBody.companyLocal,undefined);await p.evaluate(()=>{session=null;renderLogin()});
  assert.equal(await p.locator('#loginName411').inputValue(),width>500?'통합검수':'');
  if(width<=500)await p.locator('#loginName411').fill('통합검수');
- await p.waitForFunction(()=>document.getElementById('loginPassword411')?.value==='isolated');
+ await p.waitForFunction(pw=>document.getElementById('loginPassword411')?.value===pw,width>500?'changed-in-fixture':'isolated');
  await p.locator('#rememberPw411').uncheck();
  assert.equal(await p.evaluate(()=>localStorage.getItem('enl.login.rememberPasswordFor')),null);
  assert.equal(await p.locator('#loginPassword411').inputValue(),'');
+ await p.locator('#loginPassword411').fill(width>500?'changed-in-fixture':'isolated');
+ await p.locator('#loginSubmit411').click();await p.locator('[data-module=incident]').waitFor();assert.equal(await device.count(),0);
  console.log('PASS verified login and independent consent across login screens',engine.name(),width);
  }finally{await b.close()}}})().catch(e=>{console.error(e);process.exitCode=1});

@@ -104,13 +104,14 @@
     if(value.length>64||!/^[a-z0-9_+-]+(?:\.[a-z0-9_+-]+)*$/.test(value)){status('등록할 회사 이메일 아이디를 입력해 주세요.','err');local.focus();return;}
     const pw=document.getElementById('loginPassword411'), needsPassword=o.kind==='hq'||o.requiresPassword;
     const d=document.createElement('dialog');d.className='email-gate-dialog';d.setAttribute('aria-labelledby','emailGateTitle411');
-    d.innerHTML='<form><h2 id="emailGateTitle411">회사 이메일 인증</h2><p></p><label data-proof><span></span><input name="proof" type="password" maxlength="128" required></label><label data-otp hidden>인증번호 6자리<input name="code" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code"></label><div role="status" aria-live="polite"></div><button type="button" data-resend hidden>인증번호 다시 받기</button><footer><button type="button" data-cancel>취소</button><button type="submit">인증번호 받기</button></footer></form>';
+    d.innerHTML='<form><h2 id="emailGateTitle411" tabindex="-1" autofocus>회사 이메일 인증</h2><p></p><label data-proof><span></span><input name="proof" type="password" maxlength="128" required></label><label data-otp hidden>인증번호 6자리<input name="code" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code"></label><div role="status" aria-live="polite"></div><button type="button" data-resend hidden>인증번호 다시 받기</button><footer><button type="button" data-cancel>취소</button><button type="submit">인증번호 받기</button></footer></form>';
     const form=d.querySelector('form'), otp=form.querySelector('[data-otp]'), proof=form.querySelector('[data-proof]'), submit=form.querySelector('[type=submit]'), resend=form.querySelector('[data-resend]'), note=form.querySelector('[role=status]');
     d.querySelector('p').textContent=value+'@enlife.co.kr';
     proof.firstChild.textContent=needsPassword?'본인 로그인 비밀번호':'일반근로자 최초 등록 비밀번호';
+    if(needsPassword)form.elements.proof.placeholder='초기 비밀번호: 본인 휴대폰 뒷번호 4자리';
     form.elements.proof.autocomplete=needsPassword?'current-password':'off';
     if(needsPassword&&pw?.value)form.elements.proof.value=pw.value;
-    const messages={incorrect_code:'인증번호가 일치하지 않습니다.',code_expired:'인증번호가 만료됐습니다. 다시 받아 주세요.',code_locked:'5회 틀렸습니다. 새 인증번호를 받아 주세요.',invalid_login:'본인 확인 비밀번호를 확인해 주세요.',attempts_exceeded:'확인 횟수를 초과했습니다. 15분 후 다시 시도해 주세요.',wait_resend:'마지막 발송 1분 후에 다시 받을 수 있습니다.',send_limit:'시간당 발송 한도에 도달했습니다. 1시간 후 다시 시도해 주세요.',email_already_registered:'이미 등록된 계정입니다. 이름을 다시 조회해 주세요.',gate_not_configured:'안전관리자에게 최초 등록 비밀번호를 문의해 주세요.',mail_unavailable:'메일 발송을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.'};
+    const messages={email_in_use:'이미 다른 사용자에게 등록된 이메일입니다. 본인 회사 이메일로 다시 시도해 주세요.',incorrect_code:'인증번호가 일치하지 않습니다.',code_expired:'인증번호가 만료됐습니다. 다시 받아 주세요.',code_locked:'5회 틀렸습니다. 새 인증번호를 받아 주세요.',invalid_login:'본인 확인 비밀번호를 확인해 주세요.',attempts_exceeded:'확인 횟수를 초과했습니다. 15분 후 다시 시도해 주세요.',wait_resend:'마지막 발송 1분 후에 다시 받을 수 있습니다.',send_limit:'시간당 발송 한도에 도달했습니다. 1시간 후 다시 시도해 주세요.',email_already_registered:'이미 등록된 계정입니다. 이름을 다시 조회해 주세요.',gate_not_configured:'안전관리자에게 최초 등록 비밀번호를 문의해 주세요.',mail_unavailable:'메일 발송을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.'};
     let busy=false;
     async function run(verify){
       if(busy||selected!==o||!d.open)return;
@@ -133,7 +134,7 @@
     }
     form.onsubmit=e=>{e.preventDefault();run(!otp.hidden)};resend.onclick=()=>run(false);
     form.querySelector('[data-cancel]').onclick=()=>d.close();d.onclose=()=>{form.reset();d.remove()};
-    document.body.append(d);d.showModal();if(form.elements.proof.value)run(false);else form.elements.proof.focus();
+    document.body.append(d);d.showModal();if(form.elements.proof.value)run(false);else d.querySelector('h2').focus();
   }
   // Only the browser password manager handles the reusable password.
   const rememberName='enl.login.rememberName',rememberAccount='enl.login.rememberPasswordFor';
@@ -160,10 +161,13 @@
     if(document.querySelector('#rememberId411')?.checked){pref(rememberName,document.getElementById('loginName411').value.trim());pref(rememberName+'.key',o.accountKey);}
     if(!pw||!document.querySelector('#rememberPw411')?.checked)return;
     pref(rememberAccount,o.accountKey);
-    if(window.PasswordCredential&&navigator.credentials?.store){
-      try{await navigator.credentials.store(new PasswordCredential({id:o.accountKey,password:pw,name:o.name||document.getElementById('loginName411').value.trim()}));}catch{}
-    }
+    await updateRememberedPassword(o.accountKey,o.name||document.getElementById('loginName411').value.trim(),pw);
   }
+  async function updateRememberedPassword(accountKey,name,password){
+    if(pref(rememberAccount)!==accountKey||!window.PasswordCredential||!navigator.credentials?.store)return;
+    try{await navigator.credentials.store(new PasswordCredential({id:accountKey,name,password}));}catch{}
+  }
+  window.enlUpdateRememberedPassword=updateRememberedPassword;
   function restorePassword(o){
     const input=document.querySelector('#loginPassword411'),box=document.querySelector('#rememberPw411');
     box.disabled=!input;box.checked=!!input&&pref(rememberAccount)===o.accountKey;
@@ -204,6 +208,7 @@
     const u=currentUser();
     try{if(typeof window.enlRenderApp==='function')window.enlRenderApp(u);else if(typeof renderShell==='function')renderShell(u)}
     catch(e){console.error('post-login render failed',e);if(typeof window.enlRenderFatal==='function')window.enlRenderFatal(e);else alert('로그인은 완료됐지만 화면을 불러오지 못했습니다. 최신화 후 다시 시도해 주세요.')}
+    window.enlOfferDevicePasswordChange?.(u);
     setTimeout(()=>window.enlIncidentSyncNow?.(),250);
   }
   function saveSiteSession(person,passwordHash=''){
