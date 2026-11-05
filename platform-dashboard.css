@@ -183,3 +183,17 @@
  .platform-hub.hub-editing .hub-safety-card .platform-card{padding-top:41px}
  .hub-editing .hub-safety-card .hub-card-description{display:none}
 }
+
+/* The app's open workspaces sit between the integrated header and native module navigation. */
+.hub-worktabs{box-sizing:border-box;display:flex;align-items:center;gap:6px;min-width:0;max-width:100%;overflow-x:auto;padding:8px 16px 7px;background:#f4f8fd;border-bottom:1px solid #dae5f1;scrollbar-width:thin}
+.hub-worktab{display:flex;align-items:center;flex:none;border:1px solid transparent;border-radius:10px;color:#48617d}
+.hub-worktab.selected{color:#174f98;background:#fff;border-color:#b6d3f0;box-shadow:0 2px 5px #30588112}
+.hub-worktabs .hub-worktab button{display:flex;gap:7px;align-items:center;padding:6px 9px;min-height:32px;border:none;border-radius:8px;background:transparent;color:inherit;line-height:1.35;font-family:inherit;font-size:13px;font-weight:650;white-space:nowrap;cursor:pointer}
+.hub-worktab svg{width:17px;height:17px;flex:none}
+.hub-worktabs .hub-worktab .hub-tab-close{justify-content:center;min-width:28px;padding:3px;font-size:17px;color:#55708d}
+.hub-worktab button:hover{background:#e3effc}
+.hub-worktab button:focus-visible{outline:2px solid #1465bb;outline-offset:-2px}
+.hub-tool-panel{padding:18px;border:1px solid #d2e1f2;border-radius:16px;background:#fff}.hub-tool-panel h2{margin:0 0 14px;color:#162e50;font-size:20px}
+.safety-ui #app .main:has(>.hub-incident-workspace:not([data-workspace="incident"]))>.shell411-nav{display:none!important}
+@media(max-width:760px){.hub-worktabs{padding:4px 8px;gap:3px}.hub-worktabs .hub-worktab button{min-height:40px}.hub-worktabs .hub-worktab .hub-tab-close{min-width:36px}}
+@media print{.hub-worktabs{display:none!important}}

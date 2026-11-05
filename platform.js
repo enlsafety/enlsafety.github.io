@@ -25,14 +25,13 @@
   const e=v=>esc(String(v??''));
   const sessionKey=u=>JSON.stringify([u.id||u.personnelId,u.role,u.siteId||'']);
   function recordEntry(u){
-    if(currentView!=='platform')return;
+    if(currentView!=='platform'||history.state?.enlModuleEntry===sessionKey(u))return;
     history.replaceState({...history.state,enlHub:sessionKey(u)},'');
     history.pushState({enlModuleEntry:sessionKey(u)},'');
   }
   function go(view,u){
     document.querySelectorAll('.platform-hub dialog[open]').forEach(d=>d.close());
     if(view!=='platform')recordEntry(u);
-    document.querySelector('.hub-incident-workspace')?.remove();
     currentView=view;window.renderShell(u);
   }
   window.enlReturnToPlatform=u=>{
@@ -103,19 +102,16 @@
   };
   window.enlOpenSystemAdmin=u=>{
     if(u?.role!=='safety')return;
+    const host=document.querySelector('.platform-hub');
+    if(host?.activateWorkTab)return host.activateWorkTab('system');
     go('system-admin',u);
     return document.querySelector('#view > .system-admin')?.ready;
   };
   window.enlPlatformHome=async(root,u)=>{
     if(root.querySelector('.platform-hub'))return;
-    root.parentElement.querySelector(':scope > .hub-incident-workspace')?.remove();
     const host=document.createElement('section');host.className='platform-hub';root.replaceChildren(host);
     const admin=u.role==='safety';
-    const dashboard=window.ENLHub.mount(host,u,{go:view=>go(view,u),enterIncident:()=>{
-      recordEntry(u);
-      currentView=['worker','field'].includes(u.role)?'home':'stats';
-      window.renderShell(u);
-    },icons,names,featureName,manageCards});
+    const dashboard=window.ENLHub.mount(host,u,{go:view=>go(view,u),icons,names,featureName,manageCards});
     const {area,services,status}=dashboard;
     let config,saving=false;
     const groupFor=key=>config.services.some(s=>s.key===key)?'services':'modules';
@@ -355,13 +351,7 @@
           const control=ev.target.closest('button,form');
           if(!row.contains(button)||(control&&control!==button))return;
           if(!isOn(m)||m.canEnter===false){status.textContent='현재 진입할 수 없는 '+(support?'서비스':'모듈')+'입니다.';return;}
-          if(m.key==='system'){window.enlOpenSystemAdmin(u);return;}
-          try{const r=await api({action:'platform_enter',key:m.key});if(!host.isConnected)return;
-            if(r.key==='incident')dashboard.openWorkspace();
-            else if(r.key==='history'){window.enlRequestHistory();go('common-history',u)}
-            else if(r.key==='notices')go('notice-center',u);
-            else dashboard.showPreparing(featureName(m));
-          }catch{status.textContent='현재 진입할 수 없는 '+(support?'서비스':'모듈')+'입니다.'}
+          await dashboard.selectTab(m.key);
         };
         if(!admin)continue;
         addNameEditor(row,button,m,support);
@@ -377,7 +367,12 @@
       }
 
     }
-    async function load(){config=await api({action:'platform_catalog'});if(host.isConnected)cards()}
+    async function load(){
+      const next=await api({action:'platform_catalog'});
+      if(!host.isConnected||config&&Number(next.revision)<Number(config.revision))return;
+      config=next;cards();
+    }
+    host.reloadCatalog=()=>load().catch(()=>{status.textContent='업무 목록을 새로 불러오지 못했습니다.'});
     try{await load()}catch{area.innerHTML='<p>업무기능을 불러오지 못했습니다.</p><button>다시 시도</button>';area.querySelector('button').onclick=()=>{host.remove();window.enlPlatformHome(root,u)};}
   };
 })();
