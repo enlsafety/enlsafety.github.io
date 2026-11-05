@@ -45,13 +45,25 @@ async function check(browser, role, width) {
     await page.locator('[data-module=incident]').click();
     await active('incident');
     if(role==='safety'){
-      for(const [w,h] of [[1366,768],[1280,720],[1024,768],[820,1180],[393,852],[375,667]]){
+      await page.waitForFunction(()=>window.enlDashboardMetrics?.()!==null&&document.querySelectorAll('#sd450Site option').length===34);
+      for(const [w,h] of [[1920,1080],[1440,900],[1366,768],[1280,720],[1024,768],[820,1180],[393,852],[375,667]]){
         await page.setViewportSize({width:w,height:h});
         const map=page.locator('.incident-overview .sd450-map-viewport');await map.waitFor();
+        await page.evaluate(async()=>{await document.fonts.ready;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));});
         const boxes=await page.locator('.incident-overview .stats426-card,.incident-overview .sd450-map-viewport').evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.right,r.bottom]}));
         assert.equal(boxes.length,5);assert.ok(boxes.every(([x,y,right,bottom])=>x>=0&&y>=0&&right<=w+1&&bottom<=h),JSON.stringify({w,h,boxes}));
-        if(w>900)assert.ok(boxes[0][2]<=boxes[1][0]);console.log('PASS dashboard viewport',w,h);
+        const cards=boxes.slice(0,4),mapBox=boxes[4],mapSize=Math.round(mapBox[2]-mapBox[0]);
+        assert.ok(cards.every(([left,,right],i)=>left===cards[0][0]&&right<=mapBox[0]&&(!i||cards[i-1][3]<=cards[i][1])),'cards stack to the left of the map');
+        assert.ok(mapSize>=(w>=1440?610:w>=1200?480:w>=800?405:235),'map width '+mapSize+' at '+w);
+        assert.equal(await page.locator('[data-sd450-map-site]:not([hidden])').count(),33,'all sites fit before zoom');
+        console.log('PASS dashboard viewport',w,h,'map',mapSize);
+
       }
+      const marker=page.locator('[data-sd450-map-site="s29"]');
+      await marker.click();if(await marker.getAttribute('aria-expanded')==='true')await marker.locator('.sd450-marker-label').click();
+      assert.equal(await page.locator('#sd450Site').inputValue(),'s29');
+      await page.locator('[data-map-zoom=in]').click();assert.equal(await page.locator('[data-map-scale]').innerText(),'150%');
+      await page.locator('[data-map-zoom=reset]').click();assert.equal(await page.locator('[data-map-scale]').innerText(),'100%');
       await page.setViewportSize({width,height:900});
     }
     await side('feature:incident');

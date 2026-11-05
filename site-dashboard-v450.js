@@ -112,7 +112,9 @@ function bindMap(root,a){
   // Permit panning at 100%, while keeping part of the map within reach.
   mapState.x=Math.min(w*.35,Math.max(w-w*z-w*.35,mapState.x));mapState.y=Math.min(h*.35,Math.max(h-h*z-h*.35,mapState.y));
   stage.style.transform=`translate(${mapState.x}px,${mapState.y}px) scale(${z})`;viewport.classList.toggle('zoomed',z>1);
-  const points=a.filter(pos).sort((s,t)=>String(s.site_id).localeCompare(String(t.site_id))).map(s=>{const p=pos(s),xy=mapXY(...p);return {id:s.site_id,x:(xy[0]*Math.min(w,h)/100+(w-Math.min(w,h))/2)*z,y:(xy[1]*Math.min(w,h)/100+(h-Math.min(w,h))/2)*z}}),spread=spreadPoints(points),byId=new Map(spread.map(p=>[p.id,p]));
+  // Match the image fit so site markers stay on the same locations in a portrait viewport.
+  const imageSize=getComputedStyle(stage.firstElementChild).objectFit==='cover'?Math.max(w,h):Math.min(w,h);
+  const points=a.filter(pos).sort((s,t)=>String(s.site_id).localeCompare(String(t.site_id))).map(s=>{const p=pos(s),xy=mapXY(...p);return {id:s.site_id,x:(xy[0]*imageSize/100+(w-imageSize)/2)*z,y:(xy[1]*imageSize/100+(h-imageSize)/2)*z}}),spread=spreadPoints(points),byId=new Map(spread.map(p=>[p.id,p]));
   buttons.forEach(b=>{const p=byId.get(b.dataset.sd450MapSite),x=Math.round(p.x+mapState.x),y=Math.round(p.y+mapState.y),size=parseFloat(getComputedStyle(b).getPropertyValue('--sd-marker-size'))||18;
    b.hidden=x<0||x>w||y<0||y>h;if(b.hidden)return;b.style.left=x-size/2+'px';b.style.top=y-size/2+'px';
    const label=b.querySelector('.sd450-marker-label');if(!label.style.left){label.style.left=(size-label.offsetWidth)/2-b.clientLeft+'px';label.style.top=-label.offsetHeight-10-b.clientTop+'px'};
@@ -169,8 +171,8 @@ function injectMap(u){
  root.querySelectorAll('[data-sd450-map]').forEach(n=>n.remove());
  const cards=root.querySelector('.stats426-cards');if(!cards)return;
  let overview=cards.closest('.incident-overview');
- if(!overview){overview=document.createElement('div');overview.className='incident-overview';cards.before(overview);overview.append(cards);}
- overview.insertAdjacentHTML('afterbegin',mapHtml());
+ if(!overview){overview=document.createElement('div');overview.className='incident-overview';head.before(overview);overview.append(head,cards);}
+ overview.insertAdjacentHTML('beforeend',mapHtml());
  const side=root.querySelector('.sd450-map-side'),a=dashboardRows();
  side.append(root.querySelector('.sd450-primary-legend'));
  side.insertAdjacentHTML('afterbegin','<label class="sd450-select-label" for="sd450Site">사업장 선택</label><select id="sd450Site"><option value="">사업장을 선택하세요</option>'+a.map(s=>'<option value="'+E(s.site_id)+'">'+E(s.site_name)+(' · '+risk(s.site_id).level)+(pos(s)?'':' · 좌표 확인 필요')+'</option>').join('')+'</select><div data-sd450-summary role="region" aria-label="사업장 요약" aria-live="polite"></div>');

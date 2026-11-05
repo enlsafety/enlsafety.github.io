@@ -13,6 +13,7 @@
  const realFetch=window.fetch.bind(window);window.__fixtureCalls=[];
  window.fetch=async(input,init={})=>{const url=new URL(typeof input==='string'?input:input.url,location.href);if(url.origin===location.origin)return realFetch(input,init);let b={};try{b=JSON.parse(init.body||'{}')}catch{}window.__fixtureCalls.push(b.action||url.pathname);
   let out={ok:true,epoch:1,incidents,sites,metrics:incidents,inquiries:[],count:0,users:[actor],readers:[],unread:0};let status=200;
+  if(b.action==='dashboard_read')out.sites=Object.entries(window.ENL_SITE_LOCATIONS).filter(([id])=>id!=='s34').map(([id,loc])=>({site_id:id,site_name:'검수 '+id,address:loc.address,active:true}));
   if(b.action==='platform_catalog')out={ok:true,...config};
   if(b.action==='platform_enter'){const m=[...config.modules,...config.services].find(x=>x.key===b.key);if(!m||m.enabled===false||m.state==='hidden'||m.state!=='live'&&!m.preview){out={ok:false,message:'module_unavailable'};status=403}else out={ok:true,key:b.key,state:m.state}}
   if(b.action==='platform_home_cards'){
