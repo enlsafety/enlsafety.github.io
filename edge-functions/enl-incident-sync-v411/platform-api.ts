@@ -1,5 +1,6 @@
 const moduleKeys=['incident','risk','tbm','organization','training','msds'];
 const systemRoles=['worker','field','manager','executive','safety'];
+const safetyArt=['policy','law','voice','emergency','ppe','ergonomics','rules'];
 const serviceKeys=['history','approvals','notices','documents','dashboard','system'];
 function canEnter(item:any,actor:any){
   if(!item||item.enabled===false||item.state==='hidden')return false;
@@ -18,7 +19,8 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
   if(action==='platform_hub'||action==='platform_hub_favorites'||action==='platform_hub_save'||action==='platform_hub_archive'){
     const actorKey=(['field','worker'].includes(actor.role)?'site:':'hq:')+actor.id;
     if(action==='platform_hub_favorites'){
-      const favorites=body.favorites,keys=[...moduleKeys,...serviceKeys,'bulletins','schedule'];
+      const [catalog]=await sql`select modules from private.enl_platform_catalog where singleton`;
+      const favorites=body.favorites,keys=[...catalog.modules.map((m:any)=>m.key),...serviceKeys,'bulletins','schedule'];
       if(!Array.isArray(favorites)||favorites.length>15||favorites.some((k:any)=>!keys.includes(k)||k==='system'&&!admin))return reply({ok:false,message:'invalid_favorites'},400);
       await sql`insert into private.enl_hub_preferences(actor_key,favorites) values(${actorKey},${sql.json([...new Set(favorites)])}::jsonb)
         on conflict(actor_key) do update set favorites=excluded.favorites,updated_at=now()`;
@@ -99,8 +101,8 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
     const rows=await sql`select duty from private.enl_duty_assignments where source=${body.source} and account_id=${body.accountId} and ended_at is null`;
     return reply({ok:true,duties:rows.map((r:any)=>r.duty)});
   }
-  const [config]=await sql`select revision,modules,services,home_extras from private.enl_platform_catalog where singleton`;
-  const publicItems=(items:any[])=>admin?items:items.filter(m=>m.state!=='hidden'&&m.key!=='system').map(m=>({key:m.key,displayName:m.displayName,state:m.state,enabled:m.enabled!==false,preview:m.preview,canEnter:canEnter(m,actor)}));
+  const [config]=await sql`select * from private.enl_platform_catalog where singleton`;
+  const publicItems=(items:any[])=>admin?items:items.filter(m=>m.state!=='hidden'&&m.key!=='system').map(m=>({key:m.key,displayName:m.displayName,iconKey:m.iconKey,state:m.state,enabled:m.enabled!==false,preview:m.preview,canEnter:canEnter(m,actor)}));
   const moduleIds=config.modules.map((m:any)=>m.key);
   const extras=['support','system'];
   const order=[...moduleIds];
@@ -110,7 +112,21 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
   if(action==='platform_catalog'){
     const modules=publicItems(config.modules),services=publicItems(config.services);
     const visible=new Set([...modules,...services].map(m=>m.key).concat('support'));
-    return reply({ok:true,revision:config.revision,modules,services,homeOrder:order.filter(k=>visible.has(k))});
+    return reply({ok:true,revision:config.revision,modules,services,omitted:(config.home_omitted||[]).filter((k:string)=>visible.has(k)),homeOrder:order.filter(k=>visible.has(k))});
+  }
+  if(action==='platform_home_cards'){
+    if(!admin)return reply({ok:false,message:'forbidden'},403);
+    const removed=body.omitted;
+    if(!Array.isArray(removed)||removed.some(k=>!order.includes(k))||new Set(removed).size!==removed.length)return reply({ok:false,message:'invalid_catalog'},400);
+    const modules=[...config.modules];
+    if(body.newCard){
+      const {name,icon}=body.newCard;
+      if(typeof name!=='string'||!name.trim()||name.trim().length>30||/[\u0000-\u001f\u007f]/.test(name)||!safetyArt.includes(icon)||modules.length>=100)return reply({ok:false,message:'invalid_card'},400);
+      modules.push({key:'custom-'+crypto.randomUUID(),displayName:name.trim(),iconKey:icon,state:'building',enabled:false,preview:false,roles:systemRoles,pilots:[]});
+    }
+    const rows=await sql`update private.enl_platform_catalog set modules=${sql.json(modules)}::jsonb,home_omitted=${sql.json(removed)}::jsonb,
+      revision=revision+1,updated_by=${actor.id},updated_at=now() where singleton and revision=${body.revision} and revision=${config.revision} returning revision`;
+    return rows.length?reply({ok:true,revision:rows[0].revision}):reply({ok:false,message:'catalog_changed'},409);
   }
   if(action==='platform_home_order'){
     if(!admin)return reply({ok:false,message:'forbidden'},403);
@@ -146,7 +162,7 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
   const clean=next.map(({key,state,enabled,preview,roles,pilots,displayName}:any)=>{
     const previous=modules.find((m:any)=>m.key===key);
     const label=displayName?.trim()??previous.displayName;
-    return {...(label?{displayName:label}:{}),key,state,enabled:enabled??(previous.enabled!==false),preview,roles:[...new Set(roles)],pilots:[...new Set(pilots)]};
+    return {...(previous.iconKey?{iconKey:previous.iconKey}:{}),...(label?{displayName:label}:{}),key,state,enabled:enabled??(previous.enabled!==false),preview,roles:[...new Set(roles)],pilots:[...new Set(pilots)]};
   });
   const pilots=Array.from(new Set(clean.flatMap(m=>m.pilots))) as string[];
   if(pilots.length){

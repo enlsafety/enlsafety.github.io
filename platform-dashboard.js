@@ -17,6 +17,8 @@
  });
  const svg=(key,extra={})=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(paths[key]||extra[key]||paths.file)+'</svg>';
  const descriptions={incident:'사고 발생 시<br>신속한 보고 및 관리',risk:'작업 공정별 위험요인<br>발굴 및 개선관리',tbm:'작업 전 안전회의<br><span>(Tool Box Meeting) 관리</span>',organization:'안전보건 조직 및<br>역할 책임 관리',training:'법정 직무 특별교육의<br>계획, 운영, 이력관리',msds:'화학물질정보<br>(MSDS) 등록 관리',support:'전자결재, 문서관리,<br>기준정보 등 공통업무 지원',system:'사용자, 권한, 코드,<br>환경설정 등 시스템 운영'};
+ const safetyIcons={policy:'방침과 목표',law:'법령 요지',voice:'의견 청취',emergency:'비상 대응',ppe:'보호구',ergonomics:'근골격계 조사',rules:'관리규정'};
+ Object.assign(descriptions,{policy:'방침 및 추진 목표',law:'주요 법령 확인',voice:'의견 접수 및 조치',emergency:'비상계획 및 훈련',ppe:'지급 내역 및 점검',ergonomics:'부담작업 조사',rules:'규정 및 개정 이력'});
  const day=d=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul'}).format(d||new Date());
  const time=v=>v?new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(v)):'';
  const date=v=>v?day(new Date(v)).replaceAll('-','.'):'';
@@ -64,16 +66,22 @@
  }
  function decorateCard(row,m,support){if(support&&m.key!=='system')return;
   const b=row.querySelector('.platform-card'),icon=b.querySelector('.platform-icon');icon.className='hub-art hub-art-'+m.key;icon.replaceChildren();
+  const art=m.iconKey||m.key;
+  if(Object.hasOwn(safetyIcons,art)){
+   row.classList.add('hub-safety-card');
+   icon.className='hub-art hub-safety-art';
+   const img=document.createElement('img');img.src='assets/safety-cards/'+art+'.webp';img.alt='';img.width=320;img.height=320;icon.append(img);
+  }
   if(row.dataset.state==='live' && row.dataset.on==='true')b.querySelector('small').textContent='운영중';
   b.querySelector('strong').classList.add('hub-card-title');
   b.insertAdjacentHTML('beforeend','<span class="hub-card-description">'+(descriptions[m.key]||'')+'</span><span class="hub-card-arrow" aria-hidden="true">'+svg('arrow')+'</span>');
  }
- function mount(host,u,{go,enterIncident,icons,names,featureName}){
+ function mount(host,u,{go,enterIncident,icons,names,featureName,manageCards}){
   const admin=u.role==='safety',userKey=JSON.stringify([u.id||u.personnelId,u.role,u.siteId||'']);let catalog=null,content={notices:[],events:[],favorites:[]},loaded=false,contentError='',recent=[],recentError='',busy=false;
   const sameUser=()=>{const a=currentUser?.();return a&&JSON.stringify([a.id||a.personnelId,a.role,a.siteId||''])===userKey&&host.isConnected};
   const action=(key,label,cls='')=>'<button type="button" class="'+cls+'" data-hub="'+key+'"'+(key==='notifications'?' aria-label="알림센터"':key==='menu'?' aria-label="메뉴 열기"':key==='search'?' aria-label="통합검색"':'')+'>'+label+'</button>';
   const panel=(key,title,icon,more)=>'<section class="hub-panel hub-'+key+'"><header><h2>'+svg(icon,icons)+title+'</h2>'+action(key,more||'더보기 ›')+'</header><div data-list="'+key+'"><p class="hub-empty">불러오는 중입니다.</p></div></section>';
-  host.innerHTML='<aside class="hub-sidebar"><div class="hub-logo"><img src="assets/enl-wordmark.svg" width="102" height="52" alt="이앤엘 E&amp;L"></div><nav aria-label="통합시스템 메뉴"></nav><section class="hub-favorites"><header><h2>'+svg('star')+'즐겨찾기</h2>'+action('favorites','＋')+'</header><div></div></section><div class="hub-sidebar-wave" aria-hidden="true"></div></aside><button class="hub-sidebar-backdrop" type="button" data-hub="close-menu" aria-label="메뉴 닫기"></button><section class="hub-hero"><div class="hub-hero-image" role="img" aria-label="골프장 풍경과 이앤엘 문구: 안전이 일상이 되는 안전보건관리 통합시스템"></div><div class="hub-welcome"><h2>'+safe(u.name||'사용자')+' 님, 환영합니다!</h2><p>이앤엘 안전보건관리 통합시스템에서<br>사업장의 안전과 건강한 일터를 함께 만들어갑니다.</p></div></section><div class="hub-middle"><section class="hub-features"><header class="hub-section-heading"><h2>'+svg('grid')+'주요 업무기능</h2><p>안전보건 업무를 한 곳에서 통합 관리하세요.</p>'+action('guide','ⓘ 모듈 안내')+(admin?action('edit','편집','hub-edit-toggle'):'')+'</header><div class="platform-modules feature-list"></div></section><div class="hub-right">'+panel('recent','최근 작업','clock')+panel('approvals','결재 대기 <span data-approval-count></span>','approvals')+'</div></div><div class="hub-bottom">'+panel('bulletins','공지사항','notice')+panel('schedule','오늘의 일정 <small>'+safe(new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',weekday:'short'}).format(new Date()))+'</small>','calendar','전체 일정 ›')+'</div><p class="hub-status" role="status" aria-live="polite"></p><dialog class="hub-dialog hub-support"><header><h2>공통업무지원서비스</h2><button type="button" data-hub="close-support" aria-label="닫기">×</button></header><section class="platform-services feature-list"><div class="platform-grid"></div></section></dialog>';
+  host.innerHTML='<aside class="hub-sidebar"><div class="hub-logo"><img src="assets/enl-wordmark.svg" width="102" height="52" alt="이앤엘 E&amp;L"></div><nav aria-label="통합시스템 메뉴"></nav><section class="hub-favorites"><header><h2>'+svg('star')+'즐겨찾기</h2>'+action('favorites','＋')+'</header><div></div></section><div class="hub-sidebar-wave" aria-hidden="true"></div></aside><button class="hub-sidebar-backdrop" type="button" data-hub="close-menu" aria-label="메뉴 닫기"></button><section class="hub-hero"><div class="hub-hero-image" role="img" aria-label="골프장 풍경과 이앤엘 문구: 안전이 일상이 되는 안전보건관리 통합시스템"></div><div class="hub-welcome"><h2>'+safe(u.name||'사용자')+' 님, 환영합니다!</h2><p>이앤엘 안전보건관리 통합시스템에서<br>사업장의 안전과 건강한 일터를 함께 만들어갑니다.</p></div></section><div class="hub-middle"><section class="hub-features"><header class="hub-section-heading"><h2>'+svg('grid')+'주요 업무기능</h2><p>안전보건 업무를 한 곳에서 통합 관리하세요.</p>'+action('guide','ⓘ 모듈 안내')+(admin?action('manage-cards','카드 관리','hub-card-manager')+action('edit','편집','hub-edit-toggle'):'')+'</header><div class="platform-modules feature-list"></div></section><div class="hub-right">'+panel('recent','최근 작업','clock')+panel('approvals','결재 대기 <span data-approval-count></span>','approvals')+'</div></div><div class="hub-bottom">'+panel('bulletins','공지사항','notice')+panel('schedule','오늘의 일정 <small>'+safe(new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',weekday:'short'}).format(new Date()))+'</small>','calendar','전체 일정 ›')+'</div><p class="hub-status" role="status" aria-live="polite"></p><dialog class="hub-dialog hub-support"><header><h2>공통업무지원서비스</h2><button type="button" data-hub="close-support" aria-label="닫기">×</button></header><section class="platform-services feature-list"><div class="platform-grid"></div></section></dialog>';
   const area=host.querySelector('.platform-modules'),services=host.querySelector('.platform-services .platform-grid'),status=host.querySelector('.hub-status');
   function bindHeader(){
    const topbar=host.closest('.app-shell')?.querySelector('.topbar');
@@ -150,7 +158,9 @@
       const m=entry(key);
       if(key==='support'){nav.insertAdjacentHTML('beforeend',action('support',svg('support')+'<span>공통업무지원서비스</span>'));continue;}
       if(!m||(!admin&&m.state==='hidden'))continue;
-      const label=svg(key,icons)+'<span>'+safe(featureName(m))+'</span>';
+      const art=m.iconKey||key;
+      const pictogram=Object.hasOwn(safetyIcons,art)?'<img class="hub-sidebar-art" alt="" src="assets/safety-cards/'+art+'.webp">':svg(key,icons);
+      const label=pictogram+'<span>'+safe(featureName(m))+'</span>';
       if(key==='incident'){
         nav.insertAdjacentHTML('beforeend',action('incident-menu',label+'<i aria-hidden="true">⌄</i>')+'<div class="hub-incident-group" id="hub-incident-group" hidden>'+action('incident-home','사고보고 홈')+'<div class="hub-incident-links"></div></div>');
         nav.querySelector('[data-hub=incident-menu]').setAttribute('aria-controls','hub-incident-group');
@@ -188,7 +198,7 @@
   function dispatch(key){if(key==='incident-menu'){
     if(expanded)setExpanded(false);else if(!pending){pending=true;allowed('incident').then(ok=>{if(ok)setExpanded(true)}).finally(()=>pending=false);}
     return;
-  }if(key==='incident-home')return activateIncident();if(key.startsWith('feature:'))return clickFeature(key.slice(8));if(key==='home'){if(host.classList.contains('hub-incident-workspace'))return window.enlReturnToPlatform(u);host.classList.remove('hub-menu-open');window.scrollTo({top:0,behavior:'smooth'})}else if(key==='menu'||key==='close-menu')host.classList.toggle('hub-menu-open',key==='menu');else if(key==='support')support();else if(key==='close-support')host.querySelector('.hub-support').close();else if(key==='search')search();else if(key==='notifications')clickFeature('notices');else if(key==='edit'){host.classList.toggle('hub-editing');host.querySelector('.hub-edit-toggle').textContent=host.classList.contains('hub-editing')?'편집 완료':'편집'}else if(key==='guide')guide();else if(key==='favorites')favorites();else if(key==='bulletins')listContent('notice');else if(key==='schedule')listContent('event');else if(key==='approvals')openApprovalList();else if(key==='recent'){const d=dialog(host,'최근 작업'),box=d.querySelector('.hub-dialog-body');for(const r of recent)rowButton(box,r.sentence,relative(r.happened_at),()=>openActivity(r));if(!recent.length)box.innerHTML='<p class="hub-empty">'+safe(recentError||'최근 작업 기록이 없습니다.')+'</p>'}}
+  }if(key==='incident-home')return activateIncident();if(key.startsWith('feature:'))return clickFeature(key.slice(8));if(key==='home'){if(host.classList.contains('hub-incident-workspace'))return window.enlReturnToPlatform(u);host.classList.remove('hub-menu-open');window.scrollTo({top:0,behavior:'smooth'})}else if(key==='menu'||key==='close-menu')host.classList.toggle('hub-menu-open',key==='menu');else if(key==='support')support();else if(key==='close-support')host.querySelector('.hub-support').close();else if(key==='search')search();else if(key==='notifications')clickFeature('notices');else if(key==='manage-cards'&&admin)manageCards();else if(key==='edit'){host.classList.toggle('hub-editing');host.querySelector('.hub-edit-toggle').textContent=host.classList.contains('hub-editing')?'편집 완료':'편집'}else if(key==='guide')guide();else if(key==='favorites')favorites();else if(key==='bulletins')listContent('notice');else if(key==='schedule')listContent('event');else if(key==='approvals')openApprovalList();else if(key==='recent'){const d=dialog(host,'최근 작업'),box=d.querySelector('.hub-dialog-body');for(const r of recent)rowButton(box,r.sentence,relative(r.happened_at),()=>openActivity(r));if(!recent.length)box.innerHTML='<p class="hub-empty">'+safe(recentError||'최근 작업 기록이 없습니다.')+'</p>'}}
   host.querySelectorAll('[data-hub]').forEach(b=>b.onclick=()=>dispatch(b.dataset.hub));
   function afterCards(c){catalog=c;navigation();paintApprovals();renderArtwork(host);}
   const refresh=()=>{if(sameUser())paintApprovals();else window.removeEventListener('enl-incidents-pulled',refresh)};window.addEventListener('enl-incidents-pulled',refresh);
@@ -197,5 +207,5 @@
  }
  document.addEventListener('keydown',ev=>{if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==='k'&&document.querySelector('.hub-search')){ev.preventDefault();document.querySelector('.hub-search').click()}});
  function cleanup(){stopArtwork();document.querySelectorAll('.topbar .hub-search,.topbar .hub-bell,.topbar .hub-mobile-menu').forEach(n=>n.remove());}
- window.ENLHub={mount,decorateCard,cleanup};
+ window.ENLHub={mount,decorateCard,cleanup,dialog,safetyIcons};
 })();

@@ -115,7 +115,7 @@
       recordEntry(u);
       if(currentView==='platform'||!target)currentView=['worker','field'].includes(u.role)?'home':'stats';
       if(target)target.click();else window.renderShell(u);
-    },icons,names,featureName});
+    },icons,names,featureName,manageCards});
     const {area,services,status}=dashboard;
     let config,saving=false;
     const groupFor=key=>config.services.some(s=>s.key===key)?'services':'modules';
@@ -136,6 +136,38 @@
       }finally{saving=false;area.inert=services.inert=false;}
     }
     function homeOrder(){return config.homeOrder||[...config.modules.map(m=>m.key),'support',...(admin?['system']:[])];}
+    function manageCards(){
+      if(!admin||!config||saving)return;
+      const d=window.ENLHub.dialog(host,'주요 업무기능 카드 관리'),box=d.querySelector('.hub-dialog-body');
+      const modules=new Map([...config.modules,...config.services].map(m=>[m.key,m]));
+      const revision=config.revision;
+      box.innerHTML='<form class="hub-form"><fieldset class="hub-placement"><legend>메인에 표시할 카드</legend></fieldset><details><summary>새 카드 만들기</summary><label>카드 이름<input name="title" maxlength="30" autocomplete="off"></label><label>아이콘<select name="icon"></select></label></details><button type="submit">저장</button><p role="status"></p></form>';
+      const form=box.querySelector('form'),list=form.querySelector('fieldset');
+      for(const key of homeOrder()){
+        const label=document.createElement('label'),input=document.createElement('input');
+        label.className='hub-check';input.type='checkbox';input.name='placed';input.value=key;input.checked=!config.omitted?.includes(key);
+        label.append(input,key==='support'?'공통업무지원서비스':featureName(modules.get(key)));list.append(label);
+      }
+      for(const [key,title] of Object.entries(window.ENLHub.safetyIcons))form.elements.icon.add(new Option(title,key));
+      let committed=false;
+      form.onsubmit=async ev=>{
+        ev.preventDefault();if(saving)return;
+        const name=form.elements.title.value.trim(),omitted=Array.from(list.querySelectorAll('input:not(:checked)'),i=>i.value);
+        const note=form.querySelector('[role=status]');
+        saving=true;form.inert=true;
+        try{
+          if(!committed){
+            await api({action:'platform_home_cards',revision,omitted,newCard:name?{name,icon:form.elements.icon.value}:null});
+            committed=true;
+          }
+          await load();d.close();status.textContent='카드 배치를 저장했습니다.';
+        }catch(err){
+          if(err.message==='catalog_changed'){
+            await load();d.close();status.textContent='다른 관리자가 변경했습니다. 최신 카드 배치를 확인해 주세요.';
+          }else note.textContent=committed?'저장되었습니다. 다시 눌러 목록을 갱신하세요.':'저장 결과를 확인할 수 없습니다. 카드 목록을 다시 확인하세요.';
+        }finally{saving=false;form.inert=false;}
+      };
+    }
     async function moveHome(key,destination){
       if(saving||key===destination)return false;
       const order=[...homeOrder()],from=order.indexOf(key),to=order.indexOf(destination);
@@ -157,12 +189,12 @@
       const modules=[...itemsFor(key)],i=modules.findIndex(m=>m.key===key),j=modules.findIndex(m=>m.key===destination);
       if(i<0||j<0||i===j)return;modules.splice(j,0,modules.splice(i,1)[0]);return save(modules);
     }
-    function neighbors(key){return homeOrder().includes(key)?homeOrder():itemsFor(key).map(m=>m.key);}
+    function neighbors(key){return homeOrder().includes(key)?homeOrder().filter(k=>!config.omitted?.includes(k)):itemsFor(key).map(m=>m.key);}
     function supportOrder(grip){
       const dialog=document.createElement('dialog');dialog.className='feature-settings';
       dialog.innerHTML='<h3>공통업무지원서비스 순서</h3><div class="feature-actions"><button type="button">앞으로</button><button type="button">뒤로</button><button type="button">닫기</button></div>';
       host.append(dialog);
-      const order=homeOrder(),index=order.indexOf('support'),buttons=dialog.querySelectorAll('button');
+      const order=neighbors('support'),index=order.indexOf('support'),buttons=dialog.querySelectorAll('button');
       for(const [i,step] of [-1,1].entries()){
         const target=order[index+step];buttons[i].disabled=!target;
         buttons[i].onclick=async()=>{if(await moveHome('support',target))dialog.close();};
@@ -257,7 +289,7 @@
         if(!g.active){
           if(Math.hypot(g.x-g.startX,g.y-g.startY)<6)return;
           const base=grid.getBoundingClientRect();
-          g.slots=Array.from(grid.querySelectorAll('.feature-card-wrap'),el=>{
+          g.slots=Array.from(grid.querySelectorAll('.feature-card-wrap:not([hidden])'),el=>{
             const r=el.getBoundingClientRect(),top=r.top-base.top;
             return {row:el,top,left:r.left-base.left,width:r.width,height:r.height};
           });
@@ -286,7 +318,7 @@
       draw(grid,config.services.filter(m=>m.key==='system'),true);
       draw(services,config.services.filter(m=>m.key!=='system'),true);
       const rows=new Map(Array.from(grid.children,r=>[r.dataset.key,r]));
-      for(const key of homeOrder()){const row=rows.get(key);if(row)grid.append(row);}
+      for(const key of homeOrder()){const row=rows.get(key);if(row){row.hidden=config.omitted?.includes(key)===true;grid.append(row);}}
       dashboard.afterCards({...config,homeOrder:homeOrder()});
       window.enlRefreshHistoryCount?.(true);
     }

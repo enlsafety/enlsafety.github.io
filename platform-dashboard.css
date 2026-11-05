@@ -103,15 +103,15 @@
  .platform-hub .hub-sidebar{transform:translateX(-100%);visibility:hidden;transition:transform .2s,visibility .2s;width:212px;z-index:101;padding-top:env(safe-area-inset-top);background:linear-gradient(145deg,#f4faffed,#dce9f8e8)}
  .platform-hub.hub-menu-open .hub-sidebar{transform:translateX(0);visibility:visible}
  .platform-hub.hub-menu-open .hub-sidebar-backdrop{display:block;position:fixed;inset:0;z-index:100;width:100%;height:100%;border:0;border-radius:0;background:#16325844;backdrop-filter:blur(3px)}
- .safety-ui #app:has(.platform-hub) .topbar{display:grid!important;grid-template-columns:30px minmax(0,1fr) 68px 34px!important;grid-template-areas:"menu brand tools user"!important;align-items:center!important;gap:5px!important;min-height:64px;height:auto!important;padding:max(8px,env(safe-area-inset-top)) 12px 8px!important}
+ .safety-ui #app:has(.platform-hub) .topbar{display:grid!important;grid-template-columns:30px minmax(0,1fr) 68px 40px!important;grid-template-areas:"menu brand tools user"!important;align-items:center!important;gap:5px!important;min-height:64px;height:auto!important;padding:max(8px,env(safe-area-inset-top)) 12px 8px!important}
  .safety-ui #app:has(.platform-hub) .topbar .hub-mobile-menu{grid-area:menu!important;display:block;position:static!important;width:30px!important;min-width:30px!important;min-height:44px;padding:0!important;margin:0!important;border:0;background:transparent;color:#294f82;font-size:23px}
  .safety-ui #app:has(.platform-hub) .topbar .brand{grid-area:brand!important;width:auto!important;min-width:0!important;margin:0!important}
  .safety-ui #app:has(.platform-hub) .topbar-tools{grid-area:tools!important;position:static!important;width:auto!important;min-width:0!important;justify-content:flex-end!important;gap:0!important;padding:0!important;margin:0!important}
  .safety-ui #app:has(.platform-hub) .hub-bell{width:32px;border:0}.hub-bell svg{width:22px;height:22px}
- .safety-ui #app:has(.platform-hub) .topbar .user-wrap{grid-area:user!important;position:relative!important;inset:auto!important;justify-self:end;width:34px!important;margin:0!important}
- .safety-ui #app:has(.platform-hub) .topbar .user-chip{min-width:34px!important;width:34px!important;padding:0!important}
+ .safety-ui #app:has(.platform-hub) .topbar .user-wrap{grid-area:user!important;position:relative!important;inset:auto!important;justify-self:end;align-self:center;width:40px!important;margin:0!important}
+ .safety-ui #app:has(.platform-hub) .topbar .user-chip{display:grid!important;place-items:center!important;min-width:40px!important;width:40px!important;height:44px!important;min-height:44px!important;gap:0!important;padding:0!important}
  .safety-ui #app:has(.platform-hub) .user-chip>div:not(.avatar),.safety-ui #app:has(.platform-hub) .user-chip .chev{display:none!important}
- .safety-ui #app:has(.platform-hub) .avatar{display:flex!important;width:34px;height:34px;font-size:11px}
+ .safety-ui #app:has(.platform-hub) .avatar{display:grid!important;place-items:center!important;position:static!important;margin:0!important;padding:0!important;width:34px;height:34px;font-size:11px}
  .safety-ui #app:has(.platform-hub) .topbar .brand .logo{display:flex!important;width:28px;height:32px;min-width:28px;flex:none}
  .safety-ui #app:has(.platform-hub) .topbar .brand h1{font-size:16px;line-height:1.4;white-space:normal;word-break:keep-all;letter-spacing:-.6px}
  .hub-bottom{grid-template-columns:1fr}.hub-welcome{max-width:80%}
@@ -120,12 +120,11 @@
 @media(max-width:600px){
  .safety-ui #app:has(.platform-hub) .main{padding:12px 12px max(22px,env(safe-area-inset-bottom))}
  .safety-ui #app:has(.platform-hub) .system-title-line{display:block}
- .hub-hero{height:auto;min-height:0;border-radius:16px;display:flex;flex-direction:column;background:#f2f8ff}
- .hub-hero-image{position:relative;inset:auto;order:1;width:100%;aspect-ratio:1942/809;background-position:center;background-size:100% auto;z-index:auto}
+ .hub-hero{display:grid;align-items:end;min-height:0;aspect-ratio:1942/809;height:auto;padding:10px;border-radius:16px}
+ .hub-hero-image{inset:0;background-position:center top;background-size:cover}
  .hub-hero:after{display:none}
- .hub-hero .hub-welcome{padding-bottom:14px}
- .hub-welcome{max-width:100%;width:auto;padding:19px 12px 0 25px}.hub-welcome:before{left:12px;top:21px;bottom:0;width:3px}
- .hub-welcome h2{font-size:20px;margin-bottom:8px}.hub-welcome p{font-size:12px;line-height:1.7}
+ .hub-hero .hub-welcome{justify-self:start;max-width:100%;width:fit-content;padding:9px 14px;border:1px solid #ffffffc7;border-radius:12px;background:linear-gradient(115deg,#f8fcffce,#edf8ff99);box-shadow:0 3px 12px #19415a24;backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+ .hub-welcome:before{display:none}.hub-welcome h2{font-size:clamp(16px,4.4vw,19px);margin-bottom:3px}.hub-welcome p{font-size:clamp(10px,2.75vw,12px);line-height:1.5}
  .hub-section-heading{margin:0 0 10px;gap:7px;flex-wrap:wrap;min-height:32px}.hub-section-heading h2{font-size:20px;gap:7px;margin-right:auto}
  .platform-hub .hub-section-heading button{padding:4px 7px;min-height:32px;font-size:10px}
  .platform-hub .platform-modules>.platform-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
@@ -170,4 +169,21 @@
 @media print{
  .hub-incident-workspace,.app-shell:has(.hub-incident-workspace) > .topbar{display:none!important}
  .safety-ui #app:has(.hub-incident-workspace) .app-shell{padding-left:0}
+}
+
+.platform-hub:not(.hub-editing) .hub-card-manager{display:none}
+.platform-hub .hub-sidebar .hub-sidebar-art{width:21px;height:21px;object-fit:contain;flex:none}
+.platform-hub .hub-sidebar nav button:has(.hub-sidebar-art) span{white-space:normal;word-break:keep-all;line-height:1.3}
+.platform-hub .hub-safety-art{background:none}
+.hub-safety-art img{display:block;max-width:100%;width:100%;height:auto}
+.platform-hub .hub-safety-card .hub-card-title{font-size:clamp(14px,1.1vw,19px);line-height:1.23}
+.platform-hub .hub-placement{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,235px),1fr));padding:10px;gap:4px 12px}
+.hub-placement .hub-check{word-break:keep-all}
+.hub-form details label{margin-top:10px}
+@media(min-width:1181px){.hub-right{align-self:start}.platform-hub .hub-right .hub-panel{min-height:180px}}
+@media(max-width:600px){
+ .platform-hub .hub-safety-card .hub-card-title{font-size:14px}
+ .platform-hub .hub-safety-card .platform-card{padding:12px 8px 8px 43%}
+ .platform-hub.hub-editing .hub-safety-card .platform-card{padding-top:41px}
+ .hub-editing .hub-safety-card .hub-card-description{display:none}
 }
