@@ -1,3 +1,18 @@
+# Current app icon: r50 blue E&L rounded square
+
+The latest user-approved blue icon supersedes the former golf shield everywhere an application/system mark is shown. `assets/enl-app-icon-r50.png` is the cutout master, prepared from the supplied image by removing only the exterior white backdrop. The large white E&L and blue/cyan artwork remain the approved design. Earlier masters are kept for history, not used at runtime.
+
+- Login, integrated-home and module/system title marks use `pwa-icon-512.png?v=4813-r50`.
+- Desktop/Android any-purpose PNGs, small browser favicons and multi-size Windows ICO are rebuilt from the same master.
+- iOS/iPadOS 180px and its root fallback are opaque navy-backed derivatives.
+- The adaptive 512px icon fits the full mark inside the standard 40% safe-circle radius.
+- HTML, manifest and service-worker icon cache keys are refreshed. App identity, authentication, workflows and records stay unchanged.
+- Existing installed OS icons may update later than the website. Physical-device installation refresh is not exercised by the cloud-browser checks.
+
+The branding requirement is recorded in AGENTS.md. The separate E&L corporate wordmark remains unchanged.
+
+## Earlier releases (historical)
+
 # App icon release r47
 
 The approved E&L blue shield and green golf fairway mark replaces the previous generic app icon. The proposal board was separated with imagegen into `assets/enl-app-icon-r47.png`; original uploaded artwork is preserved. Runtime icon sizes are downsampled from this master without changing its internal design.
