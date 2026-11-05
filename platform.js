@@ -1,13 +1,14 @@
 /* Common entry points share the signed-in actor and the existing incident workflow. */
 (()=>{
   'use strict';
-  const names={incident:'사고보고',risk:'위험성평가',tbm:'TBM',organization:'안전보건조직',training:'안전보건교육',history:'통합 히스토리',approvals:'통합 결재함',notices:'알림센터',documents:'문서 및 증빙관리',dashboard:'통합 대시보드',system:'시스템 관리'};
+  const names={incident:'사고보고',risk:'위험성평가',tbm:'TBM',organization:'안전보건조직',training:'교육관리',msds:'MSDS',history:'통합 히스토리',approvals:'통합 결재함',notices:'알림센터',documents:'문서 및 증빙관리',dashboard:'통합 대시보드',system:'시스템 관리'};
   const icons={
     incident:'<path d="M14 3H5v18h14V8z M14 3v5h5 M8 12h8m-8 4h6"/>',
     risk:'<path d="M12 2 20 5v6c0 5-4 9-8 11-4-2-8-6-8-11V5z m-4 10 3 3 5-6"/>',
     tbm:'<path d="M3 4h18v13H9l-6 4z M7 9h10m-10 4h7"/>',
     organization:'<circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2m1-15a3 3 0 0 1 0 6m1 3a5 5 0 0 1 4 5"/>',
     training:'<path d="m2 7 10-4 10 4-10 4z"/><path d="M6 9v3c3 3 9 3 12 0V9m4-2v6M3 16c3-1 6-.5 9 1 3-1.5 6-2 9-1v5c-3-.7-6-.5-9 1-3-1.5-6-1.7-9-1zm9 1v5"/>',
+    msds:'<path d="M9 2h6m-5 0v7L4 20h16L14 9V2M8 14h8"/>',
     history:'<path d="M3 10a9 9 0 1 1 1.8 8M3 4v6h6M12 7v5l3 2"/>',
     approvals:'<path d="M13 3H5v18h14v-9 M13 3v5h5M13 3l5 5m-10 6 3 3 9-10"/>',
     notices:'<path d="M4 17h16l-2-4V9a6 6 0 0 0-12 0v4z m5 3a3 3 0 0 0 6 0"/>',
@@ -24,6 +25,7 @@
   const e=v=>esc(String(v??''));
   const sessionKey=u=>JSON.stringify([u.id||u.personnelId,u.role,u.siteId||'']);
   function go(view,u){
+    document.querySelectorAll('.platform-hub dialog[open]').forEach(d=>d.close());
     if(currentView==='platform'&&view!=='platform'){
       history.replaceState({...history.state,enlHub:sessionKey(u)},'');
       history.pushState({enlModuleEntry:sessionKey(u)},'');
@@ -104,15 +106,9 @@
   window.enlPlatformHome=async(root,u)=>{
     if(root.querySelector('.platform-hub'))return;
     const host=document.createElement('section');host.className='platform-hub';root.replaceChildren(host);
-    host.innerHTML='<div class="platform-heading"><div class="ey">E&L SAFETY</div><h2>업무기능 선택</h2><p>사용할 업무를 선택해 주세요.</p></div><div class="platform-modules feature-list"></div><section class="platform-services feature-list"><h2>공통 업무지원 서비스</h2><div class="platform-grid"></div></section><p role="status"></p>';
-    host.querySelector('.platform-heading p').textContent=[u.name,roles[u.role]||'본사실무자',u.siteId?(siteById(u.siteId)?.name||u.siteId):(u.department||'본사')].filter(Boolean).join(' / ');
-    const area=host.querySelector('.platform-modules'),services=host.querySelector('.platform-grid'),status=host.querySelector('[role=status]');
     const admin=u.role==='safety';
-    if(admin){
-      const hint=document.createElement('small');
-      hint.textContent='☰를 짧게 누르면 접근 설정, 위아래로 끌면 순서가 바뀝니다.';
-      host.querySelector('.platform-heading').append(hint);
-    }
+    const dashboard=window.ENLHub.mount(host,u,{go:view=>go(view,u),icons,names,featureName});
+    const {area,services,status}=dashboard;
     let config,saving=false;
     const groupFor=key=>config.services.some(s=>s.key===key)?'services':'modules';
     const itemsFor=key=>config[groupFor(key)];
@@ -170,22 +166,21 @@
     }
     function bindGrip(grip,row,module,grid){
       let gesture=null,suppressClick=false;
-      grip.title='눌러서 접근 설정, 위아래로 끌어서 순서 변경';
+      grip.title='눌러서 접근 설정, 끌어서 순서 변경';
       grip.onclick=ev=>{if(ev.detail===0||!suppressClick)settings(module,grip);suppressClick=false};
       grip.oncontextmenu=ev=>ev.preventDefault();
       function preview(){
-        const g=gesture,box=grid.getBoundingClientRect(),y=g.y-box.top;
-        const last=g.slots.length-1;
-        // Keep the grabbed point under the pointer. Test against the unshifted slots, including gaps.
-        const top=Math.max(g.slots[0].top,Math.min(g.slots[last].top,y-g.offset));
-        const center=top+g.slots[g.from].height/2;
-        g.to=g.slots.reduce((best,slot,i)=>Math.abs(slot.center-center)<Math.abs(g.slots[best].center-center)?i:best,g.from);
+        const g=gesture,box=grid.getBoundingClientRect(),x=g.x-box.left,y=g.y-box.top;
+        const source=g.slots[g.from],left=x-g.offsetX,top=y-g.offset;
+        const cx=left+source.width/2,cy=top+source.height/2;
+        const distance=slot=>Math.hypot(slot.left+slot.width/2-cx,slot.top+slot.height/2-cy);
+        g.to=g.slots.reduce((best,slot,i)=>distance(slot)<distance(g.slots[best])?i:best,g.from);
         g.slots.forEach((slot,i)=>{
-          let shift=0;
-          if(i===g.from)shift=top-slot.top;
-          else if(i>g.from&&i<=g.to)shift=g.slots[i-1].top-slot.top;
-          else if(i<g.from&&i>=g.to)shift=g.slots[i+1].top-slot.top;
-          slot.row.style.transform=shift?'translateY('+shift+'px)':'';
+          let target=slot;
+          if(i===g.from)target={left,top};
+          else if(i>g.from&&i<=g.to)target=g.slots[i-1];
+          else if(i<g.from&&i>=g.to)target=g.slots[i+1];
+          slot.row.style.transform='translate('+(target.left-slot.left)+'px,'+(target.top-slot.top)+'px)';
         });
       }
       function frame(){
@@ -211,17 +206,17 @@
         if(!ev.isPrimary||ev.button!==0||gesture||saving)return;
         suppressClick=false;
         const rect=row.getBoundingClientRect();
-        gesture={id:ev.pointerId,y:ev.clientY,startY:ev.clientY,offset:ev.clientY-rect.top,active:false};
+        gesture={id:ev.pointerId,x:ev.clientX,startX:ev.clientX,y:ev.clientY,startY:ev.clientY,offsetX:ev.clientX-rect.left,offset:ev.clientY-rect.top,active:false};
         grip.setPointerCapture(ev.pointerId);window.addEventListener('blur',cancel);
       };
       grip.onpointermove=ev=>{
-        const g=gesture;if(!g||ev.pointerId!==g.id)return;g.y=ev.clientY;
+        const g=gesture;if(!g||ev.pointerId!==g.id)return;g.x=ev.clientX;g.y=ev.clientY;
         if(!g.active){
-          if(Math.abs(g.y-g.startY)<6)return;
-          const base=grid.getBoundingClientRect().top;
-          g.slots=Array.from(grid.querySelectorAll('.feature-card-wrap'),el=>{
-            const r=el.getBoundingClientRect(),top=r.top-base;
-            return {row:el,top,height:r.height,center:top+r.height/2};
+          if(Math.hypot(g.x-g.startX,g.y-g.startY)<6)return;
+          const base=grid.getBoundingClientRect();
+          g.slots=Array.from(grid.querySelectorAll('.feature-card-wrap'+(module.key==='system'?'[data-key=system]':grid===services?'':':not([data-key=system])')),el=>{
+            const r=el.getBoundingClientRect(),top=r.top-base.top;
+            return {row:el,top,left:r.left-base.left,width:r.width,height:r.height};
           });
           g.from=g.slots.findIndex(slot=>slot.row===row);
           g.active=suppressClick=true;row.classList.add('moving');frame();
@@ -230,15 +225,18 @@
       grip.onpointerup=ev=>{
         const g=gesture;if(!g||ev.pointerId!==g.id)return;
         const box=grid.getBoundingClientRect();
-        if(g.active){g.y=ev.clientY;preview()}
+        if(g.active){g.x=ev.clientX;g.y=ev.clientY;preview()}
         finish(ev.clientX>=box.left&&ev.clientX<=box.right&&ev.clientY>=box.top-16&&ev.clientY<=box.bottom+16);
       };
       grip.onpointercancel=grip.onlostpointercapture=ev=>{if(gesture?.id===ev.pointerId)cancel()};
     }
     function cards(){
       const grid=document.createElement('div');grid.className='platform-grid';area.replaceChildren(grid);services.replaceChildren();
-      draw(grid,config.modules,false);draw(services,config.services,true);
-      const future=document.createElement('div');future.className='feature-future';future.innerHTML='<span aria-hidden="true">＋</span>추가 예정';grid.append(future);
+      draw(grid,config.modules,false);
+      dashboard.addSupportCard(grid);
+      draw(grid,config.services.filter(m=>m.key==='system'),true);
+      draw(services,config.services.filter(m=>m.key!=='system'),true);
+      dashboard.afterCards(config);
       window.enlRefreshHistoryCount?.(true);
     }
     function addNameEditor(row,button,m,support){
@@ -246,7 +244,7 @@
       const pencil=document.createElement('button');pencil.type='button';pencil.className='feature-pencil';
       pencil.setAttribute('aria-label',featureName(m)+' 이름 수정');pencil.title='이름 수정';
       pencil.innerHTML='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m4 16-1 5 5-1L20 8l-4-4zM14 6l4 4"/></svg>';
-      button.after(pencil,button.querySelector('small'));
+      button.after(pencil);
       pencil.onclick=()=>{
         const form=document.createElement('form');form.className='feature-name-form';
         form.innerHTML='<input aria-label="'+fieldName+'" maxlength="30" required><button type="submit">저장</button><button type="button">취소</button>';
@@ -267,6 +265,7 @@
         const row=document.createElement('article');row.className='feature-card-wrap';row.dataset.key=m.key;row.dataset.state=m.state;row.dataset.on=String(isOn(m));
         row.innerHTML='<button class="platform-card" type="button"><span class="platform-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+icons[m.key]+'</svg></span><strong>'+e(featureName(m))+'</strong><small>'+states[m.state]+(!isOn(m)&&m.state==='live'?' / 접근 꺼짐':'')+'</small></button>';
         const button=row.firstElementChild;
+        window.ENLHub.decorateCard(row,m,support);
         button.dataset[support?'service':'module']=m.key;button.setAttribute('aria-label',featureName(m));
         if(m.key==='history'&&isOn(m)&&m.canEnter!==false)button.dataset.platformHistoryFeed=featureName(m);
         grid.append(row);row.onclick=async ev=>{
@@ -278,7 +277,7 @@
             if(r.key==='incident')go(['worker','field'].includes(u.role)?'home':'stats',u);
             else if(r.key==='history'){window.enlRequestHistory();go('common-history',u)}
             else if(r.key==='notices')go('notice-center',u);
-            else{const box=support?services:area;box.innerHTML='<section class="panel"><h2>'+e(featureName(m))+'</h2><p>세부 업무 화면은 준비 중입니다.</p><button>← '+(support?'공통 업무지원 서비스':'업무기능 선택')+'</button></section>';box.querySelector('button').onclick=cards;}
+            else dashboard.showPreparing(featureName(m));
           }catch{status.textContent='현재 진입할 수 없는 '+(support?'서비스':'모듈')+'입니다.'}
         };
         if(!admin)continue;

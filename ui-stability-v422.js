@@ -23,7 +23,7 @@
     const root=document.getElementById('modalRoot');
     if(root&&root.children.length>0)return true;
     if(document.getElementById('enl418Overlay'))return true;
-    if(document.querySelector('.modal-overlay,.modal-backdrop,[role="dialog"]'))return true;
+    if(document.querySelector('.modal-overlay,.modal-backdrop,[role="dialog"],dialog[open]'))return true;
     return false;
   }
   function transientViewBusy(){
@@ -48,6 +48,7 @@
       const systemShell=u.role==='safety'&&['more','system-admin'].includes(currentView);
       if(shell&&root&&mountedUserId===id&&shell.hasAttribute('data-system-shell')===systemShell){
         if(modalBusy()||transientViewBusy())return root;
+        if(currentView!=='platform')window.ENLHub?.cleanup();
         syncNavState();
         try{
           if(typeof window.renderCurrentView==='function')return window.renderCurrentView(u)||root;

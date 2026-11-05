@@ -1,4 +1,4 @@
-const moduleKeys=['incident','risk','tbm','organization','training'];
+const moduleKeys=['incident','risk','tbm','organization','training','msds'];
 const systemRoles=['worker','field','manager','executive','safety'];
 const serviceKeys=['history','approvals','notices','documents','dashboard','system'];
 function canEnter(item:any,actor:any){
@@ -15,6 +15,53 @@ export async function serviceAllowed(sql:any,actor:any,key:string){
 }
 export async function platformRequest(sql:any,actor:any,body:any,reply:any){
   const admin=actor.role==='safety',action=body.action;
+  if(action==='platform_hub'||action==='platform_hub_favorites'||action==='platform_hub_save'||action==='platform_hub_archive'){
+    const actorKey=(['field','worker'].includes(actor.role)?'site:':'hq:')+actor.id;
+    if(action==='platform_hub_favorites'){
+      const favorites=body.favorites,keys=[...moduleKeys,...serviceKeys,'bulletins','schedule'];
+      if(!Array.isArray(favorites)||favorites.length>15||favorites.some((k:any)=>!keys.includes(k)||k==='system'&&!admin))return reply({ok:false,message:'invalid_favorites'},400);
+      await sql`insert into private.enl_hub_preferences(actor_key,favorites) values(${actorKey},${sql.json([...new Set(favorites)])}::jsonb)
+        on conflict(actor_key) do update set favorites=excluded.favorites,updated_at=now()`;
+      return reply({ok:true});
+    }
+    if(action==='platform_hub'){
+      const selected=String(body.date||new Date(Date.now()+9*3600000).toISOString().slice(0,10));
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(selected)||!Number.isFinite(Date.parse(selected))||new Date(selected).toISOString().slice(0,10)!==selected)return reply({ok:false,message:'invalid_date'},400);
+      const hq=['safety','manager','executive'].includes(actor.role);
+      const rows=await sql`select c.*,s.site_name from private.enl_hub_content c left join public.enl_site_master s on s.site_id=c.site_id
+        where c.archived_at is null and (${hq} or c.site_id is null or c.site_id=${actor.siteId})
+        and (c.kind='notice' or c.starts_at<((${selected}::date+1)::timestamp at time zone 'Asia/Seoul') and c.ends_at>=(${selected}::date::timestamp at time zone 'Asia/Seoul'))
+        order by c.kind,case when c.label='important' then 0 else 1 end,c.starts_at,c.created_at desc limit 250`;
+      const [pref]=await sql`select favorites from private.enl_hub_preferences where actor_key=${actorKey}`;
+      return reply({ok:true,notices:rows.filter((r:any)=>r.kind==='notice'),events:rows.filter((r:any)=>r.kind==='event'),favorites:pref?.favorites||[]});
+    }
+    if(!admin)return reply({ok:false,message:'forbidden'},403);
+    const id=body.id==null?'':String(body.id),uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if(id&&!uuid.test(id)||id&&(!Number.isSafeInteger(body.revision)||body.revision<1))return reply({ok:false,message:'invalid_content'},400);
+    if(action==='platform_hub_archive'){
+      if(!id)return reply({ok:false,message:'invalid_content'},400);
+      return await sql.begin(async(tx:any)=>{
+        const [before]=await tx`select * from private.enl_hub_content where id=${id}::uuid and archived_at is null for update`;
+        if(!before||before.revision!==body.revision)return reply({ok:false,message:'content_changed'},409);
+        const [after]=await tx`update private.enl_hub_content set archived_at=now(),updated_at=now(),updated_by=${actor.id},revision=revision+1 where id=${id}::uuid returning *`;
+        await tx`insert into private.enl_hub_content_audit(content_id,action,actor_id,actor_name,before_record,after_record) values(${id}::uuid,'archive',${actor.id},${actor.name},${tx.json(before)}::jsonb,${tx.json(after)}::jsonb)`;
+        return reply({ok:true});
+      });
+    }
+    const kind=String(body.kind||''),title=String(body.title||'').trim(),text=String(body.body||''),label=String(body.label||'info'),site=String(body.siteId||''),start=body.startsAt||null,end=body.endsAt||null;
+    if(!['notice','event'].includes(kind)||!title||title.length>150||text.length>10000||!['important','info','general'].includes(label)||site.length>150)return reply({ok:false,message:'invalid_content'},400);
+    if(kind==='event'&&(!start||!end||!Number.isFinite(Date.parse(start))||!Number.isFinite(Date.parse(end))||Date.parse(end)<Date.parse(start)))return reply({ok:false,message:'invalid_event_time'},400);
+    if(site){const [exists]=await sql`select site_id from public.enl_site_master where site_id=${site} and active`;if(!exists)return reply({ok:false,message:'invalid_site'},400);}
+    return await sql.begin(async(tx:any)=>{
+      let before=null,after;
+      if(id){[before]=await tx`select * from private.enl_hub_content where id=${id}::uuid and archived_at is null for update`;
+        if(!before||before.revision!==body.revision||before.kind!==kind)return reply({ok:false,message:'content_changed'},409);
+        [after]=await tx`update private.enl_hub_content set title=${title},body=${text},label=${label},site_id=${site||null},starts_at=${kind==='event'?start:null}::timestamptz,ends_at=${kind==='event'?end:null}::timestamptz,revision=revision+1,updated_at=now(),updated_by=${actor.id} where id=${id}::uuid returning *`;
+      }else [after]=await tx`insert into private.enl_hub_content(kind,title,body,label,site_id,starts_at,ends_at,created_by,updated_by) values(${kind},${title},${text},${label},${site||null},${kind==='event'?start:null}::timestamptz,${kind==='event'?end:null}::timestamptz,${actor.id},${actor.id}) returning *`;
+      await tx`insert into private.enl_hub_content_audit(content_id,action,actor_id,actor_name,before_record,after_record) values(${after.id}::uuid,${id?'update':'create'},${actor.id},${actor.name},${before?tx.json(before):null}::jsonb,${tx.json(after)}::jsonb)`;
+      return reply({ok:true,item:after});
+    });
+  }
   if(action==='platform_notices'||action==='platform_notice_set'){
     if(!await serviceAllowed(sql,actor,'notices'))return reply({ok:false,message:'service_unavailable'},403);
     const hq=['safety','manager','executive'].includes(actor.role),source=hq?'hq':'site';
@@ -61,8 +108,12 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
   }
   if(action!=='platform_save'||!admin)return reply({ok:false,message:'forbidden'},403);
   if(body.group!==undefined&&!['modules','services'].includes(body.group))return reply({ok:false,message:'invalid_catalog'},400);
-  const services=body.group==='services',keys=services?serviceKeys:moduleKeys,modules=services?config.services:config.modules;
-  const next=body.modules;
+  const services=body.group==='services',keys=services?serviceKeys:config.modules.map((m:any)=>m.key),modules=services?config.services:config.modules;
+  let next=body.modules;
+  // Older cached clients can save the original five modules without dropping MSDS.
+  if(!services&&Array.isArray(next)&&next.length===5&&!next.some((m:any)=>m?.key==='msds')){
+    const msds=config.modules.find((m:any)=>m.key==='msds');if(msds)next=[...next,msds];
+  }
   if(!Array.isArray(next)||next.length!==keys.length||!keys.every(k=>next.some(m=>m?.key===k)))return reply({ok:false,message:'invalid_catalog'},400);
   for(const m of next){
     if(!m||!['live','building','hidden'].includes(m.state)||typeof m.preview!=='boolean'||(m.enabled!==undefined&&typeof m.enabled!=='boolean')||

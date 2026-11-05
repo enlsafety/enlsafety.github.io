@@ -6,7 +6,7 @@ const {tab,noOverflow}=require('./field-entry-table-browser.cjs');
  try{
   for(const role of ['safety','manager','field']){
    const {p,c}=await tab(browser,width,role);await p.waitForFunction(()=>!!currentUser()&&!!window.enlPlatformHome);
-   let revision=1,modules=['incident','risk','tbm','organization','training'].map(key=>({key,state:key==='incident'?'live':'building',roles:['worker','field','safety','manager','executive'],preview:false,pilots:[]}));
+   let revision=1,modules=['incident','risk','tbm','organization','training','msds'].map(key=>({key,state:key==='incident'?'live':'building',roles:['worker','field','safety','manager','executive'],preview:false,pilots:[]}));
    let services=['history','approvals','notices','documents','dashboard',...(role==='safety'?['system']:[])].map(key=>({key,state:['history','notices','system'].includes(key)?'live':'building',roles:['manager','field','safety','executive'],preview:false,pilots:[]}));
    await c.route('**/*',async route=>{
      const req=route.request(),b=req.method()==='POST'?req.postDataJSON():null;
@@ -24,30 +24,16 @@ const {tab,noOverflow}=require('./field-entry-table-browser.cjs');
     };
     document.querySelector('.platform-hub')?.remove();currentView='platform';window.enlRenderApp(currentUser());
    };await p.evaluate(mountHub);
-   const card=p.locator('[data-module]');await card.first().waitFor();assert.equal(await card.count(),5);await noOverflow(p);
-   const colors=await p.locator('.feature-card-wrap').evaluateAll(rows=>rows.map(row=>{
-     const icon=row.querySelector('.platform-icon');
-     const paint=()=>[getComputedStyle(row).backgroundColor,getComputedStyle(icon).backgroundColor,getComputedStyle(icon.querySelector('svg')).stroke];
-     const initial=row.dataset.state,on=row.dataset.on;
-     row.dataset.state='live';row.dataset.on='true';const live=paint();
-     row.dataset.on='false';const off=paint();
-     row.dataset.state='building';row.dataset.on='true';const building=paint();
-     row.dataset.state=initial;row.dataset.on=on;
-     return {live,off,building};
-   }));
-   for(const item of colors)assert.deepEqual(item.off,item.live,'access does not change the operating palette');
-   for(const i of [0,1,2]){
-     assert.equal(new Set(colors.map(x=>x.live[i])).size,i===0?1:colors.length,'live rows share a background and keep distinct icons');
-     assert.equal(new Set(colors.map(x=>x.building[i])).size,1,'building menus share the grey palette');
-   }
-   const ys=await card.evaluateAll(nodes=>nodes.map(n=>n.getBoundingClientRect().y));assert.ok(ys.every((y,i)=>!i||y>ys[i-1]));
-   await p.getByText('추가 예정',{exact:false}).waitFor();await p.getByRole('button',{name:'알림센터',exact:true}).click();
+   const card=p.locator('[data-module]');await card.first().waitFor();assert.equal(await card.count(),6);await noOverflow(p);
+   assert.equal(await p.locator('.platform-modules .hub-art').count(),role==='safety'?8:7);
+   await p.getByRole('button',{name:'알림센터',exact:true}).click();
    const push=p.getByRole('switch',{name:'사고보고 앱 푸시',exact:true});await push.click();await p.waitForFunction(()=>document.querySelector('.notice-row [role=switch]')?.getAttribute('aria-checked')==='false');
    await p.locator('[data-platform-home]').click();await card.first().waitFor();
-   assert.equal(await p.locator('.shell411-nav:visible').count(),0);assert.equal(await p.locator('.platform-edit').count(),0);assert.equal(await p.locator('.feature-grip').count(),role==='safety'?11:0);
+   assert.equal(await p.locator('.shell411-nav:visible').count(),0);assert.equal(await p.locator('.platform-edit').count(),0);assert.equal(await p.locator('.feature-grip').count(),role==='safety'?12:0);
    await p.locator('[data-module=risk]').click();await p.getByText('현재 진입할 수 없는 모듈입니다.').waitFor();
    if(role==='safety'){
     await p.screenshot({path:'qa-output/platform-'+width+'.png',fullPage:true});
+    await p.locator('[data-hub=edit]').click();await p.locator('.hub-support-card button').click();
     const serviceRow=p.locator('[data-key=approvals]'),serviceToggle=serviceRow.getByRole('switch');
     await serviceToggle.click();await p.waitForFunction(()=>document.querySelector('[data-key=approvals] [role=switch]').getAttribute('aria-checked')==='true');
     await serviceRow.locator('.feature-grip').click();const servicePanel=p.locator('.feature-settings');
@@ -61,34 +47,35 @@ const {tab,noOverflow}=require('./field-entry-table-browser.cjs');
         await session.send('Input.dispatchTouchEvent',{type,touchPoints:y==null?[]:[{x:sx,y,id:1}]});
       await session.detach();
     }else{await p.mouse.move(sx,sy);await p.mouse.down();await p.mouse.move(sx,ty,{steps:8});await p.mouse.up();}
-    await p.waitForFunction(()=>document.querySelector('[data-service]').dataset.service==='approvals');
+    await p.waitForFunction(()=>document.querySelector('.platform-services [data-service]').dataset.service==='approvals');
+    await p.locator('[data-hub=close-support]').click();
     const risk=p.locator('[data-key=risk]'),toggle=risk.getByRole('switch');
     await toggle.click();await p.waitForFunction(()=>document.querySelector('[data-key=risk] [role=switch]').getAttribute('aria-checked')==='true');
     await risk.locator('.feature-grip').click();const panel=p.locator('.feature-settings');
     await panel.locator('[data-role=field]').uncheck();await panel.locator('[type=submit]').click();await panel.waitFor({state:'detached'});
     const grip=risk.locator('.feature-grip');await grip.scrollIntoViewIfNeeded();
     const src=await grip.boundingBox(),dest=await p.locator('[data-key=incident]').boundingBox();
-    const x=src.x+src.width/2,y=src.y+src.height/2,target=dest.y+dest.height/2;
+    const x=src.x+src.width/2,y=src.y+src.height/2,target=dest.y+dest.height/2,targetX=dest.x+dest.width/2;
     if(engine===chromium&&width===320){
       const session=await c.newCDPSession(p);
-      const touch=(type,cy)=>session.send('Input.dispatchTouchEvent',{type,touchPoints:cy==null?[]:[{x,y:cy,id:1}]});
+      const touch=(type,cy)=>session.send('Input.dispatchTouchEvent',{type,touchPoints:cy==null?[]:[{x:type==='touchStart'?x:targetX,y:cy,id:1}]});
       await touch('touchStart',y);await touch('touchMove',(y+target)/2);await touch('touchMove',target);
       assert.ok(await risk.evaluate(n=>n.classList.contains('moving')&&!!n.style.transform));
       await touch('touchEnd');
     }else{
-      await p.mouse.move(x,y);await p.mouse.down();await p.mouse.move(x,target,{steps:10});
+      await p.mouse.move(x,y);await p.mouse.down();await p.mouse.move(targetX,target,{steps:10});
       assert.ok(await risk.evaluate(n=>n.classList.contains('moving')&&!!n.style.transform));
       await p.mouse.up();
     }
     await p.waitForFunction(()=>document.querySelector('[data-module]').dataset.module==='risk');
     assert.equal(await panel.count(),0);await p.reload();await p.waitForFunction(()=>!!currentUser()&&!!window.enlPlatformHome);
     await p.evaluate(mountHub);await p.waitForFunction(()=>document.querySelector('[data-module]')?.dataset.module==='risk');
-    assert.equal(await p.locator('[data-service]').first().getAttribute('data-service'),'approvals');
+    assert.equal(await p.locator('.platform-services [data-service]').first().getAttribute('data-service'),'approvals');
     await p.evaluate(()=>openUserModal(null,currentUser()));const box=p.locator('#hqUserForm422 .platform-duties');await box.waitFor();
     await box.locator('[value=health]').check();await box.locator('[value=safety]').check();assert.equal(await box.locator(':checked').count(),2);await p.evaluate(()=>closeModal());
    }
    await p.locator('[data-module=incident]').click();await p.waitForFunction(()=>currentView!=='platform');await p.locator('[data-platform-home]').click();await card.first().waitFor();
-   await p.getByRole('button',{name:'통합 히스토리',exact:true}).click();await p.locator('.activity-history').waitFor();await noOverflow(p);
+   await p.locator('.hub-support-card button').click();await p.getByRole('button',{name:'통합 히스토리',exact:true}).click();await p.locator('.activity-history').waitFor();await noOverflow(p);
    let warned=false;p.once('dialog',async d=>{warned=true;await d.dismiss()});await p.locator('[data-platform-home]').click();await card.first().waitFor();assert.equal(warned,false,'history returns without prompting');
    await c.close();
   }
