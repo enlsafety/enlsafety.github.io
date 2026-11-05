@@ -74,7 +74,7 @@
         syncLocalPassword(newPasswordHash);
         form.reset();
         if(dialog?.open)dialog.close();else if(!dialog&&form.isConnected)closeModal();
-        await window.enlUpdateRememberedPassword?.(key,u.name,newPw);
+        await window.enlUpdateRememberedProof?.(key,newPasswordHash);
         alert('비밀번호를 변경했습니다. 다음 로그인부터 새 비밀번호를 사용해 주세요.');
       }catch(e){
         note.textContent=e.message==='current_password_incorrect'?'현재 비밀번호가 맞지 않습니다.':e.message==='same_password'?'다른 새 비밀번호를 입력해 주세요.':'변경하지 못했습니다. 다시 시도해 주세요.';
@@ -124,7 +124,7 @@
     });
   }
 
-  function patchLoginPassword(){const p=document.getElementById('loginPassword411');if(p){p.removeAttribute('inputmode');p.placeholder='설정한 비밀번호'}}
+  function patchLoginPassword(){const p=document.getElementById('loginPassword411');if(p){p.removeAttribute('inputmode');if(p.required)p.placeholder='설정한 비밀번호'}}
   function apply(){css();injectProfile();injectFieldResetButtons();patchLoginPassword()}
   const mo=new MutationObserver(()=>requestAnimationFrame(apply));mo.observe(document.documentElement,{childList:true,subtree:true});apply();
   window.ENL_ACCOUNT_SECURITY_VERSION=VERSION;

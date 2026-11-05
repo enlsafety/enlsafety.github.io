@@ -136,47 +136,116 @@
     form.querySelector('[data-cancel]').onclick=()=>d.close();d.onclose=()=>{form.reset();d.remove()};
     document.body.append(d);d.showModal();if(form.elements.proof.value)run(false);else d.querySelector('h2').focus();
   }
-  // Only the browser password manager handles the reusable password.
+  // A remembered login is separate from the signed-in session and still requires server verification.
   const rememberName='enl.login.rememberName',rememberAccount='enl.login.rememberPasswordFor';
   function pref(key,value){
     try{if(value===undefined)return localStorage.getItem(key)||'';
       if(value)localStorage.setItem(key,value);else localStorage.removeItem(key);
     }catch{}return '';
   }
+  const ticketKey='enl.login.deviceCredential';
+  function deviceStore(mode,operation){
+    return new Promise((resolve,reject)=>{
+      const open=indexedDB.open('enl-device-login',1);
+      open.onupgradeneeded=()=>open.result.createObjectStore('credentials');
+      open.onerror=()=>reject(open.error);
+      open.onsuccess=()=>{
+        const db=open.result,tx=db.transaction('credentials',mode);
+        let result;
+        tx.oncomplete=()=>{db.close();resolve(result?.result)};
+        tx.onabort=()=>{db.close();reject(tx.error||new Error('storage_aborted'))};
+        try{result=operation(tx.objectStore('credentials'))}catch(error){tx.abort();reject(error)}
+      };
+    });
+  }
+  function forgetPassword(){
+    const ticket=pref(ticketKey);
+    pref(rememberAccount,'');pref(ticketKey,'');
+    if(ticket)deviceStore('readwrite',store=>store.delete(ticket)).catch(()=>{});
+  }
+  function resetPasswordField(input){
+    if(input.dataset.restored==='native')input.value='';
+    delete input.dataset.restored;
+    input.required=true;input.placeholder='비밀번호를 입력하세요';
+  }
   function bindRemember(field){
     const id=document.querySelector('#rememberId411'),password=document.querySelector('#rememberPw411');
     const name=pref(rememberName);id.checked=!!name;
-    for(const [box,key] of [[id,rememberName],[password,rememberAccount]])box.onchange=()=>{
+    for(const box of [id,password])box.onchange=()=>{
       if(box.checked&&!confirm('본인만 사용하는 잠금 설정된 PC인가요? 공용 PC에서는 기억하기를 사용하지 마세요.'))box.checked=false;
-      if(!box.checked)pref(key,'');
-      if(box===password&&document.querySelector('#loginPassword411')){
-        document.querySelector('#loginPassword411').autocomplete=box.checked?'current-password':'off';
-        if(!box.checked&&document.querySelector('#loginPassword411').dataset.restored)document.querySelector('#loginPassword411').value='';
+      if(box===id){
+        if(!id.checked){pref(rememberName,'');pref(rememberName+'.key','')}
+        return;
+      }
+      const input=document.querySelector('#loginPassword411');
+      if(input)input.autocomplete=box.checked?'current-password':'off';
+      if(!box.checked){
+        if(selected?.accountKey===pref(rememberAccount))forgetPassword();
+        if(input)resetPasswordField(input);
       }
     };
     if(name){field.value=name;lookup(true,pref(rememberName+'.key'));}
-    id.addEventListener('change',()=>{if(!id.checked)pref(rememberName+'.key','')});
   }
-  async function rememberLogin(o,pw){
+  async function saveDeviceProof(accountKey,proof){
+    const oldTicket=pref(ticketKey);
+    let ticket='';
+    try{
+      ticket=crypto.randomUUID();pref(rememberAccount,accountKey);pref(ticketKey,ticket);
+      if(pref(ticketKey)!==ticket)throw new Error('preferences_unavailable');
+      const key=await crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+      const iv=crypto.getRandomValues(new Uint8Array(12));
+      const sealed=await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:new TextEncoder().encode(accountKey)},key,new TextEncoder().encode(proof));
+      await deviceStore('readwrite',store=>{
+        if(pref(ticketKey)!==ticket||pref(rememberAccount)!==accountKey)return;
+        store.clear();return store.put({accountKey,key,iv,sealed},ticket);
+      });
+    }catch{
+      if(pref(ticketKey)===ticket)forgetPassword();
+      if(oldTicket)await deviceStore('readwrite',store=>store.delete(oldTicket)).catch(()=>{});
+      alert('로그인은 가능하지만 이 브라우저에 비밀번호 기억 설정을 저장할 수 없습니다. 사이트 데이터 저장 설정을 확인해 주세요.');
+    }
+  }
+  async function rememberLogin(o,proof,usingSaved){
     if(document.querySelector('#rememberId411')?.checked){pref(rememberName,document.getElementById('loginName411').value.trim());pref(rememberName+'.key',o.accountKey);}
-    if(!pw||!document.querySelector('#rememberPw411')?.checked)return;
-    pref(rememberAccount,o.accountKey);
-    await updateRememberedPassword(o.accountKey,o.name||document.getElementById('loginName411').value.trim(),pw);
+    if(proof&&!usingSaved&&document.querySelector('#rememberPw411')?.checked)await saveDeviceProof(o.accountKey,proof);
   }
-  async function updateRememberedPassword(accountKey,name,password){
-    if(pref(rememberAccount)!==accountKey||!window.PasswordCredential||!navigator.credentials?.store)return;
-    try{await navigator.credentials.store(new PasswordCredential({id:accountKey,name,password}));}catch{}
-  }
-  window.enlUpdateRememberedPassword=updateRememberedPassword;
-  function restorePassword(o){
+  window.enlUpdateRememberedProof=async(accountKey,proof)=>{
+    if(pref(rememberAccount)===accountKey)await saveDeviceProof(accountKey,proof);
+  };
+  async function restorePassword(o){
     const input=document.querySelector('#loginPassword411'),box=document.querySelector('#rememberPw411');
     box.disabled=!input;box.checked=!!input&&pref(rememberAccount)===o.accountKey;
     if(!input)return;
     input.autocomplete=box.checked?'current-password':'off';
-    if(!box.checked||!window.PasswordCredential||!navigator.credentials?.get)return;
-    navigator.credentials.get({password:true,mediation:'silent'}).then(c=>{
-      if(input.isConnected&&selected===o&&box.checked&&!input.value&&c?.id===o.accountKey){input.value=c.password;input.dataset.restored='1';}
-    }).catch(()=>{});
+    let edited=false;
+    input.addEventListener('input',()=>{edited=true;delete input.dataset.restored;input.required=true;input.placeholder='비밀번호를 입력하세요'});
+    const eligible=()=>input.isConnected&&selected===o&&box.checked&&pref(rememberAccount)===o.accountKey&&!input.value&&!edited;
+    if(!box.checked)return;
+    try{
+      const ticket=pref(ticketKey);
+      if(ticket){
+        const record=await deviceStore('readonly',store=>store.get(ticket));
+        if(eligible()&&pref(ticketKey)===ticket&&record?.accountKey===o.accountKey){
+          input.dataset.restored=ticket;input.required=false;input.placeholder='저장된 비밀번호 사용';
+        }
+      }else if(window.PasswordCredential&&navigator.credentials?.get){
+        // Migrate a previously saved browser credential after the next successful login.
+        const c=await navigator.credentials.get({password:true,mediation:'silent'});
+        if(eligible()&&c?.id===o.accountKey){input.value=c.password;input.dataset.restored='native'}
+      }
+    }catch{/* Manual password entry remains available when browser storage is restricted. */}
+  }
+  async function readDeviceProof(accountKey,ticket){
+    const record=await deviceStore('readonly',store=>store.get(ticket));
+    if(record?.accountKey!==accountKey||pref(ticketKey)!==ticket||pref(rememberAccount)!==accountKey)throw new Error('credential_unavailable');
+    const bytes=await crypto.subtle.decrypt({name:'AES-GCM',iv:record.iv,additionalData:new TextEncoder().encode(accountKey)},record.key,record.sealed);
+    return new TextDecoder().decode(bytes);
+  }
+  function discardRejectedProof(error,ticket){
+    if(error.message!=='invalid_login'||!ticket||pref(ticketKey)!==ticket)return;
+    forgetPassword();
+    const input=document.getElementById('loginPassword411');
+    if(input){resetPasswordField(input);input.focus()}
   }
   function bindLogin(){
     const field=document.getElementById('loginName411');
@@ -199,7 +268,7 @@
   }
   function renderLogin411(){
     css();if(document.querySelector('.login-v411')){bindLogin();return}
-    app.innerHTML=`<div class="login-page login-v411"><img class="login-scene" src="assets/login-golf-r46.png" alt="" aria-hidden="true"><section class="login-intro" aria-label="이앤엘 안전보건관리 통합시스템 소개"><img src="assets/enl-wordmark.svg" width="176" height="86" alt="이앤엘 E&amp;L"><h2>이앤엘 안전보건관리<br>통합시스템</h2><p>안전한 코스관리, 건강한 일터가<br>최고의 코스 품질을 만듭니다.</p></section><div class="login-card"><div class="login-brand"><div class="login-shield"><img class="enl-system-mark" src="pwa-icon-512.png?v=4813-r53" width="512" height="512" alt="" aria-hidden="true"></div><div><h1>이앤엘 안전보건관리<br>통합시스템</h1><p>이름과 소속을 확인하고 로그인합니다.</p></div></div><label><span>이름</span><input id="loginName411" autocomplete="off" inputmode="text" enterkeyhint="next" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="이름을 입력하세요"></label><div id="loginEmail411" hidden></div><div class="login-preview-email"><div class="company-address"><input disabled aria-label="회사 이메일 아이디, 이름 입력 후 사용 가능" placeholder="이메일 아이디"><b>@enlife.co.kr</b><button disabled type="button">인증</button></div></div><div id="loginIdentity411" hidden></div><div id="loginStatus411" class="login411-status" role="status" aria-live="polite">이름 입력 후 소속과 계정 정보가 자동 확인됩니다.</div><div class="aff-field411"><span>소속사업장</span><div id="loginAff411" aria-label="소속사업장" aria-live="polite">이름 입력 후 자동 표시</div></div><div id="loginPwWrap411" hidden></div><div class="login-preview-password"><label><span>비밀번호</span><input type="password" disabled aria-label="비밀번호, 이름 입력 후 사용 가능" placeholder="비밀번호를 입력하세요"></label><button class="login411-submit" type="button" disabled>로그인</button></div><section class="login-remember"><div><label><input type="checkbox" id="rememberId411">아이디 기억하기</label><label><input type="checkbox" id="rememberPw411" disabled>비밀번호 기억하기</label></div><small>잠금 설정된 개인 PC에서만 사용하세요. 비밀번호는 브라우저의 비밀번호 관리자에 저장합니다.</small></section><div class="login411-note">이앤엘 안전보건관리 통합시스템 v${ex(deployedVersion())}</div>${DEMO_ENABLED?`<a id="zerowizDemoEntry" class="login411-demo-entry" href="zerowiz-demo.html?v=2.0.0" target="_blank" rel="noopener noreferrer"><span>제로위즈 ERP 기술검토 데모<small>운영 사고·계정에 연결되지 않는 가상 업무 체험</small></span><span aria-hidden="true">→</span></a>`:''}</div></div>`;bindLogin();
+    app.innerHTML=`<div class="login-page login-v411"><img class="login-scene" src="assets/login-golf-r46.png" alt="" aria-hidden="true"><section class="login-intro" aria-label="이앤엘 안전보건관리 통합시스템 소개"><img src="assets/enl-wordmark.svg" width="176" height="86" alt="이앤엘 E&amp;L"><h2>이앤엘 안전보건관리<br>통합시스템</h2><p>안전한 코스관리, 건강한 일터가<br>최고의 코스 품질을 만듭니다.</p></section><div class="login-card"><div class="login-brand"><div class="login-shield"><img class="enl-system-mark" src="pwa-icon-512.png?v=4813-r53" width="512" height="512" alt="" aria-hidden="true"></div><div><h1>이앤엘 안전보건관리<br>통합시스템</h1><p>이름과 소속을 확인하고 로그인합니다.</p></div></div><label><span>이름</span><input id="loginName411" autocomplete="off" inputmode="text" enterkeyhint="next" autocorrect="off" autocapitalize="none" spellcheck="false" placeholder="이름을 입력하세요"></label><div id="loginEmail411" hidden></div><div class="login-preview-email"><div class="company-address"><input disabled aria-label="회사 이메일 아이디, 이름 입력 후 사용 가능" placeholder="이메일 아이디"><b>@enlife.co.kr</b><button disabled type="button">인증</button></div></div><div id="loginIdentity411" hidden></div><div id="loginStatus411" class="login411-status" role="status" aria-live="polite">이름 입력 후 소속과 계정 정보가 자동 확인됩니다.</div><div class="aff-field411"><span>소속사업장</span><div id="loginAff411" aria-label="소속사업장" aria-live="polite">이름 입력 후 자동 표시</div></div><div id="loginPwWrap411" hidden></div><div class="login-preview-password"><label><span>비밀번호</span><input type="password" disabled aria-label="비밀번호, 이름 입력 후 사용 가능" placeholder="비밀번호를 입력하세요"></label><button class="login411-submit" type="button" disabled>로그인</button></div><section class="login-remember"><div><label><input type="checkbox" id="rememberId411">아이디 기억하기</label><label><input type="checkbox" id="rememberPw411" disabled>비밀번호 기억하기</label></div><small>잠금 설정된 개인 PC에서만 사용하세요. 기억하기를 해제하면 이 기기의 저장된 로그인 정보를 지울 수 있습니다.</small></section><div class="login411-note">이앤엘 안전보건관리 통합시스템 v${ex(deployedVersion())}</div>${DEMO_ENABLED?`<a id="zerowizDemoEntry" class="login411-demo-entry" href="zerowiz-demo.html?v=2.0.0" target="_blank" rel="noopener noreferrer"><span>제로위즈 ERP 기술검토 데모<small>운영 사고·계정에 연결되지 않는 가상 업무 체험</small></span><span aria-hidden="true">→</span></a>`:''}</div></div>`;bindLogin();
   }
   renderLogin=renderLogin411;window.enlRenderLogin=renderLogin411;
 
@@ -216,12 +285,12 @@
     const p={id:String(person.personnel_id||person.id||''),personnelId:String(person.personnel_id||person.id||''),name:person.name,position:person.job_title||person.position||(kind==='field'?'현장관리':'일반근로자'),role:kind,siteId:person.site_id||person.siteId,active:person.active!==false};if(passwordHash)p.pinHash=passwordHash;
     session=kind==='worker'?{loggedAt:nowISO(),worker:p}:{loggedAt:nowISO(),manager:p};saveSession();return p;
   }
-  async function loginSite(option,passwordHash=''){
+  async function loginSite(option,passwordHash='',ticket=''){
     const name=document.getElementById('loginName411')?.value.trim()||'';document.querySelectorAll('.login411-aff-btn').forEach(b=>b.disabled=true);status(`${option.affiliationLabel} 로그인 확인 중…`);
     let person;
     try{const r=await api({action:'login_site',name,siteId:option.siteId,passwordHash,accountKey:option.accountKey});person=r.person;if(!person||norm(person.name)!==norm(name)||String(person.site_id)!==String(option.siteId))throw new Error('mismatch')}
-    catch(e){document.querySelectorAll('.login411-aff-btn').forEach(b=>b.disabled=false);const btn=document.getElementById('loginSubmit411');if(btn){btn.disabled=false;btn.textContent='로그인'}const msg=e.message==='registration_code_required'?'등록코드를 확인해 주세요. 코드는 발급 후 30분간 유효합니다.':e.message==='account_changed'?'계정 정보가 변경됐습니다. 이름을 다시 입력해 주세요.':'로그인 정보를 다시 확인해 주세요.';status(msg,'err');return false}
-    if(selected!==option)return false;await rememberLogin(option,document.getElementById('loginPassword411')?.value);if(selected!==option)return false;saveSiteSession(person,passwordHash);enterApp();return true;
+    catch(e){if(selected!==option)return false;discardRejectedProof(e,ticket);document.querySelectorAll('.login411-aff-btn').forEach(b=>b.disabled=false);const btn=document.getElementById('loginSubmit411');if(btn){btn.disabled=false;btn.textContent='로그인'}const msg=e.message==='registration_code_required'?'등록코드를 확인해 주세요. 코드는 발급 후 30분간 유효합니다.':e.message==='account_changed'?'계정 정보가 변경됐습니다. 이름을 다시 입력해 주세요.':'로그인 정보를 다시 확인해 주세요.';status(msg,'err');return false}
+    if(selected!==option)return false;await rememberLogin(option,passwordHash,!!ticket);if(selected!==option)return false;saveSiteSession(person,passwordHash);enterApp();return true;
   }
   function renderPassword(o){
     const box=document.getElementById('loginPwWrap411'),needsPassword=o.kind==='hq'||o.requiresPassword;box.hidden=false;
@@ -240,13 +309,24 @@
   async function loginPassword(ev){
     ev.preventDefault();const o=selected,name=document.getElementById('loginName411')?.value.trim()||'',pw=document.getElementById('loginPassword411')?.value||'',btn=document.getElementById('loginSubmit411');if(!o||!name)return;
     if(!o.hasEmail){status('회사 이메일 인증을 먼저 완료해 주세요.','err');document.getElementById('companyLocal411')?.focus();return;}
-    if((o.kind==='hq'||o.requiresPassword)&&!pw)return;
-    btn.disabled=true;btn.textContent='확인 중…';status('로그인 정보를 확인하고 있습니다…');const hash=pw?await sha256(pw):'';
-    if(o.kind==='site'){await loginSite(o,hash);return}
+    const input=document.getElementById('loginPassword411');
+    const ticket=!pw&&document.querySelector('#rememberPw411')?.checked&&input?.dataset.restored;
+    if((o.kind==='hq'||o.requiresPassword)&&!pw&&!ticket)return;
+    btn.disabled=true;btn.textContent='확인 중…';status('로그인 정보를 확인하고 있습니다…');
+    let hash;
+    try{hash=ticket?await readDeviceProof(o.accountKey,ticket):pw?await sha256(pw):''}
+    catch{
+      if(selected!==o)return;
+      if(input)resetPasswordField(input);
+      btn.disabled=false;btn.textContent='로그인';status('저장된 정보를 사용할 수 없습니다. 비밀번호를 다시 입력해 주세요.','err');input?.focus();return;
+    }
+    if(selected!==o)return;
+    if(ticket&&(input.dataset.restored!==ticket||pref(ticketKey)!==ticket)){btn.disabled=false;btn.textContent='로그인';return}
+    if(o.kind==='site'){await loginSite(o,hash,ticket);return}
     let serverUser;
     try{const r=await api({action:'login_hq',name,affiliationId:o.affiliationId,passwordHash:hash,accountKey:o.accountKey});serverUser=r.user;if(!serverUser)throw new Error('invalid_user')}
-    catch(e){btn.disabled=false;btn.textContent='로그인';status('이름, 소속과 비밀번호를 다시 확인해 주세요.','err');alert('이름, 소속과 비밀번호를 다시 확인하세요.');return}
-    if(selected!==o)return;await rememberLogin(o,pw);if(selected!==o)return;const user=mergeHq(serverUser,hash);session={loggedAt:nowISO(),manager:{...user}};saveSession();enterApp();setTimeout(()=>{if(user.role==='safety')syncHqUsers(user)},350);
+    catch(e){if(selected!==o)return;discardRejectedProof(e,ticket);btn.disabled=false;btn.textContent='로그인';status('이름, 소속과 비밀번호를 다시 확인해 주세요.','err');alert('이름, 소속과 비밀번호를 다시 확인하세요.');return}
+    if(selected!==o)return;await rememberLogin(o,hash,!!ticket);if(selected!==o)return;const user=mergeHq(serverUser,hash);session={loggedAt:nowISO(),manager:{...user}};saveSession();enterApp();setTimeout(()=>{if(user.role==='safety')syncHqUsers(user)},350);
   }
 
   let hqSyncing=false;

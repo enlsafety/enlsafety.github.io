@@ -1,8 +1,9 @@
 const {webkit,chromium}=require('playwright'),{tab}=require('./field-entry-table-browser.cjs'),assert=require('node:assert/strict');
 (async()=>{for(const [engine,width] of [[chromium,1365],[webkit,390]]){const b=await engine.launch();try{
- const {p}=await tab(b,width,'safety');let submitted='',loginBody,changes=0;
+ const {p}=await tab(b,width,'safety',undefined,false);const hq=width>500,accountKey=hq?'hq:qa-login':'site:qa-login';
+ let submitted='',loginBody,changes=0;
  await p.route('**/functions/v1/**',async route=>{const req=route.request(),body=req.method()==='POST'?req.postDataJSON():{};
- let data;if(body.action==='lookup')data={options:[{kind:'hq',affiliationId:'dept:qa',affiliationLabel:'QA본사',requiresPassword:true,accountKey:'hq:qa-login',hasEmail:width>500||!!submitted,companyLocal:width>500?'qa.saved':submitted}]};
+ let data;if(body.action==='lookup')data={options:[{kind:hq?'hq':'site',siteId:'s01',affiliationId:'dept:qa',affiliationLabel:'QA본사',requiresPassword:true,accountKey:body.name==='다른사용자'?'hq:other-account':accountKey,hasEmail:width>500||!!submitted,companyLocal:width>500?'qa.saved':submitted}]};
  if(body.action==='email_code_send'){
    if(body.companyLocal==='duplicate')return route.fulfill({status:409,json:{ok:false,message:'email_in_use'}});
    data={};
@@ -13,15 +14,21 @@ const {webkit,chromium}=require('playwright'),{tab}=require('./field-entry-table
    assert.equal(body.newPasswordHash,hash('changed-in-fixture'));changes++;data={};
  }
  if(body.action==='email_code_verify'){assert.equal(body.code,'123456');submitted=body.companyLocal;data={email:submitted+'@enlife.co.kr'};}
- if(body.action==='login_hq')loginBody=body;
+ if(['login_hq','login_site'].includes(body.action)){
+   const expected=changes?'changed-in-fixture':'isolated';
+   const hash=require('node:crypto').createHash('sha256').update(expected).digest('hex');
+   if(hash!==body.passwordHash)return route.fulfill({status:401,json:{ok:false,message:'invalid_login'}});
+   loginBody=body;
+ }
  if(body.action==='login_hq')data={user:{id:'qa-login',name:'통합검수',department:'QA',role:'safety',active:true}};
+ if(body.action==='login_site')data={person:{personnel_id:'qa-login',site_id:'s01',name:'통합검수',job_title:'현장소장',access_role:'field',active:true}};
  if(body.action==='platform_catalog')data={revision:1,services:[],modules:['incident','risk','tbm','organization','training'].map(key=>({key,state:key==='incident'?'live':'building'}))};
  if(!data)return route.fallback();return route.fulfill({json:{ok:true,...data}});
  });
  await p.evaluate(()=>{session=null;renderLogin();
    window.confirm=()=>true;window.alert=()=>{};
-   Object.defineProperty(window,'PasswordCredential',{configurable:true,value:class{constructor(v){Object.assign(this,v)}}});
-   Object.defineProperty(navigator,'credentials',{configurable:true,value:{store:async c=>{window.testCredential=c},get:async()=>window.testCredential}});
+   Object.defineProperty(window,'PasswordCredential',{configurable:true,value:undefined});
+
  });await p.locator('#loginName411').fill('통합검수');await p.locator('#loginPassword411').waitFor();
  await p.waitForFunction(id=>document.activeElement?.id===id,width>500?'loginPassword411':'companyLocal411');
  await p.locator('#loginPassword411').focus();
@@ -52,14 +59,29 @@ const {webkit,chromium}=require('playwright'),{tab}=require('./field-entry-table
    await device.locator('[name=currentPw]').fill('isolated');await device.locator('[type=submit]').click();
  }else await device.getByText('다음에 변경').click();
  await device.waitFor({state:'detached'});assert.equal(changes,width>500?1:0);
- await p.locator('[data-module=incident]').waitFor();await p.waitForTimeout(450);assert.equal(await p.evaluate(()=>currentView),'platform');assert.equal(submitted,width>500?'':'qa.new');assert.equal(loginBody.companyLocal,undefined);await p.evaluate(()=>{session=null;renderLogin()});
+ await p.locator('[data-module=incident]').waitFor();await p.waitForTimeout(450);assert.equal(await p.evaluate(()=>currentView),'platform');assert.equal(submitted,width>500?'':'qa.new');assert.equal(loginBody.companyLocal,undefined);const logout=async()=>{await p.locator('#userChip').click();await p.locator('#logoutBtn').click();await p.locator('#loginName411').waitFor();assert.equal(await p.evaluate(()=>currentUser()),null)};
+ await logout();await p.reload();
  assert.equal(await p.locator('#loginName411').inputValue(),width>500?'통합검수':'');
  if(width<=500)await p.locator('#loginName411').fill('통합검수');
- await p.waitForFunction(pw=>document.getElementById('loginPassword411')?.value===pw,width>500?'changed-in-fixture':'isolated');
+ const ready=()=>p.locator('#loginPassword411[placeholder="저장된 비밀번호 사용"]').waitFor();
+ await ready();
+ assert.equal(await p.locator('#loginPassword411').inputValue(),'');
+ await p.locator('#loginSubmit411').click();await p.locator('[data-module=incident]').waitFor();
+ await logout();if(width<=500)await p.locator('#loginName411').fill('통합검수');
+ await ready();
+ await p.locator('#loginName411').fill('다른사용자');
+ await p.waitForFunction(()=>document.querySelector('#loginPwForm411 [name=username]')?.value==='hq:other-account');
+ assert.ok(!await p.locator('#rememberPw411').isChecked());
+ assert.ok(await p.locator('#loginPassword411').evaluate(el=>el.required&&!el.value));
+ await p.locator('#loginName411').fill('통합검수');await ready();
  await p.locator('#rememberPw411').uncheck();
  assert.equal(await p.evaluate(()=>localStorage.getItem('enl.login.rememberPasswordFor')),null);
  assert.equal(await p.locator('#loginPassword411').inputValue(),'');
  await p.locator('#loginPassword411').fill(width>500?'changed-in-fixture':'isolated');
  await p.locator('#loginSubmit411').click();await p.locator('[data-module=incident]').waitFor();assert.equal(await device.count(),0);
+ await logout();if(width<=500)await p.locator('#loginName411').fill('통합검수');
+ await p.locator('#loginPassword411').waitFor();
+ assert.ok(await p.locator('#loginPassword411').evaluate(el=>el.required&&!el.value));
+ assert.ok(!await p.locator('#rememberPw411').isChecked());
  console.log('PASS verified login and independent consent across login screens',engine.name(),width);
  }finally{await b.close()}}})().catch(e=>{console.error(e);process.exitCode=1});
