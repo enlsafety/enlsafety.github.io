@@ -38,6 +38,8 @@
    let im;try{im=await loadArtwork()}catch{return}
    if(stopped||!host.isConnected)return;
    const dpr=window.devicePixelRatio||1,cell=im.naturalWidth/3;
+   // Keep both hover steps on physical pixels at fractional screen scales.
+   host.style.setProperty('--hub-hover-lift',(-2*Math.max(1,Math.round(dpr))/dpr)+'px');
    for(const node of nodes){
     if(!node.isConnected)continue;
     const key=Object.keys(artworkCells).find(k=>node.classList.contains('hub-art-'+k));if(key===undefined)continue;
@@ -62,6 +64,7 @@
  }
  function decorateCard(row,m,support){if(support&&m.key!=='system')return;
   const b=row.querySelector('.platform-card'),icon=b.querySelector('.platform-icon');icon.className='hub-art hub-art-'+m.key;icon.replaceChildren();
+  if(row.dataset.state==='live' && row.dataset.on==='true')b.querySelector('small').textContent='운영중';
   b.querySelector('strong').classList.add('hub-card-title');
   b.insertAdjacentHTML('beforeend','<span class="hub-card-description">'+(descriptions[m.key]||'')+'</span><span class="hub-card-arrow" aria-hidden="true">'+svg('arrow')+'</span>');
  }
@@ -87,7 +90,7 @@
   async function allowed(key){const m=entry(key);if(!m||m.enabled===false||m.state==='hidden'||m.canEnter===false||m.state!=='live'&&!m.preview){status.textContent='현재 접근할 수 없는 업무입니다.';return false}try{await api({action:'platform_enter',key});return sameUser()}catch{status.textContent='접근 권한 또는 연결 상태를 확인해 주세요.';return false}}
   function clickFeature(key){const b=host.querySelector('[data-module="'+key+'"],[data-service="'+key+'"]');if(b)b.click();else status.textContent='현재 접근할 수 없는 업무입니다.';host.classList.remove('hub-menu-open')}
   function support(){host.querySelector('.hub-support').showModal()}
-  function addSupportCard(grid){const r=document.createElement('article');r.className='hub-support-card';r.innerHTML=action('support','<span class="hub-art hub-art-support" aria-hidden="true"></span><strong class="hub-card-title">공통업무지원<wbr>서비스</strong><span class="hub-card-description">'+descriptions.support+'</span><span class="hub-card-arrow" aria-hidden="true">'+svg('arrow')+'</span>','platform-card');r.firstElementChild.onclick=support;grid.append(r)}
+  function addSupportCard(grid){const r=document.createElement('article');r.className='hub-support-card';r.innerHTML=action('support','<span class="hub-art hub-art-support" aria-hidden="true"></span><strong class="hub-card-title">공통업무지원<wbr>서비스</strong><span class="hub-card-description">'+descriptions.support+'</span><small>운영중</small><span class="hub-card-arrow" aria-hidden="true">'+svg('arrow')+'</span>','platform-card');r.firstElementChild.onclick=support;grid.append(r)}
   function navigation(){const nav=host.querySelector('.hub-sidebar nav');nav.innerHTML=action('home',svg('home')+'<span>홈</span>','on')+catalog.modules.filter(m=>admin||m.state!=='hidden').map(m=>action('feature:'+m.key,svg(m.key,icons)+'<span>'+safe(featureName(m))+'</span>')).join('')+action('support',svg('support')+'<span>공통업무지원서비스</span>')+(admin?action('feature:system',svg('system',icons)+'<span>'+safe(featureName(entry('system'))||'시스템관리')+'</span>'):'');nav.querySelectorAll('button').forEach(b=>b.onclick=()=>dispatch(b.dataset.hub));paintFavorites()}
   function favoriteChoices(){return [...items().filter(m=>m.state!=='hidden'&&(m.key!=='system'||admin)).map(m=>({key:m.key,title:featureName(m)})),{key:'bulletins',title:'공지사항'},{key:'schedule',title:'전체 일정'}]}
   function paintFavorites(){const box=host.querySelector('.hub-favorites>div'),choices=favoriteChoices();box.replaceChildren();for(const key of content.favorites){const x=choices.find(v=>v.key===key);if(!x)continue;const b=document.createElement('button');b.type='button';b.innerHTML=svg('file')+'<span>'+safe(x.title)+'</span>';b.onclick=()=>dispatch(['bulletins','schedule'].includes(key)?key:'feature:'+key);box.append(b)}if(!box.children.length)box.innerHTML='<p>자주 쓰는 메뉴를 추가하세요.</p>'}

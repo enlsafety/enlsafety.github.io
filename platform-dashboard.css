@@ -51,9 +51,21 @@
 .hub-art{display:block;position:absolute;left:4px;top:50%;width:44%;height:auto;aspect-ratio:1;transform:translateY(-50%);background-image:var(--hub-icons);background-size:300% 300%;background-repeat:no-repeat;pointer-events:none}
 .hub-art.hub-art-ready{background-image:none;transform:none}.hub-art canvas{position:absolute;display:block;max-width:none;pointer-events:none}
 .hub-art-incident{background-position:0 0}.hub-art-risk{background-position:50% 0}.hub-art-tbm{background-position:100% 0}.hub-art-organization{background-position:0 50%}.hub-art-training{background-position:50% 50%}.hub-art-msds{background-position:100% 50%}.hub-art-support{background-position:0 100%}.hub-art-system{background-position:50% 100%}
-.platform-hub .platform-modules .platform-card>small{position:absolute;bottom:9px;right:10px;max-width:42%;overflow:hidden;text-overflow:ellipsis;font-size:10px;padding:2px 6px;background:#ffffffaa;border:1px solid #ffffffad;color:#485473;font-weight:600}.platform-hub .platform-modules [data-state=live] .platform-card>small{display:none}.platform-hub .platform-modules [data-state=hidden]{opacity:.6;border-style:dashed}
+.platform-hub .platform-modules .platform-card>small{position:absolute;bottom:9px;right:10px;max-width:42%;overflow:hidden;text-overflow:ellipsis;font-size:10px;padding:2px 6px;background:#ffffffaa;border:1px solid #ffffffad;color:#485473;font-weight:600}
+.platform-hub .platform-modules :is(.feature-card-wrap[data-state=live][data-on=true],.hub-support-card) .platform-card>small{
+ color:#10613a;background:#dcf6e6;border:1px solid #93d5aa;border-radius:999px;font-weight:700;
+}
+.platform-hub .platform-modules [data-state=hidden]{opacity:.6;border-style:dashed}
 @media (hover:hover) and (pointer:fine){
  .platform-hub .platform-modules :is(.feature-card-wrap[data-state=live][data-on=true],.hub-support-card):hover{background:var(--row-hover);border-color:var(--row-highlight)}
+}
+@media (hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+ .platform-hub:not(.hub-editing) .platform-modules :is(.feature-card-wrap[data-state=live][data-on=true],.hub-support-card){
+  top:0;transition:top .16s steps(2,end),box-shadow .16s;
+ }
+ .platform-hub:not(.hub-editing) .platform-modules :is(.feature-card-wrap[data-state=live][data-on=true],.hub-support-card):hover{
+  top:var(--hub-hover-lift,-2px);box-shadow:0 5px 12px #203e7333,inset 0 0 0 2px #ffffffa8;
+ }
 }
 .platform-hub .platform-modules :is(.feature-card-wrap[data-state=live][data-on=true],.hub-support-card):is(:active,:has(>.platform-card:focus-visible)){
  background:var(--row-hover);border-color:var(--row-highlight)
