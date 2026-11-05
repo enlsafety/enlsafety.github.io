@@ -1,6 +1,6 @@
-# Integrated home release r42
+# Integrated home release r43
 
-The integrated home follows the supplied 1672x941 reference. The reference asset supplies the original banner, logo, illustrations and decorative artwork through CSS clipping. Text, navigation, cards, search results and records are accessible HTML controls. Identity, dates, counts and records come from the signed-in account and existing scoped data; the example person, records and badges in the reference are not seeded.
+The integrated home follows the supplied 1672x941 reference. The reference asset supplies the original golf-course banner. The logo is an independent background-free SVG and the feature/calendar illustrations use a transparent 3-by-3 atlas, so card backgrounds never include cropped screenshot rectangles. Text, navigation, cards, search results and records are accessible HTML controls. Identity, dates, counts and records come from the signed-in account and existing scoped data; the example person, records and badges in the reference are not seeded.
 
 ## Functional scope
 
@@ -27,3 +27,14 @@ Passed isolated actual Edge/PGlite tests: integrated-home-content, platform-foun
 ## Recovery
 
 Revert the static release commit to restore the previous home; retain the additive tables and audit records. Do not drop content tables or reset production incident data. The backend remains compatible with the previous five-module client.
+
+## Visual refinement r43
+
+- Replaced clipped logo and feature/calendar artwork with a background-free vector wordmark and transparent artwork; retained the golf banner.
+- Matched navigation pictograms to the reference (warning triangle, shield cross, hard hat, open book and gear), including the blue/green brand shield and four-square section icon.
+- Reduced home-only title/body typography and aligned card content explicitly from the top. Existing incident screens retain their own styles.
+- Light pastel blue translucent sidebar, native CSS decorative waves, dark legible labels and restrained active/hover states.
+- Revised narrow-screen card spacing and tablet columns to avoid description/arrow collisions. Preserved safe-area and hidden-mobile-menu behavior.
+- No authentication, backend, account, permission or incident-workflow changes. Static entry and PWA cache keys increment together.
+
+Validation: JS syntax, release/cache asset checks and diff checks passed. Managed Chromium isolated fixture verified search, menu rename/save, support menu, and responsive layout. Native Safari/iPhone hardware was not available.
