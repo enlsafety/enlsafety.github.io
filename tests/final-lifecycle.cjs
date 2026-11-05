@@ -30,6 +30,7 @@ async function fixture({hubNotices=false}={}){
  await db.exec(read('supabase/migrations/20261104062357_workflow_history_search.sql'));
  await db.exec(read('supabase/migrations/20261104080927_platform_foundation.sql'));
  await db.exec(read('supabase/migrations/20261104101514_support_service_catalog.sql'));
+ await db.exec(read('supabase/migrations/20261105045201_home_feature_order.sql'));
  if(hubNotices){await db.exec("alter table enl_site_personnel add column email text,add column push_enabled boolean default true,add column email_enabled boolean default true,add column updated_by_id text,add column updated_by_name text,add column updated_by_role text;alter table enl_hq_users add column email text,add column push_enabled boolean default true,add column email_enabled boolean default true");
  await db.exec(read('supabase/migrations/20261104094909_hub_notification_settings.sql'));}
  await db.exec(`create trigger trg_enl_incident_optimistic_sync_guard before insert or update on enl_incident_shared for each row execute function enl_incident_optimistic_sync_guard();create trigger trg_enl_incident_push after insert or update on enl_incident_shared for each row execute function enl_incident_push_trigger();create trigger trg_enl_push_email_bridge after insert on enl_push_events for each row execute function enl_email_from_push_trigger();`);

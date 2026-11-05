@@ -68,15 +68,16 @@
   b.querySelector('strong').classList.add('hub-card-title');
   b.insertAdjacentHTML('beforeend','<span class="hub-card-description">'+(descriptions[m.key]||'')+'</span><span class="hub-card-arrow" aria-hidden="true">'+svg('arrow')+'</span>');
  }
- function mount(host,u,{go,icons,names,featureName}){
+ function mount(host,u,{go,enterIncident,icons,names,featureName}){
   const admin=u.role==='safety',userKey=JSON.stringify([u.id||u.personnelId,u.role,u.siteId||'']);let catalog=null,content={notices:[],events:[],favorites:[]},loaded=false,contentError='',recent=[],recentError='',busy=false;
   const sameUser=()=>{const a=currentUser?.();return a&&JSON.stringify([a.id||a.personnelId,a.role,a.siteId||''])===userKey&&host.isConnected};
   const action=(key,label,cls='')=>'<button type="button" class="'+cls+'" data-hub="'+key+'"'+(key==='notifications'?' aria-label="알림센터"':key==='menu'?' aria-label="메뉴 열기"':key==='search'?' aria-label="통합검색"':'')+'>'+label+'</button>';
   const panel=(key,title,icon,more)=>'<section class="hub-panel hub-'+key+'"><header><h2>'+svg(icon,icons)+title+'</h2>'+action(key,more||'더보기 ›')+'</header><div data-list="'+key+'"><p class="hub-empty">불러오는 중입니다.</p></div></section>';
-  host.innerHTML='<aside class="hub-sidebar"><div class="hub-logo"><img src="assets/enl-wordmark.svg" width="102" height="52" alt="이앤엘 E&amp;L"></div><nav aria-label="통합시스템 메뉴"></nav><section class="hub-favorites"><header><h2>'+svg('star')+'즐겨찾기</h2>'+action('favorites','＋')+'</header><div></div></section><div class="hub-sidebar-wave" aria-hidden="true"></div></aside><button class="hub-sidebar-backdrop" type="button" data-hub="close-menu" aria-label="메뉴 닫기"></button><section class="hub-hero"><div class="hub-hero-image" aria-hidden="true"></div><div class="hub-welcome"><h2>'+safe(u.name||'사용자')+' 님, 환영합니다!</h2><p>이앤엘 안전보건관리 통합시스템에서<br>사업장의 안전과 건강한 일터를 함께 만들어갑니다.</p></div><p class="hub-slogan"><span>Safe Workplace</span><span>Healthy People</span></p></section><div class="hub-middle"><section class="hub-features"><header class="hub-section-heading"><h2>'+svg('grid')+'주요 업무기능</h2><p>안전보건 업무를 한 곳에서 통합 관리하세요.</p>'+action('guide','ⓘ 모듈 안내')+(admin?action('edit','편집','hub-edit-toggle'):'')+'</header><div class="platform-modules feature-list"></div></section><div class="hub-right">'+panel('recent','최근 작업','clock')+panel('approvals','결재 대기 <span data-approval-count></span>','approvals')+'</div></div><div class="hub-bottom">'+panel('bulletins','공지사항','notice')+panel('schedule','오늘의 일정 <small>'+safe(new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',weekday:'short'}).format(new Date()))+'</small>','calendar','전체 일정 ›')+'</div><p class="hub-status" role="status" aria-live="polite"></p><dialog class="hub-dialog hub-support"><header><h2>공통업무지원서비스</h2><button type="button" data-hub="close-support" aria-label="닫기">×</button></header><section class="platform-services feature-list"><div class="platform-grid"></div></section></dialog>';
+  host.innerHTML='<aside class="hub-sidebar"><div class="hub-logo"><img src="assets/enl-wordmark.svg" width="102" height="52" alt="이앤엘 E&amp;L"></div><nav aria-label="통합시스템 메뉴"></nav><section class="hub-favorites"><header><h2>'+svg('star')+'즐겨찾기</h2>'+action('favorites','＋')+'</header><div></div></section><div class="hub-sidebar-wave" aria-hidden="true"></div></aside><button class="hub-sidebar-backdrop" type="button" data-hub="close-menu" aria-label="메뉴 닫기"></button><section class="hub-hero"><div class="hub-hero-image" role="img" aria-label="골프장 풍경과 이앤엘 문구: 안전이 일상이 되는 안전보건관리 통합시스템"></div><div class="hub-welcome"><h2>'+safe(u.name||'사용자')+' 님, 환영합니다!</h2><p>이앤엘 안전보건관리 통합시스템에서<br>사업장의 안전과 건강한 일터를 함께 만들어갑니다.</p></div></section><div class="hub-middle"><section class="hub-features"><header class="hub-section-heading"><h2>'+svg('grid')+'주요 업무기능</h2><p>안전보건 업무를 한 곳에서 통합 관리하세요.</p>'+action('guide','ⓘ 모듈 안내')+(admin?action('edit','편집','hub-edit-toggle'):'')+'</header><div class="platform-modules feature-list"></div></section><div class="hub-right">'+panel('recent','최근 작업','clock')+panel('approvals','결재 대기 <span data-approval-count></span>','approvals')+'</div></div><div class="hub-bottom">'+panel('bulletins','공지사항','notice')+panel('schedule','오늘의 일정 <small>'+safe(new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',weekday:'short'}).format(new Date()))+'</small>','calendar','전체 일정 ›')+'</div><p class="hub-status" role="status" aria-live="polite"></p><dialog class="hub-dialog hub-support"><header><h2>공통업무지원서비스</h2><button type="button" data-hub="close-support" aria-label="닫기">×</button></header><section class="platform-services feature-list"><div class="platform-grid"></div></section></dialog>';
   const area=host.querySelector('.platform-modules'),services=host.querySelector('.platform-services .platform-grid'),status=host.querySelector('.hub-status');
-  const topbar=host.closest('.app-shell')?.querySelector('.topbar');
-  if(topbar){
+  function bindHeader(){
+   const topbar=host.closest('.app-shell')?.querySelector('.topbar');
+   if(!topbar)return;
    cleanup();
    const avatar=topbar.querySelector('.user-chip .avatar');
    if(avatar)avatar.innerHTML=svg('person');
@@ -85,13 +86,78 @@
    topbar.querySelector('.brand').insertAdjacentHTML('beforebegin',action('menu','☰','hub-mobile-menu'));
    topbar.querySelectorAll('[data-hub]').forEach(b=>b.onclick=()=>dispatch(b.dataset.hub));
   }
+  bindHeader();
+  host.restoreIncidentFrame=(view,actor)=>{
+    if(JSON.stringify([actor.id||actor.personnelId,actor.role,actor.siteId||''])!==userKey)return;
+    view.before(host);bindHeader();syncIncidentMenu();
+  };
   function items(){return catalog?[...catalog.modules,...catalog.services]:[];}
   const entry=key=>items().find(x=>x.key===key);
   async function allowed(key){const m=entry(key);if(!m||m.enabled===false||m.state==='hidden'||m.canEnter===false||m.state!=='live'&&!m.preview){status.textContent='현재 접근할 수 없는 업무입니다.';return false}try{await api({action:'platform_enter',key});return sameUser()}catch{status.textContent='접근 권한 또는 연결 상태를 확인해 주세요.';return false}}
   function clickFeature(key){const b=host.querySelector('[data-module="'+key+'"],[data-service="'+key+'"]');if(b)b.click();else status.textContent='현재 접근할 수 없는 업무입니다.';host.classList.remove('hub-menu-open')}
   function support(){host.querySelector('.hub-support').showModal()}
-  function addSupportCard(grid){const r=document.createElement('article');r.className='hub-support-card';r.innerHTML=action('support','<span class="hub-art hub-art-support" aria-hidden="true"></span><strong class="hub-card-title">공통업무지원<wbr>서비스</strong><span class="hub-card-description">'+descriptions.support+'</span><small>운영중</small><span class="hub-card-arrow" aria-hidden="true">'+svg('arrow')+'</span>','platform-card');r.firstElementChild.onclick=support;grid.append(r)}
-  function navigation(){const nav=host.querySelector('.hub-sidebar nav');nav.innerHTML=action('home',svg('home')+'<span>홈</span>','on')+catalog.modules.filter(m=>admin||m.state!=='hidden').map(m=>action('feature:'+m.key,svg(m.key,icons)+'<span>'+safe(featureName(m))+'</span>')).join('')+action('support',svg('support')+'<span>공통업무지원서비스</span>')+(admin?action('feature:system',svg('system',icons)+'<span>'+safe(featureName(entry('system'))||'시스템관리')+'</span>'):'');nav.querySelectorAll('button').forEach(b=>b.onclick=()=>dispatch(b.dataset.hub));paintFavorites()}
+  function addSupportCard(grid){const r=document.createElement('article');r.className='hub-support-card feature-card-wrap';r.dataset.key='support';r.dataset.state='live';r.dataset.on='true';r.innerHTML=action('support','<span class="hub-art hub-art-support" aria-hidden="true"></span><strong class="hub-card-title">공통업무지원<wbr>서비스</strong><span class="hub-card-description">'+descriptions.support+'</span><small>운영중</small><span class="hub-card-arrow" aria-hidden="true">'+svg('arrow')+'</span>','platform-card');r.firstElementChild.onclick=support;grid.append(r);return r}
+  let expanded=false,observer,nativeMenu,pending=false;
+  const shell=()=>host.closest('.app-shell');
+  function setExpanded(value){
+    expanded=value;
+    const parent=host.querySelector('[data-hub=incident-menu]'),group=host.querySelector('.hub-incident-group');
+    if(!parent||!group)return;
+    parent.setAttribute('aria-expanded',String(value));group.hidden=!value;
+    if(value)syncIncidentMenu();
+  }
+  function syncIncidentMenu(){
+    if(!host.isConnected){observer?.disconnect();return;}
+    const group=host.querySelector('.hub-incident-links'),nav=shell()?.querySelector('.shell411-nav');
+    if(!group||!expanded)return;
+    if(nav!==nativeMenu){
+      observer?.disconnect();nativeMenu=nav;
+      if(nav){observer=new MutationObserver(syncIncidentMenu);observer.observe(nav,{childList:true,subtree:true,attributes:true,characterData:true});}
+    }
+    const buttons=Array.from(nav?.querySelectorAll('button')||[]).filter(b=>!b.disabled&&!b.hidden&&b.getAttribute('aria-hidden')!=='true'&&getComputedStyle(b).display!=='none');
+    const entries=buttons.map(b=>({label:Array.from(b.childNodes,n=>n.textContent.trim()).filter(Boolean).join(' '),active:host.classList.contains('hub-incident-workspace')&&b.classList.contains('on')}));
+    const signature=JSON.stringify(entries);
+    if(group.dataset.signature===signature&&group._sources?.every((b,i)=>b===buttons[i]))return;
+    group.dataset.signature=signature;group._sources=buttons;group.replaceChildren();
+    entries.forEach(({label,active},i)=>{
+      const b=document.createElement('button');b.type='button';b.textContent=label;
+      if(active)b.setAttribute('aria-current','page');
+      b.onclick=()=>activateIncident(buttons[i]);group.append(b);
+    });
+  }
+  async function activateIncident(target){
+    if(pending)return;
+    pending=true;
+    try{if(await allowed('incident')&&(!target||target.isConnected&&!target.disabled))openWorkspace(target);}
+    finally{pending=false;}
+  }
+  function openWorkspace(target){
+    if(!sameUser())return;
+    if(currentView!=='platform'&&host.classList.contains('hub-incident-workspace')&&document.querySelector('#view form:not(.activity-filters)')&&!confirm('현재 입력 화면을 벗어날까요?'))return;
+    status.textContent='';
+    const view=shell().querySelector('#view');
+    host.classList.add('hub-incident-workspace');host.classList.remove('hub-menu-open','hub-editing');
+    if(view.contains(host))view.before(host);
+    host.querySelector('[data-hub=home]')?.classList.remove('on');
+    host.querySelector('[data-hub=incident-menu]')?.classList.add('on');
+    setExpanded(true);enterIncident(target);window.scrollTo(0,0);
+    queueMicrotask(syncIncidentMenu);
+  }
+  function navigation(){
+    const nav=host.querySelector('.hub-sidebar > nav');
+    nav.innerHTML=action('home',svg('home')+'<span>홈</span>',host.classList.contains('hub-incident-workspace')?'':'on');
+    for(const key of catalog.homeOrder){
+      const m=entry(key);
+      if(key==='support'){nav.insertAdjacentHTML('beforeend',action('support',svg('support')+'<span>공통업무지원서비스</span>'));continue;}
+      if(!m||(!admin&&m.state==='hidden'))continue;
+      const label=svg(key,icons)+'<span>'+safe(featureName(m))+'</span>';
+      if(key==='incident'){
+        nav.insertAdjacentHTML('beforeend',action('incident-menu',label+'<i aria-hidden="true">⌄</i>')+'<div class="hub-incident-group" id="hub-incident-group" hidden>'+action('incident-home','사고보고 홈')+'<div class="hub-incident-links"></div></div>');
+        nav.querySelector('[data-hub=incident-menu]').setAttribute('aria-controls','hub-incident-group');
+      }else nav.insertAdjacentHTML('beforeend',action('feature:'+key,label));
+    }
+    nav.querySelectorAll('[data-hub]').forEach(b=>b.onclick=()=>dispatch(b.dataset.hub));setExpanded(expanded);paintFavorites();
+  }
   function favoriteChoices(){return [...items().filter(m=>m.state!=='hidden'&&(m.key!=='system'||admin)).map(m=>({key:m.key,title:featureName(m)})),{key:'bulletins',title:'공지사항'},{key:'schedule',title:'전체 일정'}]}
   function paintFavorites(){const box=host.querySelector('.hub-favorites>div'),choices=favoriteChoices();box.replaceChildren();for(const key of content.favorites){const x=choices.find(v=>v.key===key);if(!x)continue;const b=document.createElement('button');b.type='button';b.innerHTML=svg('file')+'<span>'+safe(x.title)+'</span>';b.onclick=()=>dispatch(['bulletins','schedule'].includes(key)?key:'feature:'+key);box.append(b)}if(!box.children.length)box.innerHTML='<p>자주 쓰는 메뉴를 추가하세요.</p>'}
   function favorites(){const d=dialog(host,'즐겨찾기 설정'),box=d.querySelector('.hub-dialog-body');box.innerHTML='<form class="hub-form">'+favoriteChoices().map(x=>'<label class="hub-check"><input type="checkbox" name="favorite" value="'+x.key+'" '+(content.favorites.includes(x.key)?'checked':'')+'>'+safe(x.title)+'</label>').join('')+'<button type="submit">저장</button><p role="status"></p></form>';box.querySelector('form').onsubmit=async ev=>{ev.preventDefault();const form=ev.currentTarget,b=form.querySelector('button');b.disabled=true;try{const favorites=Array.from(form.querySelectorAll(':checked'),x=>x.value);await api({action:'platform_hub_favorites',favorites});if(!sameUser())return;content.favorites=favorites;paintFavorites();d.close()}catch{form.querySelector('[role=status]').textContent='저장하지 못했습니다. 다시 시도해 주세요.'}finally{b.disabled=false}}}
@@ -119,14 +185,17 @@
   async function listContent(kind){let listedEvents=content.events;const d=dialog(host,kind==='notice'?'공지사항':'전체 일정'),box=d.querySelector('.hub-dialog-body');box.innerHTML='<div class="hub-list-tools">'+(admin?action('new','＋ '+(kind==='notice'?'공지 등록':'일정 등록')):'')+action('reload','새로고침')+'</div>'+(kind==='event'?'<label class="hub-date-filter">조회 날짜 <input type="date" value="'+day()+'"></label>':'')+'<div data-content-list></div>';if(admin)box.querySelector('[data-hub=new]').onclick=()=>{d.close();editContent({kind})};const paint=()=>{const target=box.querySelector('[data-content-list]'),selected=box.querySelector('input')?.value;target.replaceChildren();let rows=kind==='notice'?content.notices:listedEvents.filter(x=>!selected||day(new Date(x.starts_at))<=selected&&day(new Date(x.ends_at))>=selected);for(const x of rows)rowButton(target,x.title,kind==='notice'?date(x.created_at):time(x.starts_at)+' ~ '+time(x.ends_at),()=>readContent(x));if(!rows.length)target.innerHTML='<p class="hub-empty">'+safe(contentError||'등록된 항목이 없습니다.')+'</p>'};box.querySelector('input')?.addEventListener('change',async()=>{const selected=box.querySelector('input').value;if(!selected)return;try{const r=await api({action:'platform_hub',date:selected});if(!d.isConnected||!sameUser())return;listedEvents=r.events||[];paint()}catch{box.querySelector('[data-content-list]').textContent='일정을 불러오지 못했습니다.'}});box.querySelector('[data-hub=reload]').onclick=async()=>{if(kind==='event'){const selected=box.querySelector('input').value||day();try{const r=await api({action:'platform_hub',date:selected});listedEvents=r.events||[]}catch{contentError='일정을 불러오지 못했습니다.'}}else await loadContent();if(d.isConnected)paint()};paint();}
   function search(){const d=dialog(host,'통합검색'),box=d.querySelector('.hub-dialog-body');box.innerHTML='<label class="hub-search-label">검색어<input type="search" placeholder="메뉴, 사고, 공지사항, 일정 검색" maxlength="100"></label><p>조회 권한이 있는 현재 자료에서 검색합니다.</p><div data-results></div>';const input=box.querySelector('input'),out=box.querySelector('[data-results]');const paint=()=>{out.replaceChildren();const q=input.value.trim().toLocaleLowerCase();if(!q)return;let count=0;for(const m of items().filter(m=>m.state!=='hidden'&&featureName(m).toLocaleLowerCase().includes(q))){rowButton(out,featureName(m),'업무 메뉴',()=>{d.close();clickFeature(m.key)});count++}if(entry('incident')?.state==='live'&&entry('incident')?.enabled!==false&&entry('incident')?.canEnter!==false)for(const i of scopedIncidents().filter(i=>[i.eventType,i.summary,siteById(i.siteId)?.name].join(' ').toLocaleLowerCase().includes(q)).slice(0,30)){rowButton(out,i.eventType||'사고보고',siteById(i.siteId)?.name||'',()=>openIncident(i.id));count++}for(const x of [...content.notices,...content.events].filter(x=>[x.title,x.body].join(' ').toLocaleLowerCase().includes(q))){rowButton(out,x.title,x.kind==='notice'?'공지사항':'일정',()=>readContent(x));count++}if(!count)out.innerHTML='<p class="hub-empty">검색 결과가 없습니다.</p>'};input.oninput=paint;input.focus()}
   function guide(){const d=dialog(host,'모듈 안내');d.querySelector('.hub-dialog-body').innerHTML='<p>운영 중인 업무는 카드를 눌러 바로 이용할 수 있습니다. 구현 중인 업무는 관리자가 허용한 시험 사용자만 진입합니다.</p><p>공지사항과 일정은 안전관리자가 등록하고 대상 사업장의 사용자에게 공유합니다.</p>'+(admin?'<p>편집을 누르면 이름 수정, 접근 설정, 순서 이동 도구가 나타납니다. 손잡이를 끌거나 접근 설정의 앞으로/뒤로 버튼으로 순서를 변경하세요.</p>':'')}
-  function dispatch(key){if(key.startsWith('feature:'))return clickFeature(key.slice(8));if(key==='home'){host.classList.remove('hub-menu-open');window.scrollTo({top:0,behavior:'smooth'})}else if(key==='menu'||key==='close-menu')host.classList.toggle('hub-menu-open',key==='menu');else if(key==='support')support();else if(key==='close-support')host.querySelector('.hub-support').close();else if(key==='search')search();else if(key==='notifications')clickFeature('notices');else if(key==='edit'){host.classList.toggle('hub-editing');host.querySelector('.hub-edit-toggle').textContent=host.classList.contains('hub-editing')?'편집 완료':'편집'}else if(key==='guide')guide();else if(key==='favorites')favorites();else if(key==='bulletins')listContent('notice');else if(key==='schedule')listContent('event');else if(key==='approvals')openApprovalList();else if(key==='recent'){const d=dialog(host,'최근 작업'),box=d.querySelector('.hub-dialog-body');for(const r of recent)rowButton(box,r.sentence,relative(r.happened_at),()=>openActivity(r));if(!recent.length)box.innerHTML='<p class="hub-empty">'+safe(recentError||'최근 작업 기록이 없습니다.')+'</p>'}}
+  function dispatch(key){if(key==='incident-menu'){
+    if(expanded)setExpanded(false);else if(!pending){pending=true;allowed('incident').then(ok=>{if(ok)setExpanded(true)}).finally(()=>pending=false);}
+    return;
+  }if(key==='incident-home')return activateIncident();if(key.startsWith('feature:'))return clickFeature(key.slice(8));if(key==='home'){if(host.classList.contains('hub-incident-workspace'))return window.enlReturnToPlatform(u);host.classList.remove('hub-menu-open');window.scrollTo({top:0,behavior:'smooth'})}else if(key==='menu'||key==='close-menu')host.classList.toggle('hub-menu-open',key==='menu');else if(key==='support')support();else if(key==='close-support')host.querySelector('.hub-support').close();else if(key==='search')search();else if(key==='notifications')clickFeature('notices');else if(key==='edit'){host.classList.toggle('hub-editing');host.querySelector('.hub-edit-toggle').textContent=host.classList.contains('hub-editing')?'편집 완료':'편집'}else if(key==='guide')guide();else if(key==='favorites')favorites();else if(key==='bulletins')listContent('notice');else if(key==='schedule')listContent('event');else if(key==='approvals')openApprovalList();else if(key==='recent'){const d=dialog(host,'최근 작업'),box=d.querySelector('.hub-dialog-body');for(const r of recent)rowButton(box,r.sentence,relative(r.happened_at),()=>openActivity(r));if(!recent.length)box.innerHTML='<p class="hub-empty">'+safe(recentError||'최근 작업 기록이 없습니다.')+'</p>'}}
   host.querySelectorAll('[data-hub]').forEach(b=>b.onclick=()=>dispatch(b.dataset.hub));
   function afterCards(c){catalog=c;navigation();paintApprovals();renderArtwork(host);}
   const refresh=()=>{if(sameUser())paintApprovals();else window.removeEventListener('enl-incidents-pulled',refresh)};window.addEventListener('enl-incidents-pulled',refresh);
   loadContent();loadRecent();
-  return {area,services,status,addSupportCard,afterCards,showPreparing:title=>{const d=dialog(host,title);d.querySelector('.hub-dialog-body').textContent='이 업무의 세부 기능은 구현 중입니다.'}};
+  return {area,services,status,addSupportCard,afterCards,openWorkspace,showPreparing:title=>{const d=dialog(host,title);d.querySelector('.hub-dialog-body').textContent='이 업무의 세부 기능은 구현 중입니다.'}};
  }
- document.addEventListener('keydown',ev=>{if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==='k'&&currentView==='platform'){ev.preventDefault();document.querySelector('.hub-search')?.click()}});
+ document.addEventListener('keydown',ev=>{if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==='k'&&document.querySelector('.hub-search')){ev.preventDefault();document.querySelector('.hub-search').click()}});
  function cleanup(){stopArtwork();document.querySelectorAll('.topbar .hub-search,.topbar .hub-bell,.topbar .hub-mobile-menu').forEach(n=>n.remove());}
  window.ENLHub={mount,decorateCard,cleanup};
 })();

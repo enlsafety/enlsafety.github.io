@@ -24,12 +24,15 @@
   const api=body=>window.enlIncidentApi({...body,actor:window.enlCurrentActor()});
   const e=v=>esc(String(v??''));
   const sessionKey=u=>JSON.stringify([u.id||u.personnelId,u.role,u.siteId||'']);
+  function recordEntry(u){
+    if(currentView!=='platform')return;
+    history.replaceState({...history.state,enlHub:sessionKey(u)},'');
+    history.pushState({enlModuleEntry:sessionKey(u)},'');
+  }
   function go(view,u){
     document.querySelectorAll('.platform-hub dialog[open]').forEach(d=>d.close());
-    if(currentView==='platform'&&view!=='platform'){
-      history.replaceState({...history.state,enlHub:sessionKey(u)},'');
-      history.pushState({enlModuleEntry:sessionKey(u)},'');
-    }
+    if(view!=='platform')recordEntry(u);
+    document.querySelector('.hub-incident-workspace')?.remove();
     currentView=view;window.renderShell(u);
   }
   window.enlReturnToPlatform=u=>{
@@ -105,9 +108,14 @@
   };
   window.enlPlatformHome=async(root,u)=>{
     if(root.querySelector('.platform-hub'))return;
+    root.parentElement.querySelector(':scope > .hub-incident-workspace')?.remove();
     const host=document.createElement('section');host.className='platform-hub';root.replaceChildren(host);
     const admin=u.role==='safety';
-    const dashboard=window.ENLHub.mount(host,u,{go:view=>go(view,u),icons,names,featureName});
+    const dashboard=window.ENLHub.mount(host,u,{go:view=>go(view,u),enterIncident:(target)=>{
+      recordEntry(u);
+      if(currentView==='platform'||!target)currentView=['worker','field'].includes(u.role)?'home':'stats';
+      if(target)target.click();else window.renderShell(u);
+    },icons,names,featureName});
     const {area,services,status}=dashboard;
     let config,saving=false;
     const groupFor=key=>config.services.some(s=>s.key===key)?'services':'modules';
@@ -127,14 +135,49 @@
         if(err.message==='catalog_changed')await load();return false;
       }finally{saving=false;area.inert=services.inert=false;}
     }
+    function homeOrder(){return config.homeOrder||[...config.modules.map(m=>m.key),'support',...(admin?['system']:[])];}
+    async function moveHome(key,destination){
+      if(saving||key===destination)return false;
+      const order=[...homeOrder()],from=order.indexOf(key),to=order.indexOf(destination);
+      if(from<0||to<0)return false;
+      order.splice(to,0,order.splice(from,1)[0]);
+      saving=true;area.inert=services.inert=true;
+      try{
+        const r=await api({action:'platform_home_order',revision:config.revision,order});
+        config.homeOrder=order;config.revision=r.revision;
+        config.modules.sort((a,b)=>order.indexOf(a.key)-order.indexOf(b.key));
+        cards();status.textContent='순서를 저장했습니다.';return true;
+      }catch(err){
+        if(err.message==='catalog_changed')await load();
+        status.textContent='순서를 저장하지 못했습니다. 최신 순서를 확인하고 다시 시도해 주세요.';return false;
+      }finally{saving=false;area.inert=services.inert=false;}
+    }
     function move(key,destination){
+      if(homeOrder().includes(key))return moveHome(key,destination);
       const modules=[...itemsFor(key)],i=modules.findIndex(m=>m.key===key),j=modules.findIndex(m=>m.key===destination);
       if(i<0||j<0||i===j)return;modules.splice(j,0,modules.splice(i,1)[0]);return save(modules);
+    }
+    function neighbors(key){return homeOrder().includes(key)?homeOrder():itemsFor(key).map(m=>m.key);}
+    function supportOrder(grip){
+      const dialog=document.createElement('dialog');dialog.className='feature-settings';
+      dialog.innerHTML='<h3>공통업무지원서비스 순서</h3><div class="feature-actions"><button type="button">앞으로</button><button type="button">뒤로</button><button type="button">닫기</button></div>';
+      host.append(dialog);
+      const order=homeOrder(),index=order.indexOf('support'),buttons=dialog.querySelectorAll('button');
+      for(const [i,step] of [-1,1].entries()){
+        const target=order[index+step];buttons[i].disabled=!target;
+        buttons[i].onclick=async()=>{if(await moveHome('support',target))dialog.close();};
+      }
+      buttons[2].onclick=()=>dialog.close();
+      dialog.onclose=()=>{dialog.remove();host.querySelector('[data-key=support] .feature-grip')?.focus();};
+      dialog.showModal();
+      const rect=grip.getBoundingClientRect();
+      dialog.style.left=Math.max(8,Math.min(rect.right-dialog.offsetWidth,innerWidth-dialog.offsetWidth-8))+'px';
+      dialog.style.top=Math.max(8,Math.min(rect.bottom+4,innerHeight-dialog.offsetHeight-8))+'px';
     }
     function settings(m,grip){
       const draft=structuredClone(m),dialog=document.createElement('dialog');dialog.className='feature-settings';
       dialog.innerHTML='<form><h3>'+e(featureName(m))+' 접근 설정</h3><label>공개 상태<select name="state">'+Object.entries(states).filter(([k])=>k!=='building'||m.key!=='incident').map(([k,v])=>'<option value="'+k+'">'+v+'</option>').join('')+'</select></label><fieldset><legend>접근할 수 있는 역할</legend>'+Object.entries(roles).filter(([k])=>k!=='safety'&&m.key!=='system'&&!(m.key==='history'&&k==='worker')).map(([k,v])=>'<label><input type="checkbox" data-role="'+k+'"> '+v+'</label>').join('')+'</fieldset><section data-trial><strong>시험 사용자</strong><p>구현 중에는 허용 역할에 해당하고 아래에 지정된 사용자만 진입합니다.</p><div data-selected></div><label>이름 또는 사업장<input name="search" autocomplete="off"></label><button type="button" data-search>사용자 찾기</button><div data-results></div></section><div class="feature-actions"><button type="button" data-up>앞으로</button><button type="button" data-down>뒤로</button><button type="button" data-close>닫기</button><button type="submit">저장</button></div><small role="status"></small></form>';
-      host.append(dialog);const form=dialog.querySelector('form'),note=form.querySelector('[role=status]'),index=itemsFor(m.key).indexOf(m);
+      host.append(dialog);const form=dialog.querySelector('form'),note=form.querySelector('[role=status]'),index=neighbors(m.key).indexOf(m.key);
       form.elements.state.value=m.state;
       if(m.key==='system')form.querySelector('fieldset').append('안전관리자 전용');
       function showTrial(){form.querySelector('[data-trial]').hidden=form.elements.state.value!=='building'||m.key==='system'}
@@ -154,7 +197,7 @@
       form.elements.search.onkeydown=ev=>{if(ev.key==='Enter'){ev.preventDefault();form.querySelector('[data-search]').click()}};
       const close=()=>dialog.close();form.querySelector('[data-close]').onclick=close;
       for(const [sel,offset] of [['[data-up]',-1],['[data-down]',1]]){
-        const b=form.querySelector(sel),target=itemsFor(m.key)[index+offset];b.disabled=!target;b.onclick=async()=>{if(await move(m.key,target.key))close()};
+        const b=form.querySelector(sel),target=neighbors(m.key)[index+offset];b.disabled=!target;b.onclick=async()=>{if(await move(m.key,target))close()};
       }
       form.onsubmit=async ev=>{ev.preventDefault();draft.state=form.elements.state.value;draft.roles=['safety',...Array.from(form.querySelectorAll('[data-role]:checked'),x=>x.dataset.role)];
         if(draft.state==='building'&&m.state!=='building')draft.preview=draft.enabled!==false;
@@ -167,7 +210,7 @@
     function bindGrip(grip,row,module,grid){
       let gesture=null,suppressClick=false;
       grip.title='눌러서 접근 설정, 끌어서 순서 변경';
-      grip.onclick=ev=>{if(ev.detail===0||!suppressClick)settings(module,grip);suppressClick=false};
+      grip.onclick=ev=>{if(ev.detail===0||!suppressClick)(module.key==='support'?supportOrder(grip):settings(module,grip));suppressClick=false};
       grip.oncontextmenu=ev=>ev.preventDefault();
       function preview(){
         const g=gesture,box=grid.getBoundingClientRect(),x=g.x-box.left,y=g.y-box.top;
@@ -214,7 +257,7 @@
         if(!g.active){
           if(Math.hypot(g.x-g.startX,g.y-g.startY)<6)return;
           const base=grid.getBoundingClientRect();
-          g.slots=Array.from(grid.querySelectorAll('.feature-card-wrap'+(module.key==='system'?'[data-key=system]':grid===services?'':':not([data-key=system])')),el=>{
+          g.slots=Array.from(grid.querySelectorAll('.feature-card-wrap'),el=>{
             const r=el.getBoundingClientRect(),top=r.top-base.top;
             return {row:el,top,left:r.left-base.left,width:r.width,height:r.height};
           });
@@ -233,10 +276,18 @@
     function cards(){
       const grid=document.createElement('div');grid.className='platform-grid';area.replaceChildren(grid);services.replaceChildren();
       draw(grid,config.modules,false);
-      dashboard.addSupportCard(grid);
+      const supportRow=dashboard.addSupportCard(grid);
+      if(admin){
+        const tools=document.createElement('div');tools.className='feature-controls';
+        tools.innerHTML='<button type="button" class="feature-grip" aria-haspopup="dialog" aria-label="공통업무지원서비스 순서 이동">☰</button>';
+        supportRow.append(tools);bindGrip(tools.firstElementChild,supportRow,{key:'support'},grid);
+        tools.firstElementChild.title='눌러서 순서 선택, 끌어서 순서 변경';
+      }
       draw(grid,config.services.filter(m=>m.key==='system'),true);
       draw(services,config.services.filter(m=>m.key!=='system'),true);
-      dashboard.afterCards(config);
+      const rows=new Map(Array.from(grid.children,r=>[r.dataset.key,r]));
+      for(const key of homeOrder()){const row=rows.get(key);if(row)grid.append(row);}
+      dashboard.afterCards({...config,homeOrder:homeOrder()});
       window.enlRefreshHistoryCount?.(true);
     }
     function addNameEditor(row,button,m,support){
@@ -274,7 +325,7 @@
           if(!isOn(m)||m.canEnter===false){status.textContent='현재 진입할 수 없는 '+(support?'서비스':'모듈')+'입니다.';return;}
           if(m.key==='system'){window.enlOpenSystemAdmin(u);return;}
           try{const r=await api({action:'platform_enter',key:m.key});if(!host.isConnected)return;
-            if(r.key==='incident')go(['worker','field'].includes(u.role)?'home':'stats',u);
+            if(r.key==='incident')dashboard.openWorkspace();
             else if(r.key==='history'){window.enlRequestHistory();go('common-history',u)}
             else if(r.key==='notices')go('notice-center',u);
             else dashboard.showPreparing(featureName(m));

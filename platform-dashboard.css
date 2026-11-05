@@ -1,5 +1,5 @@
 /* Home-only rules. Incident screens retain their existing styles. */
-.safety-ui #app:has(.platform-hub){--hub-ink:#0b1436;--hub-blue:#1558ff;--hub-art:url('assets/hub-golf-fountain-r51.webp');--hub-icons:url('assets/hub-icons-r43.png');--hub-sidebar-width:clamp(166px,12.7vw,204px);color:var(--hub-ink);background:#f2f7ff;font-family:'Pretendard','Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.safety-ui #app:has(.platform-hub){--hub-ink:#0b1436;--hub-blue:#1558ff;--hub-art:url('assets/hub-golf-r56.webp');--hub-icons:url('assets/hub-icons-r43.png');--hub-sidebar-width:clamp(166px,12.7vw,204px);color:var(--hub-ink);background:#f2f7ff;font-family:'Pretendard','Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',Arial,sans-serif;-webkit-font-smoothing:antialiased}
 .safety-ui #app:has(.platform-hub) .app-shell{padding-left:var(--hub-sidebar-width);background:linear-gradient(120deg,#f7fbff,#edf3ff)}
 .safety-ui #app:has(.platform-hub) .main{width:100%;max-width:none;margin:0;padding:12px 14px 20px 16px}
 .safety-ui #app:has(.platform-hub) .footer-note{display:none}
@@ -22,15 +22,8 @@
 .hub-logo{height:76px;border-bottom:1px solid #a5bfdf55;margin:0 8px 13px;display:flex;align-items:center;justify-content:center}.platform-hub .hub-logo svg{width:102px;height:52px;overflow:visible}
 .hub-sidebar nav{display:grid;gap:3px}.platform-hub .hub-sidebar button{border:0;background:transparent;color:#304d76;border-radius:12px;display:flex;align-items:center;gap:10px;text-align:left;padding:8px 12px;min-height:38px;width:100%;font-size:13px;font-weight:600;line-height:1.4;position:relative;z-index:1}.hub-sidebar button span{min-width:0;overflow-wrap:anywhere}.platform-hub .hub-sidebar nav .on{color:#174c9a;background:linear-gradient(120deg,#b5d5ffb3,#cbd8ffa8);border:1px solid #ffffffc9;box-shadow:inset 0 1px 1px #fff,0 3px 9px #5e8bbf18;min-height:40px;margin-bottom:1px}.platform-hub .hub-sidebar button:hover{background-color:#ffffffa8}
 .hub-favorites{margin:22px 12px 0;padding-top:15px;border-top:1px solid #a5bfdf55;position:relative;z-index:2}.hub-favorites header{display:flex;align-items:center;justify-content:space-between}.hub-favorites h2{font-size:12px;display:flex;align-items:center;gap:9px;margin:0;white-space:nowrap}.hub-favorites h2 svg{width:17px;height:17px;fill:#6285ba}.platform-hub .hub-favorites header button{font-size:23px;width:34px;padding:0;min-height:34px;justify-content:center}.platform-hub .hub-favorites>div button{font-size:13px;min-height:32px;padding:5px 2px;gap:12px}.hub-favorites>div svg{width:16px;height:16px;color:#6c87aa}.hub-favorites p{word-break:keep-all;font-size:11px;color:#5c7596;line-height:1.6}.hub-sidebar-wave{position:absolute;bottom:0;left:0;width:100%;height:185px;pointer-events:none;overflow:hidden;opacity:.65;background:radial-gradient(ellipse at 100% 100%,#9dbdfb55,transparent 70%)}.hub-sidebar-wave:before,.hub-sidebar-wave:after{content:'';position:absolute;width:300px;height:95px;left:-40px;bottom:5px;transform:rotate(-30deg);border-radius:50%;border:1px solid #ffffffaa;background:linear-gradient(150deg,#ffffff88,#93baf633)}.hub-sidebar-wave:after{bottom:-30px;left:-70px;transform:rotate(-45deg);background:linear-gradient(140deg,#b1dafa55,#ffffff77)}
-.hub-hero{position:relative;height:clamp(122px,10vw,158px);isolation:isolate;overflow:hidden;border:1px solid #fff;border-radius:17px;box-shadow:0 3px 6px #294c8b18;margin-bottom:15px;background:#e4f3fd}.hub-hero-image{position:absolute;z-index:-2;inset:0;background-image:var(--hub-art);background-repeat:no-repeat;background-size:cover;background-position:center 62%;left:18%}.hub-hero:after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,#eff7ff 0%,#f6faff 20%,#f5faffee 25%,#f4f9ffad 31%,transparent 45%)}
-.hub-welcome{padding:20px 24px 16px 48px;position:relative;width:650px;max-width:62%}.hub-welcome:before{content:'';position:absolute;left:27px;top:24px;bottom:23px;width:4px;background:linear-gradient(#1044ff,#45c5ff);border-radius:5px}.hub-welcome h2{font-size:clamp(21px,1.75vw,28px);font-weight:800;letter-spacing:-.9px;margin:0 0 8px;color:#080d27;line-height:1.3}.hub-welcome p{font-size:clamp(12px,1vw,15px);font-weight:500;line-height:1.6;color:#314568;margin:0;word-break:keep-all}.hub-slogan{
- position:absolute;inset:0 0 0 auto;width:13.6em;margin:0;padding-left:.55em;
- display:flex;flex-direction:column;justify-content:center;isolation:isolate;
- font:italic 700 clamp(17px,1.5vw,23px)/1.25 Arial,sans-serif;
- color:white;white-space:nowrap;text-shadow:0 1px 3px #123e66;
-}
-.hub-slogan::before{content:"";position:absolute;inset:0;z-index:-1;background:url("assets/hub-slogan-trail.svg") center/100% 100% no-repeat;pointer-events:none}
-.hub-slogan span+span{margin-left:1.85em}
+.hub-hero{position:relative;height:clamp(155px,15vw,255px);isolation:isolate;overflow:hidden;border:1px solid #fff;border-radius:17px;box-shadow:0 3px 6px #294c8b18;margin-bottom:15px;background:#e4f3fd}.hub-hero-image{position:absolute;z-index:-2;inset:0;background-image:var(--hub-art);background-repeat:no-repeat;background-size:cover;background-position:center 27%;left:18%}.hub-hero:after{content:'';position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,#eff7ff 0%,#f6faff 20%,#f5faffee 25%,#f4f9ffad 31%,transparent 45%)}
+.hub-welcome{padding:20px 24px 16px 48px;position:relative;width:650px;max-width:62%}.hub-welcome:before{content:'';position:absolute;left:27px;top:24px;bottom:23px;width:4px;background:linear-gradient(#1044ff,#45c5ff);border-radius:5px}.hub-welcome h2{font-size:clamp(21px,1.75vw,28px);font-weight:800;letter-spacing:-.9px;margin:0 0 8px;color:#080d27;line-height:1.3}.hub-welcome p{font-size:clamp(12px,1vw,15px);font-weight:500;line-height:1.6;color:#314568;margin:0;word-break:keep-all}
 .hub-middle{display:grid;grid-template-columns:minmax(0,1fr) clamp(260px,20vw,320px);gap:13px;align-items:stretch}.hub-features{min-width:0}.hub-section-heading{display:flex;align-items:center;gap:12px;min-height:36px;margin:0 4px 11px}.hub-section-heading h2{display:flex;align-items:center;gap:10px;font-size:clamp(21px,1.65vw,26px);letter-spacing:-.7px;color:#090e23;white-space:nowrap;font-weight:800;margin:0}.hub-section-heading h2 svg{color:#1558ff;width:23px;height:23px}.hub-section-heading p{font-size:12px;color:#263c70;white-space:nowrap;margin:0;flex:1}.platform-hub .hub-section-heading button{font-size:12px;min-height:32px;padding:5px 12px;border:1px solid #dce7ff;border-radius:18px;white-space:nowrap;color:#0f1a35;background:#fff}.platform-hub .hub-section-heading .hub-edit-toggle{padding:5px 10px;color:#2359ac}
 .platform-hub .platform-modules>.platform-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 10px}.platform-hub .platform-modules .feature-card-wrap,.platform-hub .hub-support-card{position:relative;display:block;min-width:0;height:clamp(128px,10vw,160px);border-radius:17px;overflow:hidden;border:1px solid;box-shadow:0 3px 5px #203e7325,inset 0 0 0 2px #ffffffa8;color:#080e21;isolation:isolate}
 .platform-modules .feature-card-wrap:after,.hub-support-card:after{content:'';position:absolute;inset:56% -20% -42% 20%;z-index:-1;transform:rotate(-26deg);background:#ffffff33;border-radius:50%}
@@ -82,7 +75,7 @@
 .platform-hub .hub-sidebar nav svg{width:19px;height:19px}
 .platform-hub .hub-sidebar nav button span{white-space:nowrap;letter-spacing:-.35px}
 .platform-hub .hub-sidebar button:focus-visible{outline:2px solid #326bd0;outline-offset:-2px}
-@media(min-width:1800px){.hub-hero{height:180px}.hub-welcome{padding-top:32px}.platform-hub .platform-modules .feature-card-wrap,.platform-hub .hub-support-card{height:180px}.hub-card-description{font-size:14px}.hub-card-arrow{bottom:16px}.hub-bottom .hub-panel{min-height:210px}}
+@media(min-width:1800px){.hub-hero{height:clamp(245px,14vw,320px)}.hub-welcome{padding-top:32px}.platform-hub .platform-modules .feature-card-wrap,.platform-hub .hub-support-card{height:180px}.hub-card-description{font-size:14px}.hub-card-arrow{bottom:16px}.hub-bottom .hub-panel{min-height:210px}}
 @media(max-width:1450px){
  .safety-ui #app:has(.platform-hub) .topbar{padding-left:18px;gap:10px}
  .safety-ui #app:has(.platform-hub) .topbar .brand{gap:7px}
@@ -127,10 +120,10 @@
 @media(max-width:600px){
  .safety-ui #app:has(.platform-hub) .main{padding:12px 12px max(22px,env(safe-area-inset-bottom))}
  .safety-ui #app:has(.platform-hub) .system-title-line{display:block}
- .hub-hero{height:auto;min-height:140px;border-radius:16px}
- .hub-hero-image{left:0;background-position:center 62%}
- .hub-hero .hub-slogan{position:relative;inset:auto;margin:3px 12px 7px auto;width:13em;min-height:38px;font-size:12px;line-height:1.18}
- .hub-hero:after{background:linear-gradient(90deg,#f2f8fff7 0%,#f2f8ffe8 50%,#f2f8ff42)}
+ .hub-hero{height:auto;min-height:0;border-radius:16px;display:flex;flex-direction:column;background:#f2f8ff}
+ .hub-hero-image{position:relative;inset:auto;order:1;width:100%;aspect-ratio:1942/809;background-position:center;background-size:100% auto;z-index:auto}
+ .hub-hero:after{display:none}
+ .hub-hero .hub-welcome{padding-bottom:14px}
  .hub-welcome{max-width:100%;width:auto;padding:19px 12px 0 25px}.hub-welcome:before{left:12px;top:21px;bottom:0;width:3px}
  .hub-welcome h2{font-size:20px;margin-bottom:8px}.hub-welcome p{font-size:12px;line-height:1.7}
  .hub-section-heading{margin:0 0 10px;gap:7px;flex-wrap:wrap;min-height:32px}.hub-section-heading h2{font-size:20px;gap:7px;margin-right:auto}
@@ -166,3 +159,15 @@
  .platform-hub .platform-modules .platform-card>small{right:48px;bottom:20px}
 }
 @media(prefers-reduced-motion:reduce){.platform-hub *{transition:none!important;scroll-behavior:auto!important}}
+
+/* Keep the same navigation frame around the native incident view. */
+.hub-incident-workspace > :is(.hub-hero,.hub-middle,.hub-bottom){display:none}
+.platform-hub .hub-incident-group{padding-left:12px;border-left:2px solid #bacfe7;margin-left:15px}
+.platform-hub .hub-incident-group button{font-size:12px;min-height:35px;border-radius:7px;padding:6px 8px}
+.platform-hub .hub-incident-group button[aria-current=page]{color:#114da1;background:#d4e6fb}
+.hub-sidebar [aria-controls=hub-incident-group] i{margin-left:auto;font-style:normal}
+.hub-sidebar [aria-expanded=true] i{transform:rotate(180deg)}
+@media print{
+ .hub-incident-workspace,.app-shell:has(.hub-incident-workspace) > .topbar{display:none!important}
+ .safety-ui #app:has(.hub-incident-workspace) .app-shell{padding-left:0}
+}

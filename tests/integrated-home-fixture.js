@@ -12,6 +12,7 @@
   let out={ok:true,epoch:1,incidents,sites,metrics:incidents,inquiries:[],count:0,users:[actor],readers:[],unread:0};let status=200;
   if(b.action==='platform_catalog')out={ok:true,...config};
   if(b.action==='platform_enter'){const m=[...config.modules,...config.services].find(x=>x.key===b.key);if(!m||m.enabled===false||m.state==='hidden'||m.state!=='live'&&!m.preview){out={ok:false,message:'module_unavailable'};status=403}else out={ok:true,key:b.key,state:m.state}}
+  if(b.action==='platform_home_order'){config.homeOrder=b.order;config.revision++;out={ok:true,revision:config.revision}}
   if(b.action==='platform_save'){config[b.group||'modules']=b.modules;config.revision++;out={ok:true,revision:config.revision}}
   if(b.action==='platform_hub')out={ok:true,notices:records.filter(x=>x.kind==='notice'),events:records.filter(x=>x.kind==='event'),favorites};
   if(b.action==='platform_hub_favorites'){favorites=b.favorites;out={ok:true}}

@@ -33,5 +33,14 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),{fixture}=requi
  assert.equal((await call('field','platform_enter',{key:'msds'})).status,403);
  assert.equal((await call('safety','platform_save',{revision:catalog.revision,modules:catalog.modules.filter(m=>m.key!=='msds')})).status,200);
  assert.equal((await call('safety','platform_catalog')).body.modules.length,6);
+ const initial=(await call('safety','platform_catalog')).body;
+ const order=['system','support',...initial.modules.map(m=>m.key).reverse()];
+ const edit={revision:initial.revision,order};
+ assert.equal((await call('field','platform_home_order',edit)).status,403);
+ assert.equal((await call('safety','platform_home_order',{...edit,order:order.slice(1)})).status,400);
+ assert.equal((await call('safety','platform_home_order',edit)).status,200);
+ assert.equal((await call('safety','platform_home_order',edit)).status,409);
+ assert.deepEqual((await call('safety','platform_catalog')).body.homeOrder,order);
+ assert.deepEqual((await call('field','platform_catalog')).body.homeOrder,order.filter(k=>k!=='system'));
  console.log('PASS hub authentication, role gates, site scoping, Seoul date boundaries, validation, edit conflicts, archive audit, favorites isolation and cached-client compatibility');
 }finally{await f.db.close()}})().catch(e=>{console.error(e);process.exitCode=1});
