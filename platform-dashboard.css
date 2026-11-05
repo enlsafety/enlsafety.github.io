@@ -33,7 +33,7 @@
 .hub-card-description{display:block;font-size:13px;font-weight:600;line-height:1.65;letter-spacing:-.6px;color:#142133;word-break:keep-all}.hub-card-description span{font-size:11px;letter-spacing:-.7px}
 .hub-card-arrow{display:grid;place-items:center;width:37px;height:37px;position:absolute;bottom:14px;left:49%;border:2px solid #fff;background:#ffffffb8;border-radius:50%;font:27px/1 Arial;color:#132b59;box-shadow:0 2px 4px #19366130}
 .hub-art{display:block;position:absolute;left:12px;top:25px;width:110px;height:116px;background-image:var(--hub-art);background-size:1672px 941px;background-repeat:no-repeat;mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);pointer-events:none}
-.hub-art-incident{background-position:-247px -346px}.hub-art-risk{background-position:-523px -345px}.hub-art-tbm{background-position:-790px -347px}.hub-art-organization{background-position:-1070px -345px}.hub-art-training{background-position:-245px -526px;height:110px}.hub-art-msds{background-position:-523px -524px}.hub-art-support{background-position:-791px -526px}.hub-art-system{background-position:-1065px -522px}
+.hub-art-incident{background-position:-247px -346px}.hub-art-risk{background-position:-523px -345px}.hub-art-tbm{background-position:-790px -347px}.hub-art-organization{background-position:-1070px -345px}.hub-art-training{background-position:-245px -526px;height:110px}.hub-art-msds{background-position:-523px -524px}.hub-art-support{background-position:-791px -526px;width:102px}.hub-art-system{background-position:-1065px -522px}
 .platform-hub .platform-modules .platform-card>small{position:absolute;bottom:9px;right:10px;max-width:42%;overflow:hidden;text-overflow:ellipsis;font-size:10px;padding:2px 6px;background:#ffffffaa;border:1px solid #ffffffad;color:#485473;font-weight:600}.platform-hub .platform-modules [data-state=live] .platform-card>small{display:none}.platform-hub .platform-modules [data-state=hidden]{opacity:.6;border-style:dashed}
 .platform-hub .platform-modules .feature-card-wrap:hover,.platform-hub .hub-support-card:hover{filter:brightness(.97);box-shadow:0 5px 13px #21417433;transform:translateY(-2px)}
 .platform-hub:not(.hub-editing) .feature-pencil,.platform-hub:not(.hub-editing) .feature-controls{display:none!important}
@@ -52,7 +52,7 @@
 
 /* The source banner already includes its English slogan. */
 .hub-slogan{display:none}
-@media(min-width:1181px) and (max-width:1450px){.platform-hub .hub-support-card .platform-card{padding-left:43%;padding-top:20px}.platform-hub .hub-support-card .hub-card-title{font-size:15px;letter-spacing:-1.5px;white-space:nowrap}.hub-support-card .hub-card-description{font-size:10px;letter-spacing:-.6px}.hub-sidebar nav button{letter-spacing:-.7px;gap:10px}.hub-sidebar nav button span{white-space:nowrap}}
+@media(min-width:1181px) and (max-width:1450px){.platform-hub .hub-support-card .platform-card{padding-left:43%;padding-top:20px}.platform-hub .hub-support-card .hub-card-title{font-size:13px;letter-spacing:-1.2px;white-space:nowrap}.hub-support-card .hub-card-description{font-size:10px;letter-spacing:-.6px}.hub-sidebar nav button{letter-spacing:-.7px;gap:10px}.hub-sidebar nav button span{white-space:nowrap}}
 
 /* Closed mobile navigation must also leave the keyboard/assistive tree. */
 @media(max-width:850px){.platform-hub .hub-sidebar{visibility:hidden}.platform-hub.hub-menu-open .hub-sidebar{visibility:visible}.safety-ui #app:has(.platform-hub) .avatar{display:flex!important}}

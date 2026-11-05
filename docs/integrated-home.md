@@ -1,4 +1,4 @@
-# Integrated home release r40
+# Integrated home release r41
 
 The integrated home follows the supplied 1672x941 reference. The reference asset supplies the original banner, logo, illustrations and decorative artwork through CSS clipping. Text, navigation, cards, search results and records are accessible HTML controls. Identity, dates, counts and records come from the signed-in account and existing scoped data; the example person, records and badges in the reference are not seeded.
 
@@ -16,7 +16,7 @@ The integrated home follows the supplied 1672x941 reference. The reference asset
 
 ## Deployment
 
-Apply `supabase/migrations/20261104234953_integrated_home_content.sql`, deploy `enl-incident-sync-v411` with its existing custom authentication configuration, then publish the static root. The migration is additive and preserves incident/account rows. Legacy cached clients saving the original five modules retain MSDS. PWA release r40 includes the new CSS, JS and reference artwork.
+Apply `supabase/migrations/20261104234953_integrated_home_content.sql`, deploy `enl-incident-sync-v411` with its existing custom authentication configuration, then publish the static root. The migration is additive and preserves incident/account rows. Legacy cached clients saving the original five modules retain MSDS. PWA release r41 includes the new CSS, JS and reference artwork.
 
 ## Validation
 
