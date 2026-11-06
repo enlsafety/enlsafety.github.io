@@ -194,7 +194,7 @@
     if(!preview.hidden)preview.querySelector('h2').textContent=tabTitle(active);
     paintTabs();
   }
-  function showTab(key){
+  function showTab(key,historyScope='all'){
     const view=host.closest('.app-shell').querySelector('#view');
     if(active==='incident')incidentView=currentView;
     if(key==='inquiry')inquiryOrigin=active;
@@ -204,14 +204,14 @@
     status.textContent='';
     placeFrame(view);
     const native={home:'platform',system:'system-admin',history:'common-history',recent:'history',inquiry:['field','worker'].includes(u.role)?'field-inquiry':'inquiry',notices:'notice-center',incident:incidentView||(['field','worker'].includes(u.role)?'home':'stats')};
-    if(key==='history'||key==='recent')window.enlRequestHistory?.('all');
+    if(key==='history'||key==='recent')window.enlRequestHistory?.(historyScope);
     go(native[key]||'platform-tool');
     if(key==='approvals')approvalWorkspace();
     if(key==='bulletins'||key==='schedule')listContent(key==='bulletins'?'notice':'event');
     if(key==='home'){renderArtwork(host);loadContent();loadRecent();}
     window.scrollTo(0,0);
   }
-  async function selectTab(key,closing=false){
+  async function selectTab(key,closing=false,historyScope='all'){
     if(key==='recent'&&!window.enlHistoryAvailable?.(u))return false;
     const token=++request;
     if(key===active){host.classList.remove('hub-menu-open');return true;}
@@ -220,7 +220,7 @@
       key='home';
     }
     if(token!==request||!sameUser()||!canLeave())return false;
-    showTab(key);return true;
+    showTab(key,historyScope);return true;
   }
   async function closeTab(key){
     if(key==='home')return;
@@ -382,7 +382,7 @@
     let nav=host.querySelector('.hub-history-shortcuts');if(!nav){nav=document.createElement('nav');nav.className='hub-history-shortcuts hub-category-tabs';nav.setAttribute('aria-label','업무 기록 바로가기');host.querySelector('.hub-support>h2').after(nav)}
     const m=entry('history');nav.hidden=!window.enlHistoryAvailable?.(u)||!m||m.canEnter===false||m.enabled===false||m.state!=='live';nav.replaceChildren();
     for(const [key,label] of Object.entries({all:'통합기록',incident:'사고보고기록',organization:'안전보건조직기록',tbm:'TBM기록',risk:'위험성평가기록',training:'교육기록',common:'공통업무기록'})){
-      const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=async()=>{if(!await selectTab('history'))return;window.enlRequestHistory?.(key);window.enlRenderHistory?.(host.closest('.app-shell').querySelector('#view'),key)};nav.append(b);
+      const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=async()=>{const already=active==='history';if(!await selectTab('history',false,key))return;if(already){window.enlRequestHistory?.(key);window.enlRenderHistory?.(host.closest('.app-shell').querySelector('#view'),key)}};nav.append(b);
     }
   }
   const refresh=()=>{if(sameUser())paintApprovals();else window.removeEventListener('enl-incidents-pulled',refresh)};window.addEventListener('enl-incidents-pulled',refresh);
