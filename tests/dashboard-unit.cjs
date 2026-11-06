@@ -1,6 +1,6 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 let code=fs.readFileSync('site-dashboard-v450.js','utf8');
-code=code.slice(0,code.indexOf('const base=window.renderShell'))+'window.test={color,spreadPoints,canDashboard,risk,pos,rows,dashboardRows,master,cnt,mapXY,info,setMasters:v=>{masters=v;loaded=true;window.ENLContracts.setSites(v)}};})();';
+code=code.slice(0,code.indexOf('const base=window.renderShell'))+'window.test={mapHtml,summary,marker,color,spreadPoints,canDashboard,risk,pos,rows,dashboardRows,master,cnt,mapXY,info,setMasters:v=>{masters=v;loaded=true;window.ENLContracts.setSites(v)}};})();';
 const ctx={data:{sites:[],incidents:[]},Date,console};ctx.window=ctx;vm.createContext(ctx);vm.runInContext(fs.readFileSync('site-contract-v451.js','utf8'),ctx);vm.runInContext(code,ctx);
 const t=ctx.window.test,y=new Date().getFullYear();
 const incident=(extra={})=>({siteId:'s01',occurredAt:`${y}-05-01`,status:'reported',...extra});
@@ -8,7 +8,15 @@ ctx.data.incidents=[incident({occurredAt:`${y-1}-12-01`,priority:'urgent'})];
 assert.equal(t.risk('s01').high,true,'active urgent incident triggers current high risk');assert.equal(t.risk('s01').activeHigh,true);assert.equal(t.risk('s01').count,0);assert.equal(t.risk('s01').open,1);assert.equal(t.color('s01'),'#d83f45','older unresolved urgent incident stays red');
 ctx.data.incidents[0].recordMode='historical_transfer';assert.equal(t.risk('s01').high,false,'historical urgent excluded');assert.equal(t.risk('s01').level,'안전');assert.equal(t.color('s01'),'#219653');
 ctx.data.incidents=Array.from({length:4},()=>incident({status:'closed'}));assert.equal(t.risk('s01').high,false);ctx.data.incidents.push(incident({status:'closed'}));assert.equal(t.risk('s01').high,true,'5 current-year accidents');
-for(const extra of [{severity:'major'},{potentialMajor:true},{priority:'urgent'}]){ctx.data.incidents=[incident(extra)];assert.equal(t.risk('s01').high,true);assert.equal(t.risk('s01').activeHigh,true);ctx.data.incidents[0].status='closed';assert.equal(t.risk('s01').high,false)}
+for(const extra of [{severity:'major'},{potentialMajor:true},{severity:'major',potentialMajor:true,priority:'important',prioritySource:'manual'}]){
+ ctx.data.incidents=[incident(extra)];assert.equal(t.risk('s01').high,false,'injury severity/potential must not override management priority');assert.equal(t.risk('s01').activeHigh,false);assert.equal(t.risk('s01').level,'일반');assert.equal(t.color('s01'),'#20252b');
+}
+for(const extra of [{priority:'urgent'},{severity:'major',potentialMajor:true,priority:'urgent'},{priority:'urgent',prioritySource:'manual'}]){ctx.data.incidents=[incident(extra)];assert.equal(t.risk('s01').high,true);assert.equal(t.risk('s01').activeHigh,true);ctx.data.incidents[0].status='closed';assert.equal(t.risk('s01').high,false)}
+// Regression for the reported single-fracture / manually important case. No personal data.
+ctx.data.incidents=[incident({siteId:'s27',status:'approved',severity:'major',priority:'important',prioritySource:'manual',potentialMajor:false,pastReport:{drafterName:'fixture'}})];
+assert.equal(t.risk('s27').level,'일반');assert.equal(t.color('s27'),'#20252b');assert.match(t.summary('s27'),/위험도: 일반/);assert.doesNotMatch(t.summary('s27'),/미종결 긴급 관리등급/);
+assert.match(t.mapHtml(),/고위험: 올해 사고 5건 이상 또는<br>미종결 긴급 사고/);assert.doesNotMatch(t.mapHtml(),/또는 중대재해/);
+console.log('PASS: major injury and potential flags do not elevate a manually important accident; urgent remains high');
 ctx.window.ENL_SITE_MASTER_SEED=[{site_id:'s01',site_name:'검증',address:'주소',regular_count:3,daily_count:2}];ctx.data.sites=[{id:'s01',name:'검증'}];assert.equal(t.master('s01').address,'주소','undefined local field must not erase seed');
 t.setMasters([{site_id:'s01',active:false}]);assert.equal(t.rows().length,1,'closed site remains available for history');assert.equal(t.dashboardRows().length,0);t.setMasters([]);assert.equal(t.rows().length,0,'successful empty server response is authoritative');
 ctx.window.ENL_SITE_LOCATIONS={s01:{address:'주소',lat:35.4,lon:126.8}};assert.ok(t.pos({site_id:'s01',address:'주소'}));assert.equal(t.pos({site_id:'s01',address:'이전된 주소'}),null);assert.equal(t.pos({site_id:'s99',region:'서울'}),null);
