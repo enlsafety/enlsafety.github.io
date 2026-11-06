@@ -1,0 +1,12 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>이앤엘 ERP 종결결재 · 격리 스테이징</title>
+<style>body{font-family:system-ui,sans-serif;background:#f3f6fa;color:#193149;margin:0;padding:32px}main{max-width:760px;margin:auto}section,form{background:white;border:1px solid #d2dfec;border-radius:14px;padding:24px;margin:20px 0}h1{font-size:26px}label{display:block;margin:12px 0}input,select{display:block;padding:10px;box-sizing:border-box;width:100%;margin-top:6px}button{padding:12px 16px;margin:6px 8px 6px 0;border-radius:8px;border:1px solid #1c5d85;background:#1c5d85;color:white;font-weight:700}button:disabled{opacity:.45}small{line-height:1.7;color:#5b6977}[role=alert]{color:#9a3030}pre{white-space:pre-wrap;font:inherit}</style>
+<main><p>이앤엘 · 사고보고앱 연동 개발본</p><h1>ERP 사고종결 결재</h1><p><strong>격리 스테이징 / 모의 ERP 전용</strong><br>실제 사고와 ERP 결재에는 연결되지 않아. 운영 ERP 계정이나 비밀번호를 입력하지 마.</p>
+<form id="connect"><h2>시험 실행에 연결</h2><label>가상 사고 ID<input id="case" required placeholder="qa-…"></label><label>단기 스테이징 시험 토큰<input id="token" type="password" autocomplete="off" required></label><label>시험 화면 역할<select id="role"><option value="safety">안전관리자</option><option value="field">현장 직원</option></select></label><small>서버가 토큰에 지정된 역할을 다시 검증해. 토큰은 메모리에만 유지돼.</small><br><button type="submit">시험 사고 불러오기</button></form>
+<section id="summary" hidden><h2>최초보고 및 재발방지조치</h2><pre id="facts"></pre></section><section id="panel" hidden></section>
+<p><small>이 페이지는 기존 앱의 최초 승인·현장조치 화면을 대체하지 않아. 개발용 결재 패널이며, 운영 앱에는 아직 삽입하지 않았어. QA 결과 변경은 별도 시험 권한으로만 수행해.</small></p></main>
+<script type="module">
+import {mountClosurePanel,stagingTransport} from './panel.mjs';
+let mounted;const $=id=>document.getElementById(id);
+$('connect').addEventListener('submit',e=>{e.preventDefault();mounted?.dispose();const transport=stagingTransport($('token').value);$('token').value='';$('panel').hidden=false;
+mounted=mountClosurePanel($('panel'),{id:$('case').value.trim(),role:$('role').value,transport,onChange:(p,v)=>{if(!v)return;$('summary').hidden=false;const i=v.incident,c=i.corrective;$('facts').textContent=[i.siteName,i.summary,'최초보고 승인: '+i.approvedAt,'재발방지계획: '+c.planDetail,'현장조치: '+c.actionDetail,'안전관리자 확인: '+c.reviewedAt,'증빙: '+c.afterPhotos.length+'개'].join('\n');}});});
+</script></html>
