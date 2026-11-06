@@ -1,0 +1,50 @@
+{
+  "name": "enl-safety-windows",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Windows desktop launcher for the existing E&L Safety web app",
+  "author": "E&L",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "^39.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "kr.co.enl.safety.desktop",
+    "productName": "이앤엘 안전보건관리시스템",
+    "artifactName": "ENL_Safety_Setup.exe",
+    "asar": true,
+    "files": [
+      "main.js",
+      "offline.html",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "icon": "assets/enl.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "이앤엘 안전보건관리시스템",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}
