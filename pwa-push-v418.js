@@ -90,10 +90,30 @@
       const data=await res.json().catch(()=>({}));if(!res.ok||data?.ok===false){const e=new Error(data?.message||`http_${res.status}`);e.status=res.status;throw e}return data;
     }finally{if(timer)clearTimeout(timer)}
   }
-  window.enlIncidentReaderList=async incidentId=>{
-    const result=await api('view_list',{actor:actor(),incidentId,includeHqReaders:true});
-    if(!Array.isArray(result.readers))throw new Error('reader_list_unavailable');
-    return result.readers;
+  // Memory-only cache, isolated by signed-in actor. No first-view event is written by prefetch.
+  const readerCache=new Map();let readerScope='';
+  function readerContext(){
+    const u=actor(),scope=u?JSON.stringify([u.id||u.personnelId,u.role,u.siteId||'']):'';
+    if(scope!==readerScope){readerCache.clear();readerScope=scope;}
+    return {u,scope};
+  }
+  window.enlPeekIncidentReaders=incidentId=>{
+    const {u}=readerContext(),entry=u&&readerCache.get(String(incidentId));
+    return entry?.readers&&Date.now()-entry.at<30000?structuredClone(entry.readers):undefined;
+  };
+  window.enlIncidentReaderList=(incidentId,{force=false}={})=>{
+    const {u,scope}=readerContext();if(!u)return Promise.reject(new Error('auth_required'));
+    const key=String(incidentId),entry=readerCache.get(key)||{};
+    if(!force&&entry.pending)return entry.pending;
+    if(!force&&entry.readers&&Date.now()-entry.at<30000)return Promise.resolve(structuredClone(entry.readers));
+    const request={...entry};readerCache.set(key,request);
+    while(readerCache.size>100)readerCache.delete(readerCache.keys().next().value);
+    request.pending=api('view_list',{actor:u,incidentId,includeHqReaders:true}).then(result=>{
+      if(!Array.isArray(result.readers))throw new Error('reader_list_unavailable');
+      if(scope===readerContext().scope&&readerCache.get(key)===request){request.readers=structuredClone(result.readers);request.at=Date.now();}
+      return result.readers;
+    }).catch(err=>{if(readerCache.get(key)===request)readerCache.delete(key);throw err;}).finally(()=>{request.pending=null;});
+    return request.pending;
   };
   async function health(){if(healthCache)return healthCache;healthCache=await api('health',{});return healthCache}
   async function ensureSw(){if(swReg)return swReg;if(!('serviceWorker' in navigator))throw new Error('service_worker_unsupported');swReg=await navigator.serviceWorker.register(SW_URL,{scope:'/',updateViaCache:'none'});await navigator.serviceWorker.ready;return swReg}

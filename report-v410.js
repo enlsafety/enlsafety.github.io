@@ -319,6 +319,7 @@
     if(actionHeading)actionHeading.textContent='4. 사고조치 내용';
     if(editing&&u?.role==='safety'){
       const form=root.querySelector('#unifiedReportForm'),submit=form.querySelector('.report410-submit');
+      if(accepted(i)){const review=document.createElement('section');review.className='report410-section';review.innerHTML='<label class="lbl"><span>안전관리자 검토의견</span><textarea id="safetyReviewNote410" maxlength="4000" rows="4">'+esc(i.safetyNote||'')+'</textarea></label>';submit.before(review);}
       if(window.enlHistoricalMetadataHtml&&window.enlIsHistoricalCorrectionSupported?.(i)){const meta=document.createElement('section');meta.className='report410-section';meta.innerHTML='<h3>과거사고 원자료 정보</h3>'+window.enlHistoricalMetadataHtml(i);submit.before(meta);}
       if(window.enlCreateCauseEditor){const cause=window.enlCreateCauseEditor(i);cause.dataset.reportStage='B';cause.querySelector('[data-wf440-cause-save]')?.remove();submit.before(cause);}
       if(i.corrective){const past=document.createElement('div');past.innerHTML=cumulativeReportHtml(i,{from:'C'});submit.before(past);bindCumulativeReport(past,i);}
@@ -390,7 +391,10 @@
       if(!factChanged||existing.summary!==existing.reportDetails?.generatedSummary){common.summary=existing.summary;details.generatedSummary=existing.reportDetails?.generatedSummary;}
 
       if(accepted(existing)){
-        const changes={},top=[...(common.pastReport?['pastReport']:[]),'occurredAt','eventType','summary','injuredName','job','severity','potentialMajor','leaveEstimate','immediateAction','photos'];
+        const changes={};
+        const review=e.currentTarget.querySelector('#safetyReviewNote410');
+        if(review&&review.value!==initial.safetyReviewNote410&&review.value.trim()!==String(existing.safetyNote||''))changes.safetyNote=review.value.trim();
+        const top=[...(common.pastReport?['pastReport']:[]),'occurredAt','eventType','summary','injuredName','job','severity','potentialMajor','leaveEstimate','immediateAction','photos'];
         for(const k of top)if(JSON.stringify(existing[k]??null)!==JSON.stringify(common[k]??null))changes[k]=common[k];
         const allowed=['place','workAction','incidentHow','preventionPlan','specialNote','job','injuredName','injuryDetail','diagnosis','doctorOpinion','medicalCost','medicalCostPending','medicalCostDetail','workerName','damagedItem','damageDetail','repairCost','repairCostPending','repairCostDetail','environmentCause','behaviorCause','causeAnalysisNote','causeAnalysisStatus'];
         for(const k of allowed)if(JSON.stringify(details[k]??'')!==JSON.stringify(existing.reportDetails?.[k]??'')){(changes.reportDetails||(changes.reportDetails={}))[k]=details[k];}

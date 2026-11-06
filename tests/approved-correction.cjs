@@ -65,6 +65,14 @@ const assert=require('node:assert/strict'),crypto=require('node:crypto'),{fixtur
     if(['2026-02-30','2099-12-31'].includes(value))eq(r.status,400,'invalid date blocked');
     else{eq(r.status,200,JSON.stringify(r.body));i=r.body.incident;eq(i.occurredAt,value,'precision preserved');}
   }
+  const noteBaseline=structuredClone(i);
+  for(const role of ['field','manager']){r=await call(role,'correct_closed',{changes:{safetyNote:'비인가 수정'},reason:'권한 확인',mutationId:crypto.randomUUID(),expectedVersion:i._syncVersion});eq(r.status,403,'non safety review note denied');}
+  for(const note of [null,123,{},'x'.repeat(4001)]){r=await call('safety','correct_closed',{changes:{safetyNote:note},reason:'입력 확인',mutationId:crypto.randomUUID(),expectedVersion:i._syncVersion});eq(r.status,400,'invalid review note denied');}
+  r=await call('safety','correct_closed',{changes:{safetyNote:'  원자료를 확인하여 검토의견을 정정함.  '},reason:'추가 확인사항 반영',mutationId:crypto.randomUUID(),expectedVersion:i._syncVersion});eq(r.status,200,JSON.stringify(r));i=r.body.incident;
+  eq(i.safetyNote,'원자료를 확인하여 검토의견을 정정함.','safety note saved');eq(i.approvedBy,noteBaseline.approvedBy,'note does not replace approver');eq(i.approvedAt,noteBaseline.approvedAt,'note does not rewrite approval time');eq(JSON.stringify(i.corrective),JSON.stringify(noteBaseline.corrective),'action state unchanged');eq(i.status,noteBaseline.status,'report status unchanged');
+  const noteRevs=(await call('safety','revision_list')).body.revisions;eq(noteRevs[0].changes[0].field,'safetyNote','review note audit field');eq(noteRevs[0].changes[0].after,i.safetyNote,'review note audit value');
+  eq((await call('safety','pull')).body.incidents.find(x=>x.id===i.id).safetyNote,i.safetyNote,'note database re-read');
+  r=await call('safety','correct_closed',{changes:{safetyNote:''},reason:'잘못된 검토의견 삭제',mutationId:crypto.randomUUID(),expectedVersion:i._syncVersion});eq(r.status,200,JSON.stringify(r));eq(r.body.incident.safetyNote,'','intentional note clearing allowed and audited');
   console.log('PASS ordinary approved correction: '+checks+' checks; persistent update, unchanged approval, audit, access denial, stale conflict and no push');
  }finally{await f.db.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});

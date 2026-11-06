@@ -3,7 +3,7 @@
  'use strict';let queued=false;
  const e=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const actor=()=>{const u=currentUser();return {id:u.id||u.personnelId,role:u.role,siteId:u.siteId||''}};
- const fields=[['occurredAt','사고 발생일시 (한국시간)'],['summary','사고 요약'],['eventType','사고유형'],['injuredName','피해 직원명'],['immediateAction','사고 직후 조치'],
+ const fields=[['safetyNote','안전관리자 검토의견'],['occurredAt','사고 발생일시 (한국시간)'],['summary','사고 요약'],['eventType','사고유형'],['injuredName','피해 직원명'],['immediateAction','사고 직후 조치'],
   ['reportDetails.place','발생 장소'],['reportDetails.workAction','사고 당시 작업'],['reportDetails.incidentHow','사고경위'],['reportDetails.preventionPlan','최초 예방대책'],['reportDetails.specialNote','특이사항'],['reportDetails.job','직종·업무'],
   ['reportDetails.injuryDetail','부상 내용'],['reportDetails.diagnosis','진단명'],['reportDetails.doctorOpinion','의사 소견'],['reportDetails.medicalCost','치료비 (원)'],['reportDetails.medicalCostDetail','치료비 상세'],
   ['reportDetails.workerName','사고 당시 작업자'],['reportDetails.damagedItem','파손 물품'],['reportDetails.damageDetail','파손 내용'],['reportDetails.repairCost','수리비 (원)'],['reportDetails.repairCostDetail','수리비 상세'],
@@ -16,6 +16,7 @@
   if(msg.includes('enl_sync_conflict'))return '서버 자료 버전이 변경되어 저장하지 못했습니다. 작성 내용은 유지했습니다. 변경사항을 비교한 뒤 다시 검토해 주세요.';
   if(msg.includes('auth_proof_required')||msg.includes('session_auth_expired'))return '로그인 인증이 만료되었습니다. 다시 로그인해 주세요.';
   if(msg.includes('revision_field_forbidden'))return '서버가 허용하지 않는 수정 항목이 포함되어 있습니다. 변경 항목을 다시 확인해 주세요.';
+  if(msg.includes('invalid_safety_note'))return '안전관리자 검토의견은 4,000자 이내로 입력해 주세요.';
   if(msg.includes('past_report_names_required'))return '당시 기안자와 당시 안전관리자를 각각 1~80자로 입력해 주세요.';
   if(msg.includes('revision_reason_required'))return '수정 사유를 입력해 주세요.';
   if(msg.includes('report_fields_required')||msg.includes('invalid_occurrence_date')||msg.includes('future_occurrence_invalid'))return '사고 요약 및 발생일시를 확인해 주세요. 미래 날짜는 저장할 수 없습니다.';

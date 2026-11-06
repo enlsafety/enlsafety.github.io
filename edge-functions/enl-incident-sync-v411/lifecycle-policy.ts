@@ -177,7 +177,7 @@ export function correctedIncident(prev:any,changes:any,reason:string,actor:any,n
   if(!accepted(prev))fail('approved_or_closed_required');
   if(prev.executiveApproval?.state==='pending')fail('executive_review_in_progress');
   if(!text(reason)||text(reason).length>2000)fail('revision_reason_required',400);
-  const allowed=new Set(['summary','occurredAt','eventType','category','injuredName','injuredAge','injuredGender','injuredPart','injuryType','job','severity','potentialMajor','leaveEstimate','immediateAction','reportDetails','photos','corrective',...(prev.pastReport?['pastReport']:[]),...(historical?['historicalImport']:[])]);
+  const allowed=new Set(['safetyNote','summary','occurredAt','eventType','category','injuredName','injuredAge','injuredGender','injuredPart','injuryType','job','severity','potentialMajor','leaveEstimate','immediateAction','reportDetails','photos','corrective',...(prev.pastReport?['pastReport']:[]),...(historical?['historicalImport']:[])]);
   const correctiveAllowed=new Set(['rootCause','causeStatus','planDetail','ownerName','dueDate','actionDetail','actionDate','actionOwner','additionalNotes','afterPhotos']);
   const historicalDetails=new Set(['place','workAction','incidentHow','environmentCause','behaviorCause','injuredName','workerName','job','injuryDetail','diagnosis','doctorOpinion','medicalCost','medicalCostPending','medicalCostDetail','repairCost','repairCostPending','repairCostDetail','damagedItem','damageDetail','preventionPlan','specialNote','causeAnalysisStatus','causeAnalysisNote']);
   const historicalMeta=new Set(['originalReporterName','erpApprovalRef','erpApprovalDate','existingActionNote','additionalActionNote','existingActionStatus']);
@@ -186,7 +186,11 @@ export function correctedIncident(prev:any,changes:any,reason:string,actor:any,n
   for(const [key,value] of Object.entries(changes)){
     if(!allowed.has(key))fail('revision_field_forbidden',400);
 
-    if(key==='pastReport'){
+    if(key==='safetyNote'){
+      if(typeof value!=='string'||value.length>4000)fail('invalid_safety_note',400);
+      const note=value.trim();
+      if(!equal(prev.safetyNote??'',note)){next.safetyNote=note;diff.push({field:'safetyNote',before:prev.safetyNote??null,after:note});}
+    }else if(key==='pastReport'){
       if(!prev.pastReport)fail('revision_field_forbidden',400);
       const names=pastReportNames(value);
       for(const [field,name] of Object.entries(names))if(!equal(prev.pastReport[field],name)){

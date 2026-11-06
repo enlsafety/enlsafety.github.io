@@ -1,0 +1,13 @@
+'use strict';
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const s=fs.readFileSync('pwa-push-v418.js','utf8');let user={id:'safety-1',role:'safety'},calls=[];
+const ctx={window:{},structuredClone,Date,Map,Promise,JSON,Error,String,actor:()=>user,api:(action,body)=>new Promise((resolve,reject)=>calls.push({action,body,resolve,reject}))};vm.createContext(ctx);vm.runInContext(s.slice(s.indexOf('  const readerCache='),s.indexOf('  async function health()')),ctx);
+(async()=>{const w=ctx.window,a=w.enlIncidentReaderList('one'),b=w.enlIncidentReaderList('one');assert.equal(a,b);assert.equal(calls.length,1);assert.equal(w.enlPeekIncidentReaders('one'),undefined);
+ calls[0].resolve({readers:[{id:'hq',name:'QA'}]});await a;assert.equal(w.enlPeekIncidentReaders('one')[0].name,'QA');await w.enlIncidentReaderList('one');assert.equal(calls.length,1);
+ const copy=w.enlPeekIncidentReaders('one');copy[0].name='changed';assert.equal(w.enlPeekIncidentReaders('one')[0].name,'QA');
+ const force=w.enlIncidentReaderList('one',{force:true});assert.equal(calls.length,2);calls[1].resolve({readers:[{id:'hq',name:'QA',first_viewed_at:'2026-11-06T00:00:00Z'}]});await force;assert.ok(w.enlPeekIncidentReaders('one')[0].first_viewed_at);
+ const old=w.enlIncidentReaderList('two'),fresh=w.enlIncidentReaderList('two',{force:true});calls[3].resolve({readers:[{name:'new'}]});await fresh;calls[2].resolve({readers:[{name:'old'}]});await old;assert.equal(w.enlPeekIncidentReaders('two')[0].name,'new');
+ const pending=w.enlIncidentReaderList('three');user={id:'field-1',role:'field',siteId:'other'};assert.equal(w.enlPeekIncidentReaders('one'),undefined);calls[4].resolve({readers:[{name:'private'}]});await pending;assert.equal(w.enlPeekIncidentReaders('three'),undefined);
+ const failed=w.enlIncidentReaderList('four');calls[5].reject(Error('offline'));await assert.rejects(failed);assert.equal(w.enlPeekIncidentReaders('four'),undefined);
+ console.log('PASS reader cache: deduplication, immediate reuse, forced refresh, stale-response protection, actor isolation and failures');
+})().catch(e=>{console.error(e);process.exitCode=1});

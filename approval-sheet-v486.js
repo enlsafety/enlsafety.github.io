@@ -55,9 +55,10 @@
    return '<div class="enl-approval486-group" data-approval-group="'+name+'" style="--approval-cols:'+Math.min(items.length,maxColumns)+'">'+tables.join('')+'</div>';
   }
  function renderReaders(readers){
-  const cells=Array.isArray(readers)?readers.map(u=>({id:u.id,name:u.name,role:u.position||'본사실무자',state:u.first_viewed_at?'조회':'미조회',at:u.first_viewed_at,done:!!u.first_viewed_at})):null;
-  const body=cells?(group(cells,'readers','본사 실무진 최초 조회')||'<p>대상자 없음</p>'):'<p>조회 기록 확인 불가</p>';
-  return '<div class="enl-approval486-reads"><div class="enl-approval486-label">조회</div>'+body+'</div>';
+  const cells=Array.isArray(readers)?readers.map(u=>({id:u.id,name:u.name,role:u.position||'본사실무자',state:u.loading?'확인 중':u.first_viewed_at?'조회':'미조회',at:u.first_viewed_at,done:!!u.first_viewed_at})):null;
+  const loading=readers===undefined;
+  const body=loading?group(Array.from({length:4},()=>({role:'본사실무자',name:'확인 중',state:'조회 기록 확인 중'})),'readers','본사 실무진 조회 기록 확인 중'):cells?(group(cells,'readers','본사 실무진 최초 조회')||'<p>대상자 없음</p>'):'<p>조회 기록 확인 불가</p>';
+  return '<div class="enl-approval486-reads"'+(loading?' aria-busy="true"':'')+'><div class="enl-approval486-label">조회</div>'+body+'</div>';
  }
  function render(i,users=[],reads){
   const c=i.corrective||{},a=i.executiveApproval;
@@ -69,15 +70,15 @@
   const reviewIsCurrent=!!c.reviewedAt&&(!c.submittedAt||Date.parse(c.reviewedAt)>=Date.parse(c.submittedAt));
   const safetyApproved=reviewIsCurrent&&(c.status==='approved'||!!a?.requestedAt&&c.reviewedAt===a.requestedAt);
   const safetyRejected=reviewIsCurrent&&c.status==='rejected';
-  const first=[{role:'현장관리자',name:c.submittedBy||'',state:c.submittedAt?'기안':'제출대기',at:c.submittedAt,done:!!c.submittedAt},{role:'안전관리자',name:c.reviewedBy||c.planBy||'',state:safetyApproved?'승인':safetyRejected?'보완요청':'승인대기',at:safetyApproved||safetyRejected?c.reviewedAt:'',done:safetyApproved,rejected:safetyRejected}];
+  const first=[{role:'현장',name:c.submittedBy||'',state:c.submittedAt?'기안자 / 제출완료':'기안자 / 제출대기',at:c.submittedAt,done:!!c.submittedAt},{role:'안전',name:c.reviewedBy||c.planBy||'',state:safetyApproved?'담당 / 승인':safetyRejected?'담당 / 보완요청':'담당 / 승인대기',at:safetyApproved||safetyRejected?c.reviewedAt:'',done:safetyApproved,rejected:safetyRejected}];
   if(i.pastReport){
-   if(!first[0].name&&!c.submittedAt)Object.assign(first[0],{name:i.pastReport.drafterName,state:'당시 기안자 / 제출대기'});
-   if(!first[1].name&&!c.reviewedAt)Object.assign(first[1],{name:i.pastReport.safetyManagerName,state:'당시 담당 / 승인대기'});
+   if(!first[0].name&&!c.submittedAt)Object.assign(first[0],{name:i.pastReport.drafterName,state:'기안자 / 제출대기'});
+   if(!first[1].name&&!c.reviewedAt)Object.assign(first[1],{name:i.pastReport.safetyManagerName,state:'담당 / 승인대기'});
   }
   const approver=u=>{const s=(a?.signatures||[]).find(x=>x.id===u.id&&x.decision==='approve'),r=a?.state==='rejected'&&a.rejection?.id===u.id?a.rejection:null;return {id:u.id,role:u.position||'경영진',name:u.name||'',state:s?'승인':r?'반려':'결재대기',at:s?.at||r?.at,done:!!s,rejected:!!r,note:s?.note||r?.note};};
   const decisionCols=Math.min(exec.length,maxColumns)+Math.min(final.length,maxColumns);
   const decisions=decisionCols?'<div class="enl-approval486-decisions" style="--decision-cols:'+decisionCols+'">'+group(exec.map(approver),'executives','경영진 결재')+group(final.map(approver),'president','사장 최종결재')+'</div>':'';
-  return '<section class="enl-approval486" data-approval-sheet aria-label="사고보고 결재란"><div class="enl-approval486-line"><div class="enl-approval486-prep"><div class="enl-approval486-label">결재</div>'+group(first,'origin','기안 및 안전관리자 확인')+'</div>'+decisions+'</div><div data-hq-readers>'+(reads===undefined?'':renderReaders(reads))+'</div></section>';
+  return '<section class="enl-approval486" data-approval-sheet aria-label="사고보고 결재란"><div class="enl-approval486-line"><div class="enl-approval486-prep"><div class="enl-approval486-label">결재</div>'+group(first,'origin','기안 및 안전관리자 확인')+'</div>'+decisions+'</div><div data-hq-readers>'+renderReaders(reads)+'</div></section>';
  }
  root.ENLApprovalSheet={render,renderReaders,css};
  if(typeof document!=='undefined'&&!document.getElementById('enlApprovalSheet486Css')){const style=document.createElement('style');style.id='enlApprovalSheet486Css';style.textContent=css;document.head.appendChild(style);}
