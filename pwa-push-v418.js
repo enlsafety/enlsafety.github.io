@@ -44,7 +44,7 @@
       <section class="enl-help-section"><h3>1. 앱 설치하기</h3>
       <details ${ios?'open':''}><summary>iPhone / iPad</summary><ol><li>Safari에서 사고보고앱을 엽니다.</li><li>공유 메뉴에서 <b>홈 화면에 추가</b>를 선택합니다. 공유가 보이지 않으면 더 보기 메뉴를 확인합니다.</li><li><b>웹 앱으로 열기</b>가 표시되면 켠 뒤 추가합니다.</li><li>홈 화면에 생긴 사고보고앱 아이콘으로 다시 실행합니다.</li></ol></details>
       <details ${android?'open':''}><summary>Android</summary><ol><li>Chrome에서 사고보고앱을 엽니다.</li><li>브라우저 메뉴의 <b>설치 및 바로가기 만들기 → 설치</b>를 선택합니다. 버전에 따라 <b>앱 설치</b> 또는 <b>홈 화면에 추가</b>로 표시됩니다.</li><li>설치된 앱 아이콘으로 실행합니다.</li></ol></details>
-      <details ${!ios&&!android?'open':''}><summary>PC</summary><ol><li>Chrome 또는 Edge에서 사고보고앱을 엽니다.</li><li>주소창의 설치 아이콘 또는 브라우저 메뉴의 앱 설치 항목을 선택합니다.</li><li>설치 항목이 없으면 브라우저에서 그대로 사용할 수 있습니다.</li></ol></details>
+      <details ${!ios&&!android?'open':''}><summary>PC</summary><ol><li>Chrome 또는 Edge에서 사고보고앱을 엽니다.</li><li>브라우저 오른쪽 위의 <b>점 3개 메뉴</b>를 누릅니다.</li><li>메뉴 하단의 <b>캐스팅, 저장, 공유</b>를 선택합니다.</li><li><b>페이지를 앱으로 설치</b>를 누른 뒤 설치창에서 <b>설치</b>를 선택합니다.</li><li>설치된 앱 아이콘으로 실행합니다.</li></ol></details>
       <p class="enl-help-note">카카오톡 안에서 열었다면 Safari 또는 Chrome으로 주소를 열어 주세요. 메뉴 이름은 기기와 브라우저 버전에 따라 다를 수 있습니다.</p></section>
       <section class="enl-help-section"><h3>2. 알림 켜기</h3><ol><li>앱에 로그인하고 상단의 <b>알림 설정</b>을 누릅니다. iPhone은 홈 화면에 추가한 앱에서 진행합니다.</li><li><b>알림 켜기</b>를 누른 뒤 기기의 권한 요청에서 <b>허용</b>을 선택합니다.</li><li>상단에 <b>알림 켜짐</b>이 표시되는지 확인합니다.</li></ol><p class="enl-help-note">차단된 경우 기기 또는 브라우저 설정에서 사고보고앱의 알림을 허용한 뒤 다시 설정해 주세요. 알림이 오지 않으면 집중 모드와 방해 금지도 확인해 주세요.</p></section>`;
   }
