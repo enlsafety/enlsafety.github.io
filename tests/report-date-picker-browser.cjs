@@ -43,8 +43,28 @@ const {chromium,webkit}=require('playwright'),fs=require('node:fs'),assert=requi
       assert.equal(await placeholders.count(),2);
       assert.equal(await placeholders.nth(0).innerText(),'선택하세요');
       assert.equal(await placeholders.nth(1).innerText(),'선택하세요');
-      assert.ok(await placeholders.nth(0).isVisible());
-      assert.ok(await placeholders.nth(1).isVisible());
+      assert.ok(!(await placeholders.nth(0).isVisible()));
+      assert.ok(!(await placeholders.nth(1).isVisible()));
+      assert.equal(await page.locator('#occurredDate410').getAttribute('placeholder'),'0000-00-00');
+      assert.equal(await page.locator('#occurredTime410').getAttribute('placeholder'),'00:00');
+      await page.locator('#occurredDate410').click();
+      assert.equal(await page.locator('[data-report-calendar]').count(),0);
+      await page.locator('#occurredDate410').fill('20261106');
+      assert.equal(await page.locator('#occurredDate410').inputValue(),'2026-11-06');
+      await page.locator('#occurredDate410').fill('20260229');
+      assert.equal(await page.locator('#occurredDate410').evaluate(el=>el.checkValidity()),false);
+      await page.locator('#occurredDate410').fill('');
+      await page.locator('#occurredTime410').fill('0930');
+      assert.equal(await page.locator('#occurredTime410').inputValue(),'09:30');
+      await page.locator('.report410-time-launch').click();
+      await page.locator('[data-report-time-hour="23"]').click();
+      assert.equal(await page.locator('[data-report-time]').count(),1);
+      await page.locator('[data-report-time-minute="7"]').click();
+      assert.equal(await page.locator('#occurredTime410').inputValue(),'23:07');
+      assert.equal(await page.locator('[data-report-time]').count(),0);
+      await page.locator('#occurredTime410').fill('2400');
+      assert.equal(await page.locator('#occurredTime410').evaluate(el=>el.checkValidity()),false);
+      await page.locator('#occurredTime410').fill('');
 
       // Month choice must not commit or close. The user must still pick a day.
       await page.locator('.report410-date-launch').click();

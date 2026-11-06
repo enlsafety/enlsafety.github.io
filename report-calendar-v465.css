@@ -1,8 +1,16 @@
-/* Accident occurrence date: the visible date input stays compatible with existing submission/validation. */
-.report410-custom-date{position:relative!important}
-.report410-custom-date input[type="date"],.report410-custom-date .report410-picker-placeholder{pointer-events:none!important}
-.report410-custom-date .report410-date-launch{position:absolute!important;inset:0!important;z-index:6!important;display:block!important;width:100%!important;height:100%!important;margin:0!important;padding:0!important;border:0!important;border-radius:10px!important;background:transparent!important;color:transparent!important;font-size:0!important;cursor:pointer!important;appearance:none!important}
-.report410-custom-date .report410-date-launch:focus-visible{outline:3px solid #227ab1!important;outline-offset:2px!important}
+/* Numeric entry and separate calendar/clock launch buttons. */
+.report410-custom-date,.report410-custom-time{position:relative!important}
+:is(.report410-custom-date,.report410-custom-time) input{padding-right:48px!important;min-width:0;letter-spacing:.3px;font-variant-numeric:tabular-nums}
+:is(.report410-custom-date,.report410-custom-time) .report410-picker-placeholder{display:none!important}
+:is(.report410-custom-date,.report410-custom-time) :is(.report410-date-launch,.report410-time-launch){position:absolute!important;right:3px!important;top:3px!important;bottom:3px!important;width:40px!important;min-height:0!important;height:auto!important;display:flex!important;align-items:center;justify-content:center;padding:0!important;margin:0!important;border:0!important;border-radius:7px!important;background:transparent!important;color:#285f87!important;cursor:pointer;z-index:3}
+:is(.report410-date-launch,.report410-time-launch):hover{background:#eaf4fc!important}
+:is(.report410-date-launch,.report410-time-launch):focus-visible{outline:2px solid #227ab1!important;outline-offset:-2px}
+:is(.report410-date-launch,.report410-time-launch):disabled{opacity:.35;cursor:default}
+.report410-time-tabs{display:flex;align-items:center;justify-content:center;gap:12px;margin:16px 0}
+.report410-time-tabs button{padding:10px 18px;border:1px solid #bfd5e5;border-radius:10px;background:#f3f8fc;color:#28577d;font-size:22px;font-weight:800;cursor:pointer}
+.report410-time-tabs button[aria-pressed="true"]{background:#1e5d91;color:#fff}
+.report410-time-stage{font-size:14px;font-weight:800;margin:8px 0}
+.report410-time-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;max-height:244px;overflow:auto;overscroll-behavior:contain;padding:3px}
 .report410-cal-backdrop{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(13,35,59,.58);box-sizing:border-box;overscroll-behavior:contain}
 .report410-cal-dialog{width:min(400px,100%);max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);overflow-y:auto;overscroll-behavior:contain;box-sizing:border-box;padding:19px 18px 15px;border-radius:22px;background:#fff;color:#173b66;box-shadow:0 20px 55px rgba(0,0,0,.27);font-family:"Malgun Gothic",Arial,sans-serif}
 .report410-cal-dialog *{box-sizing:border-box}
