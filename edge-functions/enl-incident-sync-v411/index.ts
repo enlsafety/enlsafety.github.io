@@ -210,14 +210,14 @@ Deno.serve(async(req:Request)=>{
     if(action.startsWith("platform_"))return await platformRequest(sql,actor,body,json);
     let feed=clean(body.feed);
     if(action.startsWith("activity_")&&feed!=="incident"&&!await serviceAllowed(sql,actor,"history")){
-      if(feed==="common")return json({ok:false,message:"service_unavailable"},403);
+      if(feed)return json({ok:false,message:"service_unavailable"},403);
       if(!feed)feed="incident";
     }
-    if(feed&&!["common","incident"].includes(feed))return json({ok:false,message:"invalid_feed"},400);
+    if(feed&&!["all","common","incident","risk","tbm","organization","training","msds"].includes(feed))return json({ok:false,message:"invalid_feed"},400);
     if(action==="activity_cleanup_audit"){
       if(actor.role!=="safety")return json({ok:false,message:"forbidden"},403);
       const rows=await sql`select id::text,actor_name,at,mode,scope,reason,cardinality(event_ids) as count,restored_at,restored_by,restore_reason
-        from private.enl_platform_cleanup where (${feed}='' or scope->>'feed'=${feed}) and id<coalesce(nullif(${clean(body.before)},'')::bigint,9223372036854775807) order by id desc limit 51`;
+        from private.enl_platform_cleanup where (${feed} in ('','all') or scope->>'feed'=${feed}) and id<coalesce(nullif(${clean(body.before)},'')::bigint,9223372036854775807) order by id desc limit 51`;
       return json({ok:true,rows:rows.slice(0,50),more:rows.length>50});
     }
     if(["activity_count","activity_open","activity_list","activity_page","activity_document","activity_delete","activity_restore"].includes(action)){
@@ -251,13 +251,13 @@ Deno.serve(async(req:Request)=>{
           await tx`update private.enl_incident_delete_attempts set failures=0 where actor_id=${actor.id}`;
           if(mode==="restore"){
             const [restored]=await tx`with batch as (update private.enl_platform_cleanup set restored_at=now(),restored_by=${actor.id},restore_reason=${reason}
-              where id=${id}::bigint and restored_at is null and (${feed}='' or scope->>'feed'=${feed}) returning event_ids),
+              where id=${id}::bigint and restored_at is null and (${feed} in ('','all') or scope->>'feed'=${feed}) returning event_ids),
               changed as (update private.enl_activity_events set listed=true where not listed and id in (select unnest(event_ids) from batch) returning id)
               select count(*)::int as count from changed`;
             return json({ok:true,restored:restored.count});
           }
           const [result]=await tx`with removed as (update private.enl_activity_events set listed=false where listed
-            and (${feed}='' or coalesce(module_key,case when split_part(kind,'_',1) in ('hq','site','personnel') then 'common' else 'incident' end)=${feed})
+            and (${feed} in ('','all') or coalesce(module_key,case when split_part(kind,'_',1) in ('hq','site','personnel') then 'common' else 'incident' end)=${feed})
             and (${mode}<>'one' or id=nullif(${id},'')::bigint)
             and (${mode}<>'range' or happened_at >= (nullif(${from},'')::date::timestamp at time zone 'Asia/Seoul')
               and happened_at < ((nullif(${to},'')::date+1)::timestamp at time zone 'Asia/Seoul')) returning id)
@@ -267,20 +267,15 @@ Deno.serve(async(req:Request)=>{
         });
       }
       // Both the unread count and every search/page use this same server-verified scope.
-      const permitted=safety?sql`true`:sql`(
-        (e.module_key='common' and ((${field} and e.site_id=${actor.siteId} and (split_part(e.kind,'_',1) in ('site','personnel') or e.kind='email_registered')) or
-          (${feed}='common' and (e.actor_id=${actor.id} or e.incident_id=${actor.id}))))
-        or (e.module_key in ('risk','tbm','organization','training') and (not ${field} or e.site_id=${actor.siteId}) and exists
-          (select from private.enl_platform_catalog c,jsonb_array_elements(c.modules) m where m->>'key'=e.module_key and coalesce(m->>'enabled','true')='true' and (m->'roles') ? ${actor.role}
-          and (m->>'state'='live' or (m->>'state'='building' and m->>'preview'='true' and (m->'pilots') ? ${(field?'site:':'hq:')+actor.id}))))
-        or (e.module_key='incident' and split_part(e.kind,'_',1) not in ('site','personnel','hq') and exists (
-          select 1 from public.enl_incident_active a where a.incident_id=e.incident_id
-          and (not ${field} or (a.site_id=${actor.siteId} and e.site_id=a.site_id))
-          and (${field} or a.payload->>'status' in ('reported','supplement','supplement_submitted','approved','closed'))
+      const permitted=!field?sql`true`:sql`(
+        (e.site_id=${actor.siteId} and (e.module_key<>'incident' or exists (
+          select 1 from public.enl_incident_active a where a.incident_id=e.incident_id and a.site_id=${actor.siteId}
           and not (coalesce(a.payload#>>'{bulkInvalidation,active}','false')='true'
             and coalesce(a.payload#>>'{historicalOrigin,batchId}','')<>'' and coalesce(a.payload#>>'{historicalOrigin,candidateId}','')<>''
-            and coalesce(a.payload#>>'{externalInitialApproval,state}','') in ('verified','unverifiable')))))`;
-      const visible=sql`(${feed}='' or e.module_key=${feed}) and (${permitted})`;
+            and coalesce(a.payload#>>'{externalInitialApproval,state}','') in ('verified','unverifiable')))))
+        or (e.module_key='common' and nullif(e.site_id,'') is null and e.actor_role in ('safety','manager','executive','final'))
+      )`;
+      const visible=sql`(${feed} in ('','all') or e.module_key=${feed}) and (${permitted})`;
       if(action==="activity_count"){
         const [r]=await sql`select count(*)::int as unread from private.enl_platform_history e
           left join private.enl_history_checkpoints c on c.actor_id=${readKey}

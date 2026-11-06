@@ -1,7 +1,7 @@
 /* Common entry points share the signed-in actor and the existing incident workflow. */
 (()=>{
   'use strict';
-  const names={incident:'사고보고',risk:'위험성평가',tbm:'TBM',organization:'안전보건조직',training:'교육관리',msds:'MSDS',history:'통합 히스토리',approvals:'통합 결재함',notices:'알림센터',documents:'문서 및 증빙관리',dashboard:'통합 대시보드',system:'시스템 관리'};
+  const names={incident:'사고보고',risk:'위험성평가',tbm:'TBM',organization:'안전보건조직',training:'교육관리',msds:'MSDS',history:'통합기록',approvals:'통합결재 대기',notices:'알림센터',documents:'문서 및 증빙관리',dashboard:'통합 대시보드',system:'시스템 관리'};
   const icons={
     incident:'<path d="M14 3H5v18h14V8z M14 3v5h5 M8 12h8m-8 4h6"/>',
     risk:'<path d="M12 2 20 5v6c0 5-4 9-8 11-4-2-8-6-8-11V5z m-4 10 3 3 5-6"/>',

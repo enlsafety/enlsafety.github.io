@@ -11,19 +11,19 @@
   const userId=()=>{const a=actor();return a?.id&&canView(a)?JSON.stringify([a.role,a.siteId,a.id]):'';};
   const api=body=>window.enlIncidentApi({...body,actor:actor()});
   const safe=v=>esc(String(v??''));
-  let account='',counts={common:0,incident:0},checked=0,serial=0,opening=0,requested=false,activeHistory=null;
+  let account='',counts={all:0,common:0,incident:0},checked=0,serial=0,opening=0,requested=false,activeHistory=null;
   function owner(){
     const id=userId();
-    if(account!==id){account=id;counts={common:0,incident:0};checked=0;serial++;opening=0;requested=false;activeHistory=null;}
+    if(account!==id){account=id;counts={all:0,common:0,incident:0};checked=0;serial++;opening=0;requested=false;activeHistory=null;}
     return id;
   }
   function paint(){
     for(const b of document.querySelectorAll(menuSelector)){
-    const count=counts[b.hasAttribute('data-platform-history-feed')?'common':'incident'];
+    const count=counts[b.dataset.historyScope||(b.hasAttribute('data-platform-history-feed')?'all':'incident')];
     let badge=b.querySelector('.activity-count');
     if(!count){badge?.remove();if(b.hasAttribute('data-platform-history-feed'))b.setAttribute('aria-label',b.dataset.platformHistoryFeed||'통합 히스토리');else b.removeAttribute('aria-label');continue;}
     if(!badge){badge=document.createElement('span');badge.className='enl424-nav-count activity-count';b.append(badge);}
-    badge.textContent=String(count);b.setAttribute('aria-label',(b.hasAttribute('data-platform-history-feed')?(b.dataset.platformHistoryFeed||'통합 히스토리'):'사용자 기록')+', 미확인 '+count+'건');
+    badge.textContent=String(count);b.setAttribute('aria-label',(b.hasAttribute('data-platform-history-feed')?(b.dataset.platformHistoryFeed||'통합 히스토리'):(b.dataset.historyScope==='all'?'최근 업무 기록':'사용자 기록'))+', 미확인 '+count+'건');
     }
   }
   async function refresh(force=false){
@@ -32,7 +32,7 @@
     paint();if(opening||document.hidden||!window.enlIncidentApi||(!force&&Date.now()-checked<30000))return;
     checked=Date.now();const token=++serial;
     try{
-      const feeds=[...new Set([...document.querySelectorAll(menuSelector)].map(b=>b.hasAttribute('data-platform-history-feed')?'common':'incident'))];
+      const feeds=[...new Set([...document.querySelectorAll(menuSelector)].map(b=>b.dataset.historyScope||(b.hasAttribute('data-platform-history-feed')?'all':'incident')))];
       await Promise.all(feeds.map(async feed=>{const r=await api({action:'activity_count',feed});
         if(token===serial&&userId()===id){counts[feed]=r.unread;paint();}
       }));
@@ -72,21 +72,28 @@
       host.append(dialog);dialog.showModal();
     });
   }
+  const categories={all:'통합기록',incident:'사고보고기록',organization:'안전보건조직기록',tbm:'TBM기록',risk:'위험성평가기록',training:'교육기록',msds:'MSDS기록',common:'공통업무기록'};
+  let requestedFeed='';
   function render(root,feed='incident'){
     const id=owner();if(!id)return;
     const mark=requested;requested=false;
+    feed=requestedFeed||(feed==='common'?'all':feed);requestedFeed='';
+    if(!mark&&activeHistory)feed=activeHistory.dataset.feed;
     // Background sync may rebuild the shell while the user is editing search or removal dates.
     if(!mark&&activeHistory?.dataset.feed===feed){if(activeHistory.parentElement!==root)root.replaceChildren(activeHistory);return;}
     const host=document.createElement('section');host.className='panel activity-history';host.dataset.feed=feed;root.replaceChildren(host);activeHistory=host;
     host.innerHTML='<div class="section-head"><h2>통합 히스토리</h2><button type="button" class="secondary" data-refresh>새로고침</button></div><form class="activity-filters"><label>기간<select name="range"><option value="recent">최근 30일</option><option value="month">월별 조회</option><option value="custom">기간 지정</option><option value="all">전체 기간</option></select></label><label hidden data-month>조회 월<input type="month" name="month"></label><label hidden data-custom>시작일<input type="date" name="start"></label><label hidden data-custom>종료일<input type="date" name="end"></label><label>검색어<input type="search" name="q" maxlength="120" placeholder="이름, 사업장, 사고, 처리 내용"></label><button class="secondary" type="submit">검색</button></form><p role="status"></p><ol></ol><button type="button" class="secondary" data-more hidden>이전 기록 더 보기</button>';
-    host.querySelector('h2').textContent=feed==='common'?'통합 히스토리':'사고보고 사용자 기록';
-    if(feed==='common')host.querySelector('.section-head').insertAdjacentHTML('afterend','<p>사용자 계정, 이메일, 사업장 정보의 변경 기록입니다.</p>');
+    host.querySelector('h2').textContent=categories[feed]||'통합기록';
+    const tabs=document.createElement('nav');tabs.className='hub-category-tabs';tabs.setAttribute('aria-label','업무 기록 분류');
+    for(const [key,title] of Object.entries(categories)){const button=document.createElement('button');button.type='button';button.textContent=title;button.setAttribute('aria-pressed',String(key===feed));button.onclick=()=>{requested=true;requestedFeed=key;render(root,key)};tabs.append(button)}
+    host.querySelector('.section-head').after(tabs);
+    tabs.insertAdjacentHTML('afterend','<p class="activity-scope">'+(actor().role==='field'?'소속 현장 전체 기록과 본사 담당자의 전사 공통업무 기록입니다.':'전체 사업장과 전체 사용자의 업무 기록입니다.')+'</p>');
     const list=host.querySelector('ol'),status=host.querySelector('[role=status]'),more=host.querySelector('[data-more]');
     const form=host.querySelector('form'),controls=form.elements;
     const names={incident:'사고보고',common:'공통 시스템',risk:'위험성평가',tbm:'TBM',organization:'안전보건조직',training:'안전보건교육'};
     const kinds={create:'최초 등록',view:'최초 조회',approve:'최초 승인',reject:'반려',supplement_request:'보완 요청',supplement_submit:'보완 제출',plan_create:'계획 수립',plan_edit:'계획 수정',corrective_submit:'조치 제출',corrective_reject:'조치 보완',corrective_approve:'조치 승인',executive_sign:'경영진 결재',executive_reject:'경영진 반려',final_approval:'최종 결재',update:'수정',delete:'삭제',cause_save:'원인분석 저장',cost_added:'비용 추가',post_approval_revision:'승인 후 수정',correct_closed:'종결 정정',resubmit:'재제출',supplement_resubmit:'보완 재제출',site_create:'현장 등록',site_update:'현장 변경',personnel_create:'인원 등록',personnel_update:'인원 변경',personnel_delete:'인원 삭제',personnel_retire:'퇴사',personnel_reactivate:'복직',hq_create:'본사 계정 등록',hq_update:'본사 계정 변경'};
     kinds.email_registered='이메일 등록';
-    const feedKinds=Object.fromEntries(Object.entries(kinds).filter(([k])=>/^(hq_|personnel_|site_|email_)/.test(k)===(feed==='common')));
+    const feedKinds=Object.fromEntries(Object.entries(kinds).filter(([k])=>feed==='all'||/^(hq_|personnel_|site_|email_)/.test(k)===(feed==='common')));
     const options=obj=>'<option value="">전체</option>'+Object.entries(obj).map(([k,v])=>'<option value="'+safe(k)+'">'+safe(v)+'</option>').join('');
     form.querySelector('[type=submit]').insertAdjacentHTML('beforebegin','<label>사업장<input name="site" maxlength="100"></label><label>사용자<input name="person" maxlength="100"></label><label>처리유형<select name="kind">'+options(feedKinds)+'</select></label><label>처리결과<select name="result">'+options(Object.fromEntries(['승인','반려','보완요청','종결','처리완료'].map(v=>[v,v])))+'</select></label>');
     if(feed==='common'){controls.q.placeholder='이름, 사업장, 계정 변경 내용';controls.result.closest('label').remove();}
@@ -124,8 +131,8 @@
       const range=manage.querySelector('form');
       range.onsubmit=e=>{e.preventDefault();const fromDate=range.elements.start.value,toDate=range.elements.end.value;
         if(fromDate>toDate){notice.textContent='종료일은 시작일 이후로 선택해 주세요.';return;}
-        removeHistory({mode:'range',fromDate,toDate},fromDate+'부터 '+toDate+'까지의 사용자 기록을 모두');};
-      manage.querySelector('[data-delete-all]').onclick=()=>removeHistory({mode:'all'},'전체 기간의 사용자 기록을 모두');
+        removeHistory({mode:'range',fromDate,toDate},fromDate+'부터 '+toDate+'까지의 현재 분류 기록을 모두');};
+      manage.querySelector('[data-delete-all]').onclick=()=>removeHistory({mode:'all'},'현재 분류의 전체 기간 기록을 모두');
     }
     function apply(){
       let fromDate='',toDate='';
@@ -171,7 +178,7 @@
     }
     host.querySelector('[data-refresh]').onclick=()=>load(true,true);more.onclick=()=>load(false,false);load(true,mark);
   }
-  window.enlRequestHistory=()=>{owner();requested=true;};
+  window.enlRequestHistory=(feed)=>{owner();requested=true;requestedFeed=Object.hasOwn(categories,feed)?feed:'';};
   window.enlRenderHistory=render;window.enlRefreshHistoryCount=refresh;
   window.addEventListener('focus',()=>refresh(true));
   for(const event of ['enl-activity-changed','enl-incident-saved'])window.addEventListener(event,()=>refresh(true));

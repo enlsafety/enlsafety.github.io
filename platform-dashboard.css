@@ -303,3 +303,28 @@
 }
 @media(max-width:1170px){.incident-overview .sd450-map-frame{padding-top:36px}}
 @media(max-width:360px){.incident-overview .sd450-map-frame{padding-top:50px}}
+
+/* Categorized work history, approvals and rotating safety campaigns. */
+.hub-category-tabs{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0 16px}
+.hub-category-tabs button{border:1px solid #d7e3f2;background:#f4f8fd;color:#345574;border-radius:9px;padding:8px 11px;font-size:12px;line-height:1.4;min-height:36px;cursor:pointer}
+.hub-category-tabs button:hover,.hub-category-tabs button[aria-pressed=true]{background:#e0edff;border-color:#83b0eb;color:#174b91}
+.hub-history-shortcuts{padding:14px;background:#f7faff;border:1px solid #dce8f5;border-radius:12px}
+.hub-approvals .hub-category-tabs{gap:5px;margin:0 0 8px}
+.hub-approvals .hub-category-tabs button{padding:5px 7px;font-size:11px;min-height:30px}
+.activity-scope{font-size:13px;color:#587086}
+.hub-banner-controls{position:absolute;right:16px;bottom:10px;display:flex;align-items:center;gap:5px;z-index:3;background:#ffffffeb;padding:5px 7px;border-radius:20px;box-shadow:0 2px 10px #193b6614}
+.hub-banner-controls button{background:transparent;border:0;color:#284e76;border-radius:14px;font-size:12px;min-width:28px;min-height:28px;height:28px;padding:0 6px;cursor:pointer}
+.hub-banner-controls [data-dots]{display:flex;align-items:center}
+.hub-banner-controls [data-dots] button{font-size:0;min-width:22px;padding:7px}
+.hub-banner-controls [data-dots] button:after{content:'';display:block;width:7px;height:7px;border-radius:50%;background:#b6c6d9}
+.hub-banner-controls [data-dots] button[aria-pressed=true]:after{background:#2667ba}
+.hub-banner-controls button:focus-visible{outline:2px solid #2667ba;outline-offset:1px}
+.hub-hero.hub-campaign-active{background:linear-gradient(115deg,#e9f5ff,#f6fbff 60%,#e0edf9)}
+.hub-campaign-active .hub-hero-image,.hub-campaign-active .hub-welcome,.hub-campaign-active:after{visibility:hidden}
+.hub-campaign{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:40px 7% 16px;color:#173e63}
+.hub-campaign[hidden]{display:none}
+.hub-campaign>div{min-width:0;max-width:67%}.hub-campaign small{font-size:11px;letter-spacing:2px;color:#4480aa}
+.hub-campaign h2{font-size:clamp(20px,2.2vw,34px);line-height:1.4;margin:10px 0;word-break:keep-all}
+.hub-campaign p{font-size:14px;line-height:1.7;margin:0;word-break:keep-all}
+.hub-campaign img{width:26%;max-height:100%;object-fit:contain}
+@media(max-width:760px){.hub-banner-controls{top:7px;left:7px;right:auto;bottom:auto;padding:2px 4px;gap:1px}.hub-banner-controls button{height:26px;font-size:11px}.hub-campaign{padding:43px 18px 12px;gap:8px}.hub-campaign>div{max-width:76%}.hub-campaign h2{font-size:17px;line-height:1.35;margin:5px 0}.hub-campaign small{font-size:8px}.hub-campaign p{font-size:11px;line-height:1.5}.hub-campaign img{width:20%}.hub-hero{width:100%}.hub-campaign-active{aspect-ratio:auto;min-height:200px;height:200px}.hub-category-tabs button{min-height:38px}}

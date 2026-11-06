@@ -30,7 +30,7 @@ const assert=require('node:assert/strict'),{fixture}=require('./final-lifecycle.
  assert.equal((await api('safety','platform_save',{modules:hidden,revision:2})).status,409);
  await f.db.exec("select private.enl_platform_event('sample','risk','qa-risk','qa-site','qa-safety','QA 안전','safety','risk_edit','처리완료','위험성평가를 수정했습니다.')");
  assert.equal((await api('manager','activity_list',{module:'risk',search:'위험성평가'})).body.rows.length,1);
- assert.equal((await api('executive','activity_list',{module:'risk'})).body.rows.length,0);
+ assert.equal((await api('executive','activity_list',{module:'risk'})).body.rows.length,1);
  const disabled=structuredClone(draft);delete disabled.find(m=>m.key==='risk').displayName;disabled.find(m=>m.key==='incident').enabled=false;
  assert.equal((await api('safety','platform_save',{modules:disabled,revision:2})).status,409);
  assert.equal((await api('safety','platform_save',{modules:disabled,revision:2,confirmDisableIncident:true})).status,200);

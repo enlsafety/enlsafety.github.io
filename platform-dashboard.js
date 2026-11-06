@@ -79,16 +79,42 @@
   b.querySelector('strong').classList.add('hub-card-title');
   b.insertAdjacentHTML('beforeend','<span class="hub-card-description">'+(descriptions[m.key]||'')+'</span><span class="hub-card-arrow" aria-hidden="true">'+svg('arrow')+'</span>');
  }
+ let stopBanner=()=>{};
+ function startBanner(host){
+  stopBanner();const hero=host.querySelector('.hub-hero'),motion=matchMedia('(prefers-reduced-motion: reduce)');
+  let index=0,paused=motion.matches,hover=false,timer=0;
+  const slides=[null,{title:'작업 전, 위험요인부터 함께 확인해요',body:'오늘의 작업과 위험요인을 공유하고 안전한 작업방법을 함께 확인하세요.',art:'policy'},
+    {title:'작은 확인이 동료의 안전을 지킵니다',body:'차량 이동 전 주변을 살피고, 작업에 맞는 보호구를 확인하세요.',art:'ppe'},
+    {title:'사고 경험을 재발방지로 이어갑니다',body:'사고 원인을 살피고 개선조치가 현장에 정착했는지 확인하세요.',art:'emergency'}];
+  hero.setAttribute('aria-label','안전보건 안내 배너');hero.setAttribute('aria-roledescription','슬라이드');
+  const campaign=document.createElement('div');campaign.className='hub-campaign';campaign.hidden=true;
+  const controls=document.createElement('div');controls.className='hub-banner-controls';
+  controls.innerHTML='<button type="button" data-prev aria-label="이전 배너">‹</button><span data-dots></span><button type="button" data-next aria-label="다음 배너">›</button><button type="button" data-pause></button>';
+  hero.append(campaign,controls);
+  slides.forEach((_,n)=>{const b=document.createElement('button');b.type='button';b.setAttribute('aria-label',(n+1)+'번 배너 보기');b.onclick=()=>{index=n;paint();schedule()};controls.querySelector('[data-dots]').append(b)});
+  function paint(){hero.classList.toggle('hub-campaign-active',index!==0);campaign.hidden=index===0;const s=slides[index];
+    if(s)campaign.innerHTML='<div><small>SAFE WORKPLACE</small><h2>'+safe(s.title)+'</h2><p>'+safe(s.body)+'</p></div><img src="assets/safety-cards/'+s.art+'.webp" width="320" height="320" alt="">';
+    controls.querySelectorAll('[data-dots] button').forEach((b,n)=>b.setAttribute('aria-pressed',String(n===index)));
+    controls.querySelector('[data-pause]').textContent=paused?'재생':'일시정지';controls.querySelector('[data-pause]').setAttribute('aria-label',paused?'배너 자동전환 재생':'배너 자동전환 일시정지');
+  }
+  function schedule(){clearTimeout(timer);timer=setTimeout(()=>{if(!host.isConnected){stop();return}if(!paused&&!hover&&!hero.contains(document.activeElement)&&!document.hidden&&(!host.dataset.workspace||host.dataset.workspace==='home')){index=(index+1)%slides.length;paint()}schedule()},5000)}
+  controls.querySelector('[data-prev]').onclick=()=>{index=(index+slides.length-1)%slides.length;paint();schedule()};
+  controls.querySelector('[data-next]').onclick=()=>{index=(index+1)%slides.length;paint();schedule()};
+  controls.querySelector('[data-pause]').onclick=()=>{paused=!paused;paint();schedule()};
+  hero.onpointerenter=()=>{hover=true};hero.onpointerleave=()=>{hover=false;schedule()};
+  const reduce=()=>{paused=motion.matches;paint();schedule()};motion.addEventListener('change',reduce);
+  function stop(){clearTimeout(timer);motion.removeEventListener('change',reduce)}stopBanner=stop;paint();schedule();
+ }
  function mount(host,u,{go,icons,names,featureName,manageCards}){
   const admin=u.role==='safety',userKey=JSON.stringify([u.id||u.personnelId,u.role,u.siteId||'']);let catalog=null,content={notices:[],events:[],favorites:[]},loaded=false,contentError='',recent=[],recentError='',busy=false;
   const sameUser=()=>{const a=currentUser?.();return a&&JSON.stringify([a.id||a.personnelId,a.role,a.siteId||''])===userKey&&host.isConnected};
   const action=(key,label,cls='')=>'<button type="button" class="'+cls+'" data-hub="'+key+'"'+(key==='notifications'?' aria-label="알림센터"':key==='menu'?' aria-label="메뉴 열기"':key==='search'?' aria-label="통합검색"':'')+'>'+label+'</button>';
   const panel=(key,title,icon,more)=>'<section class="hub-panel hub-'+key+'"><header><h2>'+svg(icon,icons)+title+'</h2>'+action(key,more||'더보기 ›')+'</header><div data-list="'+key+'"><p class="hub-empty">불러오는 중입니다.</p></div></section>';
-  host.innerHTML='<aside class="hub-sidebar"><div class="hub-logo"><img src="assets/enl-wordmark.svg" width="102" height="52" alt="이앤엘 E&amp;L"></div><nav aria-label="통합시스템 메뉴"></nav><section class="hub-favorites"><header><h2>'+sidebarIcon('favorites')+'즐겨찾기</h2>'+action('favorites','＋')+'</header><div></div></section><div class="hub-sidebar-wave" aria-hidden="true"></div></aside><button class="hub-sidebar-backdrop" type="button" data-hub="close-menu" aria-label="메뉴 닫기"></button><section class="hub-hero"><div class="hub-hero-image" role="img" aria-label="골프장 풍경과 이앤엘 문구: 안전이 일상이 되는 안전보건관리 통합시스템"></div><div class="hub-welcome"><h2>'+safe(u.name||'사용자')+' 님, 환영합니다!</h2><p>이앤엘 안전보건관리 통합시스템에서<br>사업장의 안전과 건강한 일터를 함께 만들어갑니다.</p></div></section><div class="hub-middle"><section class="hub-features"><header class="hub-section-heading"><h2>'+svg('grid')+'주요 업무기능</h2><p>안전보건 업무를 한 곳에서 통합 관리하세요.</p>'+action('guide','ⓘ 모듈 안내')+(admin?action('manage-cards','카드 관리','hub-card-manager')+action('edit','편집','hub-edit-toggle'):'')+'</header><div class="platform-modules feature-list"></div></section><div class="hub-right">'+panel('recent','최근 작업','clock')+panel('approvals','결재 대기 <span data-approval-count></span>','approvals')+'</div></div><div class="hub-bottom">'+panel('bulletins','공지사항','notice')+panel('schedule','오늘의 일정 <small>'+safe(new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',weekday:'short'}).format(new Date()))+'</small>','calendar','전체 일정 ›')+'</div><p class="hub-status" role="status" aria-live="polite"></p><section class="hub-support hub-tool-panel" hidden><h2>공통업무지원서비스</h2><section class="platform-services feature-list"><div class="platform-grid"></div></section></section><section class="hub-module-preview hub-tool-panel" hidden><h2></h2><p>이 업무의 세부 기능은 구현 중입니다.</p></section>';
+  host.innerHTML='<aside class="hub-sidebar"><div class="hub-logo"><img src="assets/enl-wordmark.svg" width="102" height="52" alt="이앤엘 E&amp;L"></div><nav aria-label="통합시스템 메뉴"></nav><section class="hub-favorites"><header><h2>'+sidebarIcon('favorites')+'즐겨찾기</h2>'+action('favorites','＋')+'</header><div></div></section><div class="hub-sidebar-wave" aria-hidden="true"></div></aside><button class="hub-sidebar-backdrop" type="button" data-hub="close-menu" aria-label="메뉴 닫기"></button><section class="hub-hero"><div class="hub-hero-image" role="img" aria-label="골프장 풍경과 이앤엘 문구: 안전이 일상이 되는 안전보건관리 통합시스템"></div><div class="hub-welcome"><h2>'+safe(u.name||'사용자')+' 님, 환영합니다!</h2><p>이앤엘 안전보건관리 통합시스템에서<br>사업장의 안전과 건강한 일터를 함께 만들어갑니다.</p></div></section><div class="hub-middle"><section class="hub-features"><header class="hub-section-heading"><h2>'+svg('grid')+'주요 업무기능</h2><p>안전보건 업무를 한 곳에서 통합 관리하세요.</p>'+action('guide','ⓘ 모듈 안내')+(admin?action('manage-cards','카드 관리','hub-card-manager')+action('edit','편집','hub-edit-toggle'):'')+'</header><div class="platform-modules feature-list"></div></section><div class="hub-right">'+panel('recent','최근 업무 기록','clock')+panel('approvals','통합결재 대기 <span data-approval-count></span>','approvals')+'</div></div><div class="hub-bottom">'+panel('bulletins','공지사항','notice')+panel('schedule','오늘의 일정 <small>'+safe(new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',weekday:'short'}).format(new Date()))+'</small>','calendar','전체 일정 ›')+'</div><p class="hub-status" role="status" aria-live="polite"></p><section class="hub-support hub-tool-panel" hidden><h2>공통업무지원서비스</h2><section class="platform-services feature-list"><div class="platform-grid"></div></section></section><section class="hub-module-preview hub-tool-panel" hidden><h2></h2><p>이 업무의 세부 기능은 구현 중입니다.</p></section>';
   const area=host.querySelector('.platform-modules'),services=host.querySelector('.platform-services .platform-grid'),status=host.querySelector('.hub-status');
   const recentLink=host.querySelector('[data-hub=recent]');
   recentLink.hidden=!window.enlHistoryAvailable?.(u);
-  recentLink.dataset.recentHistory='';
+  recentLink.dataset.recentHistory='';recentLink.dataset.historyScope='all';
   function bindHeader(){
    const topbar=host.closest('.app-shell')?.querySelector('.topbar');
    if(!topbar)return;
@@ -109,7 +135,7 @@
   function addSupportCard(grid){const r=document.createElement('article');r.className='hub-support-card feature-card-wrap';r.dataset.key='support';r.dataset.state='live';r.dataset.on='true';r.innerHTML=action('support','<span class="hub-art hub-art-support" aria-hidden="true"></span><strong class="hub-card-title">공통업무지원<wbr>서비스</strong><span class="hub-card-description">'+descriptions.support+'</span><small>운영중</small><span class="hub-card-arrow" aria-hidden="true">'+svg('arrow')+'</span>','platform-card');r.firstElementChild.onclick=support;grid.append(r);return r}
   // Tab membership belongs to this signed-in dashboard and disappears with it on logout.
   const opened=['home'];
-  const builtins={home:'통합 홈',support:'공통업무지원서비스',bulletins:'공지사항',schedule:'전체 일정',recent:'최근 작업',inquiry:admin?'문의함':'안전관리자 문의'};
+  const builtins={home:'통합 홈',support:'공통업무지원서비스',bulletins:'공지사항',schedule:'전체 일정',recent:'최근 업무 기록',inquiry:admin?'문의함':'안전관리자 문의'};
   let stripSignature='';
   let active='home',request=0,incidentView='',inquiryOrigin='home';
   const strip=document.createElement('nav');
@@ -163,7 +189,7 @@
     else if(host.nextElementSibling!==view)view.before(host);
     host.querySelector('.hub-support').hidden=active!=='support';
     const preview=host.querySelector('.hub-module-preview');
-    preview.hidden=Object.hasOwn(builtins,active)||['incident','system','history','notices'].includes(active);
+    preview.hidden=Object.hasOwn(builtins,active)||['incident','system','history','notices','approvals'].includes(active);
     for(const panel of host.querySelectorAll('[data-list-workspace]'))panel.hidden=panel.dataset.listWorkspace!==active;
     if(!preview.hidden)preview.querySelector('h2').textContent=tabTitle(active);
     paintTabs();
@@ -178,8 +204,9 @@
     status.textContent='';
     placeFrame(view);
     const native={home:'platform',system:'system-admin',history:'common-history',recent:'history',inquiry:['field','worker'].includes(u.role)?'field-inquiry':'inquiry',notices:'notice-center',incident:incidentView||(['field','worker'].includes(u.role)?'home':'stats')};
-    if(key==='history'||key==='recent')window.enlRequestHistory?.();
+    if(key==='history'||key==='recent')window.enlRequestHistory?.('all');
     go(native[key]||'platform-tool');
+    if(key==='approvals')approvalWorkspace();
     if(key==='bulletins'||key==='schedule')listContent(key==='bulletins'?'notice':'event');
     if(key==='home'){renderArtwork(host);loadContent();loadRecent();}
     window.scrollTo(0,0);
@@ -309,11 +336,27 @@
   function approvals(){const m=entry('incident');if(!m||m.enabled===false||m.state!=='live'||m.canEnter===false)return [];return scopedIncidents().filter(i=>i.status!=='closed'&&(u.role==='safety'?!!window.enlSafetyWork?.(i)?.report||i.corrective?.status==='submitted':u.role==='executive'?window.ENLExecutiveApproval?.canDecide(i.executiveApproval,u.id):false))}
   async function openIncident(id){if(!await allowed('incident'))return;const i=scopedIncidents().find(x=>x.id===id);if(!i){status.textContent='현재 조회할 수 없는 사고입니다.';return}host.querySelectorAll('dialog[open]').forEach(d=>d.close());if(window.enlOpenIncidentReview)window.enlOpenIncidentReview(id,u.role==='safety',u);else if(typeof openIncidentModal==='function')openIncidentModal(id,u.role==='safety',u);else go('incidents');}
   function rowButton(box,title,detail,callback,icon='file'){const b=document.createElement('button');b.type='button';b.className='hub-data-row';b.innerHTML=svg(icon)+'<strong>'+safe(title)+'</strong><time>'+safe(detail)+'</time>';b.onclick=callback;box.append(b);return b}
-  function paintApprovals(){const box=host.querySelector('[data-list=approvals]'),rows=approvals();box.replaceChildren();host.querySelector('[data-approval-count]').textContent=rows.length+'건';for(const i of rows.slice(0,3))rowButton(box,(siteById(i.siteId)?.name||'')+' '+(i.eventType||'사고보고'),relative(i.updatedAt),()=>openIncident(i.id));if(!rows.length)box.innerHTML='<p class="hub-empty">'+(['safety','executive'].includes(u.role)?'현재 결재할 업무가 없습니다.':'본인에게 배정된 결재 업무가 없습니다.')+'</p>'}
-  function openApprovalList(){const d=dialog(host,'결재 대기'),box=d.querySelector('.hub-dialog-body');for(const i of approvals())rowButton(box,(siteById(i.siteId)?.name||'')+' '+(i.eventType||'사고보고'),date(i.updatedAt),()=>openIncident(i.id));if(!box.children.length)box.innerHTML='<p class="hub-empty">현재 결재할 업무가 없습니다.</p>'}
-  function paintRecent(){const box=host.querySelector('[data-list=recent]');box.replaceChildren();for(const r of recent.slice(0,4))rowButton(box,r.sentence||r.incident_title,relative(r.happened_at),()=>openActivity(r));if(!recent.length)box.innerHTML='<p class="hub-empty">'+safe(recentError||'최근 작업 기록이 없습니다.')+'</p>'}
+  const approvalCategories={all:'전체',incident:'사고보고',risk:'위험성평가',tbm:'TBM',organization:'안전보건조직',training:'안전보건교육'};
+  function approvalBody(box,compact=false){
+    const selected=box.dataset.category||'all';box.replaceChildren();
+    const tabs=document.createElement('nav');tabs.className='hub-category-tabs';tabs.setAttribute('aria-label','결재 업무 분류');
+    for(const [key,label] of Object.entries(approvalCategories)){
+      const b=document.createElement('button');b.type='button';b.dataset.approvalCategory=key;
+      b.textContent=label+(['all','incident'].includes(key)?' '+approvals().length:' / 준비 중');b.setAttribute('aria-pressed',String(key===selected));
+      b.onclick=()=>{box.dataset.category=key;approvalBody(box,compact)};tabs.append(b);
+    }
+    box.append(tabs);const rows=document.createElement('div');box.append(rows);
+    if(!['all','incident'].includes(selected)){rows.innerHTML='<p class="hub-empty">'+safe(approvalCategories[selected])+' 결재 기능은 준비 중입니다.</p>';return;}
+    const pending=approvals();
+    for(const i of (compact?pending.slice(0,3):pending))rowButton(rows,'[사고보고] '+(siteById(i.siteId)?.name||'')+' '+(i.eventType||'사고보고'),relative(i.updatedAt),()=>openIncident(i.id));
+    if(!pending.length)rows.innerHTML='<p class="hub-empty">본인에게 배정된 결재 대기 업무가 없습니다.</p>';
+  }
+  function paintApprovals(){host.querySelector('[data-approval-count]').textContent=approvals().length+'건';approvalBody(host.querySelector('[data-list=approvals]'),true);const box=host.querySelector('[data-list-workspace=approvals] [data-approval-list]');if(box)approvalBody(box)}
+  function approvalWorkspace(){let panel=host.querySelector('[data-list-workspace=approvals]');if(!panel){panel=document.createElement('section');panel.className='hub-tool-panel';panel.dataset.listWorkspace='approvals';panel.innerHTML='<div class="section-head"><h2>통합결재 대기</h2><button type="button">새로고침</button></div><p>본인에게 배정된 결재를 업무별로 확인합니다.</p><div data-approval-list></div>';host.append(panel);panel.querySelector('button').onclick=async()=>{const b=panel.querySelector('button');b.disabled=true;try{await window.enlIncidentPullNow?.(false);if(sameUser())paintApprovals()}finally{b.disabled=false}}}panel.hidden=false;approvalBody(panel.querySelector('[data-approval-list]'))}
+  function openApprovalList(){return selectTab('approvals')}
+  function paintRecent(){const box=host.querySelector('[data-list=recent]');box.replaceChildren();for(const r of recent.slice(0,4))rowButton(box,r.sentence||r.incident_title,relative(r.happened_at),()=>openActivity(r));if(!recent.length)box.innerHTML='<p class="hub-empty">'+safe(recentError||'최근 업무 기록 기록이 없습니다.')+'</p>'}
   function openActivity(r){const d=dialog(host,'작업 기록'),box=d.querySelector('.hub-dialog-body');box.innerHTML='<p>'+safe(r.sentence)+'</p><p>'+safe(r.actor_name||'')+' / '+safe(date(r.happened_at))+' '+safe(time(r.happened_at))+'</p>';if(r.module_key==='incident'&&scopedIncidents().some(i=>i.id===r.incident_id)){const b=document.createElement('button');b.textContent='사고 내용 보기';b.onclick=()=>openIncident(r.incident_id);box.append(b)}}
-  async function loadRecent(){recentLink.hidden=!window.enlHistoryAvailable?.(u);if(recentLink.hidden){recentError='조회 가능한 작업 기록이 없습니다.';paintRecent();return}try{const r=await api({action:'activity_list',feed:'incident'});if(!sameUser())return;recent=r.rows||[];recentError=''}catch{recentError='작업 기록을 불러오지 못했습니다.'}if(sameUser())paintRecent()}
+  async function loadRecent(){recentLink.hidden=!window.enlHistoryAvailable?.(u);if(recentLink.hidden){recentError='조회 가능한 작업 기록이 없습니다.';paintRecent();return}try{const r=await api({action:'activity_list',feed:'all'});if(!sameUser())return;recent=r.rows||[];recentError=''}catch{recentError='작업 기록을 불러오지 못했습니다.'}if(sameUser())paintRecent()}
   function paintContent(){for(const [kind,rows] of [['bulletins',content.notices],['schedule',content.events.filter(x=>day(new Date(x.starts_at))<=day()&&day(new Date(x.ends_at||x.starts_at))>=day())]]){const box=host.querySelector('[data-list='+kind+']');box.replaceChildren();for(const x of rows.slice(0,4)){const b=rowButton(box,x.title,kind==='bulletins'?date(x.created_at):time(x.starts_at)+' ~ '+time(x.ends_at),()=>readContent(x),kind==='bulletins'?'notice':'calendar');if(kind==='bulletins'){b.classList.add('hub-notice-row');b.querySelector('svg').outerHTML='<span class="hub-tag '+safe(x.label)+'">'+({important:'중요',info:'안내',general:'일반'}[x.label]||'안내')+'</span>'}else b.classList.add('hub-event-row')}
    if(!rows.length)box.innerHTML='<p class="hub-empty">'+safe(contentError||(loaded?(kind==='bulletins'?'등록된 공지사항이 없습니다.':'오늘 등록된 일정이 없습니다.'):'불러오는 중입니다.'))+'</p>';
   }paintFavorites()}
@@ -334,9 +377,18 @@
   function guide(){const d=dialog(host,'모듈 안내');d.querySelector('.hub-dialog-body').innerHTML='<p>운영 중인 업무는 카드를 눌러 바로 이용할 수 있습니다. 구현 중인 업무는 관리자가 허용한 시험 사용자만 진입합니다.</p><p>공지사항과 일정은 안전관리자가 등록하고 대상 사업장의 사용자에게 공유합니다.</p>'+(admin?'<p>편집을 누르면 이름 수정, 접근 설정, 순서 이동 도구가 나타납니다. 손잡이를 끌거나 접근 설정의 앞으로/뒤로 버튼으로 순서를 변경하세요.</p>':'')}
   function dispatch(key){if(key.startsWith('feature:'))return clickFeature(key.slice(8));if(key==='home'){if(host.classList.contains('hub-incident-workspace'))return window.enlReturnToPlatform(u);host.classList.remove('hub-menu-open');window.scrollTo({top:0,behavior:'smooth'})}else if(key==='menu'||key==='close-menu')host.classList.toggle('hub-menu-open',key==='menu');else if(key==='support')support();else if(key==='search')search();else if(key==='notifications')clickFeature('notices');else if(key==='manage-cards'&&admin)manageCards();else if(key==='edit'){host.classList.toggle('hub-editing');host.querySelector('.hub-edit-toggle').textContent=host.classList.contains('hub-editing')?'편집 완료':'편집'}else if(key==='guide')guide();else if(key==='favorites')favorites();else if(key==='bulletins'||key==='schedule')selectTab(key);else if(key==='approvals')openApprovalList();else if(key==='recent')selectTab('recent');}
   host.querySelectorAll('[data-hub]').forEach(b=>b.onclick=()=>dispatch(b.dataset.hub));
-  function afterCards(c){catalog=c;navigation();paintTabs();paintApprovals();renderArtwork(host);}
+  function afterCards(c){catalog=c;historyShortcuts();navigation();paintTabs();paintApprovals();renderArtwork(host);}
+  function historyShortcuts(){
+    let nav=host.querySelector('.hub-history-shortcuts');if(!nav){nav=document.createElement('nav');nav.className='hub-history-shortcuts hub-category-tabs';nav.setAttribute('aria-label','업무 기록 바로가기');host.querySelector('.hub-support>h2').after(nav)}
+    const m=entry('history');nav.hidden=!window.enlHistoryAvailable?.(u)||!m||m.canEnter===false||m.enabled===false||m.state!=='live';nav.replaceChildren();
+    for(const [key,label] of Object.entries({all:'통합기록',incident:'사고보고기록',organization:'안전보건조직기록',tbm:'TBM기록',risk:'위험성평가기록',training:'교육기록',common:'공통업무기록'})){
+      const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=async()=>{if(!await selectTab('history'))return;window.enlRequestHistory?.(key);window.enlRenderHistory?.(host.closest('.app-shell').querySelector('#view'),key)};nav.append(b);
+    }
+  }
   const refresh=()=>{if(sameUser())paintApprovals();else window.removeEventListener('enl-incidents-pulled',refresh)};window.addEventListener('enl-incidents-pulled',refresh);
   if(!window.enlHistoryAvailable)window.addEventListener('enl-history-ready',()=>{if(sameUser())loadRecent()},{once:true});
+  startBanner(host);
+  const recentRefresh=()=>{if(sameUser())loadRecent();else window.removeEventListener('enl-activity-changed',recentRefresh)};window.addEventListener('enl-activity-changed',recentRefresh);
   navigation();loadContent();loadRecent();
   return {area,services,status,addSupportCard,afterCards,selectTab};
  }

@@ -47,10 +47,10 @@ const assert=require('node:assert/strict'),{fixture}=require('./final-lifecycle.
  for(const keyword of ['현장 정보','본사 사용자','최초 등록','처음 조회','최초조회','현장설정'])assert.ok((await find({search:keyword==='본사 사용자'?'본사 계정':keyword})).length>0);
  assert.equal((await q('safety','activity_list',{fromDate:'2026-02-31'})).status,400);
  for(const who of ['executive','manager','field'])assert.equal((await q(who,'activity_document',{incidentId:id})).status,404);
- assert.equal((await ok('other','activity_list')).rows.length,0);
+ assert.ok((await ok('other','activity_list')).rows.every(r=>r.module_key==='common'&&!r.site_id));
  const fieldSettings=(await ok('field','activity_list')).rows;
- assert.ok(fieldSettings.some(r=>r.kind==='personnel_create'));assert.ok(fieldSettings.every(r=>r.site_id==='qa-site'&&!r.kind.startsWith('hq_')));
- assert.ok(!(await ok('manager','activity_list')).rows.some(r=>r.kind.startsWith('hq_')));
+ assert.ok(fieldSettings.some(r=>r.kind==='personnel_create'));assert.ok(fieldSettings.every(r=>r.site_id==='qa-site'||r.module_key==='common'&&!r.site_id));
+ assert.ok((await ok('manager','activity_list')).rows.some(r=>r.kind.startsWith('hq_')));
  for(const args of [{mode:'all'},{mode:'range',fromDate:'2026-01-01',confirmed:true},{mode:'all',id:'1',confirmed:true},{mode:'range',fromDate:'2026-02-31',toDate:'2026-03-01',confirmed:true}])
    assert.equal((await q('safety','activity_delete',args)).status,400);
  const hash=require('node:crypto').createHash('sha256').update('test-password').digest('hex');
@@ -72,7 +72,7 @@ const assert=require('node:assert/strict'),{fixture}=require('./final-lifecycle.
  await f.seedLegacy(rejected);
  await f.db.exec("insert into enl_incident_audit(incident_id,site_id,action,editor_role,changed_at) values('qa-rejected','qa-site','create','field',now())");
  for(const who of ['manager','executive','other']){
-   assert.equal((await ok(who,'activity_list',{search:'qa-rejected'})).rows.length,0);
+   assert.equal((await ok(who,'activity_list',{search:'qa-rejected'})).rows.length,who==='other'?0:1);
    assert.equal((await q(who,'activity_document',{incidentId:rejected.id})).status,404);
  }
  assert.equal((await ok('field','activity_document',{incidentId:rejected.id})).archived,false);
