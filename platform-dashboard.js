@@ -85,13 +85,14 @@
   let index=0,position=1,moving=false,pendingAuto=false,timer=0,settleTimer=0,frame=0,stopped=false,touch=null;
   if(!hero.enlOriginalBanner)hero.enlOriginalBanner=Array.from(hero.children).map(n=>n.cloneNode(true));
   const slides=window.ENLBanners?.resolve(host.bannerConfig)||[null];
-  hero.hidden=!slides.length;if(!slides.length)return;
+  hero.dataset.slideCount=String(slides.length);hero.hidden=!slides.length||!!host.dataset.workspace&&host.dataset.workspace!=='home';if(!slides.length)return;
   hero.classList.add('hub-carousel');hero.setAttribute('aria-label','안전보건 안내 배너');hero.setAttribute('aria-roledescription','슬라이드');hero.tabIndex=0;
   const track=document.createElement('div');track.className='hub-banner-track no-motion';
   for(const s of slides){
    const slide=document.createElement('section');slide.className='hub-banner-slide';
    if(!s){slide.classList.add('hub-slide-original');slide.append(...hero.enlOriginalBanner.map(n=>n.cloneNode(true)))}
    else if(s.url){slide.classList.add('hub-slide-upload');const img=document.createElement('img');img.className='hub-uploaded-banner';img.src=s.url;img.alt=s.title;img.style.objectFit=s.fit;slide.append(img)}
+   else if(window.ENLBanners?.markup(s.key)){slide.classList.add('hub-slide-designed','hub-design-'+s.key);slide.dataset.campaign=s.key;slide.innerHTML=window.ENLBanners.markup(s.key)}
    else {slide.classList.add('hub-slide-campaign');if(s.image)slide.classList.add('hub-slide-scene');slide.dataset.campaign=s.key;
     slide.innerHTML=(s.image?'<img class="hub-campaign-background" src="assets/banners/'+s.image+'" alt="" width="2172" height="724" decoding="async">':'')+
      '<div class="hub-campaign-copy"><small>'+safe(s.eyebrow||'SAFE WORKPLACE')+'</small><h2>'+safe(s.title)+'</h2><p>'+safe(s.body)+'</p></div>'+
@@ -145,7 +146,7 @@
   const sameUser=()=>{const a=currentUser?.();return a&&JSON.stringify([a.id||a.personnelId,a.role,a.siteId||''])===userKey&&host.isConnected};
   const action=(key,label,cls='')=>'<button type="button" class="'+cls+'" data-hub="'+key+'"'+(key==='notifications'?' aria-label="알림센터"':key==='menu'?' aria-label="메뉴 열기"':key==='search'?' aria-label="통합검색"':'')+'>'+label+'</button>';
   const panel=(key,title,icon,more)=>'<section class="hub-panel hub-'+key+'"><header><h2>'+svg(icon,icons)+title+'</h2>'+action(key,more||'더보기 ›')+'</header><div data-list="'+key+'"><p class="hub-empty">불러오는 중입니다.</p></div></section>';
-  host.innerHTML='<aside class="hub-sidebar"><div class="hub-logo"><img src="assets/enl-wordmark.svg" width="102" height="52" alt="이앤엘 E&amp;L"></div><nav aria-label="통합시스템 메뉴"></nav><section class="hub-favorites"><header><h2>'+sidebarIcon('favorites')+'즐겨찾기</h2>'+action('favorites','＋')+'</header><div></div></section><div class="hub-sidebar-wave" aria-hidden="true"></div></aside><button class="hub-sidebar-backdrop" type="button" data-hub="close-menu" aria-label="메뉴 닫기"></button><section class="hub-hero"><div class="hub-hero-image" role="img" aria-label="골프장 풍경과 이앤엘 문구: 안전이 일상이 되는 안전보건관리 통합시스템"></div><div class="hub-welcome"><h2>'+safe(u.name||'사용자')+' 님, 환영합니다!</h2><p>이앤엘 안전보건관리 통합시스템에서<br>사업장의 안전과 건강한 일터를 함께 만들어갑니다.</p></div></section><div class="hub-middle"><section class="hub-features"><header class="hub-section-heading"><h2>'+svg('grid')+'주요 업무기능</h2><p>안전보건 업무를 한 곳에서 통합 관리하세요.</p>'+action('guide','ⓘ 모듈 안내')+(admin?action('manage-cards','카드 관리','hub-card-manager')+action('edit','편집','hub-edit-toggle'):'')+'</header><div class="platform-modules feature-list"></div></section><div class="hub-right">'+panel('recent','최근 업무 기록','clock')+panel('approvals','통합결재 대기 <span data-approval-count></span>','approvals')+'</div></div><div class="hub-bottom">'+panel('bulletins','공지사항','notice')+panel('schedule','오늘의 일정 <small>'+safe(new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',weekday:'short'}).format(new Date()))+'</small>','calendar','전체 일정 ›')+'</div><p class="hub-status" role="status" aria-live="polite"></p><section class="hub-support hub-tool-panel" hidden><h2>공통업무지원서비스</h2><section class="platform-services feature-list"><div class="platform-grid"></div></section></section><section class="hub-module-preview hub-tool-panel" hidden><h2></h2><p>이 업무의 세부 기능은 구현 중입니다.</p></section>';
+  host.innerHTML='<aside class="hub-sidebar"><div class="hub-logo"><img src="assets/enl-wordmark.svg" width="102" height="52" alt="이앤엘 E&amp;L"></div><nav aria-label="통합시스템 메뉴"></nav><section class="hub-favorites"><header><h2>'+sidebarIcon('favorites')+'즐겨찾기</h2>'+action('favorites','＋')+'</header><div></div></section><div class="hub-sidebar-wave" aria-hidden="true"></div></aside><button class="hub-sidebar-backdrop" type="button" data-hub="close-menu" aria-label="메뉴 닫기"></button><section class="hub-hero"><div class="hub-hero-image" role="img" aria-label="골프장 풍경과 이앤엘 문구: 안전이 일상이 되는 안전보건관리 통합시스템"></div><div class="hub-original-slogan"><b>E&amp;L</b><div><span>안전이 일상이 되는</span><strong>안전보건관리 통합시스템</strong></div></div></section><div class="hub-middle"><section class="hub-features"><header class="hub-section-heading"><h2>'+svg('grid')+'주요 업무기능</h2><p>안전보건 업무를 한 곳에서 통합 관리하세요.</p>'+action('guide','ⓘ 모듈 안내')+(admin?action('manage-cards','카드 관리','hub-card-manager')+action('edit','편집','hub-edit-toggle'):'')+'</header><div class="platform-modules feature-list"></div></section><div class="hub-right">'+panel('recent','최근 업무 기록','clock')+panel('approvals','통합결재 대기 <span data-approval-count></span>','approvals')+'</div></div><div class="hub-bottom">'+panel('bulletins','공지사항','notice')+panel('schedule','오늘의 일정 <small>'+safe(new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',weekday:'short'}).format(new Date()))+'</small>','calendar','전체 일정 ›')+'</div><p class="hub-status" role="status" aria-live="polite"></p><section class="hub-support hub-tool-panel" hidden><h2>공통업무지원서비스</h2><section class="platform-services feature-list"><div class="platform-grid"></div></section></section><section class="hub-module-preview hub-tool-panel" hidden><h2></h2><p>이 업무의 세부 기능은 구현 중입니다.</p></section>';
   const area=host.querySelector('.platform-modules'),services=host.querySelector('.platform-services .platform-grid'),status=host.querySelector('.hub-status');
   const recentLink=host.querySelector('[data-hub=recent]');
   recentLink.hidden=!window.enlHistoryAvailable?.(u);
@@ -220,6 +221,7 @@
     if(atHome&&host.dataset.workspace&&host.dataset.workspace!=='home')host.reloadCatalog?.();
     host.classList.toggle('hub-incident-workspace',!atHome);
     host.dataset.workspace=active;
+    const hero=host.querySelector('.hub-hero');hero.hidden=!atHome||Number(hero.dataset.slideCount)===0;
     if(atHome){if(host.parentElement!==view)view.replaceChildren(host);}
     else if(host.nextElementSibling!==view)view.before(host);
     host.querySelector('.hub-support').hidden=active!=='support';
@@ -373,23 +375,27 @@
   function rowButton(box,title,detail,callback,icon='file'){const b=document.createElement('button');b.type='button';b.className='hub-data-row';b.innerHTML=svg(icon)+'<strong>'+safe(title)+'</strong><time>'+safe(detail)+'</time>';b.onclick=callback;box.append(b);return b}
   const approvalCategories={all:'전체',incident:'사고보고',risk:'위험성평가',tbm:'TBM',organization:'안전보건조직',training:'안전보건교육'};
   function approvalBody(box,compact=false){
-    const selected=box.dataset.category||'all';box.replaceChildren();
+    const selected=compact?'all':box.dataset.category||'all';box.replaceChildren();
     const tabs=document.createElement('nav');tabs.className='hub-category-tabs';tabs.setAttribute('aria-label','결재 업무 분류');
     for(const [key,label] of Object.entries(approvalCategories)){
       const b=document.createElement('button');b.type='button';b.dataset.approvalCategory=key;
       b.textContent=label+(['all','incident'].includes(key)?' '+approvals().length:' / 준비 중');b.setAttribute('aria-pressed',String(key===selected));
       b.onclick=()=>{box.dataset.category=key;approvalBody(box,compact)};tabs.append(b);
     }
-    box.append(tabs);const rows=document.createElement('div');box.append(rows);
+    if(!compact)box.append(tabs);const rows=document.createElement('div');box.append(rows);
     if(!['all','incident'].includes(selected)){rows.innerHTML='<p class="hub-empty">'+safe(approvalCategories[selected])+' 결재 기능은 준비 중입니다.</p>';return;}
-    const pending=approvals();
-    for(const i of (compact?pending.slice(0,3):pending))rowButton(rows,'[사고보고] '+(siteById(i.siteId)?.name||'')+' '+(i.eventType||'사고보고'),relative(i.updatedAt),()=>openIncident(i.id));
+    const pending=approvals().sort((a,b)=>(Date.parse(b.updatedAt)||0)-(Date.parse(a.updatedAt)||0));
+    for(const i of (compact?pending.slice(0,5):pending)){
+      const documentName=(siteById(i.siteId)?.name||'')+' '+(i.eventType||'사고')+' '+(i.corrective?.status==='submitted'?'재발방지조치 보고서':'사고보고서');
+      const row=rowButton(rows,documentName.trim(),relative(i.updatedAt),()=>openIncident(i.id));row.classList.add('hub-approval-row');row.title=documentName.trim();
+      row.querySelector('svg').outerHTML='<span class="hub-approval-badge">사고보고</span>';
+    }
     if(!pending.length)rows.innerHTML='<p class="hub-empty">본인에게 배정된 결재 대기 업무가 없습니다.</p>';
   }
   function paintApprovals(){host.querySelector('[data-approval-count]').textContent=approvals().length+'건';approvalBody(host.querySelector('[data-list=approvals]'),true);const box=host.querySelector('[data-list-workspace=approvals] [data-approval-list]');if(box)approvalBody(box)}
   function approvalWorkspace(){let panel=host.querySelector('[data-list-workspace=approvals]');if(!panel){panel=document.createElement('section');panel.className='hub-tool-panel';panel.dataset.listWorkspace='approvals';panel.innerHTML='<div class="section-head"><h2>통합결재 대기</h2><button type="button">새로고침</button></div><p>본인에게 배정된 결재를 업무별로 확인합니다.</p><div data-approval-list></div>';host.append(panel);panel.querySelector('button').onclick=async()=>{const b=panel.querySelector('button');b.disabled=true;try{await window.enlIncidentPullNow?.(false);if(sameUser())paintApprovals()}finally{b.disabled=false}}}panel.hidden=false;approvalBody(panel.querySelector('[data-approval-list]'))}
   function openApprovalList(){return selectTab('approvals')}
-  function paintRecent(){const box=host.querySelector('[data-list=recent]');box.replaceChildren();for(const r of recent.slice(0,4))rowButton(box,r.sentence||r.incident_title,relative(r.happened_at),()=>openActivity(r));if(!recent.length)box.innerHTML='<p class="hub-empty">'+safe(recentError||'최근 업무 기록이 없습니다.')+'</p>'}
+  function paintRecent(){const box=host.querySelector('[data-list=recent]');box.replaceChildren();for(const r of recent.slice(0,5))rowButton(box,r.sentence||r.incident_title,relative(r.happened_at),()=>openActivity(r));if(!recent.length)box.innerHTML='<p class="hub-empty">'+safe(recentError||'최근 업무 기록이 없습니다.')+'</p>'}
   function openActivity(r){const d=dialog(host,'작업 기록'),box=d.querySelector('.hub-dialog-body');box.innerHTML='<p>'+safe(r.sentence)+'</p><p>'+safe(r.actor_name||'')+' / '+safe(date(r.happened_at))+' '+safe(time(r.happened_at))+'</p>';if(r.module_key==='incident'&&scopedIncidents().some(i=>i.id===r.incident_id)){const b=document.createElement('button');b.textContent='사고 내용 보기';b.onclick=()=>openIncident(r.incident_id);box.append(b)}}
   async function loadRecent(){recentLink.hidden=!window.enlHistoryAvailable?.(u);if(recentLink.hidden){recentError='조회 가능한 작업 기록이 없습니다.';paintRecent();return}try{const r=await api({action:'activity_list',feed:'all'});if(!sameUser())return;recent=r.rows||[];recentError=''}catch{recentError='작업 기록을 불러오지 못했습니다.'}if(sameUser())paintRecent()}
   function paintContent(){for(const [kind,rows] of [['bulletins',content.notices],['schedule',content.events.filter(x=>day(new Date(x.starts_at))<=day()&&day(new Date(x.ends_at||x.starts_at))>=day())]]){const box=host.querySelector('[data-list='+kind+']');box.replaceChildren();for(const x of rows.slice(0,4)){const b=rowButton(box,x.title,kind==='bulletins'?date(x.created_at):time(x.starts_at)+' ~ '+time(x.ends_at),()=>readContent(x),kind==='bulletins'?'notice':'calendar');if(kind==='bulletins'){b.classList.add('hub-notice-row');b.querySelector('svg').outerHTML='<span class="hub-tag '+safe(x.label)+'">'+({important:'중요',info:'안내',general:'일반'}[x.label]||'안내')+'</span>'}else b.classList.add('hub-event-row')}
