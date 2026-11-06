@@ -368,7 +368,7 @@
 .hub-approval-row strong{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.4}
 .hub-approval-badge{display:inline-flex;align-items:center;justify-content:center;flex:0 0 54px;width:54px;min-height:24px;border-radius:7px;background:#e0edff;color:#1c58a1;font-size:10px;font-weight:800;white-space:nowrap}
 .platform-hub.hub-incident-workspace>.hub-hero.hub-carousel,.platform-hub[data-workspace]:not([data-workspace="home"])>.hub-hero.hub-carousel{display:none!important}
-#app .topbar .hub-header-welcome{font-size:13px;line-height:1.4;font-weight:500;color:#536b89;letter-spacing:-.25px;white-space:nowrap;align-self:center;flex:none;margin-right:9px}
+#app .topbar .hub-header-welcome{font-size:13px;line-height:1.4;font-weight:500;color:#536b89;letter-spacing:-.25px;white-space:nowrap;align-self:center;flex:none;margin-left:9px}
 .safety-ui #app:has(.platform-hub) .topbar .brand h1{font-size:clamp(17px,1.35vw,23px)}
 .hub-slide-original .hub-hero-image{background-image:url('assets/banners/golf-r86.webp');background-position:center 42%}
 .hub-slide-original:after{content:'';position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(90deg,#f1f8ff 0%,#f1f8fff0 14%,#f1f8ff9c 31%,#f1f8ff25 49%,transparent 65%)}
@@ -391,9 +391,9 @@
 .hub-design-ppe{background:radial-gradient(ellipse at 25% 70%,#c9dcff,transparent 46%),#f5f3ff;color:#38457a;justify-content:flex-end}.hub-design-ppe .hub-design-art{left:7%;bottom:3%;height:95%;width:30%}.hub-ppe-copy{width:56%;max-width:640px}.hub-ppe-copy small{font:italic 700 12px/1.4 Georgia,serif;color:#7980b1;letter-spacing:2px;margin-bottom:12px}.hub-ppe-copy h2{font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;font-size:clamp(21px,2.15vw,34px);font-weight:600;line-height:1.35;letter-spacing:-1px}.hub-ppe-copy p{font-size:13px;line-height:1.8;margin-top:10px;padding-left:12px;border-left:2px solid #929ad6}.hub-ppe-stamp{position:absolute;right:5%;top:13%;font:700 10px/1.3 ui-monospace,monospace;letter-spacing:1px;color:#717fac;transform:rotate(7deg)}
 /* Prevention: dark green journal with a circular three-step path. */
 .hub-design-prevention{background:linear-gradient(125deg,#143c39,#275a50);color:#f1f1df}.hub-prevention-copy{width:51%;z-index:1}.hub-prevention-copy small{font:500 9px/1.3 ui-monospace,monospace;letter-spacing:2px;color:#9fc9b5;margin-bottom:10px}.hub-prevention-copy h2{font-family:'Noto Serif KR','Batang',Georgia,serif;font-size:clamp(25px,2.55vw,41px);font-weight:400;line-height:1.3;letter-spacing:-1px}.hub-prevention-copy h2 em{color:#c7df9e}.hub-prevention-copy p{font-size:12px;line-height:1.7;color:#c6ddd1;margin-top:12px}.hub-prevention-cycle{position:absolute;right:8%;top:22%;width:31%;height:62%;display:flex;align-items:center;justify-content:space-between;gap:4px}.hub-prevention-cycle span{z-index:1;display:grid;place-items:center;width:30%;aspect-ratio:1;border:1px solid #b2d2af85;border-radius:50%;font-size:12px;background:#224d43d9}
-@media(max-width:1180px) and (min-width:851px){.safety-ui #app:has(.platform-hub) .topbar .brand h1{font-size:18px}#app .topbar .hub-header-welcome{font-size:12px;margin-right:2px}}
+@media(max-width:1180px) and (min-width:851px){.safety-ui #app:has(.platform-hub) .topbar .brand h1{font-size:18px}#app .topbar .hub-header-welcome{font-size:12px;margin-left:2px}}
 @media(max-width:850px){
- #app .topbar .brand:has(.hub-header-welcome){display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 7px;align-items:center}
+ .safety-ui #app:has(.platform-hub) .topbar .brand:has(.hub-header-welcome),#app .topbar .brand:has(.hub-header-welcome){display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 7px;align-items:center}
  #app .topbar .hub-header-welcome{grid-column:1/-1;font-size:11px;margin:0;white-space:normal}
  .safety-ui #app:has(.platform-hub) .topbar .brand h1{font-size:15px;line-height:1.3}
 }
