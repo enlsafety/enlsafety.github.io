@@ -14,7 +14,7 @@ export async function serviceAllowed(sql:any,actor:any,key:string){
   const [row]=await sql`select item from private.enl_platform_catalog cross join lateral jsonb_array_elements(services) item where singleton and item->>'key'=${key}`;
   return canEnter(row?.item,actor);
 }
-const bannerKeys=['welcome','opening','fire','health','tbm','ppe','prevention'];
+const bannerKeys=['welcome','report','opening','fire','health','tbm','ppe','prevention'];
 function bannerImage(bytes:Uint8Array,mime:string){
  const v=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);let width=0,height=0;
  const ascii=(at:number,n:number)=>String.fromCharCode(...bytes.slice(at,at+n));
