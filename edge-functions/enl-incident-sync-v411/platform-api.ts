@@ -14,8 +14,82 @@ export async function serviceAllowed(sql:any,actor:any,key:string){
   const [row]=await sql`select item from private.enl_platform_catalog cross join lateral jsonb_array_elements(services) item where singleton and item->>'key'=${key}`;
   return canEnter(row?.item,actor);
 }
+const bannerKeys=['welcome','fire','health','tbm','ppe','prevention'];
+function bannerImage(bytes:Uint8Array,mime:string){
+ const v=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);let width=0,height=0;
+ const ascii=(at:number,n:number)=>String.fromCharCode(...bytes.slice(at,at+n));
+ if(mime==='image/png'&&bytes.length>=24&&ascii(1,3)==='PNG'&&bytes[0]===137&&ascii(12,4)==='IHDR'){width=v.getUint32(16);height=v.getUint32(20)}
+ if(mime==='image/jpeg'&&bytes[0]===255&&bytes[1]===216){
+  let i=2;while(i+4<bytes.length){if(bytes[i++]!==255)break;while(bytes[i]===255)i++;const marker=bytes[i++];if(marker===217||marker===218)break;const size=v.getUint16(i);if(size<2||i+size>bytes.length)break;
+   if([192,193,194,195,197,198,199,201,202,203,205,206,207].includes(marker)&&size>=7){height=v.getUint16(i+3);width=v.getUint16(i+5);break}i+=size;
+  }
+ }
+ if(mime==='image/webp'&&bytes.length>=30&&ascii(0,4)==='RIFF'&&ascii(8,4)==='WEBP'){
+  const kind=ascii(12,4),u24=(i:number)=>bytes[i]+bytes[i+1]*256+bytes[i+2]*65536;
+  if(kind==='VP8X'){width=1+u24(24);height=1+u24(27)}
+  if(kind==='VP8 '&&ascii(23,3)==='\x9d\x01\x2a'){width=v.getUint16(26,true)&16383;height=v.getUint16(28,true)&16383}
+  if(kind==='VP8L'&&bytes[20]===47){const n=v.getUint32(21,true);width=(n&16383)+1;height=((n>>>14)&16383)+1}
+ }
+ return width>=320&&height>=80&&width>=height&&width<=8192&&height<=8192&&width*height<=30000000?{width,height}:null;
+}
+async function bannerStorage(path:string,init:any){
+ const base=Deno.env.get('SUPABASE_URL'),key=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+ const r=await fetch(base+'/storage/v1/'+path,{...init,headers:{apikey:key,Authorization:'Bearer '+key,...init.headers}});
+ if(!r.ok)throw new Error('banner_storage_failed');return r;
+}
+async function bannerAssets(sql:any,items:any[]){
+ const ids=items.filter(i=>i.type==='image').map(i=>i.assetId);if(!ids.length)return [];
+ const rows=await sql`select id,path,name,mime,bytes,width,height from private.enl_home_banner_assets where id::text in (select jsonb_array_elements_text(${sql.json(ids)}::jsonb))`;
+ return await Promise.all(rows.map(async(a:any)=>{
+  const r=await bannerStorage('object/sign/enl-incident-files/'+a.path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({expiresIn:7200})});const data=await r.json();
+  if(typeof data.signedURL!=='string'||!data.signedURL.startsWith('/object/sign/enl-incident-files/home-banners/'))throw new Error('banner_storage_failed');
+  const {path,...meta}=a;return {...meta,url:Deno.env.get('SUPABASE_URL')+'/storage/v1'+data.signedURL};
+ }));
+}
+async function bannerRequest(sql:any,actor:any,body:any,reply:any){
+ const action=body.action;
+ if(action!=='platform_banners'&&(actor.role!=='safety'||!await serviceAllowed(sql,actor,'system')))return reply({ok:false,message:'forbidden'},403);
+ if(action==='platform_banners'){
+  const [config]=await sql`select revision,items,updated_at from private.enl_home_banner_config where singleton`;
+  return reply({ok:true,...config,assets:await bannerAssets(sql,config.items)});
+ }
+ if(action==='platform_banner_upload'){
+  const f=body.file||{},ext:any={'image/jpeg':'jpg','image/png':'png','image/webp':'webp'};
+  if(!Object.hasOwn(ext,f.mime)||!Number.isInteger(f.size)||f.size<1||f.size>5242880||typeof f.base64!=='string'||f.base64.length>6990510||! /^[A-Za-z0-9+/]*={0,2}$/.test(f.base64))return reply({ok:false,message:'invalid_banner_file'},400);
+  let bytes:Uint8Array;try{bytes=Uint8Array.from(atob(f.base64),c=>c.charCodeAt(0))}catch{return reply({ok:false,message:'invalid_banner_file'},400)}
+  const dimensions=bytes.length===f.size?bannerImage(bytes,f.mime):null;if(!dimensions)return reply({ok:false,message:'invalid_banner_dimensions'},400);
+  const id=crypto.randomUUID(),path='home-banners/'+id+'.'+ext[f.mime],name=String(f.name||'banner').slice(0,180);
+  await bannerStorage('object/enl-incident-files/'+path,{method:'POST',headers:{'Content-Type':f.mime,'x-upsert':'false','Cache-Control':'max-age=7200'},body:bytes});
+  try{await sql`insert into private.enl_home_banner_assets(id,path,name,mime,bytes,width,height,uploaded_by) values(${id},${path},${name},${f.mime},${bytes.length},${dimensions.width},${dimensions.height},${actor.id})`}
+  catch(e){try{await bannerStorage('object/enl-incident-files',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({prefixes:[path]})})}catch{}throw e}
+  return reply({ok:true,asset:(await bannerAssets(sql,[{type:'image',assetId:id}]))[0]});
+ }
+ if(action==='platform_banners_save'){
+  if(!Number.isInteger(body.revision)||!Array.isArray(body.items)||body.items.length>12)return reply({ok:false,message:'invalid_banners'},400);
+  const items:any[]=[];
+  for(const item of body.items){
+   if(item?.type==='builtin'&&bannerKeys.includes(item.key))items.push({type:'builtin',key:item.key});
+   else if(item?.type==='image'&&/^[0-9a-f-]{36}$/i.test(item.assetId)&&['contain','cover'].includes(item.fit)&&typeof item.title==='string'&&item.title.length<=100)items.push({type:'image',assetId:item.assetId,fit:item.fit,title:item.title.trim()});
+   else return reply({ok:false,message:'invalid_banners'},400);
+  }
+  const ids=items.filter(i=>i.type==='image').map(i=>i.assetId);
+  const assets=await sql`select id::text from private.enl_home_banner_assets where id::text in(select jsonb_array_elements_text(${sql.json(ids)}::jsonb))`;
+  if(ids.some(id=>!assets.some((a:any)=>a.id===id)))return reply({ok:false,message:'unknown_banner_asset'},400);
+  const saved=await sql.begin(async(tx:any)=>{
+   const [old]=await tx`select revision,items from private.enl_home_banner_config where singleton for update`;
+   if(old.revision!==body.revision)return null;
+   const [row]=await tx`update private.enl_home_banner_config set items=${sql.json(items)}::jsonb,revision=revision+1,updated_by=${actor.id},updated_at=now() where singleton returning revision,items`;
+   await tx`insert into private.enl_home_banner_audit(revision,actor_id,actor_name,before_items,after_items) values(${row.revision},${actor.id},${actor.name||actor.id},${sql.json(old.items)}::jsonb,${sql.json(items)}::jsonb)`;
+   return row;
+  });
+  return saved?reply({ok:true,...saved}):reply({ok:false,message:'banner_changed'},409);
+ }
+ return reply({ok:false,message:'unknown_action'},400);
+}
+
 export async function platformRequest(sql:any,actor:any,body:any,reply:any){
   const admin=actor.role==='safety',action=body.action;
+  if(['platform_banners','platform_banner_upload','platform_banners_save'].includes(action))return bannerRequest(sql,actor,body,reply);
   if(action==='platform_hub'||action==='platform_hub_favorites'||action==='platform_hub_save'||action==='platform_hub_archive'){
     const actorKey=(['field','worker'].includes(actor.role)?'site:':'hq:')+actor.id;
     if(action==='platform_hub_favorites'){

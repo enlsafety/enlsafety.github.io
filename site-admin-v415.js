@@ -96,7 +96,7 @@
   }
 
   function tabsHtml(){
-    return `<div class="sa415-tabs"><button type="button" data-sa415-tab="sites" class="${activeTab==='sites'?'on':''}">현장정보 관리</button><button type="button" data-sa415-tab="hq" class="${activeTab==='hq'?'on':''}">본사 사용자</button><button type="button" data-sa415-tab="directory">직무 담당자</button><button type="button" data-platform-history>히스토리 관리</button></div>`;
+    return `<div class="sa415-tabs"><button type="button" data-sa415-tab="sites" class="${activeTab==='sites'?'on':''}">현장정보 관리</button><button type="button" data-sa415-tab="hq" class="${activeTab==='hq'?'on':''}">본사 사용자</button><button type="button" data-sa415-tab="directory">직무 담당자</button><button type="button" data-sa415-tab="banners" class="${activeTab==='banners'?'on':''}">배너 관리</button></div>`;
   }
 
   function bindTabs(root,u){
@@ -113,9 +113,9 @@
         };
       };
     }).catch(()=>{});
-    root.querySelector('[data-platform-history]').onclick=()=>{window.enlRequestHistory();currentView='common-history';renderShell(u)};
     root.querySelectorAll('[data-sa415-tab]').forEach(button=>{
       button.onclick=()=>{
+        if(root.querySelector('[data-worktab-edited]')&&!confirm('저장하지 않은 배너 변경을 버리고 이동할까요?'))return;
         activeTab=button.dataset.sa415Tab;
         if(activeTab==='directory')directory(root,u);else if(activeTab==='hq')renderHq(root,u);else renderAdmin(root,u);
       };
@@ -344,6 +344,7 @@
       root.innerHTML='<div class="panel permission-empty"><h2>안전관리자 전용 메뉴입니다.</h2></div>';
       return;
     }
+    if(activeTab==='banners'){root.innerHTML='<section class="panel">'+tabsHtml()+'<div data-banner-manager></div></section>';bindTabs(root,u);return window.ENLBanners.render(root.querySelector('[data-banner-manager]'),u)}
     if(activeTab==='directory')return directory(root,u);
     if(activeTab==='hq')return renderHq(root,u);
     root.innerHTML='<div class="panel"><div class="sa415-empty">현장정보를 불러오는 중입니다.</div></div>';

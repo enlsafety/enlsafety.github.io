@@ -3,7 +3,7 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
 const {stripTypeScriptTypes}=require('node:module');
 const {PGlite}=require('@electric-sql/pglite');
 const read=f=>fs.readFileSync(f,'utf8').replace(/\r\n/g,'\n');
-async function fixture({hubNotices=false}={}){
+async function fixture({hubNotices=false,fetchMock}={}){
  const db=new PGlite();await db.exec(`
  create role anon;create role authenticated;create role service_role;create schema private;
  create table enl_incident_backups(backup_id uuid primary key default gen_random_uuid(),snapshot jsonb not null,reason text,created_at timestamptz default now());
@@ -45,7 +45,7 @@ async function fixture({hubNotices=false}={}){
   }};
  };
  sql.json=JSON.stringify;sql.end=async()=>{};sql.begin=async f=>db.transaction(async t=>{tx=t;try{return await f(sql)}finally{tx=null}});
- const ctx={Deno:{env:{get:()=> 'isolated'},serve:h=>handler=h},postgres:()=>sql,Request,Response,TextEncoder,crypto,structuredClone,console};vm.createContext(ctx);
+ const ctx={Deno:{env:{get:()=> 'isolated'},serve:h=>handler=h},postgres:()=>sql,Request,Response,TextEncoder,crypto,structuredClone,console,atob,fetch:fetchMock};vm.createContext(ctx);
  vm.runInContext(read('edge-functions/enl-incident-sync-v411/site-contract-v451.js'),ctx);
  vm.runInContext(read('executive-approval-v482.js'),ctx);
  vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/lifecycle-policy.ts').replace(/export /g,'')),ctx);

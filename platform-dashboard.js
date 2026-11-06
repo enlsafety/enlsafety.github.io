@@ -82,26 +82,24 @@
  let stopBanner=()=>{};
  function startBanner(host){
   stopBanner();const hero=host.querySelector('.hub-hero'),motion=matchMedia('(prefers-reduced-motion: reduce)');
-  let index=0,position=1,moving=false,hover=false,timer=0,settleTimer=0,frame=0,stopped=false,touch=null;
-  const slides=[null,
-   {key:'fire',eyebrow:'골프장 그린 화재예방',title:'작은 불씨도, 그린에서는 큰 위험입니다',body:'담배꽁초 투기 금지. 작업 전 화기와 소화기를 점검하세요.',image:'golf-fire-r84.webp'},
-   ...(Date.now()<Date.parse('2027-01-01T00:00:00+09:00')?[{key:'health',eyebrow:'2026년 건강검진 안내',title:'올해 건강검진, 12월 31일까지',body:'올해 검진 대상자는 대상 여부를 확인하고 검진기관에 미리 예약해 주세요.',image:'health-check-2026-r84.webp'}]:[]),
-   {key:'tbm',title:'작업 전, 위험요인부터 함께 확인해요',body:'오늘의 작업과 위험요인을 공유하고 안전한 작업방법을 함께 확인하세요.',art:'policy'},
-   {key:'ppe',title:'작은 확인이 동료의 안전을 지킵니다',body:'차량 이동 전 주변을 살피고, 작업에 맞는 보호구를 확인하세요.',art:'ppe'},
-   {key:'prevention',title:'사고 경험을 재발방지로 이어갑니다',body:'사고 원인을 살피고 개선조치가 현장에 정착했는지 확인하세요.',art:'emergency'}];
+  let index=0,position=1,moving=false,pendingAuto=false,timer=0,settleTimer=0,frame=0,stopped=false,touch=null;
+  if(!hero.enlOriginalBanner)hero.enlOriginalBanner=Array.from(hero.children).map(n=>n.cloneNode(true));
+  const slides=window.ENLBanners?.resolve(host.bannerConfig)||[null];
+  hero.hidden=!slides.length;if(!slides.length)return;
   hero.classList.add('hub-carousel');hero.setAttribute('aria-label','안전보건 안내 배너');hero.setAttribute('aria-roledescription','슬라이드');hero.tabIndex=0;
   const track=document.createElement('div');track.className='hub-banner-track no-motion';
-  const original=document.createElement('section');original.className='hub-banner-slide hub-slide-original';
-  original.append(...Array.from(hero.children));track.append(original);
-  for(const s of slides.slice(1)){
-   const slide=document.createElement('section');slide.className='hub-banner-slide hub-slide-campaign'+(s.image?' hub-slide-scene':'');slide.dataset.campaign=s.key;
-   slide.innerHTML=(s.image?'<img class="hub-campaign-background" src="assets/banners/'+s.image+'" alt="" width="2172" height="724" decoding="async">':'')+
-    '<div class="hub-campaign-copy"><small>'+safe(s.eyebrow||'SAFE WORKPLACE')+'</small><h2>'+safe(s.title)+'</h2><p>'+safe(s.body)+'</p></div>'+
-    (s.art?'<img class="hub-campaign-art" src="assets/safety-cards/'+s.art+'.webp" width="320" height="320" alt="">':'');track.append(slide);
+  for(const s of slides){
+   const slide=document.createElement('section');slide.className='hub-banner-slide';
+   if(!s){slide.classList.add('hub-slide-original');slide.append(...hero.enlOriginalBanner.map(n=>n.cloneNode(true)))}
+   else if(s.url){slide.classList.add('hub-slide-upload');const img=document.createElement('img');img.className='hub-uploaded-banner';img.src=s.url;img.alt=s.title;img.style.objectFit=s.fit;slide.append(img)}
+   else {slide.classList.add('hub-slide-campaign');if(s.image)slide.classList.add('hub-slide-scene');slide.dataset.campaign=s.key;
+    slide.innerHTML=(s.image?'<img class="hub-campaign-background" src="assets/banners/'+s.image+'" alt="" width="2172" height="724" decoding="async">':'')+
+     '<div class="hub-campaign-copy"><small>'+safe(s.eyebrow||'SAFE WORKPLACE')+'</small><h2>'+safe(s.title)+'</h2><p>'+safe(s.body)+'</p></div>'+
+     (s.art?'<img class="hub-campaign-art" src="assets/safety-cards/'+s.art+'.webp" width="320" height="320" alt="">':'');
+   }track.append(slide);
   }
-  // Clone both ends so the last-to-first transition continues left without a rewind.
-  track.prepend(track.lastElementChild.cloneNode(true));track.append(original.cloneNode(true));
-  const controls=document.createElement('div');controls.className='hub-banner-controls';
+  const first=track.firstElementChild.cloneNode(true);track.prepend(track.lastElementChild.cloneNode(true));track.append(first);
+  const controls=document.createElement('div');controls.className='hub-banner-controls';controls.hidden=slides.length<2;
   controls.innerHTML='<button type="button" data-prev aria-label="이전 배너"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg></button><div data-dots aria-label="배너 선택"></div><button type="button" data-next aria-label="다음 배너"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>';
   hero.replaceChildren(track,controls);
   const nodes=Array.from(track.children);
@@ -116,29 +114,31 @@
    clearTimeout(settleTimer);if(stopped)return;
    if(position===0||position===slides.length+1){position=index+1;track.classList.add('no-motion');paint();void track.offsetWidth;}
    moving=false;track.classList.toggle('no-motion',motion.matches);
+   if(pendingAuto){pendingAuto=false;move(index+1,1)}
   }
   function move(next,direction){
    if(stopped||moving)return;
-   const target=(next+slides.length)%slides.length;if(target===index){schedule();return}
+   const target=(next+slides.length)%slides.length;if(target===index)return;
    position=direction>0&&index===slides.length-1&&target===0?slides.length+1:direction<0&&index===0&&target===slides.length-1?0:target+1;
    index=target;moving=!motion.matches;track.classList.toggle('no-motion',motion.matches);paint();
-   if(moving)settleTimer=setTimeout(finish,850);else finish();schedule();
+   if(moving)settleTimer=setTimeout(finish,850);else finish();
   }
   track.addEventListener('transitionend',e=>{if(e.target===track&&e.propertyName==='transform')finish()});
-  function schedule(){clearTimeout(timer);timer=setTimeout(()=>{
+  function tick(){
    if(!host.isConnected){stop();return}
-   if(!motion.matches&&!hover&&!hero.contains(document.activeElement)&&!document.hidden&&(!host.dataset.workspace||host.dataset.workspace==='home'))move(index+1,1);
-   else schedule();
-  },5000)}
+   if(!document.hidden&&(!host.dataset.workspace||host.dataset.workspace==='home')){
+    if(moving)pendingAuto=true;else move(index+1,1);
+   }
+  }
   controls.querySelector('[data-prev]').onclick=()=>move(index-1,-1);controls.querySelector('[data-next]').onclick=()=>move(index+1,1);
-  hero.onpointerenter=e=>{if(e.pointerType==='mouse')hover=true};hero.onpointerleave=()=>{hover=false;schedule()};
+  hero.onpointerenter=null;hero.onpointerleave=null;
   hero.onkeydown=e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();move(index+(e.key==='ArrowLeft'?-1:1),e.key==='ArrowLeft'?-1:1)}};
   hero.onpointerdown=e=>{touch=e.pointerType==='touch'&&!e.target.closest('button,a')?{x:e.clientX,y:e.clientY}:null};
   hero.onpointerup=e=>{if(!touch)return;const dx=e.clientX-touch.x,dy=e.clientY-touch.y;touch=null;if(Math.abs(dx)>40&&Math.abs(dx)>Math.abs(dy)*1.3)move(index+(dx<0?1:-1),dx<0?1:-1)};
   hero.onpointercancel=()=>{touch=null};
-  const reduce=()=>{finish();track.classList.toggle('no-motion',motion.matches);schedule()};motion.addEventListener('change',reduce);
-  function stop(){stopped=true;clearTimeout(timer);clearTimeout(settleTimer);cancelAnimationFrame(frame);motion.removeEventListener('change',reduce)}
-  stopBanner=stop;paint();frame=requestAnimationFrame(()=>{if(!stopped)track.classList.toggle('no-motion',motion.matches)});schedule();
+  const reduce=()=>{finish();track.classList.toggle('no-motion',motion.matches)};motion.addEventListener('change',reduce);
+  function stop(){stopped=true;clearInterval(timer);clearTimeout(settleTimer);cancelAnimationFrame(frame);motion.removeEventListener('change',reduce)}
+  stopBanner=stop;paint();frame=requestAnimationFrame(()=>{if(!stopped)track.classList.toggle('no-motion',motion.matches)});if(slides.length>1)timer=setInterval(tick,10000);
  }
  function mount(host,u,{go,icons,names,featureName,manageCards}){
   const admin=u.role==='safety',userKey=JSON.stringify([u.id||u.personnelId,u.role,u.siteId||'']);let catalog=null,content={notices:[],events:[],favorites:[]},loaded=false,contentError='',recent=[],recentError='',busy=false;
@@ -243,7 +243,7 @@
     go(native[key]||'platform-tool');
     if(key==='approvals')approvalWorkspace();
     if(key==='bulletins'||key==='schedule')listContent(key==='bulletins'?'notice':'event');
-    if(key==='home'){renderArtwork(host);loadContent();loadRecent();}
+    if(key==='home'){renderArtwork(host);loadContent();loadRecent();loadBanners();}
     window.scrollTo(0,0);
   }
   async function selectTab(key,closing=false,historyScope='all'){
@@ -422,7 +422,17 @@
   }
   const refresh=()=>{if(sameUser())paintApprovals();else window.removeEventListener('enl-incidents-pulled',refresh)};window.addEventListener('enl-incidents-pulled',refresh);
   if(!window.enlHistoryAvailable)window.addEventListener('enl-history-ready',()=>{if(sameUser())loadRecent()},{once:true});
-  startBanner(host);
+  async function loadBanners(){try{const config=await api({action:'platform_banners'});if(!sameUser())return;
+   const previous=host.bannerConfig;if(previous&&previous.revision>config.revision)return;host.bannerConfig=config;
+   if(!previous||previous.revision!==config.revision)startBanner(host);
+   else for(const img of host.querySelectorAll('.hub-uploaded-banner')){
+    const match=config.assets?.find(a=>img.src.split('?')[0]===a.url.split('?')[0]);if(match&&img.src!==match.url)img.src=match.url;
+   }
+  }catch{/* Keep the last successfully loaded banner set on transient failure. */}}
+  const bannerRefresh=()=>{if(sameUser())loadBanners();else window.removeEventListener('enl-banners-changed',bannerRefresh)};
+  window.addEventListener('enl-banners-changed',bannerRefresh);
+  startBanner(host);loadBanners();
+  const bannerRenew=setInterval(()=>{if(!sameUser()){clearInterval(bannerRenew);window.removeEventListener('enl-banners-changed',bannerRefresh)}else if(active==='home')loadBanners()},3600000);
   const recentRefresh=()=>{if(sameUser())loadRecent();else window.removeEventListener('enl-activity-changed',recentRefresh)};window.addEventListener('enl-activity-changed',recentRefresh);
   navigation();loadContent();loadRecent();
   return {area,services,status,addSupportCard,afterCards,selectTab};
