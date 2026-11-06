@@ -1,0 +1,56 @@
+name: E&L Windows EXE isolated test build
+
+on:
+  push:
+    branches:
+      - build/enl-windows-exe-20261106
+    paths:
+      - desktop-installer/**
+      - .github/workflows/enl-windows-exe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  make-installer:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: desktop-installer
+    steps:
+      - name: Check out the isolated build branch
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Copy existing production app icon unchanged
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path assets | Out-Null
+          Copy-Item ..\assets\app-icons\sky-r53\favicon.ico assets\enl.ico
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Validate JavaScript
+        run: node --check main.js
+      - name: Create Windows EXE installer
+        run: npm run dist:win
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Check EXE and checksum
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Path dist -Filter *.exe | Select-Object -First 1
+          if (-not $exe) { throw 'No Windows installer was created' }
+          if ($exe.Length -lt 1000000) { throw 'Installer file is too small' }
+          Write-Output ('EXE: ' + $exe.Name)
+          Get-FileHash -Path $exe.FullName -Algorithm SHA256 | Format-Table
+      - name: Upload unsigned test installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: ENL-Windows-Setup-Unsigned
+          path: desktop-installer/dist/*.exe
+          retention-days: 14
+          if-no-files-found: error
