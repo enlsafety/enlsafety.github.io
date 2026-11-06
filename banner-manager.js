@@ -11,7 +11,7 @@
  prevention:{key:'prevention',title:'사고 경험을 재발방지로 이어갑니다',body:'사고 원인을 살피고 개선조치가 현장에 정착했는지 확인하세요.',art:'emergency'}};
  const initial=()=>defaults.map(key=>({type:'builtin',key}));
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- const api=body=>window.enlIncidentApi({...body,actor:window.enlCurrentActor()});
+ const api=body=>window.enlIncidentApi({...body,actor:window.enlCurrentActor()},body.action==='platform_banner_upload'?60000:15000);
  function resolve(config){return (config?.items||initial()).flatMap(item=>{
   if(item.type==='builtin')return Object.hasOwn(builtin,item.key)&&!(item.key==='health'&&Date.now()>=Date.parse('2027-01-01T00:00:00+09:00'))?[builtin[item.key]]:[];
   const asset=config?.assets?.find(a=>a.id===item.assetId);return asset?[{key:'upload-'+asset.id,url:asset.url,title:item.title||asset.name,fit:item.fit}]:[];
