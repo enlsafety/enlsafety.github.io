@@ -287,19 +287,27 @@
   window.enlBindCumulativeReport=bindCumulativeReport;
   window.enlScrollReportStage=scrollReportStage;
 
-  function addPastReportFields(form){
+  function addPastReportFields(form,incident){
     const section=document.createElement('section');
     section.className='report410-section';
     section.innerHTML='<label class="report410-check"><input type="checkbox" id="pastReportMode"><span>과거사고 입력모드</span></label><div id="pastReportPeople" hidden><p>당시 원자료에 기재된 이름을 입력하세요. 등록 후 일반 사고와 같은 절차로 검토합니다.</p><div class="report410-grid"><label class="lbl"><span>당시 기안자</span><input id="pastReportDrafter" maxlength="80" disabled></label><label class="lbl"><span>당시 안전관리자</span><input id="pastReportSafety" maxlength="80" disabled></label></div></div>';
     form.querySelector('.section-head').after(section);
     const toggle=section.querySelector('#pastReportMode'),people=section.querySelector('#pastReportPeople');
-    toggle.addEventListener('change',()=>{
+    const syncPeople=()=>{
       people.hidden=!toggle.checked;
       for(const input of people.querySelectorAll('input')){
         input.disabled=!toggle.checked;
         input.required=toggle.checked;
       }
-    });
+    };
+    toggle.addEventListener('change',syncPeople);
+    if(incident?.pastReport){
+      toggle.checked=true;toggle.disabled=true;
+      people.querySelector('p').textContent='당시 원자료에 기재된 이름을 수정하세요. 변경 전후 정보와 수정 사유가 기록되며 기존 승인 상태는 유지됩니다.';
+      section.querySelector('#pastReportDrafter').value=incident.pastReport.drafterName||'';
+      section.querySelector('#pastReportSafety').value=incident.pastReport.safetyManagerName||'';
+      syncPeople();
+    }
   }
 
   function renderTypeForm(root,u,type,i=activeEdit()){
@@ -318,7 +326,7 @@
     }
     layoutReportTables(root.querySelector('#unifiedReportForm'));
     bindOccurrenceTime(root.querySelector('#unifiedReportForm'),i);
-    if(!editing&&u.role==='safety')addPastReportFields(root.querySelector('#unifiedReportForm'));
+    if(u.role==='safety'&&(!editing||i.pastReport))addPastReportFields(root.querySelector('#unifiedReportForm'),i);
     incidentPhotos=editing&&Array.isArray(i.photos)?[...i.photos]:[];renderPhotoThumbs('incident');bindPhotoButtons();
     if(editing){const site=document.getElementById('reportSite');if(site){site.disabled=true;site.title='이미 등록된 사고의 사업장은 수정할 수 없습니다.';}}
     if(person){const leave=document.getElementById('leaveEstimate');if(leave)leave.value=i?.leaveEstimate||'unknown'}
@@ -355,7 +363,7 @@
     const siteId=value('reportSite'),date=value('occurredDate410'),time=value('occurredTime410'),severity=value('severity')||'minor',leaveEstimate=type==='person'?(value('leaveEstimate')||'unknown'):'none',potentialMajor=!!document.getElementById('potentialMajor')?.checked,summary=buildSummary(type,siteId),eventType=value('eventType'),autoPriority=computePriority(type,severity,eventType,potentialMajor,leaveEstimate),priorityChoice=u?.role==='safety'?(value('priorityManual411')||'auto'):'auto',priority=priorityChoice==='auto'?autoPriority:priorityChoice,prioritySource=priorityChoice==='auto'?'auto':'manual',details={...(existing?.reportDetails||{}),templateVersion:'v411',reportType:type,place:value('incidentPlace410'),workAction:value('workAction410'),incidentHow:value('incidentHow410'),preventionPlan:existing?.reportDetails?.preventionPlan||'',specialNote:value('specialNote410'),generatedSummary:summary,recordedAt:existing?.reportDetails?.recordedAt||nowISO()};
     if(type==='person')Object.assign(details,{injuredName:value('injuredName'),job:value('job'),injuryDetail:value('injuryDetail410'),diagnosis:value('diagnosis410'),doctorOpinion:value('doctorOpinion410'),medicalCost:money(value('medicalCost410')),medicalCostPending:!value('medicalCost410'),medicalCostDetail:value('medicalCostDetail410')});else{const repairRaw=value('repairCost410'),repairValue=money(repairRaw),repairPending=!repairRaw||repairRaw===PENDING_COST||repairValue<=0,repairDetail=value('repairCostDetail410')||PENDING_COST;Object.assign(details,{workerName:value('propertyWorker410'),job:value('job'),damagedItem:value('damagedItem410'),damageDetail:value('damageDetail410'),repairCost:repairPending?0:repairValue,repairCostPending:repairPending,repairCostDetail:repairDetail})}
     const common={siteId,category:type,eventType,severity,leaveEstimate,potentialMajor,injuredName:type==='person'?value('injuredName'):'',job:value('job'),summary,immediateAction:value('immediateAction'),photos:[...incidentPhotos].map(persistAttachment),occurredAt:time?new Date(`${date}T${time}:00+09:00`).toISOString():date,updatedAt:nowISO(),priority,prioritySource,prioritySetBy:prioritySource==='manual'?u.name:'',prioritySetAt:prioritySource==='manual'?nowISO():null,legalReview:computeLegalReview(type,severity,leaveEstimate),reportDetails:details};
-    if(!existing&&u.role==='safety'&&e.currentTarget.querySelector('#pastReportMode:checked')){
+    if(u.role==='safety'&&(!existing||existing.pastReport)&&e.currentTarget.querySelector('#pastReportMode:checked')){
       if(!required('pastReportDrafter','당시 기안자')||!required('pastReportSafety','당시 안전관리자'))return;
       common.pastReport={drafterName:value('pastReportDrafter'),safetyManagerName:value('pastReportSafety')};
     }
@@ -382,7 +390,7 @@
       if(!factChanged||existing.summary!==existing.reportDetails?.generatedSummary){common.summary=existing.summary;details.generatedSummary=existing.reportDetails?.generatedSummary;}
 
       if(accepted(existing)){
-        const changes={},top=['occurredAt','eventType','summary','injuredName','job','severity','potentialMajor','leaveEstimate','immediateAction','photos'];
+        const changes={},top=[...(common.pastReport?['pastReport']:[]),'occurredAt','eventType','summary','injuredName','job','severity','potentialMajor','leaveEstimate','immediateAction','photos'];
         for(const k of top)if(JSON.stringify(existing[k]??null)!==JSON.stringify(common[k]??null))changes[k]=common[k];
         const allowed=['place','workAction','incidentHow','preventionPlan','specialNote','job','injuredName','injuryDetail','diagnosis','doctorOpinion','medicalCost','medicalCostPending','medicalCostDetail','workerName','damagedItem','damageDetail','repairCost','repairCostPending','repairCostDetail','environmentCause','behaviorCause','causeAnalysisNote','causeAnalysisStatus'];
         for(const k of allowed)if(JSON.stringify(details[k]??'')!==JSON.stringify(existing.reportDetails?.[k]??'')){(changes.reportDetails||(changes.reportDetails={}))[k]=details[k];}

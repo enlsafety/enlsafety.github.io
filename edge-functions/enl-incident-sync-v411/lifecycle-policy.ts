@@ -4,6 +4,12 @@ const canonical = (v:any):any => Array.isArray(v) ? v.map(canonical) : v && type
 const equal = (a:any,b:any) => JSON.stringify(canonical(a ?? null)) === JSON.stringify(canonical(b ?? null));
 const fail = (message:string,status=409):never => {throw Object.assign(new Error(message),{httpStatus:status});};
 const accepted = (i:any) => ['approved','closed'].includes(text(i?.status));
+function pastReportNames(value:any){
+  if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(k=>!['drafterName','safetyManagerName'].includes(k)))fail('revision_field_forbidden',400);
+  const {drafterName,safetyManagerName}=value;
+  if(![drafterName,safetyManagerName].every(n=>typeof n==='string'&&n.trim().length>0&&n.trim().length<=80))fail('past_report_names_required',400);
+  return {drafterName:drafterName.trim(),safetyManagerName:safetyManagerName.trim()};
+}
 export function isHistoricalEditable(i:any) {
   if(!i||i.bulkInvalidation?.active===true)return false;
   return ['historical_manual','historical_transfer'].includes(text(i.recordMode))
@@ -74,7 +80,10 @@ export function validateLifecycle(prev:any,next:any,actor:any,now:string){
     next.createdAt=now;next.registeredAt=now;next.closedAt=null;
     return {costChanges:[]};
   }
-  for(const key of managedKeys)if(!equal(prev[key],next[key]))fail('server_record_locked');
+  for(const key of managedKeys)if(!equal(prev[key],next[key])){
+    if(key==='pastReport'&&prev.pastReport&&actor.role==='safety'&&!accepted(prev))next.pastReport={...prev.pastReport,...pastReportNames(next.pastReport)};
+    else fail('server_record_locked');
+  }
   for(const key of stampKeys)if(!equal(prev[key],next[key])&&!(['approvedBy','approvedAt','closedAt'].includes(key)&&actor.role==='safety'&&prev.status!=='closed'))fail('approval_history_locked');
   if(prev.status==='closed')fail('closed_revision_required');
   if(prev.executiveApproval?.state==='pending')fail('executive_review_in_progress');
@@ -168,7 +177,7 @@ export function correctedIncident(prev:any,changes:any,reason:string,actor:any,n
   if(!accepted(prev))fail('approved_or_closed_required');
   if(prev.executiveApproval?.state==='pending')fail('executive_review_in_progress');
   if(!text(reason)||text(reason).length>2000)fail('revision_reason_required',400);
-  const allowed=new Set(['summary','occurredAt','eventType','category','injuredName','injuredAge','injuredGender','injuredPart','injuryType','job','severity','potentialMajor','leaveEstimate','immediateAction','reportDetails','photos','corrective',...(historical?['historicalImport']:[])]);
+  const allowed=new Set(['summary','occurredAt','eventType','category','injuredName','injuredAge','injuredGender','injuredPart','injuryType','job','severity','potentialMajor','leaveEstimate','immediateAction','reportDetails','photos','corrective',...(prev.pastReport?['pastReport']:[]),...(historical?['historicalImport']:[])]);
   const correctiveAllowed=new Set(['rootCause','causeStatus','planDetail','ownerName','dueDate','actionDetail','actionDate','actionOwner','additionalNotes','afterPhotos']);
   const historicalDetails=new Set(['place','workAction','incidentHow','environmentCause','behaviorCause','injuredName','workerName','job','injuryDetail','diagnosis','doctorOpinion','medicalCost','medicalCostPending','medicalCostDetail','repairCost','repairCostPending','repairCostDetail','damagedItem','damageDetail','preventionPlan','specialNote','causeAnalysisStatus','causeAnalysisNote']);
   const historicalMeta=new Set(['originalReporterName','erpApprovalRef','erpApprovalDate','existingActionNote','additionalActionNote','existingActionStatus']);
@@ -177,7 +186,14 @@ export function correctedIncident(prev:any,changes:any,reason:string,actor:any,n
   for(const [key,value] of Object.entries(changes)){
     if(!allowed.has(key))fail('revision_field_forbidden',400);
 
-    if(key==='historicalImport'){
+    if(key==='pastReport'){
+      if(!prev.pastReport)fail('revision_field_forbidden',400);
+      const names=pastReportNames(value);
+      for(const [field,name] of Object.entries(names))if(!equal(prev.pastReport[field],name)){
+        next.pastReport={...next.pastReport,[field]:name};
+        diff.push({field:'pastReport.'+field,before:prev.pastReport[field]??null,after:name});
+      }
+    }else if(key==='historicalImport'){
       if(!historical||!prev.historicalImport||!value||typeof value!=='object'||Array.isArray(value))fail('revision_field_forbidden',400);
       for(const [k,v] of Object.entries(value)){
         if(!historicalMeta.has(k))fail('revision_field_forbidden',400);
