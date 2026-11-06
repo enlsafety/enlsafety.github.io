@@ -205,7 +205,7 @@
     openModal(`<div class="modal-head"><div><div class="ey">SUPPLEMENT</div><h2>${ex(siteName(i.siteId))} · 사고보고 보완자료</h2><p>사고 직후에는 알 수 없었던 진단·비용·견적 등의 사후 확인자료를 입력합니다.</p></div><button class="x" data-close>×</button></div>
       <div class="wf440-supplement-note"><b>안전관리자 요청사항</b><ul>${supplementList(i).map(x=>`<li>${ex(x)}</li>`).join('')||'<li>보완요청 메모를 확인해 주세요.</li>'}</ul>${i.supplement?.requestNote?`<div style="margin-top:6px">${ex(i.supplement.requestNote)}</div>`:''}</div>
       <form id="wf440SupplementForm" data-requested='${ex(JSON.stringify([...(i.supplement?.requestedFields||[])]))}'>${body}
-        <div class="wf440-filebox"><b>진단서·영수증·견적서 등 보완자료</b><div style="margin-top:6px"><input id="wf440SupplementFile" type="file" accept="image/*,application/pdf" multiple></div><div id="wf440SupplementFiles" class="wf440-file-list"></div></div>
+        <div class="wf440-filebox" data-attachment-input="wf440SupplementFile"><small class="attachment-drop-hint">파일을 이곳에 끌어다 놓거나 선택하세요.</small><b>진단서·영수증·견적서 등 보완자료</b><div style="margin-top:6px"><input id="wf440SupplementFile" type="file" accept="image/*,application/pdf" multiple></div><div id="wf440SupplementFiles" class="wf440-file-list"></div></div>
         <button class="primary full" type="submit" style="margin-top:11px">보완완료 · 안전관리자 검토요청</button>
       </form>`);
     const form=document.getElementById('wf440SupplementForm');if(!form)return;
