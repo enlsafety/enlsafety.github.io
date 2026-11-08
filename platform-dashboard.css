@@ -434,3 +434,10 @@
  .hub-fire-checklist{gap:7px}.hub-fire-checklist li{font-size:10px;gap:5px;line-height:1.4}.hub-fire-checklist b{font-size:8px;line-height:17px;min-width:18px}
 }
 @media(max-width:360px){.hub-fire-content h2{font-size:22px}.hub-fire-checklist li{font-size:9px;gap:4px}.hub-fire-checklist b{min-width:16px;font-size:7px}}
+
+.hub-board-categories{display:flex;flex-wrap:wrap;gap:6px;padding:8px 0 16px;border-bottom:1px solid #dce8ef}
+.hub-board-categories button{min-height:40px;padding:6px 14px;border:1px solid #cbdcea;border-radius:8px;background:#fff;color:#254c69;font:inherit;font-weight:700;cursor:pointer}
+.hub-board-categories button:hover{background:#edf5fa}.hub-board-categories button[aria-current=page]{background:#215c88;border-color:#215c88;color:white}
+.hub-board-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:14px 0}.hub-board-heading h3,.hub-board-heading .hub-list-tools{margin:0}
+.hub-board [role=status]{color:#536d80}.hub-dialog [data-hub=download],.hub-dialog .hub-detail-body{overflow-wrap:anywhere}
+@media(max-width:540px){.hub-board-categories{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.hub-board-categories button{min-height:44px}}
