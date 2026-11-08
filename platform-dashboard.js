@@ -82,7 +82,7 @@
  let stopBanner=()=>{};
  function startBanner(host){
   stopBanner();const hero=host.querySelector('.hub-hero'),motion=matchMedia('(prefers-reduced-motion: reduce)');
-  let index=0,position=1,moving=false,pendingAuto=false,timer=0,settleTimer=0,frame=0,stopped=false,touch=null;
+  let index=0,position=1,moving=false,timer=0,settleTimer=0,frame=0,stopped=false,touch=null;
   if(!hero.enlOriginalBanner)hero.enlOriginalBanner=Array.from(hero.children).map(n=>n.cloneNode(true));
   const slides=window.ENLBanners?.resolve(host.bannerConfig)||[null];
   hero.dataset.slideCount=String(slides.length);hero.hidden=!slides.length||!!host.dataset.workspace&&host.dataset.workspace!=='home';if(!slides.length)return;
@@ -115,21 +115,26 @@
    clearTimeout(settleTimer);if(stopped)return;
    if(position===0||position===slides.length+1){position=index+1;track.classList.add('no-motion');paint();void track.offsetWidth;}
    moving=false;track.classList.toggle('no-motion',motion.matches);
-   if(pendingAuto){pendingAuto=false;move(index+1,1)}
+   scheduleNext();
   }
   function move(next,direction){
    if(stopped||moving)return;
    const target=(next+slides.length)%slides.length;if(target===index)return;
+   clearTimeout(timer);
    position=direction>0&&index===slides.length-1&&target===0?slides.length+1:direction<0&&index===0&&target===slides.length-1?0:target+1;
    index=target;moving=!motion.matches;track.classList.toggle('no-motion',motion.matches);paint();
    if(moving)settleTimer=setTimeout(finish,850);else finish();
   }
   track.addEventListener('transitionend',e=>{if(e.target===track&&e.propertyName==='transform')finish()});
+  function scheduleNext(){
+   clearTimeout(timer);
+   if(!stopped&&slides.length>1)timer=setTimeout(tick,10000);
+  }
   function tick(){
    if(!host.isConnected){stop();return}
    if(!document.hidden&&(!host.dataset.workspace||host.dataset.workspace==='home')){
-    if(moving)pendingAuto=true;else move(index+1,1);
-   }
+    move(index+1,1);
+   }else scheduleNext();
   }
   controls.querySelector('[data-prev]').onclick=()=>move(index-1,-1);controls.querySelector('[data-next]').onclick=()=>move(index+1,1);
   hero.onpointerenter=null;hero.onpointerleave=null;
@@ -138,8 +143,8 @@
   hero.onpointerup=e=>{if(!touch)return;const dx=e.clientX-touch.x,dy=e.clientY-touch.y;touch=null;if(Math.abs(dx)>40&&Math.abs(dx)>Math.abs(dy)*1.3)move(index+(dx<0?1:-1),dx<0?1:-1)};
   hero.onpointercancel=()=>{touch=null};
   const reduce=()=>{finish();track.classList.toggle('no-motion',motion.matches)};motion.addEventListener('change',reduce);
-  function stop(){stopped=true;clearInterval(timer);clearTimeout(settleTimer);cancelAnimationFrame(frame);motion.removeEventListener('change',reduce)}
-  stopBanner=stop;paint();frame=requestAnimationFrame(()=>{if(!stopped)track.classList.toggle('no-motion',motion.matches)});if(slides.length>1)timer=setInterval(tick,10000);
+  function stop(){stopped=true;clearTimeout(timer);clearTimeout(settleTimer);cancelAnimationFrame(frame);motion.removeEventListener('change',reduce)}
+  stopBanner=stop;paint();frame=requestAnimationFrame(()=>{if(!stopped)track.classList.toggle('no-motion',motion.matches)});scheduleNext();
  }
  function mount(host,u,{go,icons,names,featureName,manageCards}){
   const admin=u.role==='safety',userKey=JSON.stringify([u.id||u.personnelId,u.role,u.siteId||'']);let catalog=null,content={notices:[],events:[],favorites:[]},loaded=false,contentError='',recent=[],recentError='',busy=false;
