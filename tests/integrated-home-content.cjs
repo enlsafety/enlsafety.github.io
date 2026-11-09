@@ -2,6 +2,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),{fixture}=require('./final-lifecycle.cjs');
 (async()=>{const f=await fixture({hubNotices:true});try{
  await f.db.exec(fs.readFileSync('supabase/migrations/20261104234953_integrated_home_content.sql','utf8'));
+ await f.db.exec(fs.readFileSync('supabase/migrations/20261109035645_board_publication_settings.sql','utf8'));
  await f.db.exec(fs.readFileSync('supabase/migrations/20261105152600_email_challenge_sidebar.sql','utf8'));
  const call=(who,action,extra={})=>f.call(who,{action,...extra});
  const notice={kind:'notice',title:'격리 검수 공지',body:'본문 <script> 검수',label:'important',siteId:'qa-site'};

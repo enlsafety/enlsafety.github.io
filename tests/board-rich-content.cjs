@@ -32,5 +32,23 @@ const assert=require('node:assert/strict'),{boardFixture}=require('./integrated-
  assert.equal((await f.call('field',{action:'platform_board_list',kind:'news',from:'2026-11-09',to:'2026-11-01'})).status,400);
  assert.equal((await f.call('safety',{action:'platform_hub_archive',id,revision:3})).status,200);
  assert.equal((await detail('field')).status,404);
+ await f.db.exec("insert into public.enl_site_master(site_id,site_name,active) values('other-site','격리검수 두번째 현장',true)");
+ const publication={pinned:true,sites:['qa-site','other-site'],expiresAt:null};
+ const rich={...post,kind:'notice',label:'info',publication,document:[{tag:'h1',children:[{text:'제목'}]},{tag:'hr',children:[]},{tag:'p',lineHeight:1.8,children:[{tag:'span',size:18,color:'#123456',highlight:'#ffe471',children:[{text:'강조'}]}]}]};
+ const created=await save('safety',rich);assert.equal(created.status,200);const article=created.body.item;
+ assert.equal(article.pinned,true);assert.equal(article.label,'info');
+ assert.deepEqual((await f.call('other',{action:'platform_board_detail',id:article.id})).body.item.document,rich.document);
+ const important=await save('safety',{kind:'notice',title:'중요만',body:'내용',label:'important',publication:{pinned:false,sites:[],expiresAt:null}});
+ assert.equal(important.status,200);assert.equal((await f.call('other',{action:'platform_hub'})).body.notices[0].id,article.id);
+ const expired=await save('safety',{...rich,id:article.id,revision:1,publication:{...publication,expiresAt:'2020-01-01T00:00:00Z'}});
+ assert.equal(expired.status,200);
+ for(const who of ['field','other','manager','executive']){
+  assert.equal((await f.call(who,{action:'platform_board_detail',id:article.id})).status,404);
+  assert.equal((await f.call(who,{action:'platform_board_file',id:article.id,assetId:file.id})).status,404);
+  assert.ok(!(await f.call(who,{action:'platform_board_list',kind:'all'})).body.items.some(x=>x.id===article.id));
+  assert.ok(!(await f.call(who,{action:'platform_hub'})).body.notices.some(x=>x.id===article.id));
+ }
+ assert.equal((await f.call('safety',{action:'platform_board_detail',id:article.id})).status,200);
+ assert.equal((await save('safety',{...rich,publication:{...publication,sites:['qa-site','not-a-site']}})).status,400);
  console.log('PASS typed documents, unsafe content rejection, site authorization, atomic multi-assets, archive, retention and server filters');
 }finally{await f.db.close()}})().catch(e=>{console.error(e);process.exitCode=1});
