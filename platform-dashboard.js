@@ -38,7 +38,7 @@
  function boardBlob(file){return URL.createObjectURL(new Blob([Uint8Array.from(atob(file.base64),c=>c.charCodeAt(0))],{type:file.mime||'application/octet-stream'}));}
  function boardEditor(form,item,assets,urls){
   const text=form.elements.body;const wrapper=document.createElement('div');wrapper.className='hub-rich-editor';
-  wrapper.innerHTML='<span class="board-field-caption">내용</span><div class="hub-editor-toolbar" role="toolbar" aria-label="본문 서식"></div><div class="hub-editor-content" contenteditable="true" role="textbox" aria-label="게시글 내용" aria-multiline="true"></div><label class="hub-file-drop">파일을 놓거나 선택하세요 (최대 5개, 각 5MB, 합계 10MB)<input type="file" multiple data-board-files accept=".pdf,.xlsx,.xls,.doc,.docx,.ppt,.pptx,.hwp,.hwpx,.zip,.jpg,.jpeg,.png"></label><div data-board-assets></div>';
+  wrapper.innerHTML='<span class="board-field-caption">내용</span><div class="hub-editor-toolbar" role="toolbar" aria-label="본문 서식"></div><div class="hub-editor-content" contenteditable="true" role="textbox" aria-label="게시글 내용" aria-multiline="true"></div><label class="hub-file-drop">이 창에 파일을 끌어다 놓거나 선택하세요 (최대 5개, 각 5MB, 합계 10MB)<input type="file" multiple data-board-files accept=".pdf,.xlsx,.xls,.doc,.docx,.ppt,.pptx,.hwp,.hwpx,.zip,.jpg,.jpeg,.png"></label><div data-board-assets></div>';
   text.parentElement.after(wrapper);text.parentElement.hidden=true;
   const editor=wrapper.querySelector('[contenteditable]'),toolbar=wrapper.querySelector('[role=toolbar]'),list=wrapper.querySelector('[data-board-assets]'),note=form.querySelector('[role=status]');
   if(item.document)boardRender(item.document,editor,urls);else editor.textContent=item.body||'';
@@ -118,7 +118,11 @@
   });
   editor.addEventListener('paste',e=>{e.preventDefault();document.execCommand('insertText',false,e.clipboardData.getData('text/plain'))});
   editor.addEventListener('drop',e=>e.preventDefault());
-  function paint(){list.replaceChildren();for(const f of assets){const line=document.createElement('div');line.className='hub-asset-row';const name=document.createElement('span');name.textContent=f.name;line.append(name);
+  const dialog=form.closest('dialog');
+  const attachmentCount=document.createElement('span');
+  attachmentCount.className='board-attachment-count';attachmentCount.setAttribute('role','status');
+  dialog.querySelector('header button').before(attachmentCount);
+  function paint(){attachmentCount.textContent=assets.length?'첨부 '+assets.length+'개':'';list.replaceChildren();for(const f of assets){const line=document.createElement('div');line.className='hub-asset-row';const name=document.createElement('span');name.textContent=f.name;line.append(name);
    if(f.mime?.startsWith('image/')){const b=document.createElement('button');b.type='button';b.textContent='본문에 넣기';b.onclick=()=>{applySource();const p=document.createElement('p');p.style.textAlign='center';boardRender([{tag:'img',assetId:f.id}],p,urls);editor.append(p)};line.append(b)}
    const remove=document.createElement('button');remove.type='button';remove.textContent='제외';remove.onclick=()=>{applySource();assets.splice(assets.indexOf(f),1);editor.querySelectorAll('img').forEach(n=>{if(n.dataset.assetId===f.id)n.remove()});paint()};line.append(remove);list.append(line);
   }}paint();
@@ -135,9 +139,8 @@
    }catch{note.textContent='파일은 최대 5개, 각 5MB, 합계 10MB이며 지원 형식이어야 합니다.'}finally{delete form.dataset.filesPending;form.querySelector('[type=submit]').disabled=false;picker.disabled=false;picker.value=''}
   }
   picker.onchange=()=>addFiles([...picker.files]);
-  drop.ondragover=e=>{e.preventDefault();drop.classList.add('is-over')};
-  drop.ondragleave=()=>drop.classList.remove('is-over');
-  drop.ondrop=e=>{e.preventDefault();drop.classList.remove('is-over');addFiles([...e.dataTransfer.files])};
+  picker.id='board-files-'+crypto.randomUUID();
+  dialog.dataset.attachmentInput=picker.id;
   const files=form.querySelector('[data-file-section]');files.append(drop,list);
   return {editor,applySource};
  }
@@ -665,14 +668,14 @@
    if(kind==='event'){const local=v=>v?day(new Date(v))+'T'+time(v):day()+'T09:00';f.elements.start.value=local(item.starts_at);f.elements.end.value=item.ends_at?local(item.ends_at):day()+'T10:00'}
    f.onsubmit=async ev=>{ev.preventDefault();if(busy||f.dataset.filesPending)return;const b={action:'platform_hub_save',id:item.id||null,revision:item.revision,kind,title:f.elements.title.value,body:f.elements.body.value,siteId:f.elements.site?.value||'',label:board&&f.elements.important.checked?'important':f.elements.noticeType?.value||'info',startsAt:kind==='event'?new Date(f.elements.start.value+':00+09:00').toISOString():null,endsAt:kind==='event'?new Date(f.elements.end.value+':00+09:00').toISOString():null};if(editor){editor.applySource();b.document=boardNodes(editor.editor);b.body=editor.editor.innerText;b.attachments=assets;
     const sites=[...f.querySelectorAll('[name=shareSite]:checked')].map(el=>el.value);
-    b.siteId=sites[0]||'';b.publication={sites,pinned:f.elements.pinned.checked,expiresAt:f.elements.expires.value?new Date(f.elements.expires.value+':00+09:00').toISOString():null};if(b.body.length>10000){note.textContent='본문은 10,000자 이하로 작성하세요.';return}}if(kind==='event'&&b.endsAt<b.startsAt){note.textContent='종료 시각은 시작 시각 이후여야 합니다.';return}busy=true;f.inert=true;try{
+    b.siteId=sites[0]||'';b.publication={sites,pinned:f.elements.pinned.checked,expiresAt:f.elements.expires.value?new Date(f.elements.expires.value+':00+09:00').toISOString():null};if(b.body.length>10000){note.textContent='본문은 10,000자 이하로 작성하세요.';return}}if(kind==='event'&&b.endsAt<b.startsAt){note.textContent='종료 시각은 시작 시각 이후여야 합니다.';return}busy=true;f.inert=true;f.setAttribute('aria-busy','true');try{
     const file=f.elements.file?.files[0];
     if(file){
      if(file.size>5242880||!file.size||file.name.length>180||!/[.](pdf|xlsx?|docx?|pptx?|hwpx?|zip|jpe?g|png)$/i.test(file.name)){note.textContent='지원 형식의 5MB 이하 파일을 선택하세요.';return}
      const base64=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.onerror=reject;reader.readAsDataURL(file)});
      b.file={name:file.name,size:file.size,base64};
     }
-    await api(b,b.file||b.attachments?.length?60000:undefined);if(!sameUser())return;d.close();await refreshContentList(kind);status.textContent='저장했습니다.'}catch(err){note.textContent=err.message==='content_changed'?'다른 변경이 있습니다. 닫은 뒤 다시 조회해 주세요.':'저장하지 못했습니다. 입력과 연결 상태를 확인하세요.'}finally{busy=false;f.inert=false}};
+    await api(b,b.file||b.attachments?.length?60000:undefined);if(!sameUser())return;d.close();await refreshContentList(kind);status.textContent='저장했습니다.'}catch(err){note.textContent=err.message==='content_changed'?'다른 변경이 있습니다. 닫은 뒤 다시 조회해 주세요.':'저장하지 못했습니다. 입력과 연결 상태를 확인하세요.'}finally{busy=false;f.inert=false;f.removeAttribute('aria-busy')}};
    f.querySelector('[data-archive]')?.addEventListener('click',async()=>{if(busy||!confirm('이 항목을 보관 처리할까요? 원본은 서버에 남습니다.'))return;busy=true;f.inert=true;try{await api({action:'platform_hub_archive',id:item.id,revision:item.revision});d.close();await refreshContentList(kind)}catch{note.textContent='처리하지 못했습니다. 다시 조회해 주세요.'}finally{busy=false;f.inert=false}});
   }
   async function refreshContentList(kind){
