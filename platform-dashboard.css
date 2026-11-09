@@ -558,3 +558,77 @@
 .hub-campaign-article img{vertical-align:middle;border-radius:8px}
 .hub-campaign-article ul{padding-left:1.3em}.hub-campaign-article li+li{margin-top:.4em}
 .hub-campaign-article hr{border:0;border-top:1px solid #d4e1e7;margin:1.6em 0 1em}
+
+/* The five campaign documents use regular editable headings, paragraphs, lists and tables. */
+.hub-board-post .hub-campaign-article{container:notice / inline-size;width:100%;max-width:850px;line-height:1.7}
+.hub-campaign-article img{display:block;width:100%;height:auto}
+.hub-campaign-article :is(div,ol,li){min-width:0}
+.hub-campaign-article table{width:100%;text-align:left}
+.hub-campaign-article[data-campaign] table :is(th,td){border:0;border-bottom:1px solid #cdd9db;padding:12px 10px;vertical-align:top}
+.hub-campaign-article table th{width:28%}
+.hub-campaign-article a{text-decoration:underline;text-underline-offset:3px}
+.hub-campaign-article[data-campaign] h2{font-weight:800;line-height:1.22;margin:.25em 0 .5em}
+.hub-campaign-article[data-campaign] h3{line-height:1.45}
+
+/* A directory with a small map of the four destinations. */
+.hub-campaign-article[data-campaign=welcome]>div:first-child{display:grid;grid-template-columns:1.35fr 1fr;align-items:center;gap:18px;background:#eef4ef;border-radius:10px;overflow:hidden}
+.hub-campaign-article[data-campaign=welcome]>div:first-child>div{padding:clamp(16px,3vw,32px)}
+.hub-campaign-article[data-campaign=welcome] h2{color:#20584d}
+.hub-campaign-article[data-campaign=welcome]>div img{border-radius:0}
+.hub-campaign-article[data-campaign=welcome]>table{margin:12px 0 20px}
+.hub-campaign-article[data-campaign=welcome] th{color:#1c5c4d}
+
+/* A blue print frontispiece and three questions, followed by a help desk note. */
+.hub-campaign-article[data-campaign=opening]>h2{color:#253a85;border-top:4px solid #334dad;padding-top:16px}
+.hub-campaign-article[data-campaign=opening]>h2+div{display:grid;grid-template-columns:minmax(130px,.58fr) 1.45fr;gap:clamp(18px,3vw,32px);align-items:start}
+.hub-campaign-article[data-campaign=opening]>h2+div>img{margin-top:8px;border-radius:2px}
+.hub-campaign-article[data-campaign=opening]>h2+div h3{color:#233980;margin:0 0 6px}
+.hub-campaign-article[data-campaign=opening]>h2+div p+h3{border-top:1px solid #c8d1ed;padding-top:14px}
+.hub-campaign-article[data-campaign=opening]>div:last-child{padding:16px 22px;background:#eef0fa;margin-top:18px;border-left:4px solid #5665ad}
+.hub-campaign-article[data-campaign=opening]>div:last-child h3{margin:0 0 8px}
+
+/* Calendar date, appointment photograph and a vertical itinerary. */
+.hub-campaign-article[data-campaign=health]>div:first-child{display:grid;grid-template-columns:1fr 1.1fr;align-items:center;overflow:hidden;background:#faf0e3;border:1px solid #e7d6c0;border-radius:6px}
+.hub-campaign-article[data-campaign=health]>div:first-child>div{padding:18px 24px}
+.hub-campaign-article[data-campaign=health]>div:first-child h2{font-size:clamp(32px,6vw,56px);color:#984124;white-space:nowrap}
+.hub-campaign-article[data-campaign=health]>div:first-child p{margin:0;color:#614530}
+.hub-campaign-article[data-campaign=health]>div:first-child img{height:100%;object-fit:cover;border-radius:0}
+.hub-campaign-article[data-campaign=health]>ol{list-style:none;padding:0 0 0 21px;margin:24px 0;position:relative}
+.hub-campaign-article[data-campaign=health]>ol>li{border-left:2px solid #c1d8cd;padding:0 0 22px 22px;position:relative}
+.hub-campaign-article[data-campaign=health]>ol>li:last-child{border-color:transparent;padding-bottom:0}
+.hub-campaign-article[data-campaign=health]>ol>li::before{content:'';position:absolute;left:-7px;top:7px;width:12px;height:12px;background:#338269;border-radius:50%}
+.hub-campaign-article[data-campaign=health] li strong{display:block;color:#27624f}
+
+/* An annotated course plan with a numbered key underneath. */
+.hub-campaign-article[data-campaign=fire]>div:first-child{border-left:4px solid #b67d29;padding-left:16px}
+.hub-campaign-article[data-campaign=fire]>img{border:1px solid #d8cfb9;box-sizing:border-box}
+.hub-campaign-article[data-campaign=fire]>ol{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;counter-reset:place;list-style:none;padding:0;margin:18px 0}
+.hub-campaign-article[data-campaign=fire]>ol>li{counter-increment:place;border-top:2px solid #bb8d48;padding-top:9px;font-size:15px}
+.hub-campaign-article[data-campaign=fire]>ol>li::before{content:counter(place);display:inline-grid;place-items:center;width:22px;height:22px;margin-right:6px;border-radius:50%;background:#805322;color:white;font-weight:700}
+.hub-campaign-article[data-campaign=fire] li strong{color:#684919}
+.hub-campaign-article[data-campaign=fire] li strong::after{content:'';display:block;margin-bottom:6px}
+.hub-campaign-article[data-campaign=fire]>ol+p{padding:13px 16px;background:#fff4da}
+
+/* Radio transcript and a dispatch log. */
+.hub-campaign-article[data-campaign=report]>div:first-child{display:grid;grid-template-columns:.9fr 1.1fr;background:#142a38;border-radius:6px;overflow:hidden}
+.hub-campaign-article[data-campaign=report]>div:first-child img{height:100%;object-fit:cover;object-position:25% center;border-radius:0}
+.hub-campaign-article[data-campaign=report]>div:first-child>div{padding:clamp(18px,3vw,30px);color:#f1f4f4}
+.hub-campaign-article[data-campaign=report]>div:first-child h2{color:#fff;font-size:clamp(24px,4vw,38px)}
+.hub-campaign-article[data-campaign=report]>div:first-child p:first-child{color:#ffcd81;font-size:14px}
+.hub-campaign-article[data-campaign=report]>div:first-child p:last-child{margin-bottom:0}
+.hub-campaign-article[data-campaign=report] th{color:#82441e;background:#fcf2e5}
+.hub-campaign-article[data-campaign=report] table{border-top:2px solid #b77a42}
+
+@container notice (max-width:530px){
+ .hub-campaign-article[data-campaign=welcome]>div:first-child{grid-template-columns:1.4fr .8fr;gap:0}
+ .hub-campaign-article[data-campaign=welcome]>div:first-child>div{padding:12px}
+ .hub-campaign-article[data-campaign=welcome]>div:first-child p{font-size:14px;margin:0}
+ .hub-campaign-article[data-campaign=opening]>h2+div{display:flow-root}
+ .hub-campaign-article[data-campaign=opening]>h2+div>img{width:27%;float:right;margin:0 0 8px 12px}
+ .hub-campaign-article[data-campaign=opening]>h2+div p+h3{clear:both}
+ .hub-campaign-article[data-campaign=health]>div:first-child{grid-template-columns:1fr}
+ .hub-campaign-article[data-campaign=health]>div:first-child img{height:auto;max-height:140px}
+ .hub-campaign-article[data-campaign=fire]>ol{grid-template-columns:1fr;gap:10px}
+ .hub-campaign-article[data-campaign=report]>div:first-child{display:flex;flex-direction:column-reverse}
+ .hub-campaign-article[data-campaign=report]>div:first-child img{height:auto;max-height:175px;object-fit:cover;object-position:50% 40%}
+}

@@ -586,7 +586,11 @@
    host.availableNoticeIds=content.notices.length<250?new Set(content.notices.map(n=>n.id)):null;syncBannerNoticeLinks(host);
   }catch{contentError='자료를 불러오지 못했습니다. 더보기에서 다시 시도하세요.'}if(sameUser())paintContent()}
   function renderPostBody(x,body){
-    if(x.document){if(Object.values(bannerNotices).some(([id])=>id===x.id))body.classList.add('hub-campaign-article');body.classList.add('hub-rich-body');boardRender(x.document,body);return}
+    if(x.document){
+     const campaign=Object.entries(bannerNotices).find(([,notice])=>notice[0]===x.id);
+     if(campaign){body.classList.add('hub-campaign-article');body.dataset.campaign=campaign[0]}
+     body.classList.add('hub-rich-body');boardRender(x.document,body);return;
+    }
     for(const part of String(x.body||'').split(/(https?:\/\/[^\s<>"']+)/gi)){
       if(/^https?:\/\//i.test(part)){const a=document.createElement('a');a.href=part;a.textContent=part;a.target='_blank';a.rel='noopener noreferrer';body.append(a)}
       else body.append(part);
