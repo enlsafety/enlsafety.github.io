@@ -17,6 +17,7 @@ const {tab}=require('./field-entry-table-browser.cjs');
     const toggle=p.locator('#pastReportMode');
     assert.equal(await toggle.isChecked(),false);
     await toggle.check();await p.locator('#pastReportDrafter').fill('가상 기안자');
+    for(const label of ['담당 기안자','담당 안전관리자'])assert.equal(await p.getByText(label,{exact:true}).count(),1);
     const geometry=await p.evaluate(()=>{
      const rect=selector=>document.querySelector(selector).getBoundingClientRect();
      const draft=rect('#pastReportDrafter'),safety=rect('#pastReportSafety');
@@ -45,6 +46,7 @@ const {tab}=require('./field-entry-table-browser.cjs');
     assert.deepEqual(saved.pastReport,{drafterName:'가상 기안자',safetyManagerName:'가상 안전관리자'});
     assert.equal(saved.status,'reported');assert.equal(saved.approvedAt,null);
     const html=await p.evaluate(i=>[enlExecutiveSummaryHtml(i),ENLApprovalSheet.render(i),enlCumulativeReportHtml(i)],saved);
+    for(const doc of [html[0],html[2]]){assert.match(doc,/담당 기안자/);assert.match(doc,/담당 안전관리자/);}
     for(const doc of html){assert.match(doc,/가상 기안자/);assert.match(doc,/가상 안전관리자/);}
    }
    await c.close();

@@ -56,6 +56,11 @@ function cumulativeSheet(bytes){
   assert.ok(stageSheet,'every ordinary export includes the complete cumulative record');
   return parts['xl/worksheets/sheet'+stageSheet[2]+'.xml'];
 }
+const assigned=build({...fixture,pastReport:{drafterName:'검수 소장',safetyManagerName:'검수 안전'}});
+for(const sheet of [main(assigned),cumulativeSheet(assigned)]){
+  assert.match(sheet,/담당 기안자/);assert.match(sheet,/담당 안전관리자/);
+  assert.match(sheet,/검수 소장/);assert.match(sheet,/검수 안전/);
+}
 const stageXml=cumulativeSheet(normal);
 assert.deepEqual([...stageXml.matchAll(/>([A-E])\. [^<]+</g)].map(m=>m[1]),['A','B','C','D','E']);
 assert.match(stageXml,/fitToHeight="0"/);

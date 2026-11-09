@@ -135,7 +135,7 @@
     const date=clean(i.occurredDate||i.historicalTransfer?.occurredDate||parts.date);
     const when=date?(dateOnly?date+' (시간 미상)':date+' '+parts.time):'';
     row('발생 일시 / 장소',join([when,d.place]));
-    if(i.pastReport){row('당시 기안자',i.pastReport.drafterName);row('당시 안전관리자',i.pastReport.safetyManagerName);}
+    if(i.pastReport){row('담당 기안자',i.pastReport.drafterName);row('담당 안전관리자',i.pastReport.safetyManagerName);}
     row('보고자',i.historicalImport?.originalReporterName||i.historicalTransfer?.originalReporterName||i.reporterName);
     row(person?'부상자':'작업자',join([person?d.injuredName||i.injuredName:d.workerName,d.job||i.job]));
     row('사고 전 작업',d.workAction);
@@ -190,7 +190,7 @@
     const d=i.reportDetails||{};
     if(i.summary&&i.summary!==d.generatedSummary&&i.summary!==d.incidentHow)root.innerHTML+=reportRow('기존 사고 요약',i.summary);
     if(d.preventionPlan&&d.preventionPlan!=='후속 단계에서 안전관리자가 별도 수립')root.innerHTML+=reportRow('최초 보고 당시 예방대책',d.preventionPlan);
-    if(i.pastReport)root.innerHTML+=reportRow('당시 기안자',i.pastReport.drafterName)+reportRow('당시 안전관리자',i.pastReport.safetyManagerName);
+    if(i.pastReport)root.innerHTML+=reportRow('담당 기안자',i.pastReport.drafterName)+reportRow('담당 안전관리자',i.pastReport.safetyManagerName);
     root.innerHTML+=reportRow('보고자 / 보고일시',[i.reporterName,i.createdAt&&fmt(i.createdAt)].filter(Boolean).join(' · '));
     if(includeFiles)root.innerHTML+=`<section class="report410-section"><div class="report410-section-head"><b>현장 첨부자료</b></div>${reportFiles('photos',i.photos)||'첨부 없음'}${reportFiles('supplement',i.supplement?.attachments)}</section>`;
     return root.outerHTML;
@@ -290,7 +290,7 @@
   function addPastReportFields(form,incident){
     const section=document.createElement('section');
     section.className='report410-section';
-    section.innerHTML='<label class="report410-check"><input type="checkbox" id="pastReportMode"><span>과거사고 입력모드</span></label><div id="pastReportPeople" hidden><p>당시 원자료에 기재된 이름을 입력하세요. 등록 후 일반 사고와 같은 절차로 검토합니다.</p><div class="report410-grid"><label class="lbl"><span>당시 기안자</span><input id="pastReportDrafter" maxlength="80" disabled></label><label class="lbl"><span>당시 안전관리자</span><input id="pastReportSafety" maxlength="80" disabled></label></div></div>';
+    section.innerHTML='<label class="report410-check"><input type="checkbox" id="pastReportMode"><span>과거사고 입력모드</span></label><div id="pastReportPeople" hidden><p>재발방지조치를 담당하는 현재 현장소장과 안전관리자의 이름을 입력하세요.</p><div class="report410-grid"><label class="lbl"><span>담당 기안자</span><input id="pastReportDrafter" maxlength="80" disabled></label><label class="lbl"><span>담당 안전관리자</span><input id="pastReportSafety" maxlength="80" disabled></label></div></div>';
     form.querySelector('.section-head').after(section);
     const toggle=section.querySelector('#pastReportMode'),people=section.querySelector('#pastReportPeople');
     const syncPeople=()=>{
@@ -303,7 +303,7 @@
     toggle.addEventListener('change',syncPeople);
     if(incident?.pastReport){
       toggle.checked=true;toggle.disabled=true;
-      people.querySelector('p').textContent='당시 원자료에 기재된 이름을 수정하세요. 변경 전후 정보와 수정 사유가 기록되며 기존 승인 상태는 유지됩니다.';
+      people.querySelector('p').textContent='재발방지조치를 담당하는 현재 현장소장과 안전관리자의 이름을 확인하고, 담당자가 다르면 수정하세요. 변경 전후 정보와 수정 사유가 기록되며 기존 승인 상태는 유지됩니다.';
       section.querySelector('#pastReportDrafter').value=incident.pastReport.drafterName||'';
       section.querySelector('#pastReportSafety').value=incident.pastReport.safetyManagerName||'';
       syncPeople();
@@ -365,7 +365,7 @@
     if(type==='person')Object.assign(details,{injuredName:value('injuredName'),job:value('job'),injuryDetail:value('injuryDetail410'),diagnosis:value('diagnosis410'),doctorOpinion:value('doctorOpinion410'),medicalCost:money(value('medicalCost410')),medicalCostPending:!value('medicalCost410'),medicalCostDetail:value('medicalCostDetail410')});else{const repairRaw=value('repairCost410'),repairValue=money(repairRaw),repairPending=!repairRaw||repairRaw===PENDING_COST||repairValue<=0,repairDetail=value('repairCostDetail410')||PENDING_COST;Object.assign(details,{workerName:value('propertyWorker410'),job:value('job'),damagedItem:value('damagedItem410'),damageDetail:value('damageDetail410'),repairCost:repairPending?0:repairValue,repairCostPending:repairPending,repairCostDetail:repairDetail})}
     const common={siteId,category:type,eventType,severity,leaveEstimate,potentialMajor,injuredName:type==='person'?value('injuredName'):'',job:value('job'),summary,immediateAction:value('immediateAction'),photos:[...incidentPhotos].map(persistAttachment),occurredAt:time?new Date(`${date}T${time}:00+09:00`).toISOString():date,updatedAt:nowISO(),priority,prioritySource,prioritySetBy:prioritySource==='manual'?u.name:'',prioritySetAt:prioritySource==='manual'?nowISO():null,legalReview:computeLegalReview(type,severity,leaveEstimate),reportDetails:details};
     if(u.role==='safety'&&(!existing||existing.pastReport)&&e.currentTarget.querySelector('#pastReportMode:checked')){
-      if(!required('pastReportDrafter','당시 기안자')||!required('pastReportSafety','당시 안전관리자'))return;
+      if(!required('pastReportDrafter','담당 기안자')||!required('pastReportSafety','담당 안전관리자'))return;
       common.pastReport={drafterName:value('pastReportDrafter'),safetyManagerName:value('pastReportSafety')};
     }
     if(existing){const original=occurredParts(existing);if(date===original.date&&(unknownTime(existing)?!time:time===original.time))common.occurredAt=existing.occurredAt;}

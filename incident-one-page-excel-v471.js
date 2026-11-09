@@ -63,7 +63,7 @@
         (c.actionCompletedDate || c.completedDate) && '완료일: ' + dateText(c.actionCompletedDate || c.completedDate), c.additionalNotes]),
       owner: text(c.actionOwner || c.ownerName || c.submittedBy, '미지정'),
       due: text(c.dueDate, '미지정'),
-      review: join([i.pastReport && '당시 기안자: ' + i.pastReport.drafterName,i.pastReport && '당시 안전관리자: ' + i.pastReport.safetyManagerName,'보고: ' + text(h.originalReporterName || i.reporterName),
+      review: join([i.pastReport && '담당 기안자: ' + i.pastReport.drafterName,i.pastReport && '담당 안전관리자: ' + i.pastReport.safetyManagerName,'보고: ' + text(h.originalReporterName || i.reporterName),
         '사고보고 검토: ' + (h.workflowExempt ? '과거 ERP 자료 이관' : bulk ? (bulk.state === 'verified' ? '기존 ERP 결재 확인' : '기존 결재 미확인') : i.approvedAt ? text(i.approvedBy) + ' / ' + dateText(i.approvedAt) : '승인 전'),
         c.reviewedAt && '조치 검토: ' + text(c.reviewedBy) + ' / ' + dateText(c.reviewedAt), c.reviewNote,
         bulk && (bulk.state === 'verified' ? 'ERP 결재 확인: ' + text(bulk.documentNo) : '기존 결재 확인 불가: ' + text(bulk.reason))]),
