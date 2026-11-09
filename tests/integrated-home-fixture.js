@@ -27,6 +27,9 @@
   if(b.action==='platform_hub')out={ok:true,notices:records.filter(x=>x.kind==='notice'),events:records.filter(x=>x.kind==='event'),favorites};
   if(b.action==='platform_hub_favorites'){favorites=b.favorites;out={ok:true}}
   if(b.action==='platform_hub_save'){const old=records.find(x=>x.id===b.id);if(old)records=records.filter(x=>x.id!==b.id);const row={...b,id:b.id||'00000000-0000-4000-8000-'+String(++serial).padStart(12,'0'),revision:(old?.revision||0)+1,site_id:b.siteId,starts_at:b.startsAt,ends_at:b.endsAt,created_at:new Date().toISOString()};records.push(row);out={ok:true,item:row}}
+  if(b.action==='platform_board_list')out={ok:true,items:records.filter(x=>x.kind===b.kind&&(!b.query||(x.title+x.body).includes(b.query))),more:false};
+  if(b.action==='platform_board_detail'){const item=records.find(x=>x.id===b.id);out={ok:true,item,files:(item?.attachments||[]).map(({base64,...f})=>f)}}
+  if(b.action==='platform_board_file'){const item=records.find(x=>x.id===b.id);out={ok:true,file:item?.attachments?.find(x=>x.id===b.assetId)}}
   if(b.action==='platform_hub_archive'){records=records.filter(x=>x.id!==b.id);out={ok:true}}
   if(['activity_list','activity_open','activity_page'].includes(b.action))out={ok:true,rows:[{id:'1',incident_id:'qa-incident',module_key:'incident',sentence:'검수 골프장 사고보고 등록',actor_name:'검수 담당',happened_at:new Date().toISOString()}],more:false};
   if(b.action==='platform_notices')out={ok:true,rows:moduleKeys.map(key=>({key,push:true,email:true}))};

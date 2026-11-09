@@ -45,7 +45,7 @@ async function fixture({hubNotices=false,fetchMock}={}){
   }};
  };
  sql.json=JSON.stringify;sql.end=async()=>{};sql.begin=async f=>db.transaction(async t=>{tx=t;try{return await f(sql)}finally{tx=null}});
- const ctx={Deno:{env:{get:()=> 'isolated'},serve:h=>handler=h},postgres:()=>sql,Request,Response,TextEncoder,crypto,structuredClone,console,atob,fetch:fetchMock};vm.createContext(ctx);
+ const ctx={Deno:{env:{get:()=> 'isolated'},serve:h=>handler=h},postgres:()=>sql,Request,Response,URL,TextEncoder,crypto,structuredClone,console,atob,fetch:fetchMock};vm.createContext(ctx);
  vm.runInContext(read('edge-functions/enl-incident-sync-v411/site-contract-v451.js'),ctx);
  vm.runInContext(read('executive-approval-v482.js'),ctx);
  vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/lifecycle-policy.ts').replace(/export /g,'')),ctx);

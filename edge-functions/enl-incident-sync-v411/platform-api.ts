@@ -89,22 +89,58 @@ async function bannerRequest(sql:any,actor:any,body:any,reply:any){
 
 const boardKinds=['notice','alert','news','resource'];
 const boardFileName=/^[^\x00-\x1f\x7f/\\]{1,175}\.(pdf|xlsx?|docx?|pptx?|hwpx?|zip|jpe?g|png)$/i;
+// A small typed document, not arbitrary HTML: no event handlers, CSS or remote images.
+function boardDocument(input:any,assetIds:Set<string>){
+ let count=0,chars=0;
+ function visit(n:any,depth:number):any{
+  if(++count>1200||depth>12||!n||typeof n!=='object')throw Error('invalid_document');
+  if(typeof n.text==='string'){chars+=n.text.length;if(chars>10000)throw Error('invalid_document');return {text:n.text};}
+  if(!['p','div','br','strong','b','em','i','u','s','h1','h2','h3','ul','ol','li','a','img','table','tbody','tr','td','th','span'].includes(n.tag))throw Error('invalid_document');
+  const out:any={tag:n.tag};
+  if(n.tag==='img'){if(!assetIds.has(n.assetId))throw Error('invalid_document');return {tag:'img',assetId:n.assetId};}
+  if(n.tag==='a'){try{const u=new URL(n.href);if(!['https:','http:'].includes(u.protocol))throw Error();out.href=u.href;}catch{throw Error('invalid_document');}}
+  if(n.align!==undefined){if(!['left','center','right'].includes(n.align))throw Error('invalid_document');out.align=n.align;}
+  if(n.size!==undefined){if(![12,14,16,18,24,32].includes(n.size))throw Error('invalid_document');out.size=n.size;}
+  if(n.color!==undefined){if(!/^#[0-9a-f]{6}$/i.test(n.color))throw Error('invalid_document');out.color=n.color;}
+  if(!Array.isArray(n.children))throw Error('invalid_document');out.children=n.children.map((v:any)=>visit(v,depth+1));return out;
+ }
+ if(!Array.isArray(input))throw Error('invalid_document');return input.map(n=>visit(n,0));
+}
+function boardAttachment(f:any){
+ if(!f||!/^[-0-9a-f]{36}$/i.test(f.id)||typeof f.name!=='string'||f.name.length>180||!boardFileName.test(f.name)||!Number.isInteger(f.size)||f.size<1||f.size>5242880||typeof f.base64!=='string'||f.base64.length!==4*Math.ceil(f.size/3)||!/^[A-Za-z0-9+/]+={0,2}$/.test(f.base64))throw Error('invalid_board_file');
+ const b=Uint8Array.from(atob(f.base64),(c:string)=>c.charCodeAt(0));if(b.length!==f.size)throw Error('invalid_board_file');
+ let mime='application/octet-stream';
+ if(/\.png$/i.test(f.name)){if(b.length<24||![137,80,78,71,13,10,26,10].every((v,i)=>b[i]===v))throw Error('invalid_board_file');mime='image/png';}
+ if(/\.jpe?g$/i.test(f.name)){if(b.length<4||b[0]!==255||b[1]!==216||b[2]!==255)throw Error('invalid_board_file');mime='image/jpeg';}
+ return {...f,mime};
+}
 export async function platformRequest(sql:any,actor:any,body:any,reply:any){
   const admin=actor.role==='safety',action=body.action;
   if(['platform_banners','platform_banner_upload','platform_banners_save'].includes(action))return bannerRequest(sql,actor,body,reply);
-  if(action==='platform_board_list'||action==='platform_board_file'){
+  if(['platform_board_list','platform_board_file','platform_board_detail'].includes(action)){
     const hq=['safety','manager','executive'].includes(actor.role);
+    if(action==='platform_board_detail'){
+      const [item]=await sql`select c.*,s.site_name,f.name as file_name from private.enl_hub_content c left join public.enl_site_master s on s.site_id=c.site_id left join private.enl_board_files f on f.content_id=c.id where c.id::text=${String(body.id||'')} and c.kind in ('notice','alert','news','resource') and c.archived_at is null and (${hq} or c.site_id is null or c.site_id=${actor.siteId})`;
+      if(!item)return reply({ok:false,message:'content_unavailable'},404);
+      const files=await sql`select id,name,mime,octet_length(bytes) as size from private.enl_board_assets where content_id=${item.id}::uuid and active order by created_at,id`;
+      return reply({ok:true,item,files});
+    }
     if(action==='platform_board_file'){
-      const [file]=await sql`select f.name,encode(f.bytes,'base64') as base64 from private.enl_board_files f
-        join private.enl_hub_content c on c.id=f.content_id where c.id::text=${String(body.id||'')}
-        and c.kind='resource' and c.archived_at is null and (${hq} or c.site_id is null or c.site_id=${actor.siteId})`;
-      return file?reply({ok:true,file}):reply({ok:false,message:'file_unavailable'},404);
+      const id=String(body.id||''),assetId=String(body.assetId||'');
+      const files=assetId?await sql`select f.name,f.mime,encode(f.bytes,'base64') as base64 from private.enl_board_assets f join private.enl_hub_content c on c.id=f.content_id where c.id::text=${id} and f.id::text=${assetId} and f.active and c.archived_at is null and (${hq} or c.site_id is null or c.site_id=${actor.siteId})`:await sql`select f.name,encode(f.bytes,'base64') as base64 from private.enl_board_files f join private.enl_hub_content c on c.id=f.content_id where c.id::text=${id} and c.kind='resource' and c.archived_at is null and (${hq} or c.site_id is null or c.site_id=${actor.siteId})`;
+      return files[0]?reply({ok:true,file:files[0]}):reply({ok:false,message:'file_unavailable'},404);
     }
     const offset=body.offset??0;
     if(!boardKinds.includes(body.kind)||!Number.isSafeInteger(offset)||offset<0)return reply({ok:false,message:'invalid_board'},400);
+    const query=String(body.query||'').trim(),from=String(body.from||''),to=String(body.to||'');
+    const validDate=(v:string)=>!v||/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v;
+    if(query.length>100||!validDate(from)||!validDate(to)||from&&to&&from>to)return reply({ok:false,message:'invalid_filter'},400);
     const rows=await sql`select c.*,s.site_name,f.name as file_name from private.enl_hub_content c
       left join public.enl_site_master s on s.site_id=c.site_id left join private.enl_board_files f on f.content_id=c.id
       where c.kind=${body.kind} and c.archived_at is null and (${hq} or c.site_id is null or c.site_id=${actor.siteId})
+      and (${query}='' or strpos(lower(c.title||' '||c.body),lower(${query}))>0)
+      and (${from}='' or c.created_at>=(nullif(${from},'')::date::timestamp at time zone 'Asia/Seoul'))
+      and (${to}='' or c.created_at<((nullif(${to},'')::date+1)::timestamp at time zone 'Asia/Seoul'))
       order by case when c.label='important' then 0 else 1 end,c.created_at desc,c.id desc limit 51 offset ${offset}`;
     return reply({ok:true,items:rows.slice(0,50),more:rows.length>50});
   }
@@ -144,6 +180,11 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
     }
     const kind=String(body.kind||''),title=String(body.title||'').trim(),text=String(body.body||''),label=String(body.label||'info'),site=String(body.siteId||''),start=body.startsAt||null,end=body.endsAt||null;
     if(!(kind==='event'||boardKinds.includes(kind))||!title||title.length>150||text.length>10000||!['important','info','general'].includes(label)||site.length>150)return reply({ok:false,message:'invalid_content'},400);
+    let assets:any[]=[],document:any=undefined;
+    try{
+      if(body.attachments!==undefined){if(!boardKinds.includes(kind)||!Array.isArray(body.attachments)||body.attachments.length>5)throw Error();assets=body.attachments.map(boardAttachment);if(assets.reduce((n,f)=>n+f.size,0)>10485760||new Set(assets.map(f=>f.id)).size!==assets.length)throw Error();}
+      if(body.document!=null){if(!boardKinds.includes(kind)||body.attachments===undefined)throw Error();document=boardDocument(body.document,new Set(assets.filter(f=>f.mime.startsWith('image/')).map(f=>f.id)));}
+    }catch{return reply({ok:false,message:'invalid_board_document'},400);}
     const file=body.file;
     if(file!=null&&(kind!=='resource'||typeof file.name!=='string'||file.name.length>180||!boardFileName.test(file.name)||
       typeof file.base64!=='string'||!Number.isInteger(file.size)||file.size<1||file.size>5242880||
@@ -155,8 +196,18 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
       let before=null,after;
       if(id){[before]=await tx`select * from private.enl_hub_content where id=${id}::uuid and archived_at is null for update`;
         if(!before||before.revision!==body.revision||before.kind!==kind)return reply({ok:false,message:'content_changed'},409);
+        if(before.document&&document===undefined)return reply({ok:false,message:'rich_document_required'},400);
+        for(const f of assets){const [old]=await tx`select name,mime,replace(encode(bytes,'base64'),E'\\n','') as base64 from private.enl_board_assets where content_id=${id}::uuid and id=${f.id}::uuid`;if(old&&(old.name!==f.name||old.mime!==f.mime||old.base64!==f.base64))return reply({ok:false,message:'immutable_asset'},400);}
         [after]=await tx`update private.enl_hub_content set title=${title},body=${text},label=${label},site_id=${site||null},starts_at=${kind==='event'?start:null}::timestamptz,ends_at=${kind==='event'?end:null}::timestamptz,revision=revision+1,updated_at=now(),updated_by=${actor.id} where id=${id}::uuid returning *`;
       }else [after]=await tx`insert into private.enl_hub_content(kind,title,body,label,site_id,starts_at,ends_at,created_by,updated_by) values(${kind},${title},${text},${label},${site||null},${kind==='event'?start:null}::timestamptz,${kind==='event'?end:null}::timestamptz,${actor.id},${actor.id}) returning *`;
+      if(document!==undefined){
+        [after]=await tx`update private.enl_hub_content set document=${tx.json(document)}::jsonb where id=${after.id} returning *`;
+      }
+      if(body.attachments!==undefined){
+        // Replacing this version's attachments is atomic with the revision check.
+        await tx`update private.enl_board_assets set active=false where content_id=${after.id}`;
+        for(const f of assets)await tx`insert into private.enl_board_assets(id,content_id,name,mime,bytes) values(${f.id}::uuid,${after.id},${f.name},${f.mime},decode(${f.base64},'base64')) on conflict(content_id,id) do update set active=true`;
+      }
       if(file)await tx`insert into private.enl_board_files(content_id,name,bytes) values(${after.id},${file.name},decode(${file.base64},'base64'))
         on conflict(content_id) do update set name=excluded.name,bytes=excluded.bytes`;
       await tx`insert into private.enl_hub_content_audit(content_id,action,actor_id,actor_name,before_record,after_record) values(${after.id}::uuid,${id?'update':'create'},${actor.id},${actor.name},${before?tx.json(before):null}::jsonb,${tx.json(after)}::jsonb)`;

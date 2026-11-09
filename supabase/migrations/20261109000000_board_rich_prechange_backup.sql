@@ -1,0 +1,10 @@
+set local lock_timeout='3s';
+lock table private.enl_hub_content,private.enl_board_files,private.enl_hub_content_audit in share mode;
+create table private.enl_board_r93_backup_content as table private.enl_hub_content;
+create table private.enl_board_r93_backup_files as table private.enl_board_files;
+create table private.enl_board_r93_backup_audit as table private.enl_hub_content_audit;
+alter table private.enl_board_r93_backup_content enable row level security;
+alter table private.enl_board_r93_backup_files enable row level security;
+alter table private.enl_board_r93_backup_audit enable row level security;
+revoke all on private.enl_board_r93_backup_content,private.enl_board_r93_backup_files,private.enl_board_r93_backup_audit from public,anon,authenticated;
+comment on table private.enl_board_r93_backup_content is 'Pre-rich-board snapshot 2026-11-09; retain privately; do not overwrite live rows without reconciling post-backup edits.';
