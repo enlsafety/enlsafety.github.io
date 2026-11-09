@@ -158,12 +158,16 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
       const selected=String(body.date||new Date(Date.now()+9*3600000).toISOString().slice(0,10));
       if(!/^\d{4}-\d{2}-\d{2}$/.test(selected)||!Number.isFinite(Date.parse(selected))||new Date(selected).toISOString().slice(0,10)!==selected)return reply({ok:false,message:'invalid_date'},400);
       const hq=['safety','manager','executive'].includes(actor.role);
-      const rows=await sql`select c.*,s.site_name from private.enl_hub_content c left join public.enl_site_master s on s.site_id=c.site_id
-        where c.archived_at is null and (${hq} or c.site_id is null or c.site_id=${actor.siteId})
-        and (c.kind='notice' or c.starts_at<((${selected}::date+1)::timestamp at time zone 'Asia/Seoul') and c.ends_at>=(${selected}::date::timestamp at time zone 'Asia/Seoul'))
-        order by c.kind,case when c.label='important' then 0 else 1 end,c.starts_at,c.created_at desc limit 250`;
+      const audience=sql`(${hq} or c.site_id is null or c.site_id=${actor.siteId})`;
+      const notices=await sql`select c.*,s.site_name from private.enl_hub_content c left join public.enl_site_master s on s.site_id=c.site_id
+        where c.kind='notice' and c.archived_at is null and ${audience}
+        order by case when c.label='important' then 0 else 1 end,c.created_at desc,c.id desc limit 250`;
+      const events=await sql`select c.*,s.site_name from private.enl_hub_content c left join public.enl_site_master s on s.site_id=c.site_id
+        where c.kind='event' and c.archived_at is null and ${audience}
+        and c.starts_at<((${selected}::date+1)::timestamp at time zone 'Asia/Seoul') and c.ends_at>=(${selected}::date::timestamp at time zone 'Asia/Seoul')
+        order by case when c.label='important' then 0 else 1 end,c.starts_at,c.created_at desc,c.id desc limit 250`;
       const [pref]=await sql`select favorites from private.enl_hub_preferences where actor_key=${actorKey}`;
-      return reply({ok:true,notices:rows.filter((r:any)=>r.kind==='notice'),events:rows.filter((r:any)=>r.kind==='event'),favorites:pref?.favorites||[]});
+      return reply({ok:true,notices,events,favorites:pref?.favorites||[]});
     }
     if(!admin)return reply({ok:false,message:'forbidden'},403);
     const id=body.id==null?'':String(body.id),uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
