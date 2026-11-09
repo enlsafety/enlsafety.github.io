@@ -80,6 +80,8 @@
       const button = modal.querySelector('[data-close]:not(:disabled)');
       return button && (() => button.click());
     }
+    const boardBack=document.querySelector('.hub-board:not([hidden]) .hub-board-post [data-board-back]');
+    if(boardBack?.getClientRects().length)return ()=>boardBack.click();
     const withinView = document.getElementById('view');
     const localBack = withinView.querySelector('[data-cancel-edit],[data-change-type],[data-inquiry-back],[data-list-origin]');
     if (localBack) return localBack.disabled ? null : () => {

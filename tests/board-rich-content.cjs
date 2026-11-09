@@ -9,6 +9,9 @@ const assert=require('node:assert/strict'),{boardFixture}=require('./integrated-
  const detail=who=>f.call(who,{action:'platform_board_detail',id});
  assert.equal((await detail('other')).status,404);assert.equal((await detail('field')).body.files.length,1);
  assert.deepEqual((await detail('field')).body.item.document,doc);
+ const all=who=>f.call(who,{action:'platform_board_list',kind:'all',pageSize:1});
+ const scoped=await all('field');assert.equal(scoped.body.total,1);assert.equal(scoped.body.items[0].author_name,'QA 안전');assert.equal((await all('other')).body.total,0);
+ assert.equal((await f.call('field',{action:'platform_board_list',kind:'all',pageSize:0})).status,400);
  const get=who=>f.call(who,{action:'platform_board_file',id,assetId:file.id});
  assert.equal((await get('other')).status,404);assert.equal((await get('field')).body.file.base64.replace(/\n/g,''),file.base64);
  for(const document of [[{tag:'script',children:[]}],[{tag:'a',href:'javascript:alert(1)',children:[]}],[{tag:'img',assetId:crypto.randomUUID()}],[{tag:'p',align:'expression(x)',children:[]}]])assert.equal((await save('safety',{...post,document})).status,400);

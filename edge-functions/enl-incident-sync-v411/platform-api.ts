@@ -120,7 +120,7 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
   if(['platform_board_list','platform_board_file','platform_board_detail'].includes(action)){
     const hq=['safety','manager','executive'].includes(actor.role);
     if(action==='platform_board_detail'){
-      const [item]=await sql`select c.*,s.site_name,f.name as file_name from private.enl_hub_content c left join public.enl_site_master s on s.site_id=c.site_id left join private.enl_board_files f on f.content_id=c.id where c.id::text=${String(body.id||'')} and c.kind in ('notice','alert','news','resource') and c.archived_at is null and (${hq} or c.site_id is null or c.site_id=${actor.siteId})`;
+      const [item]=await sql`select c.*,s.site_name,f.name as file_name,coalesce((select a.actor_name from private.enl_hub_content_audit a where a.content_id=c.id and a.action='create' order by a.id limit 1),u.name) as author_name from private.enl_hub_content c left join public.enl_hq_users u on u.user_id=c.created_by left join public.enl_site_master s on s.site_id=c.site_id left join private.enl_board_files f on f.content_id=c.id where c.id::text=${String(body.id||'')} and c.kind in ('notice','alert','news','resource') and c.archived_at is null and (${hq} or c.site_id is null or c.site_id=${actor.siteId})`;
       if(!item)return reply({ok:false,message:'content_unavailable'},404);
       const files=await sql`select id,name,mime,octet_length(bytes) as size from private.enl_board_assets where content_id=${item.id}::uuid and active order by created_at,id`;
       return reply({ok:true,item,files});
@@ -130,19 +130,21 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
       const files=assetId?await sql`select f.name,f.mime,encode(f.bytes,'base64') as base64 from private.enl_board_assets f join private.enl_hub_content c on c.id=f.content_id where c.id::text=${id} and f.id::text=${assetId} and f.active and c.archived_at is null and (${hq} or c.site_id is null or c.site_id=${actor.siteId})`:await sql`select f.name,encode(f.bytes,'base64') as base64 from private.enl_board_files f join private.enl_hub_content c on c.id=f.content_id where c.id::text=${id} and c.kind='resource' and c.archived_at is null and (${hq} or c.site_id is null or c.site_id=${actor.siteId})`;
       return files[0]?reply({ok:true,file:files[0]}):reply({ok:false,message:'file_unavailable'},404);
     }
-    const offset=body.offset??0;
-    if(!boardKinds.includes(body.kind)||!Number.isSafeInteger(offset)||offset<0)return reply({ok:false,message:'invalid_board'},400);
+    const offset=body.offset??0,pageSize=body.pageSize??50;
+    if((body.kind!=='all'&&!boardKinds.includes(body.kind))||!Number.isSafeInteger(offset)||offset<0||!Number.isInteger(pageSize)||pageSize<1||pageSize>50)return reply({ok:false,message:'invalid_board'},400);
     const query=String(body.query||'').trim(),from=String(body.from||''),to=String(body.to||'');
     const validDate=(v:string)=>!v||/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v;
     if(query.length>100||!validDate(from)||!validDate(to)||from&&to&&from>to)return reply({ok:false,message:'invalid_filter'},400);
-    const rows=await sql`select c.*,s.site_name,f.name as file_name from private.enl_hub_content c
+    const rows=await sql`select c.*,s.site_name,f.name as file_name,count(*) over()::int as total_count,
+      coalesce((select a.actor_name from private.enl_hub_content_audit a where a.content_id=c.id and a.action='create' order by a.id limit 1),u.name) as author_name from private.enl_hub_content c
+      left join public.enl_hq_users u on u.user_id=c.created_by
       left join public.enl_site_master s on s.site_id=c.site_id left join private.enl_board_files f on f.content_id=c.id
-      where c.kind=${body.kind} and c.archived_at is null and (${hq} or c.site_id is null or c.site_id=${actor.siteId})
+      where c.kind in ('notice','alert','news','resource') and (${body.kind}='all' or c.kind=${body.kind}) and c.archived_at is null and (${hq} or c.site_id is null or c.site_id=${actor.siteId})
       and (${query}='' or strpos(lower(c.title||' '||c.body),lower(${query}))>0)
       and (${from}='' or c.created_at>=(nullif(${from},'')::date::timestamp at time zone 'Asia/Seoul'))
       and (${to}='' or c.created_at<((nullif(${to},'')::date+1)::timestamp at time zone 'Asia/Seoul'))
-      order by case when c.label='important' then 0 else 1 end,c.created_at desc,c.id desc limit 51 offset ${offset}`;
-    return reply({ok:true,items:rows.slice(0,50),more:rows.length>50});
+      order by case when c.label='important' then 0 else 1 end,c.created_at desc,c.id desc limit ${pageSize+1} offset ${offset}`;
+    return reply({ok:true,items:rows.slice(0,pageSize),more:rows.length>pageSize,total:rows[0]?.total_count||0});
   }
   if(action==='platform_hub'||action==='platform_hub_favorites'||action==='platform_hub_save'||action==='platform_hub_archive'){
     const actorKey=(['field','worker'].includes(actor.role)?'site:':'hq:')+actor.id;

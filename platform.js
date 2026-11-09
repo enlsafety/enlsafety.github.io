@@ -40,6 +40,7 @@
     go('platform',u);
   };
   window.addEventListener('popstate',ev=>{
+    if(document.querySelector('.app-shell')?.enlWorkspaceFrame?.boardHistory?.(ev.state))return;
     const u=currentUser?.();if(!u||ev.state?.enlHub!==sessionKey(u))return;
     if(document.querySelector('dialog[open],#modalRoot .modal,#view form:not(.activity-filters):not(.activity-history form)')&&
       !confirm('현재 화면을 벗어나 통합 메인으로 이동할까요?')){history.pushState({enlModuleEntry:sessionKey(u)},'');return;}
