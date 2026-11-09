@@ -318,12 +318,12 @@ index 0000000..e49b3fe
 + await page.locator('.hub-board-categories button').filter({hasText:'안전뉴스'}).click();await page.locator('.hub-board:visible [data-hub=new]').click();
 + await page.locator('.hub-form [name=title]').fill('난방기 안전');await page.getByRole('textbox',{name:'게시글 내용'}).fill('불을 끄고 퇴근하세요');
 + await page.locator('[data-board-files]').setInputFiles({name:'카드.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jFZkAAAAASUVORK5CYII=','base64')});
-+ await page.getByRole('button',{name:'본문에 넣기'}).click();assert.equal(await page.locator('.hub-editor-content img').count(),1);
++ await page.getByRole('button',{name:'본문에 넣기'}).click();assert.equal(await page.locator('.hub-editor-content img').count(),1);fs.mkdirSync('qa-output',{recursive:true});await page.screenshot({path:`qa-output/board-editor-${width}.png`,fullPage:true});
 + await page.locator('.hub-form button[type=submit]').click();await page.locator('.hub-board:visible [data-content-list] button').filter({hasText:'난방기 안전'}).click();
-+ await page.locator('.hub-rich-body img').waitFor();await page.waitForFunction(()=>document.querySelector('.hub-rich-body img')?.naturalWidth>0);assert.ok((await page.locator('.hub-detail-body').innerText()).includes('불을 끄고'));
++ await page.locator('.hub-rich-body img').waitFor();await page.waitForFunction(()=>document.querySelector('.hub-rich-body img')?.naturalWidth>0);assert.ok((await page.locator('.hub-detail-body').innerText()).includes('불을 끄고'));await page.screenshot({path:`qa-output/board-detail-${width}.png`,fullPage:true});
 + await page.getByRole('button',{name:'수정',exact:true}).click();await page.locator('.hub-editor-content img').waitFor();assert.equal(await page.locator('.hub-asset-row').count(),1);
 + await page.getByRole('button',{name:'제외',exact:true}).click();assert.equal(await page.locator('.hub-editor-content img').count(),0);await page.locator('.hub-form button[type=submit]').click();
-+ await page.locator('.hub-board:visible .hub-board-filter [name=query]').fill('없는내용');await page.locator('.hub-board:visible .hub-board-filter button').filter({hasText:'검색'}).click();await page.getByText('등록된 게시글이 없습니다.').waitFor();
++ await page.locator('.hub-board:visible .hub-board-filter [name=query]').fill('없는내용');await page.locator('.hub-board:visible .hub-board-filter button').filter({hasText:'검색'}).click();await page.locator('.hub-board:visible').getByText('등록된 게시글이 없습니다.').waitFor();
 + await page.locator('.hub-board:visible .hub-board-filter button[type=reset]').click();await page.locator('.hub-board:visible [data-content-list] button').filter({hasText:'난방기 안전'}).waitFor();
 + assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no horizontal overflow');fs.mkdirSync('qa-output',{recursive:true});await page.screenshot({path:`qa-output/board-rich-${width}.png`,fullPage:true});assert.deepEqual(errors,[]);await page.close();
 +}console.log('PASS desktop/mobile create, inline image, detail, edit, remove, search and reset');}finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});
