@@ -33,7 +33,7 @@
   }
   if(b.action==='platform_board_detail'){const item=records.find(x=>x.id===b.id);out={ok:true,item,files:(item?.attachments||[]).map(({base64,...f})=>f)}}
   if(b.action==='platform_board_file'){const item=records.find(x=>x.id===b.id);out={ok:true,file:item?.attachments?.find(x=>x.id===b.assetId)}}
-  if(b.action==='platform_hub_archive'){records=records.filter(x=>x.id!==b.id);out={ok:true}}
+  if(b.action==='platform_hub_archive'||b.action==='platform_board_delete'){records=records.filter(x=>x.id!==b.id);out={ok:true}}
   if(['activity_list','activity_open','activity_page'].includes(b.action))out={ok:true,rows:[{id:'1',incident_id:'qa-incident',module_key:'incident',sentence:'검수 골프장 사고보고 등록',actor_name:'검수 담당',happened_at:new Date().toISOString()}],more:false};
   if(b.action==='platform_notices')out={ok:true,rows:moduleKeys.map(key=>({key,push:true,email:true}))};
   if(b.action==='platform_directory')out={ok:true,rows:[],more:false};

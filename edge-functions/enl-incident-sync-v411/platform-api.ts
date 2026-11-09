@@ -150,7 +150,7 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
       order by coalesce(c.pinned,c.label='important') desc,c.created_at desc,c.id desc limit ${pageSize+1} offset ${offset}`;
     return reply({ok:true,items:rows.slice(0,pageSize),more:rows.length>pageSize,total:rows[0]?.total_count||0});
   }
-  if(action==='platform_hub'||action==='platform_hub_favorites'||action==='platform_hub_save'||action==='platform_hub_archive'){
+  if(action==='platform_hub'||action==='platform_hub_favorites'||action==='platform_hub_save'||action==='platform_hub_archive'||action==='platform_board_delete'){
     const actorKey=(['field','worker'].includes(actor.role)?'site:':'hq:')+actor.id;
     if(action==='platform_hub_favorites'){
       const [catalog]=await sql`select modules from private.enl_platform_catalog where singleton`;
@@ -181,11 +181,26 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
     if(!admin)return reply({ok:false,message:'forbidden'},403);
     const id=body.id==null?'':String(body.id),uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if(id&&!uuid.test(id)||id&&(!Number.isSafeInteger(body.revision)||body.revision<1))return reply({ok:false,message:'invalid_content'},400);
-    if(action==='platform_hub_archive'){
+    if(action==='platform_hub_archive'||action==='platform_board_delete'){
       if(!id)return reply({ok:false,message:'invalid_content'},400);
       return await sql.begin(async(tx:any)=>{
         const [before]=await tx`select * from private.enl_hub_content where id=${id}::uuid and archived_at is null for update`;
         if(!before||before.revision!==body.revision)return reply({ok:false,message:'content_changed'},409);
+        if(action==='platform_board_delete'){
+          if(!boardKinds.includes(before.kind))return reply({ok:false,message:'invalid_board'},400);
+          await tx`delete from private.enl_board_assets where content_id=${id}::uuid`;
+          await tx`delete from private.enl_board_files where content_id=${id}::uuid`;
+          // The pre-editor snapshot has no foreign keys back to the live post.
+          await tx`delete from private.enl_board_r93_backup_audit where content_id=${id}::uuid`;
+          await tx`delete from private.enl_board_r93_backup_files where content_id=${id}::uuid`;
+          await tx`delete from private.enl_board_r93_backup_content where id=${id}::uuid`;
+          await tx`update private.enl_hub_content_audit set before_record=null,after_record=null where content_id=${id}::uuid`;
+          await tx`delete from private.enl_hub_content where id=${id}::uuid`;
+          await tx`insert into private.enl_hub_content_audit(content_id,action,actor_id,actor_name) values(${id}::uuid,'delete',${actor.id},${actor.name})`;
+          return reply({ok:true});
+        }
+        // Older clients promised to preserve the original. Require the new delete confirmation.
+        if(before.kind!=='event')return reply({ok:false,message:'update_required'},409);
         const [after]=await tx`update private.enl_hub_content set archived_at=now(),updated_at=now(),updated_by=${actor.id},revision=revision+1 where id=${id}::uuid returning *`;
         await tx`insert into private.enl_hub_content_audit(content_id,action,actor_id,actor_name,before_record,after_record) values(${id}::uuid,'archive',${actor.id},${actor.name},${tx.json(before)}::jsonb,${tx.json(after)}::jsonb)`;
         return reply({ok:true});

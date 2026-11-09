@@ -618,7 +618,11 @@
     const title=post.querySelector('h3');title.textContent=x.title;title.focus({preventScroll:true});
     const meta=document.createElement('div');meta.className='hub-post-meta';
     meta.innerHTML='<span class="hub-board-badge">'+safe(boards[key].title)+'</span><span>작성자 '+safe(x.author_name||'미상')+'</span><time>'+safe(date(x.created_at)+' '+time(x.created_at))+'</time><span>'+safe(x.shared_sites?.length>1?(x.site_name||'선택 사업장')+' 외 '+(x.shared_sites.length-1)+'곳':x.site_name||'전체 사업장')+'</span>'+(boardPinned(x)?'<span class="hub-board-pin">상단 고정</span>':'')+(x.label==='important'?'<span class="board-important">중요</span>':'')+(x.expires_at?'<span>만료 '+safe(date(x.expires_at)+' '+time(x.expires_at))+'</span>':'');
-    if(admin){meta.insertAdjacentHTML('beforeend',action('edit-content','수정'));meta.lastElementChild.onclick=()=>editContent({...x,_files:files})}
+    if(admin){
+     meta.insertAdjacentHTML('beforeend',action('edit-content','수정')+action('delete-content','삭제'));
+     meta.querySelector('[data-hub=edit-content]').onclick=()=>editContent({...x,_files:files});
+     meta.querySelector('[data-hub=delete-content]').onclick=()=>deleteBoardPost(x);
+    }
     const body=document.createElement('div');body.className='hub-detail-body';post.append(meta,body);renderPostBody(x,body);
     const attachments=document.createElement('section');attachments.className='hub-post-files';
     for(const file of [...files,...(x.file_name?[{name:x.file_name}]:[])]){
@@ -641,7 +645,7 @@
    const noticeType=kind==='notice'?'<label>공지 분류<select name="noticeType"><option value="info">안내</option><option value="general">일반</option></select></label>':'';
    const settings=checks+noticeType+'<label>만료일시 (선택, 한국시간)<input name="expires" type="datetime-local"></label><fieldset class="board-sharing"><legend>공유 설정 (미선택 시 전체 사업장)</legend><details><summary>공유 대상 선택</summary><div data-sites></div></details><small data-scope></small></fieldset><section data-file-section><span class="board-field-caption">첨부파일</span></section>';
    const legacyFile=kind==='resource'&&item.file_name?'<label>기존 첨부 교체 (선택, 최대 5MB)<input name="file" type="file"></label><small>현재 파일 '+safe(item.file_name)+'</small>':'';
-   box.innerHTML='<form class="hub-form">'+(board?'<label>게시판<input name="boardTitle" readonly></label>':'')+'<label>제목<input name="title" required maxlength="150"></label>'+(board?formats+settings+legacyFile:'<label>대상 사업장<select name="site"><option value="">전체 사업장</option></select></label><label>시작<input name="start" type="datetime-local" required></label><label>종료<input name="end" type="datetime-local" required></label>'+formats)+'<p role="status"></p><div class="hub-form-actions">'+(item.id?'<button type="button" data-archive>보관 처리</button>':'')+(board?'<button type="button" data-cancel>취소</button>':'')+'<button type="submit">'+(item.id?'수정 저장':'저장')+'</button></div></form>';
+   box.innerHTML='<form class="hub-form">'+(board?'<label>게시판<input name="boardTitle" readonly></label>':'')+'<label>제목<input name="title" required maxlength="150"></label>'+(board?formats+settings+legacyFile:'<label>대상 사업장<select name="site"><option value="">전체 사업장</option></select></label><label>시작<input name="start" type="datetime-local" required></label><label>종료<input name="end" type="datetime-local" required></label>'+formats)+'<p role="status"></p><div class="hub-form-actions">'+(item.id?(board?'<button type="button" data-delete-post>삭제</button>':'<button type="button" data-archive>보관 처리</button>'):'')+(board?'<button type="button" data-cancel>취소</button>':'')+'<button type="submit">'+(item.id?'수정 저장':'저장')+'</button></div></form>';
    const f=box.querySelector('form'),note=f.querySelector('[role=status]');
    f.elements.title.value=item.title||'';f.elements.body.value=item.body||'';
    if(board){
@@ -676,7 +680,21 @@
      b.file={name:file.name,size:file.size,base64};
     }
     await api(b,b.file||b.attachments?.length?60000:undefined);if(!sameUser())return;d.close();await refreshContentList(kind);status.textContent='저장했습니다.'}catch(err){note.textContent=err.message==='content_changed'?'다른 변경이 있습니다. 닫은 뒤 다시 조회해 주세요.':'저장하지 못했습니다. 입력과 연결 상태를 확인하세요.'}finally{busy=false;f.inert=false;f.removeAttribute('aria-busy')}};
+   f.querySelector('[data-delete-post]')?.addEventListener('click',()=>deleteBoardPost(item,d));
    f.querySelector('[data-archive]')?.addEventListener('click',async()=>{if(busy||!confirm('이 항목을 보관 처리할까요? 원본은 서버에 남습니다.'))return;busy=true;f.inert=true;try{await api({action:'platform_hub_archive',id:item.id,revision:item.revision});d.close();await refreshContentList(kind)}catch{note.textContent='처리하지 못했습니다. 다시 조회해 주세요.'}finally{busy=false;f.inert=false}});
+  }
+  async function deleteBoardPost(item,dialog){
+   if(busy||!sameUser()||!confirm('「'+item.title+'」 게시물을 삭제할까요? 본문과 첨부파일은 삭제 후 복구할 수 없습니다.'))return;
+   busy=true;
+   try{
+    await api({action:'platform_board_delete',id:item.id,revision:item.revision});
+    if(!sameUser())return;
+    dialog?.close();
+    await refreshContentList(item.kind);
+    status.textContent='게시물을 삭제했습니다.';
+   }catch(err){
+    if(sameUser())alert(err.message==='content_changed'?'다른 변경이 있습니다. 목록을 새로고침한 뒤 다시 확인하세요.':'삭제 결과를 확인하지 못했습니다. 목록을 새로고침해 주세요.');
+   }finally{busy=false}
   }
   async function refreshContentList(kind){
     if(kind==='notice'||kind==='event')await loadContent();

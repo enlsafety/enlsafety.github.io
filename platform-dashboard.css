@@ -480,7 +480,7 @@
 .hub-board-post .hub-detail-body h3{font-size:18px;margin:22px 0 5px}.hub-board-post .hub-detail-body p{margin:0 0 14px}
 .hub-post-files{border-top:1px solid #dde5ec;padding-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.hub-post-files h4{margin:0 8px 0 0}.hub-post-files button{max-width:100%;overflow-wrap:anywhere}
 .platform-hub .hub-board-edit{width:min(1000px,calc(100vw - 36px));border-radius:10px;background:#fff}
-.hub-board-edit>header{position:sticky;top:-12px;z-index:2;padding:8px 0;background:white;border-bottom:1px solid #dae3ec}.hub-board-edit .hub-form{background:#fff}.hub-board-edit .hub-form-actions{display:flex;justify-content:flex-end;gap:8px}.hub-board-edit .hub-form-actions [data-archive]{margin-right:auto;order:-1}.hub-board-edit .hub-form-actions [type=submit]{order:1;background:#204976;color:white;border-color:#204976}.hub-board-edit .hub-editor-toolbar{background:#f1f5f9;border-radius:5px}
+.hub-board-edit>header{position:sticky;top:-12px;z-index:2;padding:8px 0;background:white;border-bottom:1px solid #dae3ec}.hub-board-edit .hub-form{background:#fff}.hub-board-edit .hub-form-actions{display:flex;justify-content:flex-end;gap:8px}.hub-board-edit .hub-form-actions [data-delete-post]{margin-right:auto;order:-1}.hub-board-edit .hub-form-actions [type=submit]{order:1;background:#204976;color:white;border-color:#204976}.hub-board-edit .hub-editor-toolbar{background:#f1f5f9;border-radius:5px}
 .hub-board-edit .hub-editor-content{min-height:clamp(220px,35vh,460px);line-height:1.75}
 .hub-board-edit .hub-form-actions{position:sticky;bottom:0;background:white;border-top:1px solid #d7e1ea;padding:10px 0;z-index:1}
 .hub-board-edit .hub-file-drop{display:grid;gap:8px;padding:16px;border:1px dashed #9bb1c7;border-radius:6px;background:#f6f9fc}
@@ -543,3 +543,5 @@
 .hub-board-edit.attachment-drop-active>header{background:#eaf5ff}
 .hub-board-edit.attachment-drop-active .board-attachment-count{font-size:0}
 .hub-board-edit.attachment-drop-active .board-attachment-count::after{content:"놓으면 파일 첨부";color:#174e7a;font-size:14px;font-weight:600}
+
+.hub-board [data-hub=delete-content],.hub-board-edit .hub-form-actions [data-delete-post]{color:#a62739}

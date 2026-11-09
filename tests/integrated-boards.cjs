@@ -2,8 +2,8 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
 const {fixture}=require('./final-lifecycle.cjs');
 async function boardFixture(){
  const f=await fixture();
- for(const migration of ['20261104234953_integrated_home_content','20261108234822_integrated_boards','20261109010000_board_rich_content','20261109035645_board_publication_settings']){
-  await f.db.exec(fs.readFileSync('supabase/migrations/'+migration+'.sql','utf8'));
+ for(const migration of ['20261104234953_integrated_home_content','20261108234822_integrated_boards','20261109000000_board_rich_prechange_backup','20261109010000_board_rich_content','20261109035645_board_publication_settings']){
+  await f.db.exec('begin;'+fs.readFileSync('supabase/migrations/'+migration+'.sql','utf8')+';commit;');
  }
  return f;
 }
@@ -34,9 +34,30 @@ if(require.main===module)(async()=>{
   assert.equal((await save('safety',{kind:'resource',title:'오류',file:{...file,name:'test.exe'}})).status,400);
   assert.equal((await save('safety',{...item,siteId:'qa-site',title:'갱신'})).status,200);
   assert.equal((await get('field')).body.file.name,file.name);
-  assert.equal((await f.call('safety',{action:'platform_hub_archive',id:item.id,revision:2})).status,200);
+  await f.db.exec(`insert into private.enl_board_r93_backup_content(id,title,body) select id,title,body from private.enl_hub_content;
+   insert into private.enl_board_r93_backup_files select * from private.enl_board_files;
+   insert into private.enl_board_r93_backup_audit select * from private.enl_hub_content_audit;`);
+  const remove=(who,revision)=>f.call(who,{action:'platform_board_delete',id:item.id,revision});
+  assert.equal((await remove('field',2)).status,403);
+  assert.equal((await remove('safety',1)).status,409);
+  assert.equal((await f.call('safety',{action:'platform_hub_archive',id:item.id,revision:2})).status,409);
+  // Force the final write to fail and check that prior deletes in this transaction roll back.
+  await f.db.exec("alter table private.enl_hub_content_audit add constraint synthetic_delete_failure check(action<>'delete')");
+  assert.ok((await remove('safety',2)).status>=500);
+  assert.equal((await get('field')).status,200);
+  assert.equal((await f.db.query('select count(*)::int n from private.enl_board_r93_backup_files where content_id=$1',[item.id])).rows[0].n,1);
+  await f.db.exec('alter table private.enl_hub_content_audit drop constraint synthetic_delete_failure');
+  assert.equal((await remove('safety',2)).status,200);
   assert.equal((await get('field')).status,404);
   assert.equal((await list('safety','resource')).body.items.length,0);
-  console.log('PASS board isolation, roles, site scopes, attachments, conflicts, archive and legacy notices.');
+  assert.equal((await remove('safety',2)).status,409);
+  for(const [table,key] of [['enl_hub_content','id'],['enl_board_files','content_id'],['enl_board_r93_backup_content','id'],['enl_board_r93_backup_files','content_id'],['enl_board_r93_backup_audit','content_id']]){
+   assert.equal((await f.db.query('select count(*)::int n from private.'+table+' where '+key+'=$1',[item.id])).rows[0].n,0,table);
+  }
+  const audit=(await f.db.query('select action,before_record,after_record from private.enl_hub_content_audit where content_id=$1 order by id',[item.id])).rows;
+  assert.deepEqual(audit.map(x=>x.action),['create','update','delete']);
+  assert.ok(audit.every(x=>x.before_record===null&&x.after_record===null));
+  assert.equal((await f.db.query('select count(*)::int n from private.enl_board_r93_backup_content')).rows[0].n,3);
+  console.log('PASS board isolation, roles, site scopes, attachments, conflicts, permanent delete, rollback and legacy notices.');
  }finally{await f.db.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});

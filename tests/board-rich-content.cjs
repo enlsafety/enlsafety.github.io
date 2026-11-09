@@ -30,8 +30,9 @@ const assert=require('node:assert/strict'),{boardFixture}=require('./integrated-
  assert.equal((await f.call('field',{action:'platform_board_list',kind:'news',query:'%'})).body.items.length,0);
  assert.equal((await f.call('field',{action:'platform_board_list',kind:'news',from:'2026-02-30'})).status,400);
  assert.equal((await f.call('field',{action:'platform_board_list',kind:'news',from:'2026-11-09',to:'2026-11-01'})).status,400);
- assert.equal((await f.call('safety',{action:'platform_hub_archive',id,revision:3})).status,200);
+ assert.equal((await f.call('safety',{action:'platform_board_delete',id,revision:3})).status,200);
  assert.equal((await detail('field')).status,404);
+ assert.equal((await f.db.query('select count(*)::int n from private.enl_board_assets where content_id=$1',[id])).rows[0].n,0);
  await f.db.exec("insert into public.enl_site_master(site_id,site_name,active) values('other-site','격리검수 두번째 현장',true)");
  const publication={pinned:true,sites:['qa-site','other-site'],expiresAt:null};
  const rich={...post,kind:'notice',label:'info',publication,document:[{tag:'h1',children:[{text:'제목'}]},{tag:'hr',children:[]},{tag:'p',lineHeight:1.8,children:[{tag:'span',size:18,color:'#123456',highlight:'#ffe471',children:[{text:'강조'}]}]}]};
