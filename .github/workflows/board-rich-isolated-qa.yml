@@ -1,0 +1,30 @@
+name: Isolated rich board QA
+on:
+  push:
+    branches: [qa/erp-rich-board-20261109]
+permissions:
+  contents: read
+jobs:
+  board:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: git apply tests/erp-rich-board-qa.patch
+      - run: npm install --no-save --package-lock=false @electric-sql/pglite@0.3.10 playwright@1.51.1
+      - run: npx playwright install --with-deps chromium
+      - name: Isolated database and mocked browser only
+        run: |
+          node --check platform-dashboard.js
+          node tests/board-rich-content.cjs
+          node tests/integrated-boards.cjs
+          node tests/integrated-home-content.cjs
+          node tests/board-rich-browser.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: rich-board-ui-evidence
+          path: qa-output/
