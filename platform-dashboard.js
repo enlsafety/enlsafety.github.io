@@ -38,10 +38,16 @@
  function boardBlob(file){return URL.createObjectURL(new Blob([Uint8Array.from(atob(file.base64),c=>c.charCodeAt(0))],{type:file.mime||'application/octet-stream'}));}
  function boardEditor(form,item,assets,urls){
   const text=form.elements.body;const wrapper=document.createElement('div');wrapper.className='hub-rich-editor';
-  wrapper.innerHTML='<span class="board-field-caption">내용</span><div class="hub-editor-toolbar" role="toolbar" aria-label="본문 서식"></div><div class="hub-editor-content" contenteditable="true" role="textbox" aria-label="게시글 내용" aria-multiline="true"></div><label class="hub-file-drop">이 창에 파일을 끌어다 놓거나 선택하세요 (최대 5개, 각 5MB, 합계 10MB)<input type="file" multiple data-board-files accept=".pdf,.xlsx,.xls,.doc,.docx,.ppt,.pptx,.hwp,.hwpx,.zip,.jpg,.jpeg,.png"></label><div data-board-assets></div>';
+  wrapper.innerHTML='<span class="board-field-caption">내용</span><div class="hub-editor-toolbar" role="toolbar" aria-label="본문 서식"></div><div class="hub-editor-content" contenteditable="true" role="textbox" aria-label="게시글 내용" aria-multiline="true"></div><label class="hub-file-drop">파일을 끌어다 놓거나 선택하세요 (본문 사진 포함 최대 5개, 각 5MB, 합계 10MB)<input type="file" multiple data-board-files accept=".pdf,.xlsx,.xls,.doc,.docx,.ppt,.pptx,.hwp,.hwpx,.zip,.jpg,.jpeg,.png"></label><div data-board-assets></div>';
   text.parentElement.after(wrapper);text.parentElement.hidden=true;
   const editor=wrapper.querySelector('[contenteditable]'),toolbar=wrapper.querySelector('[role=toolbar]'),list=wrapper.querySelector('[data-board-assets]'),note=form.querySelector('[role=status]');
   if(item.document)boardRender(item.document,editor,urls);else editor.textContent=item.body||'';
+  function bodyImageIds(){return new Set(Array.from(editor.querySelectorAll('img[data-asset-id]'),img=>img.dataset.assetId))}
+  const inlineIds=bodyImageIds();
+  function filesForSave(){
+   const used=bodyImageIds();
+   return assets.filter(file=>!inlineIds.has(file.id)||used.has(file.id));
+  }
   let selection=null;
   function remember(){
    const sel=window.getSelection();
@@ -98,14 +104,18 @@
    command('insertHTML','<table><tbody>'+('<tr>'+'<td><br></td>'.repeat(cols)+'</tr>').repeat(rows)+'</tbody></table><p><br></p>');table.value='';
   },'');
   const imagePicker=document.createElement('input');imagePicker.type='file';imagePicker.accept='image/jpeg,image/png';imagePicker.hidden=true;wrapper.append(imagePicker);
-  button(inserts,'본문 이미지 삽입','▧',()=>imagePicker.click());
-  imagePicker.onchange=async()=>{const added=await addFiles([...imagePicker.files]);imagePicker.value='';if(added?.length){const a=added[0];command('insertHTML','<img data-asset-id="'+a.id+'" src="'+urls[a.id]+'" alt="본문 이미지">')}};
+  button(inserts,'본문 이미지 삽입','사진 삽입',()=>imagePicker.click());
+  imagePicker.onchange=async()=>{
+   if([...imagePicker.files].some(f=>!/[.](jpe?g|png)$/i.test(f.name))){note.textContent='본문 사진은 JPG 또는 PNG 파일을 선택하세요.';imagePicker.value='';return}
+   const added=await addFiles([...imagePicker.files],true);imagePicker.value='';if(added?.length){const a=added[0];command('insertHTML','<img data-asset-id="'+a.id+'" src="'+urls[a.id]+'" alt="본문 이미지">');paint()}};
   const source=document.createElement('textarea');source.className='board-source';source.hidden=true;source.setAttribute('aria-label','본문 HTML 소스');editor.after(source);
   function applySource(){
    if(source.hidden)return;
    const template=document.createElement('template');template.innerHTML=source.value;
    const nodes=boardNodes(template.content);editor.replaceChildren();boardRender(nodes,editor,urls);
    source.hidden=true;editor.hidden=false;selection=null;
+   for(const id of bodyImageIds())inlineIds.add(id);
+   paint();
    for(const el of toolbar.querySelectorAll('button,select,input'))el.disabled=false;
    toggle.setAttribute('aria-pressed','false');
   }
@@ -122,27 +132,30 @@
   const attachmentCount=document.createElement('span');
   attachmentCount.className='board-attachment-count';attachmentCount.setAttribute('role','status');
   dialog.querySelector('header button').before(attachmentCount);
-  function paint(){attachmentCount.textContent=assets.length?'첨부 '+assets.length+'개':'';list.replaceChildren();for(const f of assets){const line=document.createElement('div');line.className='hub-asset-row';const name=document.createElement('span');name.textContent=f.name;line.append(name);
-   if(f.mime?.startsWith('image/')){const b=document.createElement('button');b.type='button';b.textContent='본문에 넣기';b.onclick=()=>{applySource();const p=document.createElement('p');p.style.textAlign='center';boardRender([{tag:'img',assetId:f.id}],p,urls);editor.append(p)};line.append(b)}
+  function paint(){
+   const downloads=assets.filter(file=>!inlineIds.has(file.id));
+   attachmentCount.textContent=downloads.length?'첨부 '+downloads.length+'개':'';
+   list.replaceChildren();for(const f of downloads){const line=document.createElement('div');line.className='hub-asset-row';const name=document.createElement('span');name.textContent=f.name;line.append(name);
+   if(f.mime?.startsWith('image/')){const b=document.createElement('button');b.type='button';b.textContent='본문에 넣기';b.onclick=()=>{applySource();const p=document.createElement('p');p.style.textAlign='center';boardRender([{tag:'img',assetId:f.id}],p,urls);editor.append(p);inlineIds.add(f.id);paint()};line.append(b)}
    const remove=document.createElement('button');remove.type='button';remove.textContent='제외';remove.onclick=()=>{applySource();assets.splice(assets.indexOf(f),1);editor.querySelectorAll('img').forEach(n=>{if(n.dataset.assetId===f.id)n.remove()});paint()};line.append(remove);list.append(line);
   }}paint();
   const picker=wrapper.querySelector('[data-board-files]'),drop=picker.closest('label');
-  async function addFiles(selected){
+  async function addFiles(selected,inline=false){
    if(!selected.length||picker.disabled)return;
    picker.disabled=true;form.dataset.filesPending='true';form.querySelector('[type=submit]').disabled=true;
-   try{if(assets.length+selected.length>5||assets.reduce((n,f)=>n+f.size,0)+selected.reduce((n,f)=>n+f.size,0)>10485760)throw Error();
+   try{const current=filesForSave();if(current.length+selected.length>5||current.reduce((n,f)=>n+f.size,0)+selected.reduce((n,f)=>n+f.size,0)>10485760)throw Error();
     const added=[];for(const f of selected){if(!f.size||f.size>5242880||f.name.length>180||!/[.](pdf|xlsx?|docx?|pptx?|hwpx?|zip|jpe?g|png)$/i.test(f.name))throw Error();
      const base64=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result.split(',')[1]);r.onerror=reject;r.readAsDataURL(f)});
      const a={id:crypto.randomUUID(),name:f.name,size:f.size,base64,mime:/\.png$/i.test(f.name)?'image/png':/\.jpe?g$/i.test(f.name)?'image/jpeg':'application/octet-stream'};added.push(a);
     }
-    if(!form.closest('dialog')?.open)return;for(const a of added){assets.push(a);urls[a.id]=boardBlob(a)}paint();note.textContent='';return added;
+    if(!form.closest('dialog')?.open)return;for(const a of added){assets.push(a);if(inline)inlineIds.add(a.id);urls[a.id]=boardBlob(a)}paint();note.textContent='';return added;
    }catch{note.textContent='파일은 최대 5개, 각 5MB, 합계 10MB이며 지원 형식이어야 합니다.'}finally{delete form.dataset.filesPending;form.querySelector('[type=submit]').disabled=false;picker.disabled=false;picker.value=''}
   }
   picker.onchange=()=>addFiles([...picker.files]);
   picker.id='board-files-'+crypto.randomUUID();
   dialog.dataset.attachmentInput=picker.id;
   const files=form.querySelector('[data-file-section]');files.append(drop,list);
-  return {editor,applySource};
+  return {editor,applySource,filesForSave};
  }
  const paths={arrow:'<path d="M5 12h14m-6-6 6 6-6 6"/>',search:'<circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/>',calendar:'<rect x="3" y="5" width="18" height="17" rx="2"/><path d="M7 2v6m10-6v6M3 11h18M7 15h2m3 0h2m3 0h1M7 18h2m3 0h2"/>',notice:'<path d="M3 10h5l11-6v16L8 14H3zM7 14l2 7h3l-2-6M22 9v6"/>',clock:'<circle cx="12" cy="13" r="9"/><path d="M9 1h6m-3 3v9l4 2"/>',file:'<path d="M14 3H5v18h14V8zM14 3v5h5M8 12h8m-8 4h6"/>',grid:'<rect x="2" y="2" width="8" height="8" rx="2"/><rect x="14" y="2" width="8" height="8" rx="2"/><rect x="2" y="14" width="8" height="8" rx="2"/><rect x="14" y="14" width="8" height="8" rx="2"/>'};
  Object.assign(paths,{
@@ -656,13 +669,16 @@
     const body=document.createElement('div');body.className='hub-detail-body';post.append(meta,body);renderPostBody(x,body);
     const attachments=document.createElement('section');attachments.className='hub-post-files';
     for(const file of [...files,...(x.file_name?[{name:x.file_name}]:[])]){
+      const get=async()=>{const r=await api({action:'platform_board_file',id:x.id,assetId:file.id},60000);return current()?r.file:null};
+      const imgs=file.id?[...body.querySelectorAll('img[data-asset-id]')].filter(img=>img.dataset.assetId===file.id):[];
+      if(imgs.length){
+        get().then(f=>{if(!f)return;for(const img of imgs){const url=boardBlob(f);img.onload=img.onerror=()=>URL.revokeObjectURL(url);img.src=url}})
+        .catch(()=>{for(const img of imgs)img.alt='이미지를 불러오지 못했습니다.'});
+        continue;
+      }
       if(!attachments.isConnected){attachments.innerHTML='<h4>첨부파일</h4>';post.append(attachments)}
       const b=document.createElement('button');b.type='button';b.dataset.hub='download';b.textContent=file.name;b.setAttribute('aria-label','첨부 다운로드 '+file.name);attachments.append(b);
-      const get=async()=>{const r=await api({action:'platform_board_file',id:x.id,assetId:file.id},60000);return current()?r.file:null};
       b.onclick=async()=>{b.disabled=true;try{const f=await get();if(!f)return;const url=boardBlob(f);const a=document.createElement('a');a.href=url;a.download=f.name;post.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000)}catch{b.textContent='다시 다운로드: '+file.name}finally{b.disabled=false}};
-      const imgs=file.id?[...body.querySelectorAll('img[data-asset-id]')].filter(img=>img.dataset.assetId===file.id):[];
-      if(imgs.length)get().then(f=>{if(!f)return;for(const img of imgs){const url=boardBlob(f);img.onload=img.onerror=()=>URL.revokeObjectURL(url);img.src=url}})
-        .catch(()=>{for(const img of imgs)img.alt='이미지를 불러오지 못했습니다.'});
     }
   }
   async function editContent(item){const kind=item.kind,board=boards[boardKey(kind)],d=dialog(host,(board?.title||'일정')+(item.id?' 수정':' 등록')),box=d.querySelector('.hub-dialog-body');
@@ -700,7 +716,8 @@
    d.addEventListener('close',()=>Object.values(urls).forEach(URL.revokeObjectURL),{once:true});
    if(board){f.inert=true;try{for(const meta of item._files||[]){const {file}=await api({action:'platform_board_file',id:item.id,assetId:meta.id},60000);if(!sameUser()||!d.open)return;const a={...meta,base64:file.base64.replace(/\s/g,'')};assets.push(a);urls[a.id]=boardBlob(a)}editor=boardEditor(f,item,assets,urls)}catch{note.textContent='첨부파일을 불러오지 못했습니다. 닫은 뒤 다시 시도하세요.';return}finally{if(editor)f.inert=false}}
    if(kind==='event'){const local=v=>v?day(new Date(v))+'T'+time(v):day()+'T09:00';f.elements.start.value=local(item.starts_at);f.elements.end.value=item.ends_at?local(item.ends_at):day()+'T10:00'}
-   f.onsubmit=async ev=>{ev.preventDefault();if(busy||f.dataset.filesPending)return;const b={action:'platform_hub_save',id:item.id||null,revision:item.revision,kind,title:f.elements.title.value,body:f.elements.body.value,siteId:f.elements.site?.value||'',label:board&&f.elements.important.checked?'important':f.elements.noticeType?.value||'info',startsAt:kind==='event'?new Date(f.elements.start.value+':00+09:00').toISOString():null,endsAt:kind==='event'?new Date(f.elements.end.value+':00+09:00').toISOString():null};if(editor){editor.applySource();b.document=boardNodes(editor.editor);b.body=editor.editor.innerText;b.attachments=assets;
+   f.onsubmit=async ev=>{ev.preventDefault();if(busy||f.dataset.filesPending)return;const b={action:'platform_hub_save',id:item.id||null,revision:item.revision,kind,title:f.elements.title.value,body:f.elements.body.value,siteId:f.elements.site?.value||'',label:board&&f.elements.important.checked?'important':f.elements.noticeType?.value||'info',startsAt:kind==='event'?new Date(f.elements.start.value+':00+09:00').toISOString():null,endsAt:kind==='event'?new Date(f.elements.end.value+':00+09:00').toISOString():null};if(editor){editor.applySource();b.document=boardNodes(editor.editor);b.body=editor.editor.innerText;b.attachments=editor.filesForSave();
+    if(b.attachments.length>5||b.attachments.reduce((n,f)=>n+f.size,0)>10485760){note.textContent='본문 사진과 첨부파일은 합계 5개, 10MB까지 저장할 수 있습니다.';return}
     const sites=[...f.querySelectorAll('[name=shareSite]:checked')].map(el=>el.value);
     b.siteId=sites[0]||'';b.publication={sites,pinned:f.elements.pinned.checked,expiresAt:f.elements.expires.value?new Date(f.elements.expires.value+':00+09:00').toISOString():null};if(b.body.length>10000){note.textContent='본문은 10,000자 이하로 작성하세요.';return}}if(kind==='event'&&b.endsAt<b.startsAt){note.textContent='종료 시각은 시작 시각 이후여야 합니다.';return}busy=true;f.inert=true;f.setAttribute('aria-busy','true');try{
     const file=f.elements.file?.files[0];
