@@ -14,22 +14,34 @@
 .org-state.pending::before{margin-right:7px}
 [data-module="organization"],[data-hub="feature:organization"]{position:relative}
 .platform-hub .org-dot{position:absolute;right:10px;top:9px;pointer-events:none}
-.org-folders{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),1fr));gap:10px}
-.org-panel .org-folder{display:grid;gap:8px;text-align:left;background:#f7fbfe;padding:14px 16px;border-left:4px solid #68a9d9}
+.org-workspace{display:grid;grid-template-columns:clamp(170px,16vw,240px) minmax(0,1fr);align-items:start;border:1px solid #d8e4ed;border-radius:10px;overflow:hidden}
+.org-rail{min-width:0;background:#f4f8fb;border-right:1px solid #d8e4ed;padding:12px 8px}
+.org-rail summary{cursor:pointer;color:#214565;font-weight:700;padding:6px}
+.org-summary{margin:4px 6px 10px}
+.org-rail-list{display:grid;gap:2px;max-height:72vh;overflow-y:auto}
+.org-panel .org-folder{display:flex;justify-content:space-between;align-items:center;gap:6px;width:100%;border:0;border-radius:5px;padding:9px 6px;background:transparent;text-align:left;font-size:13px}
+.org-panel .org-folder[aria-current=page]{background:#dae9f6;color:#103c60;font-weight:700}
+.org-folder small{font-size:11px;white-space:nowrap}.org-folder .pending::before{width:6px;height:6px;margin-right:4px}
+.org-manage-tools{display:flex;gap:4px;margin:8px 3px}.org-manage-tools button,.org-manage button{font-size:12px;padding:5px 8px}
+.org-manage{background:white;border:1px solid #c5d7e5;padding:8px;border-radius:6px;margin:5px 0;font-size:13px}
+.org-manage label{display:grid;gap:4px;margin:6px 0}.org-manage :is(input,select){width:100%;min-width:0;padding:5px;border:1px solid #abc4d8;border-radius:4px}
+.org-main{min-width:0;padding:16px}
 .org-versions{display:flex;flex-wrap:wrap;align-items:center;gap:5px;font-size:13px;margin:12px 0}
 .org-versions select{min-width:0;max-width:100%;font-size:13px}
-.org-layout{display:grid;grid-template-columns:minmax(245px,0.65fr) minmax(0,1fr);align-items:start;gap:16px}
-.org-layout.readonly{display:block}
-.org-form{min-width:0;padding:16px;border:1px solid #d4e4ee;border-radius:12px;background:#f7fbfe;display:grid;gap:12px}
-.org-form h3{margin:0;color:#213e59;font-size:16px}
-.org-form label{display:grid;gap:4px;font-size:13px;font-weight:650;min-width:0}
-.org-form input{box-sizing:border-box;min-width:0;width:100%;border:1px solid #b9d0df;background:white;color:#152f44;border-radius:6px;padding:8px}
-.org-team{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:6px}
+.org-panel .org-zoom{display:none}.org-form{margin:0;min-width:0}.org-form>.org-actions{margin-bottom:10px}
+.org-paper{container-type:inline-size}
+#app .org-panel .org-paper input.org-inline{position:absolute;box-sizing:border-box;min-width:0;min-height:0;margin:0;padding:0 2px;line-height:1.1;font-size:clamp(11px,2cqw,17px);color:#20352c;background:#fffdf5;border:2px solid #c92a3b!important;border-radius:3px;text-align:center;appearance:none}
+#app .org-panel .org-paper input.org-inline:focus{outline:2px solid #92222e;outline-offset:1px;background:white}
+.org-inline[type=number]{appearance:textfield}.org-inline::-webkit-inner-spin-button,.org-inline::-webkit-outer-spin-button{-webkit-appearance:none}
 .org-preview{background:#edf3f7;padding:10px;border-radius:10px;min-width:0}
 .org-paper{display:block;width:100%;max-width:790px;aspect-ratio:595.5 / 841.63;position:relative;margin:auto;background:white}
 .org-paper>img,.org-paper>svg{width:100%;height:100%;position:absolute;inset:0;display:block}
 #org-print-page{display:none}
-@media(max-width:960px){.org-layout{grid-template-columns:1fr}.org-form input{font-size:16px}.org-preview{padding:4px}.org-team{grid-template-columns:1.4fr 1fr 1fr}}
+@media(max-width:750px){
+ .org-workspace{grid-template-columns:minmax(0,1fr)}.org-rail{border:0;border-bottom:1px solid #d8e4ed;padding:6px 8px}.org-rail-list{max-height:34vh}
+ .org-main{padding:10px 5px}.org-preview{padding:2px;overflow-x:auto}.org-panel .org-zoom{display:inline-block}.org-zoomed .org-paper{min-width:650px}
+ .org-panel .org-folder{min-height:36px}.org-manage input{font-size:16px}
+}
 @media print{
  html:has(#org-print-page),body:has(>#org-print-page){margin:0!important;padding:0!important;display:block!important;width:210mm!important;height:297mm!important;min-height:0!important;overflow:visible!important;background:white!important}
  body:has(>#org-print-page)>:not(#org-print-page){display:none!important}

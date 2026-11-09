@@ -14,7 +14,7 @@
   function button(label, run, cls) {
     const b = el('button',label,cls); b.type='button'; b.onclick=run; return b;
   }
-  function paper(chart, site, form, template) {
+  function paper(chart, site, edit, template) {
     const box=el('div',null,'org-paper'), img=new Image();
     img.src=template; img.alt='이앤엘 본사 및 사업장 안전보건 조직도 양식';
     const svg=document.createElementNS(ns,'svg');
@@ -28,12 +28,12 @@
       const actual=Math.min(size,size*width/Math.max(1,measure.measureText(label).width));
       for(const [k,v] of Object.entries({x,y,'text-anchor':'middle','font-size':actual,'font-weight':bold?700:400,'font-family':font,fill:'#1F2724'})) t.setAttribute(k,v);
       t.textContent=label;
-      if(form && key){t.style.cursor='text';t.onclick=()=>form.elements.namedItem(key)?.focus();}
+      if(edit && key)return;
       svg.append(t);
     }
     line(297.36,440,site.endsWith('사업장')?site:site+' 사업장',11.8,true,390);
     for(const [y,title,key] of [[497,'현장 책임자','lead'],[570,'관리감독자','supervisor']]){
-      line(297.36,y,title,key==='lead'?11.5:12,true,244,key);
+      line(297.36,y,title,key==='lead'?11.5:12,true,244);
       line(297.36,y+16,chart[key]||'소장 OOO',12,false,251,key);
     }
     chart.teams.forEach((team,i)=>{
@@ -41,6 +41,28 @@
       line(x,y,team.name||'업무명',14,true,210,'team'+i);
       line(x,y+18,'상용 '+(team.regular??'')+'명　　　 일용 '+(team.daily??'')+'명',14,false,215,'regular'+i);
     });
+    if(edit){
+      const field=(key,caption,x,y,width,height,value,limit,change,num=false)=>{
+        const input=el('input',null,'org-inline');input.setAttribute('aria-label',caption);
+        input.name=key;input.value=value;input.required=true;input.autocomplete='off';
+        if(num){input.type='number';input.min=0;input.max=9999;input.step=1;input.inputMode='numeric';}
+        else{input.maxLength=limit;input.placeholder=caption.includes('직책')?'직책과 성명':'업무명';}
+        Object.assign(input.style,{left:(x-width/2)/595.5*100+'%',top:y/841.63*100+'%',width:width/595.5*100+'%',height:height/841.63*100+'%'});
+        input.oninput=()=>{change(num?(input.value===''?null:input.valueAsNumber):input.value);edit()};
+        box.append(input);
+      };
+      field('lead','현장 책임자 직책과 성명',297.36,499,220,21,chart.lead,32,v=>chart.lead=v);
+      field('supervisor','관리감독자 직책과 성명',297.36,573,220,21,chart.supervisor,32,v=>chart.supervisor=v);
+      chart.teams.forEach((team,i)=>{
+        const x=i%2?429.52:165.35,y=i<2?658:713.12;
+        field('team'+i,(i+1)+'번째 업무명',x,y,146,19,team.name,18,v=>team.name=v);
+        for(const [key,label,center] of [['regular','상용',x-51],['daily','일용',x+55]]){
+          line(center-20,y+34,label,11,false,29);
+          field(key+i,(i+1)+'번째 업무 '+label+' 인원',center+13,y+20,39,20,team[key],0,v=>team[key]=v,true);
+          line(center+41,y+34,'명',11,false,15);
+        }
+      });
+    }
     return box;
   }
   function printChart(box,title) {
@@ -56,6 +78,8 @@
   }
   function controller(host,u,api,sameUser) {
     let panel, sequence=0, listRequest=0, allowed=false, busy=false, dirty=false, pending=0, refreshTimer, shownPeriod, shownSite, template;
+    let main,rail,railBody,folders=[],available=[],listingPeriod,managerForm;
+    const admin=u.role==='safety';
     const onScreen=()=>sameUser()&&host.dataset.workspace==='organization';
     function badges(){
       for(const node of host.querySelectorAll('[data-module="organization"],[data-hub="feature:organization"]')){
@@ -66,9 +90,9 @@
         dot.setAttribute('aria-label','최신화 미확인 '+pending+'개 사업장');dot.title=dot.getAttribute('aria-label');
       }
     }
-    async function readList(){
+    async function readList(manageFolders=false){
       const token=++listRequest;
-      const result=await api({action:'platform_org_list'});
+      const result=await api({action:'platform_org_list',manageFolders});
       if(token===listRequest && sameUser() && allowed){
         pending=result.sites.filter(s=>s.active!==false&&!s.checked).length;
         badges();
@@ -78,6 +102,9 @@
     function refresh(){
       if(!allowed||!sameUser()||document.hidden)return;
       readList().then(result=>{
+        if(onScreen()&&railBody&&!managerForm&&!busy){
+          folders=result.sites;listingPeriod=result.period;paintRail();
+        }
         if(onScreen()&&shownPeriod&&shownPeriod!==result.period&&!dirty&&!busy){
           shownPeriod=null;
           if(shownSite)folder(shownSite);else open();
@@ -97,54 +124,112 @@
       if(allowed){refresh();schedule()}else{pending=0;clearTimeout(refreshTimer);}
     }
     function canLeave(){return !busy&&(!dirty||confirm('저장하지 않은 조직도 변경사항이 있어요. 화면을 이동할까요?'))}
-    function leave(){sequence++;dirty=false;shownPeriod=null;shownSite=null;panel?.replaceChildren()}
+    function leave(){sequence++;dirty=false;shownPeriod=null;shownSite=null;main=null;railBody=null;managerForm=null;panel?.replaceChildren()}
     function status(text){const p=el('p',text,'org-status');p.setAttribute('role','status');return p}
-    function failure(err,retry){
-      panel.replaceChildren(status('조직도를 불러오지 못했습니다. 연결 상태를 확인해 주세요.'),button('다시 불러오기',retry));
+    function failure(err,retry,target=panel){
+      target.replaceChildren(status('자료를 불러오지 못했습니다. 연결 상태를 확인해 주세요.'),button('다시 불러오기',retry));
     }
-    async function open(){
+    function paintRail(){
+      if(!railBody)return;
+      const count=folders.filter(s=>s.active!==false&&!s.checked).length;
+      rail.querySelector('summary').textContent='사업장 폴더 ('+folders.length+')';
+      rail.querySelector('.org-summary').textContent=periodName(listingPeriod)+' 미확인 '+count+'곳';
+      const scroll=railBody.scrollTop;
+      railBody.replaceChildren();
+      for(const s of folders){
+        const b=button('',()=>folder(s.site_id),'org-folder');
+        b.dataset.siteId=s.site_id;
+        if(s.site_id===shownSite)b.setAttribute('aria-current','page');
+        const state=s.active===false?'종료':s.checked?'확인 완료':s.revision?'작성 / 미확인':'미작성';
+        b.append(el('span',s.folder_name||s.site_name),el('small',state,'org-state '+(s.active!==false&&!s.checked?'pending':'')));
+        railBody.append(b);
+      }
+      railBody.scrollTop=scroll;
+    }
+    function closeManager(){managerForm?.remove();managerForm=null;}
+    async function manage(action){
+      if(!admin||busy)return;
+      closeManager();
+      const site=folders.find(s=>s.site_id===shownSite);
+      if(action!=='create'&&!site)return;
+      const form=el('form',null,'org-manage');managerForm=form;
+      const name=el('input'), sites=el('select'), note=status('');
+      const submit=el('button',action==='delete'?'폴더 삭제':'저장','org-primary');
+      submit.type='submit';name.required=true;name.maxLength=72;
+      const label=(title,control)=>{const l=el('label',title);l.append(control);form.append(l)};
+      if(action==='create'){
+        label('연결할 사업장',sites);
+        for(const s of available)sites.add(new Option(s.site_name,s.site_id));
+        sites.onchange=()=>{name.value=sites.selectedOptions[0]?.text||''};sites.onchange();
+      }
+      if(action!=='delete'){
+        label('폴더 이름',name);
+        if(site&&action==='rename')name.value=site.folder_name||site.site_name;
+      }else form.append(el('p','「'+(site.folder_name||site.site_name)+'」 폴더를 목록에서 삭제할까요? 같은 사업장의 폴더를 다시 만들면 저장 이력을 볼 수 있습니다.'));
+      if(action==='create'&&!available.length){submit.disabled=true;note.textContent='등록된 모든 사업장에 폴더가 있습니다.';}
+      form.append(submit,button('취소',closeManager),note);rail.querySelector('.org-manage-tools').after(form);
+      form.onsubmit=async ev=>{
+        ev.preventDefault();if(busy||!canLeave())return;
+        const selected=action==='create'?available.find(s=>s.site_id===sites.value):site;
+        if(!selected)return;
+        busy=true;form.inert=true;
+        try{
+          await api({action:'platform_org_folder_'+action,siteId:selected.site_id,name:name.value,folderRevision:selected.folder_revision});
+          dirty=false;busy=false;closeManager();if(onScreen())await open(action==='delete'?null:selected.site_id);
+        }catch(err){note.textContent=err.message==='folder_changed'?'다른 사용자가 폴더를 변경했습니다. 메뉴를 다시 열어 주세요.':'폴더를 변경하지 못했습니다. 다시 시도해 주세요.';}
+        finally{busy=false;form.inert=false;}
+      };
+    }
+    async function open(preferred){
       if(!panel){panel=el('section',null,'hub-tool-panel org-panel');panel.dataset.listWorkspace='organization';host.append(panel)}
-      panel.hidden=false;dirty=false;shownPeriod=null;shownSite=null;
+      panel.hidden=false;dirty=false;shownPeriod=null;shownSite=null;railBody=null;closeManager();
       const token=++sequence;
       panel.replaceChildren(status('사업장 폴더를 불러오는 중입니다.'));
       try{
-        const {sites,period}=await readList();
+        const result=await readList(admin);
         if(!onScreen()||token!==sequence)return;
-        shownPeriod=period;
-        if(u.role==='field'&&sites.length===1){await folder(sites[0].site_id);return}
-        const title=el('h2','안전보건조직'), grid=el('div',null,'org-folders');
-        const count=sites.filter(s=>s.active!==false&&!s.checked).length;
-        panel.replaceChildren(title,el('p',periodName(period)+' 최신화 미확인 '+count+'개 사업장','org-summary'),grid);
-        if(!sites.length)grid.append(status('조회 가능한 사업장이 없습니다.'));
-        for(const s of sites){
-          const b=button('',()=>folder(s.site_id),'org-folder');
-          const state=s.active===false?'종료 사업장':s.checked?'최신화 확인':'최신화 미확인';
-          b.append(el('strong',s.site_name),el('span',state,'org-state '+(s.active!==false&&!s.checked?'pending':'')),el('small',s.revision?'최근 저장 '+when(s.saved_at):'저장된 조직도 없음'));grid.append(b);
+        folders=result.sites;available=result.candidates||[];listingPeriod=shownPeriod=result.period;
+        const layout=el('div',null,'org-workspace');
+        rail=el('details',null,'org-rail');rail.open=innerWidth>750||!folders.length;
+        rail.append(el('summary'),el('p','','org-summary'));
+        if(admin){
+          const tools=el('div',null,'org-manage-tools');
+          for(const [key,title] of [['create','생성'],['rename','수정'],['delete','삭제']]){
+            const b=button(title,()=>manage(key));b.setAttribute('aria-label','폴더 '+title);tools.append(b);
+            if(key!=='create'&&!folders.length)b.disabled=true;
+          }
+          rail.append(tools);
         }
-      }catch(err){if(onScreen()&&token===sequence)failure(err,open)}
+        railBody=el('nav',null,'org-rail-list');railBody.setAttribute('aria-label','사업장별 조직도');
+        rail.append(railBody);main=el('div',null,'org-main');layout.append(rail,main);
+        panel.replaceChildren(el('h2','안전보건조직'),layout);paintRail();
+        const first=folders.find(s=>s.site_id===preferred)||folders[0];
+        if(first)await folder(first.site_id);
+        else main.append(status('조회 가능한 사업장 폴더가 없습니다.'));
+      }catch(err){if(onScreen()&&token===sequence)failure(err,()=>open())}
     }
     async function folder(siteId,version){
       if(!canLeave())return;
-      dirty=false;const token=++sequence;
-      panel.replaceChildren(status('조직도를 불러오는 중입니다.'));
+      dirty=false;closeManager();shownSite=siteId;paintRail();if(innerWidth<=750)rail.open=false;const token=++sequence;
+      main.replaceChildren(status('조직도를 불러오는 중입니다.'));
       try{
         const result=await api({action:'platform_org_open',siteId,revision:version,includeTemplate:!template});
         if(onScreen()&&token===sequence){
           if(result.template)template=result.template;
           renderFolder(result);
         }
-      }catch(err){if(onScreen()&&token===sequence)failure(err,()=>folder(siteId,version))}
+      }catch(err){if(onScreen()&&token===sequence)failure(err,()=>folder(siteId,version),main)}
     }
     function renderFolder({site,history,document:doc,period}){
       shownPeriod=period;shownSite=site.site_id;
       const latest=history[0],historic=!!doc&&doc.revision!==latest?.revision;
-      const editable=u.role==='field'&&site.active!==false&&!historic;
+      const editable=(admin||u.role==='field'&&site.active!==false)&&!historic;
       const checked=latest?.confirmed&&latest.period===period;
       let chart=structuredClone(doc?.chart||defaults());
       const head=el('div',null,'org-head'),title=el('div'),tools=el('div',null,'org-actions'),note=status('');
       title.append(el('h2',site.site_name+' 안전보건조직도'),el('span',periodName(period)+'　'+(site.active===false?'종료 사업장':checked?'최신화 확인':'최신화 미확인'),'org-state '+(!checked&&site.active!==false?'pending':'')));
-      if(u.role!=='field')tools.append(button('사업장 폴더',open));
-      head.append(title,tools);panel.replaceChildren(head);
+
+      head.append(title,tools);main.replaceChildren(head);
       if(history.length){
         const label=el('label','저장 이력　','org-versions'),pick=el('select');label.append(pick);
         for(const v of history){
@@ -152,12 +237,12 @@
           pick.add(new Option(text,v.revision,false,v.revision===doc.revision));
         }
         pick.onchange=()=>{const rev=Number(pick.value);pick.value=doc.revision;folder(site.site_id,rev)};
-        panel.append(label);
+        main.append(label);
       }
-      if(!doc&&!editable){panel.append(status('현장에서 저장한 조직도가 없습니다.'));return}
-      const layout=el('div',null,'org-layout'),form=editable?el('form',null,'org-form'):null;
-      const preview=el('div',null,'org-preview');
-      const draw=()=>preview.replaceChildren(paper(chart,doc?.site_name||site.site_name,form,template));
+      if(!doc&&!editable){main.append(status('저장된 조직도가 없습니다.'));return}
+      const form=editable?el('form',null,'org-form'):null, preview=el('div',null,'org-preview');
+      const change=()=>{dirty=true;update();note.textContent='변경사항을 저장해 주세요.'};
+      const printedSite=doc?.site_name||site.site_name;
       const reload=()=>folder(site.site_id);
       let save,check,print;
       function update(){
@@ -171,48 +256,36 @@
         if(confirming&&!confirm(periodName(period)+' 조직도의 담당자와 인원 현황이 최신인지 확인했습니까?'))return;
         busy=true;update();form.inert=true;note.textContent='저장 중입니다.';
         try{
-          await api({action:confirming?'platform_org_confirm':'platform_org_save',siteId:site.site_id,period,revision:doc?.revision||0,...(confirming?{}:{chart})});
+          await api({action:confirming?'platform_org_confirm':'platform_org_save',siteId:site.site_id,folderRevision:site.folder_revision,period,revision:doc?.revision||0,...(confirming?{}:{chart})});
           busy=false;dirty=false;
           if(!onScreen())return;
           await folder(site.site_id);refresh();
           if(onScreen()&&panel.querySelector('.org-head'))panel.querySelector('.org-status').textContent=confirming?'이번 반기 최신화를 확인했습니다.':'조직도를 사업장 폴더에 저장했습니다.';
         }catch(err){
           if(!onScreen())return;
-          note.replaceChildren(el('span',err.message==='chart_changed'?'다른 사용자가 수정했거나 반기가 바뀌었습니다. 최신본을 확인해 주세요.':'저장 결과를 확인하지 못했습니다. 입력값은 화면에 남아 있습니다.'),button('최신본 불러오기',reload));
+          note.replaceChildren(el('span',['chart_changed','folder_changed'].includes(err.message)?'다른 사용자가 수정했거나 반기가 바뀌었습니다. 최신본을 확인해 주세요.':'저장 결과를 확인하지 못했습니다. 입력값은 화면에 남아 있습니다.'),button('최신본 불러오기',reload));
         }finally{busy=false;form.inert=false;update();}
       }
       if(form){
-        const add=(owner,key,caption,value,limit,change,num=false)=>{
-          const input=el('input'),lab=el('label',caption);
-          input.name=key;input.value=value;input.required=true;
-          if(num){input.type='number';input.min=0;input.max=9999;input.step=1;input.inputMode='numeric'}else input.maxLength=limit;
-          input.oninput=()=>{change(num?(input.value===''?null:input.valueAsNumber):input.value);dirty=true;draw();update();note.textContent='변경사항을 저장해 주세요.'};
-          lab.append(input);owner.append(lab);return input;
-        };
-        form.append(el('h3','현장 입력'));
-        add(form,'lead','현장 책임자',chart.lead,32,v=>chart.lead=v).placeholder='직책과 성명';
-        add(form,'supervisor','관리감독자',chart.supervisor,32,v=>chart.supervisor=v).placeholder='직책과 성명';
-        chart.teams.forEach((team,i)=>{
-          const row=el('div',null,'org-team');form.append(row);
-          add(row,'team'+i,'업무명',team.name,18,v=>team.name=v);
-          add(row,'regular'+i,'상용(명)',team.regular,0,v=>team.regular=v,true);
-          add(row,'daily'+i,'일용(명)',team.daily,0,v=>team.daily=v,true);
-        });
         save=el('button','조직도 저장','org-primary');save.type='submit';
-        check=button('이번 반기 최신화 확인',()=>write(true));
+        if(u.role==='field')check=button('이번 반기 최신화 확인',()=>write(true));
         form.onsubmit=e=>{e.preventDefault();write(false)};
-        const actions=el('div',null,'org-actions');actions.append(save,check);form.append(actions,note);layout.append(form);
-      }else{layout.classList.add('readonly');panel.append(note)}
+        const actions=el('div',null,'org-actions');actions.append(save);if(check)actions.append(check);
+        const zoom=button('양식 확대',()=>{
+          const large=preview.classList.toggle('org-zoomed');zoom.textContent=large?'전체 보기':'양식 확대';zoom.setAttribute('aria-pressed',String(large));
+        },'org-zoom');zoom.setAttribute('aria-pressed','false');actions.append(zoom);
+        form.append(actions,note,preview);main.append(form);
+      }else{main.append(note,preview)}
       if(doc){
         print=button('PDF 출력',async()=>{
           if(dirty||busy)return;
           const sheet=preview.firstElementChild;
-          try{await sheet.querySelector('img').decode();if(onScreen()&&sheet.isConnected&&!dirty)printChart(sheet,site.site_name+'_안전보건조직도_v'+doc.revision)}
+          try{await sheet.querySelector('img').decode();if(onScreen()&&sheet.isConnected&&!dirty)printChart(paper(doc.chart,printedSite,null,template),site.site_name+'_안전보건조직도_v'+doc.revision)}
           catch{note.textContent='출력 양식을 불러오지 못했습니다. 다시 시도해 주세요.'}
         });
         tools.append(print);
       }
-      draw();layout.append(preview);panel.append(layout);update();
+      preview.append(paper(chart,printedSite,form?change:null,template));update();
     }
     const focus=()=>{if(sameUser()){refresh();schedule()}else{clearTimeout(refreshTimer);window.removeEventListener('focus',focus);document.removeEventListener('visibilitychange',focus)}};
     window.addEventListener('focus',focus);document.addEventListener('visibilitychange',focus);

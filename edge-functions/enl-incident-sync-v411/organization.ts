@@ -19,10 +19,35 @@ export function halfYear(at = new Date()) {
   return kst.getUTCFullYear() + '-' + (kst.getUTCMonth() < 6 ? 1 : 2);
 }
 
+async function changeFolder(sql:any,actor:any,body:any,reply:any) {
+  if (actor.role !== 'safety') return reply({ok:false,message:'forbidden'},403);
+  const action=body.action.slice('platform_org_folder_'.length);
+  const siteId=body.siteId, name=typeof body.name==='string'?body.name.trim():'';
+  if (!['create','rename','delete'].includes(action) || !validText(siteId,128)
+      || !Number.isInteger(body.folderRevision) || body.folderRevision<0
+      || (action!=='delete' && !validText(name,72))) return reply({ok:false,message:'invalid_folder'},400);
+  return sql.begin(async (tx:any)=>{
+    await tx`select pg_advisory_xact_lock(hashtextextended(${siteId},2911))`;
+    const [site]=await tx`select site_name from public.enl_site_master where site_id=${siteId} and site_id<>'site-hq' for share`;
+    if (!site) return reply({ok:false,message:'site_unavailable'},404);
+    const [folder]=await tx`select deleted,revision from private.enl_org_folders where site_id=${siteId} for update`;
+    if ((folder?.revision??0)!==body.folderRevision || (action==='create' ? folder && !folder.deleted : !folder || folder.deleted))
+      return reply({ok:false,message:'folder_changed'},409);
+    if(action==='delete'){
+      await tx`update private.enl_org_folders set deleted=true,revision=revision+1 where site_id=${siteId}`;
+    }else{
+      await tx`insert into private.enl_org_folders(site_id,display_name) values(${siteId},${name===site.site_name?null:name})
+        on conflict(site_id) do update set deleted=false,display_name=excluded.display_name,revision=enl_org_folders.revision+1`;
+    }
+    return reply({ok:true});
+  });
+}
+
 export async function organizationRequest(sql:any, actor:any, body:any, reply:any) {
   const field = actor.role === 'field';
   if (!field && !['safety','manager','executive'].includes(actor.role))
     return reply({ok:false, message:'forbidden'},403);
+  if(body.action.startsWith('platform_org_folder_'))return changeFolder(sql,actor,body,reply);
   const period = halfYear();
   const visible = field ? sql`s.site_id = ${actor.siteId}` : sql`true`;
   const recent = sql`left join lateral (
@@ -30,18 +55,24 @@ export async function organizationRequest(sql:any, actor:any, body:any, reply:an
     where site_id=s.site_id order by revision desc limit 1
   ) v on true`;
   if (body.action === 'platform_org_list') {
-    const sites = await sql`select s.site_id,s.site_name,s.active,v.revision,v.saved_at,
+    const sites = await sql`select s.site_id,s.site_name,coalesce(f.display_name,s.site_name) as folder_name,f.revision as folder_revision,s.active,v.revision,v.saved_at,
         coalesce(v.confirmed and v.period=${period},false) as checked
-      from public.enl_site_master s ${recent}
-      where ${visible} and s.site_id <> 'site-hq' and (s.active is not false or v.revision is not null)
+      from public.enl_site_master s join private.enl_org_folders f using(site_id) ${recent}
+      where ${visible} and s.site_id <> 'site-hq' and not f.deleted
       order by (s.active is false),s.site_name,s.site_id`;
-    return reply({ok:true, period, sites});
+    const candidates = actor.role==='safety' && body.manageFolders===true ? await sql`select s.site_id,s.site_name,coalesce(f.revision,0) as folder_revision
+      from public.enl_site_master s left join private.enl_org_folders f using(site_id)
+      where s.site_id<>'site-hq' and (f.site_id is null or f.deleted)` : [];
+    const sortKo=(a:string,b:string)=>a.trim().localeCompare(b.trim(),'ko',{numeric:true});
+    sites.sort((a:any,b:any)=>sortKo(a.folder_name,b.folder_name)||sortKo(a.site_name,b.site_name));
+    candidates.sort((a:any,b:any)=>sortKo(a.site_name,b.site_name));
+    return reply({ok:true, period, sites,candidates});
   }
   const siteId = body.siteId;
   if (!validText(siteId,128) || (field && siteId !== actor.siteId))
     return reply({ok:false,message:'forbidden'},403);
-  const [site] = await sql`select site_id,site_name,active from public.enl_site_master s
-    where site_id=${siteId} and site_id <> 'site-hq' and ${visible}`;
+  const [site] = await sql`select s.site_id,s.site_name,s.active,f.revision as folder_revision from public.enl_site_master s join private.enl_org_folders f using(site_id)
+    where not f.deleted and s.site_id=${siteId} and site_id <> 'site-hq' and ${visible}`;
   if (!site) return reply({ok:false,message:'site_unavailable'},404);
   if (body.action === 'platform_org_open') {
     if (body.revision != null && (!Number.isInteger(body.revision) || body.revision < 1))
@@ -60,8 +91,8 @@ export async function organizationRequest(sql:any, actor:any, body:any, reply:an
     }
     return reply({ok:true,period,site,history:result.history||[],document:result.document,template});
   }
-  if (!field || site.active === false) return reply({ok:false,message:'forbidden'},403);
   const confirm = body.action === 'platform_org_confirm';
+  if (field ? site.active === false : actor.role !== 'safety' || confirm) return reply({ok:false,message:'forbidden'},403);
   if (!confirm && body.action !== 'platform_org_save') return reply({ok:false,message:'unknown_action'},400);
   const chart = confirm ? null : chartData(body.chart);
   if ((!confirm && !chart) || !Number.isInteger(body.revision) || body.revision < 0)
@@ -69,8 +100,9 @@ export async function organizationRequest(sql:any, actor:any, body:any, reply:an
   return sql.begin(async (tx:any) => {
     // Serialize first insert as well as later revisions. Reject stale edits and checks.
     await tx`select pg_advisory_xact_lock(hashtextextended(${siteId}, 2911))`;
-    const [currentSite] = await tx`select site_name from public.enl_site_master where site_id=${siteId} and active is not false for share`;
+    const [currentSite] = await tx`select s.site_name,f.revision from public.enl_site_master s join private.enl_org_folders f using(site_id) where s.site_id=${siteId} and not f.deleted and (s.active is not false or ${actor.role==='safety'}) for share`;
     if (!currentSite) return reply({ok:false,message:'site_unavailable'},409);
+    if(body.folderRevision!=null && currentSite.revision!==body.folderRevision)return reply({ok:false,message:'folder_changed'},409);
     const [last] = await tx`select revision, chart, period, confirmed from private.enl_org_charts where site_id=${siteId} order by revision desc limit 1`;
     if ((last?.revision ?? 0) !== body.revision || body.period !== halfYear() || body.period !== period)
       return reply({ok:false,message:'chart_changed'},409);
