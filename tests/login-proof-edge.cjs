@@ -9,6 +9,7 @@ async function fixture(){
  await db.exec('create table private.enl_platform_catalog(singleton boolean)');
  await db.exec(fs.readFileSync('supabase/migrations/20261105152600_email_challenge_sidebar.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/migrations/20261105160000_unique_account_email.sql','utf8'));
+ await db.exec(fs.readFileSync('supabase/migrations/20261109022811_joint_site_email_members.sql','utf8'));
  const tag=conn=>async(parts,...args)=>(await conn.query(parts.reduce((s,p,i)=>s+(i?'$'+i:'')+p,''),args)).rows;const sql=tag(db);sql.begin=f=>db.transaction(tx=>f(tag(tx)));sql.json=JSON.stringify;sql.end=async()=>{};
  const ctx={Deno:{env:{get:()=> 'isolated'},serve:h=>handler=h},postgres:()=>sql,Request,Response,TextEncoder,crypto,AbortSignal,fetch:async(url,opts)=>{
   if(url.endsWith('/senders'))return Response.json({senders:[{active:true,email:'qa@example.test'}]});
@@ -88,6 +89,30 @@ async function fixture(){
  await db.query("insert into enl_site_personnel(personnel_id,site_id,name,access_role,active) values('qa-double','other-site','QA 안전','worker',true)");
  const duplicate=await call({action:'lookup',name:'QA 안전',fixedAccount:true});check(duplicate.body.ambiguous&&duplicate.body.options.length===0,'no arbitrary site list for ambiguous names');
  check((await call({action:'lookup',name:'QA 안전',fixedAccount:true,knownEmail:'qa.safety@enlife.co.kr'})).body.options[0].accountKey==='hq:'+safety.id,'same-name resolution');
+ // One confirmed person can work at two sites, without releasing the address to third parties.
+ const shared='joint@enlife.co.kr';
+ await db.query("insert into private.enl_account_email_owners values($1,'joint:'||$1)",[shared]);
+ for(const [id,site] of [['joint-a','site-a'],['joint-b','site-b']]){
+  await db.query("insert into private.enl_joint_site_email_members values('site:'||$1,$2)",[id,shared]);
+  await db.query("insert into enl_site_personnel(personnel_id,site_id,name,job_title,access_role,active,email,pin_hash) values($1,$2,'QA 겸임','현장소장','field',true,$3,'synthetic-proof')",[id,site,shared]);
+ }
+ const lookup={action:'lookup',name:'QA 겸임',fixedAccount:true};
+ check((await call(lookup)).body.jointSites.length===2,'joint site chooser');
+ for(const [id,site] of [['joint-a','site-a'],['joint-b','site-b']]){
+  const choice=await call({...lookup,accountKey:'site:'+id});
+  check(choice.body.options.length===1&&choice.body.options[0].siteId===site,'select specific joint site');
+  const login={action:'login_site',name:lookup.name,accountKey:'site:'+id,siteId:site,passwordHash:'synthetic-proof'};
+  check((await call(login)).body.person.site_id===site,'scoped joint login');
+  check((await call({...login,passwordHash:'wrong'})).status===401,'wrong joint site password');
+ }
+ await assert.rejects(db.query("update enl_hq_users set email=$1 where user_id=$2",[shared,safety.id]),e=>e.code==='23505');
+ await db.query("update enl_site_personnel set pin_hash='worker-synthetic' where personnel_id=$1",[worker.personnelId]);
+ await db.query("update enl_site_personnel set pin_hash=null where personnel_id=$1",[worker.personnelId]);
+ const workerLogin={action:'login_site',name:worker.name,siteId:worker.siteId,accountKey:'site:'+worker.personnelId};
+ check((await call(workerLogin)).status===401,'worker with an assigned password cannot skip it');
+ check((await call({...workerLogin,passwordHash:'worker-synthetic'})).body.person.access_role==='worker','worker password login');
+ for(const id of ['joint-a','joint-b'])await db.query("delete from enl_site_personnel where personnel_id=$1",[id]);
+ check(!(await db.query("select 1 from private.enl_account_email_owners where address=$1",[shared])).rows.length,'last joint membership releases address');
  // Retired scripts execute without touching browser account data or emitting credentials.
  const before={users:[{id:'existing',passwordHash:'user-chosen-proof'}],incidents:[{id:'saved'}]};const ctx={window:{},data:before,localStorage:{getItem(){throw Error('seed accessed storage')},setItem(){throw Error('seed wrote storage')}}};vm.createContext(ctx);
  for(const file of ['account-admin-v21.js','site-accounts-v340.js'])vm.runInContext(fs.readFileSync(file,'utf8'),ctx);

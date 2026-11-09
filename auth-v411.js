@@ -76,8 +76,17 @@
     if(!name||(!force&&name.length<2)){status('등록된 이름을 입력해 주세요.');return;}
     status('등록된 계정을 확인하고 있습니다.');
     try{
-      const r=await api({action:'lookup',name,fixedAccount:true,accountKey:identity,knownEmail:identity.includes('@')?identity:identity+'@enlife.co.kr'});
+      const r=await api({action:'lookup',name,fixedAccount:true,accountKey:identity,knownEmail:identity?(identity.includes('@')?identity:identity+'@enlife.co.kr'):''});
       if(seq!==lookupSeq||!nameField.isConnected||nameField.value.trim()!==name)return;
+      if(r.jointSites?.length){
+        const panel=document.getElementById('loginIdentity411');panel.hidden=false;
+        status('겸임 중인 사업장을 선택해 주세요.');
+        for(const site of r.jointSites){
+          const b=document.createElement('button');b.type='button';b.className='login411-aff-btn';b.textContent=site.label;
+          b.onclick=()=>lookup(true,site.accountKey);panel.append(b);
+        }
+        return;
+      }
       if(r.ambiguous||r.options?.length>1){
         status('동명이인이 있습니다. 등록된 회사 이메일 또는 공통 사용자 ID로 본인을 구분해 주세요.');
         const panel=document.getElementById('loginIdentity411');panel.hidden=false;

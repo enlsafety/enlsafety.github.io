@@ -156,14 +156,19 @@ Deno.serve(async(req:Request)=>{
     if(["login_site","login_hq"].includes(action)&&clean(body.companyLocal)&&!body.accountKey)return json({ok:false,message:"update_required"},409);
     if(action==="lookup"){
       const name=clean(body.name);if(!name)return json({ok:false,message:"name_required"},400);
-      const sites=await siteMap(),people=await sql`select personnel_id,site_id,name,email,job_title,access_role from public.enl_site_personnel where active=true and regexp_replace(lower(name),'[[:space:]]','','g')=${norm(name)}`;
+      const sites=await siteMap(),people=await sql`select personnel_id,site_id,name,email,job_title,access_role,(nullif(pin_hash,'') is not null) as has_password from public.enl_site_personnel where active=true and regexp_replace(lower(name),'[[:space:]]','','g')=${norm(name)}`;
       const options:any[]=people.map((p:any)=>({accountKey:'site:'+p.personnel_id,kind:'site',siteId:p.site_id,affiliationId:'site:'+p.site_id,affiliationLabel:sites.get(p.site_id)||p.site_id,
-        name:p.name,position:p.job_title,accessRole:p.access_role,requiresPassword:p.access_role==='field'||isFieldTitle(p.job_title),companyLocal:localPart(p.email),hasEmail:!!clean(p.email)}));
+        name:p.name,position:p.job_title,accessRole:p.access_role,requiresPassword:p.has_password||p.access_role==='field'||isFieldTitle(p.job_title),companyLocal:localPart(p.email),hasEmail:!!clean(p.email)}));
       const hq=await findHqByName(name);
       if(hq?.active&&hqAllowed(hq.role)){const a=affiliation(hq);options.push({accountKey:'hq:'+hq.user_id,kind:'hq',affiliationId:a.id,affiliationLabel:a.label,name:hq.name,role:hqRole(hq.role),position:hq.position,requiresPassword:true,companyLocal:localPart(hq.email),hasEmail:!!clean(hq.email)});}
       if(body.fixedAccount&&options.length>1){
         const key=clean(body.accountKey),email=clean(body.knownEmail).toLowerCase();
         const matched=options.filter(o=>(key&&o.accountKey===key)||(email&&o.companyLocal&&o.companyLocal+companyDomain===email));
+        const candidates=matched.length?matched:options;
+        if((!key&&!email||matched.length>1)&&candidates.length>1&&candidates.every(o=>o.kind==='site'&&o.accessRole==='field'&&o.companyLocal&&o.companyLocal===candidates[0].companyLocal)){
+          // Shared addresses can only be assigned to explicitly linked accounts by the database.
+          return json({ok:true,name,ambiguous:true,options:[],jointSites:candidates.map(o=>({accountKey:o.accountKey,label:o.affiliationLabel}))});
+        }
         return json({ok:true,name,ambiguous:matched.length!==1,options:matched.length===1?matched:[]});
       }
       // Older clients only need affiliation choices, not identifiers or addresses.
@@ -177,7 +182,7 @@ Deno.serve(async(req:Request)=>{
       const matches=rows.filter((p:any)=>norm(p.name)===norm(name)&&(!key||key==='site:'+p.personnel_id));
       if(matches.length!==1)return json({ok:false,message:"account_not_unique"},403);
       const p=matches[0],manager=p.access_role==='field'||isFieldTitle(p.job_title);
-      if(manager&&(!passwordHash||!p.pin_hash||!sameProof(p.pin_hash,passwordHash)))return json({ok:false,message:"invalid_login"},401);
+      if((manager||clean(p.pin_hash))&&(!passwordHash||!p.pin_hash||!sameProof(p.pin_hash,passwordHash)))return json({ok:false,message:"invalid_login"},401);
       if(!clean(p.email))return json({ok:false,message:'email_required'},409);
       if(clean(body.companyLocal)&&clean(body.companyLocal).toLowerCase()!==localPart(p.email))return json({ok:false,message:'use_email_registration'},409);
       const names=await siteMap();return json({ok:true,person:{personnel_id:p.personnel_id,site_id:p.site_id,site_name:names.get(p.site_id)||p.site_id,name:p.name,job_title:p.job_title,access_role:manager?'field':'worker',active:true,email:p.email||''}});
