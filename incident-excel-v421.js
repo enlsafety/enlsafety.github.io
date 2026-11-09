@@ -15,7 +15,7 @@
   const categoryText=v=>v==='person'?'대인사고':v==='property'?'대물사고':'사고';
   const priorityText=v=>v==='urgent'?'긴급':v==='important'?'중요':'일반';
   const severityText=v=>v==='major'?'중대':v==='moderate'?'보통':'경미';
-  const leaveText=v=>v==='none'?'휴업 없음':v==='under3'?'3일 미만 예상':v==='3plus'?'3일 이상 예상':v==='longterm'?'장기치료 / 중상 가능':'미확인';
+  const leaveText=v=>v==='fatal'?'사망':v==='unknown'?'아직 확인 중':v==='none'?'휴업 없음':v==='under3'?'3일 미만 예상':v==='3plus'?'3일 이상 예상':v==='longterm'?'장기치료 / 중상 가능':'미확인';
   const yesNo=v=>v?'예':'아니오';
   const money=v=>{if(v===null||v===undefined||v==='')return '-';const n=Number(v);return Number.isSafeInteger(n)&&n>=0?n:'-'};
   const fmtDate=v=>{if(!v)return '-';try{return new Intl.DateTimeFormat('ko-KR',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Seoul'}).format(new Date(v))}catch(e){return String(v)}};
@@ -120,7 +120,7 @@
       put('피해 직원 / 직무',join([d.injuredName||i.injuredName,d.job||i.job]),true);
       put('부상 내용',d.injuryDetail,true);put('진단명',d.diagnosis);put('의사 소견 / 치료기간',d.doctorOpinion);
       put('진료비',d.medicalCostPending?'사후 보완 예정':money(d.medicalCost),true);put('진료비 상세',d.medicalCostDetail);
-      if(i.leaveEstimate)put('치료 / 휴업 예상',leaveText(i.leaveEstimate));
+      if(i.leaveEstimate)put('휴업기간 또는 사망 여부',leaveText(i.leaveEstimate));
     }else{
       put('작업자 / 직무',join([d.workerName,d.job||i.job]));put('파손 물품 / 내용',join([d.damagedItem,d.damageDetail]),true);
       put('복구 예상 비용',d.repairCostPending?'사후 보완 예정':money(d.repairCost),true);put('견적 / 비용 상세',d.repairCostDetail);

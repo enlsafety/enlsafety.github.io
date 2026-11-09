@@ -14,6 +14,13 @@ const {tab}=require('./field-entry-table-browser.cjs');
     await p.locator('[data-shell-view="report"]').click();
     assert.equal(await p.locator('[data-hist449]').count(),0);
     await p.locator('button[data-report-type="'+category+'"]').click();
+    const leave=p.locator('#leaveEstimate');
+    if(category==='person'){
+     assert.equal(await leave.inputValue(),'');
+     assert.equal(await leave.evaluate(el=>el.required&&el.validity.valueMissing),true);
+     assert.deepEqual(await leave.locator('option').evaluateAll(opts=>opts.map(o=>o.value)),['','unknown','none','under3','3plus','fatal']);
+     await leave.selectOption(width>700?'fatal':'unknown');
+    }else assert.equal(await leave.count(),0);
     const toggle=p.locator('#pastReportMode');
     assert.equal(await toggle.isChecked(),false);
     await toggle.check();await p.locator('#pastReportDrafter').fill('가상 기안자');
@@ -44,6 +51,18 @@ const {tab}=require('./field-entry-table-browser.cjs');
     await p.waitForFunction(type=>window.qaSaved?.category===type,category,{timeout:4000});
     const saved=await p.evaluate(()=>window.qaSaved);
     assert.deepEqual(saved.pastReport,{drafterName:'가상 기안자',safetyManagerName:'가상 안전관리자'});
+    if(category==='person'){
+     const fatal=width>700;
+     assert.equal(saved.leaveEstimate,fatal?'fatal':'unknown');assert.equal(saved.legalReview,fatal);
+     const signals=await p.evaluate(i=>({
+      approval:legalBadge({...i,status:'approved'}),resolved:legalBadge({...i,leaveEstimate:'none'}),
+      legacy:enlReportLeaveOptions('longterm'),three:computeLegalReview('person','moderate','3plus'),
+      shorter:computeLegalReview('person','moderate','under3'),property:legalBadge({...i,category:'property'})
+     }),saved);
+     assert.match(signals.approval,fatal?/법정 보고 검토 필요/:/휴업기간 확인 필요/);
+     assert.equal(signals.resolved,'');assert.equal(signals.three,true);
+     assert.equal(signals.shorter,false);assert.equal(signals.property,'');assert.match(signals.legacy,/value="longterm"/);
+    }
     assert.equal(saved.status,'reported');assert.equal(saved.approvedAt,null);
     const html=await p.evaluate(i=>[enlExecutiveSummaryHtml(i),ENLApprovalSheet.render(i),enlCumulativeReportHtml(i)],saved);
     for(const doc of [html[0],html[2]]){assert.match(doc,/담당 기안자/);assert.match(doc,/담당 안전관리자/);}

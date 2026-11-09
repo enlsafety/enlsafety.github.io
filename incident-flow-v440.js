@@ -136,7 +136,7 @@
       ['diagnosis','진단명'],
       ['doctorOpinion','의사 소견·치료 예상기간'],
       ['medicalCost','병원비·진료비'],
-      ['leaveEstimate','휴업·치료기간 확인'],
+      ['leaveEstimate','휴업기간 또는 사망 여부 확인'],
       ['medicalDocument','진단서·병원비 등 증빙']
     ] : [
       ['repairCost','수리·복구 견적금액'],
@@ -193,7 +193,7 @@
     const body=i.category==='person'?`
       <div class="wf440-form-grid">
         <label class="lbl"><span>진단명${star('diagnosis')}</span><input id="wf440Diagnosis" value="${ex(d.diagnosis||'')}" ${required('diagnosis')}></label>
-        <label class="lbl"><span>휴업·치료 예상${star('leaveEstimate')}</span><select id="wf440Leave" ${required('leaveEstimate')}><option value="">선택</option><option value="none">휴업 없음</option><option value="under3">3일 미만</option><option value="3plus">3일 이상</option><option value="longterm">장기치료·중상 가능</option></select></label>
+        <label class="lbl"><span>사고로 예상되는 휴업기간 또는 사망 여부 *</span><select id="wf440Leave" required>${window.enlReportLeaveOptions(i.leaveEstimate||d.leaveEstimate)}</select></label>
         <label class="lbl wf440-wide"><span>의사 소견 / 치료 예상기간${star('doctorOpinion')}</span><textarea id="wf440Doctor" rows="3" ${required('doctorOpinion')}>${ex(d.doctorOpinion||'')}</textarea></label>
         <label class="lbl"><span>현재 확인된 진료비${star('medicalCost')}</span><span class="won-entry"><input id="wf440MedicalCost" data-won type="text" inputmode="numeric" value="${ex(d.medicalCost||'')}" ${required('medicalCost')}><small>원</small></span></label>
         <label class="lbl"><span>진료비 상세내역</span><input id="wf440MedicalDetail" value="${ex(d.medicalCostDetail||'')}"></label>
@@ -468,13 +468,13 @@
   }
 
   function supplementSubmittedRows(i){
-    const d=i?.reportDetails||{},s=i?.supplement||{},requested=new Set(s.requestedFields||[]),rows=[],leave={none:'휴업 없음',under3:'3일 미만', '3plus':'3일 이상',longterm:'장기치료·중상 가능',unknown:'미확인'},money=v=>{const n=Number(v||0);return Number.isFinite(n)&&n>0?n.toLocaleString('ko-KR')+'원':'미확인'};
+    const d=i?.reportDetails||{},s=i?.supplement||{},requested=new Set(s.requestedFields||[]),rows=[],leave={none:'휴업 없음',under3:'3일 미만', '3plus':'3일 이상',longterm:'장기치료·중상 가능',unknown:'아직 확인 중',fatal:'사망'},money=v=>{const n=Number(v||0);return Number.isFinite(n)&&n>0?n.toLocaleString('ko-KR')+'원':'미확인'};
     const add=(key,label,value)=>{if(requested.has(key))rows.push([label,text(value)||'미입력'])};
     if(i?.category==='person'){
       add('diagnosis','진단명',d.diagnosis);
       add('doctorOpinion','의사 소견·치료 예상기간',d.doctorOpinion);
       add('medicalCost','병원비·진료비',money(d.medicalCost));
-      add('leaveEstimate','휴업·치료기간',leave[String(i.leaveEstimate||d.leaveEstimate||'unknown')]||String(i.leaveEstimate||d.leaveEstimate||'미확인'));
+      add('leaveEstimate','휴업기간 또는 사망 여부',leave[String(i.leaveEstimate||d.leaveEstimate||'unknown')]||String(i.leaveEstimate||d.leaveEstimate||'미확인'));
       if(requested.has('medicalDocument'))rows.push(['진단서·병원비 등 증빙',Array.isArray(s.attachments)&&s.attachments.length?s.attachments.length+'개 첨부':'첨부 없음']);
     }else{
       add('repairCost','수리·복구 견적금액',d.repairCostPending===true?'사후 보완 예정':money(d.repairCost));

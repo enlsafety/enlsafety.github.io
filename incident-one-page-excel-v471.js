@@ -53,7 +53,7 @@
       work: text(d.workAction),
       how: text(d.incidentHow || i.summary),
       damage: person ? join([text(d.injuryDetail), d.diagnosis && '진단: ' + d.diagnosis, d.doctorOpinion && '치료: ' + d.doctorOpinion,
-        '휴업 예상: ' + lookup(i.leaveEstimate, {none:'휴업 없음', under3:'3일 미만', '3plus':'3일 이상', longterm:'장기치료 예상'})])
+        '휴업기간 또는 사망 여부: ' + lookup(i.leaveEstimate||d.leaveEstimate, {fatal:'사망',unknown:'아직 확인 중',none:'휴업 없음', under3:'3일 미만', '3plus':'3일 이상', longterm:'장기치료 예상'})])
         : join([d.damagedItem && '파손 대상: ' + d.damagedItem, text(d.damageDetail)]),
       immediate: text(i.immediateAction, '조치 내용 미기재'),
       cause: join([causeState, d.environmentCause && '작업환경: ' + d.environmentCause, d.behaviorCause && '작업방법: ' + d.behaviorCause,

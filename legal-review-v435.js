@@ -12,18 +12,19 @@
     if(String(category||'')!=='person')return [];
     const reasons=[];
     if(String(severity||'')==='major')reasons.push('중대 부상 가능성');
+    if(leaveEstimate==='fatal')reasons.push('사망');
     if(String(leaveEstimate||'')==='3plus')reasons.push('휴업 3일 이상 예상');
     if(String(leaveEstimate||'')==='longterm')reasons.push('장기치료·중상 가능');
     return [...new Set(reasons)];
   }
 
   function signatureOf(i){
-    return [String(i?.category||''),String(i?.severity||''),String(i?.leaveEstimate||'')].join('|');
+    return [String(i?.category||''),String(i?.severity||''),String(i?.leaveEstimate||i?.reportDetails?.leaveEstimate||'')].join('|');
   }
 
   function normalizeIncident(i){
     if(!i||typeof i!=='object')return false;
-    const reasons=reviewReasons(i.category,i.severity,i.leaveEstimate);
+    const reasons=reviewReasons(i.category,i.severity,i.leaveEstimate||i.reportDetails?.leaveEstimate);
     const required=reasons.length>0;
     const signature=signatureOf(i);
     const oldSignature=String(i.legalReviewSignature||'');
@@ -54,15 +55,17 @@
     return changed;
   }
 
-  function isReviewRequired(i){return reviewReasons(i?.category,i?.severity,i?.leaveEstimate).length>0}
-  function isReviewed(i){return isReviewRequired(i)&&String(i?.legalReviewStatus||'')==='reviewed'}
+  function isReviewRequired(i){return reviewReasons(i?.category,i?.severity,i?.leaveEstimate||i?.reportDetails?.leaveEstimate).length>0}
+  function isReviewed(i){return isReviewRequired(i)&&i.legalReviewStatus==='reviewed'&&(!i.legalReviewSignature||i.legalReviewSignature===signatureOf(i))}
+  function needsLeaveCheck(i){return i?.category==='person'&&(i.leaveEstimate||i.reportDetails?.leaveEstimate||'unknown')==='unknown'}
+  function reviewBadge(label){return typeof badge==='function'?badge('p-review',label):'<span class="pill p-review">'+label+'</span>'}
 
   // Keep one simple automatic flag. It is a screening aid, not a final legal determination.
   window.computeLegalReview=(category,severity,leaveEstimate)=>reviewReasons(category,severity,leaveEstimate).length>0;
   window.enlLegalReviewReasons=reviewReasons;
   window.legalBadge=function(i){
-    if(!isReviewRequired(i)||isReviewed(i))return '';
-    return typeof badge==='function'?badge('p-review','법정 보고 검토 필요'):'<span class="pill p-review">법정 보고 검토 필요</span>';
+    const legal=isReviewRequired(i)&&!isReviewed(i)?reviewBadge('법정 보고 검토 필요'):'';
+    return legal+(needsLeaveCheck(i)?reviewBadge('휴업기간 확인 필요'):'');
   };
 
   // Compute badges from the report without changing saved records. Older approved
@@ -104,13 +107,14 @@
   }
 
   function legalSectionHtml(i,safety){
-    const reasons=reviewReasons(i?.category,i?.severity,i?.leaveEstimate);
-    if(!reasons.length)return '';
+    const reasons=reviewReasons(i?.category,i?.severity,i?.leaveEstimate||i?.reportDetails?.leaveEstimate);
+    const leaveNote=needsLeaveCheck(i)?'<section class="legal435-box" data-leave-check><h3>휴업기간 확인 필요</h3><div class="legal435-body">의사 소견과 근무 상황을 확인한 뒤 사고경위서의 휴업기간을 갱신해 주세요.</div></section>':'';
+    if(!reasons.length)return leaveNote;
     const reviewed=isReviewed(i);
     const reviewer=i?.legalReviewedBy||'안전관리자';
     const reviewedAt=i?.legalReviewedAt&&typeof fmt==='function'?fmt(i.legalReviewedAt):(i?.legalReviewedAt||'-');
     const canComplete=safety&&!reviewed&&['approved','closed'].includes(String(i?.status||''));
-    return `<section class="legal435-box ${reviewed?'done':''}" data-legal435>
+    return leaveNote+`<section class="legal435-box ${reviewed?'done':''}" data-legal435>
       <h3>${reviewed?'법정 보고 검토 완료':'법정 보고 검토 필요'}</h3>
       <div class="legal435-body">
         <div class="legal435-row"><b>자동 감지 사유</b><span>${safe(reasons.join(' · '))}</span></div>
@@ -142,7 +146,7 @@
     modal.querySelector('#saveNote')?.remove();
     patchReadonlyNote(modal,i);
 
-    modal.querySelector('[data-legal435]')?.remove();
+    modal.querySelectorAll('[data-legal435],[data-leave-check]').forEach(el=>el.remove());
     const actions=modal.querySelector('.modal-actions');
     const html=legalSectionHtml(i,safety);
     if(html){

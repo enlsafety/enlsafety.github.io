@@ -50,8 +50,8 @@ function saveData(){localStorage.setItem(DB_KEY,JSON.stringify(data));try{window
 function loadSession(){try{return JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}catch{return null}}
 function saveSession(){if(session)localStorage.setItem(SESSION_KEY,JSON.stringify(session));else localStorage.removeItem(SESSION_KEY)}
 async function sha256(text){const b=new TextEncoder().encode(text);const h=await crypto.subtle.digest('SHA-256',b);return [...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,'0')).join('')}
-function computePriority(category,severity,eventType,potentialMajor,leaveEstimate){const highRisk=['화재/폭발','붕괴/전도','감전','질식/중독','차량/중장비','추락'];if(severity==='major'||potentialMajor||leaveEstimate==='longterm'||highRisk.includes(eventType))return 'urgent';if(category==='person'||severity==='moderate'||leaveEstimate==='3plus')return 'important';return 'normal'}
-function computeLegalReview(category,severity,leaveEstimate){return category==='person'&&(severity==='major'||leaveEstimate==='3plus'||leaveEstimate==='longterm')}
+function computePriority(category,severity,eventType,potentialMajor,leaveEstimate){const highRisk=['화재/폭발','붕괴/전도','감전','질식/중독','차량/중장비','추락'];if(severity==='major'||potentialMajor||leaveEstimate==='fatal'||leaveEstimate==='longterm'||highRisk.includes(eventType))return 'urgent';if(category==='person'||severity==='moderate'||leaveEstimate==='3plus')return 'important';return 'normal'}
+function computeLegalReview(category,severity,leaveEstimate){return category==='person'&&(severity==='major'||leaveEstimate==='fatal'||leaveEstimate==='3plus'||leaveEstimate==='longterm')}
 
 function defaultViewFor(user){return user.role==='field'?'report':user.role==='safety'?'dashboard':'approved'}
 function render(){const u=currentUser();if(!u||!u.active){session=null;saveSession();renderLogin();return}if(!currentView)currentView=defaultViewFor(u);renderShell(u)}
