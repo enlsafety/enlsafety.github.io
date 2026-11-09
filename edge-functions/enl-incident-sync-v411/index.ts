@@ -216,17 +216,51 @@ Deno.serve(async(req:Request)=>{
     if(feed&&!["all","common","incident","risk","tbm","organization","training","msds"].includes(feed))return json({ok:false,message:"invalid_feed"},400);
     if(action==="activity_cleanup_audit"){
       if(actor.role!=="safety")return json({ok:false,message:"forbidden"},403);
-      const rows=await sql`select id::text,actor_name,at,mode,scope,reason,cardinality(event_ids) as count,restored_at,restored_by,restore_reason
+      const rows=await sql`select id::text,actor_name,at,mode,scope,reason,coalesce((scope->>'removedCount')::int,cardinality(event_ids)) as count,restored_at,restored_by,restore_reason
         from private.enl_platform_cleanup where (${feed} in ('','all') or scope->>'feed'=${feed}) and id<coalesce(nullif(${clean(body.before)},'')::bigint,9223372036854775807) order by id desc limit 51`;
       return json({ok:true,rows:rows.slice(0,50),more:rows.length>50});
     }
-    if(["activity_count","activity_open","activity_list","activity_page","activity_document","activity_delete","activity_restore"].includes(action)){
+    if(["activity_count","activity_open","activity_list","activity_page","activity_document","activity_delete","activity_restore","activity_remove","activity_remove_preview"].includes(action)){
       const safety=actor.role==="safety",field=actor.role==="field"&&!!actor.siteId&&["현장소장","파트장","서무"].includes(actor.position);
       if(!safety&&!field&&!["manager","executive"].includes(actor.role))return json({ok:false,message:"forbidden"},403);
       const legacyKey=safety?actor.id:JSON.stringify([actor.role,actor.siteId,actor.id]);
       const readKey=feed?'hub-history:'+feed+':'+legacyKey:legacyKey;
       const from=clean(body.fromDate),to=clean(body.toDate);
       const dayOk=(v:string)=>!v||(/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v&&v>="1900-01-01"&&v<="9998-12-31");
+      if(action==="activity_remove"||action==="activity_remove_preview"){
+        if(!safety)return json({ok:false,message:"forbidden"},403);
+        const mode=clean(body.mode),id=clean(body.id),preview=action==="activity_remove_preview";
+        if(!["one","range","all"].includes(mode)||(mode==="one"?!/^\d{1,18}$/.test(id):!!id)||
+           (mode==="range"?(!from||!to||!dayOk(from)||!dayOk(to)||from>to):!!from||!!to)||
+           (!preview&&body.confirmed!==true))return json({ok:false,message:"invalid_delete_scope"},400);
+        return await sql.begin(async(tx:any)=>{
+          const [operator]=await tx`select 1 from public.enl_hq_users where user_id=${actor.id} and active and role='safety' for share`;
+          if(!operator)return json({ok:false,message:"forbidden"},403);
+          const rows=await tx`select e.id::text as id from private.enl_activity_events e
+            where e.id in (select h.id from private.enl_platform_history h
+              where h.happened_at>now()-interval '720 hours' and (${feed} in ('','all') or h.module_key=${feed})
+              and (${mode}<>'one' or h.id=nullif(${id},'')::bigint)
+              and (${mode}<>'range' or (h.happened_at >= (nullif(${from},'')::date::timestamp at time zone 'Asia/Seoul')
+                and h.happened_at < ((nullif(${to},'')::date+1)::timestamp at time zone 'Asia/Seoul'))))
+            and e.listed order by e.id ${preview?tx``:tx`for update of e`}`;
+          const ids=rows.map((r:any)=>r.id);
+          if(mode!=="one"){
+            const token=await sha256Hex(JSON.stringify([actor.id,feed,mode,from,to,ids]));
+            if(preview)return json({ok:true,count:ids.length,token});
+            if(body.previewToken!==token)return json({ok:false,message:"preview_changed"},409);
+          }else if(preview)return json({ok:true,count:ids.length});
+          if(ids.length){
+            // Older databases require explicit removal of the feed's per-user read markers.
+            await tx`delete from private.enl_activity_reads where event_id in
+              (select value::bigint from jsonb_array_elements_text(${tx.json(ids)}::jsonb))`;
+            await tx`delete from private.enl_activity_events where id in
+              (select value::bigint from jsonb_array_elements_text(${tx.json(ids)}::jsonb))`;
+            await tx`insert into private.enl_platform_cleanup(actor_id,actor_name,mode,scope,reason,event_ids)
+              values (${actor.id},${actor.name},${mode},${tx.json({id,from,to,feed,permanent:true,removedCount:ids.length})}::jsonb,'','{}'::bigint[])`;
+          }
+          return json({ok:true,removed:ids.length});
+        });
+      }
       if(action==="activity_delete"||action==="activity_restore"){
         if(!safety)return json({ok:false,message:"forbidden"},403);
         const mode=action==="activity_restore"?"restore":clean(body.mode),id=clean(body.id);
@@ -251,7 +285,7 @@ Deno.serve(async(req:Request)=>{
           await tx`update private.enl_incident_delete_attempts set failures=0 where actor_id=${actor.id}`;
           if(mode==="restore"){
             const [restored]=await tx`with batch as (update private.enl_platform_cleanup set restored_at=now(),restored_by=${actor.id},restore_reason=${reason}
-              where id=${id}::bigint and restored_at is null and (${feed} in ('','all') or scope->>'feed'=${feed}) returning event_ids),
+              where id=${id}::bigint and restored_at is null and not (scope ? 'permanent') and (${feed} in ('','all') or scope->>'feed'=${feed}) returning event_ids),
               changed as (update private.enl_activity_events set listed=true where not listed and id in (select unnest(event_ids) from batch) returning id)
               select count(*)::int as count from changed`;
             return json({ok:true,restored:restored.count});
@@ -275,7 +309,7 @@ Deno.serve(async(req:Request)=>{
             and coalesce(a.payload#>>'{externalInitialApproval,state}','') in ('verified','unverifiable')))))
         or (e.module_key='common' and nullif(e.site_id,'') is null and e.actor_role in ('safety','manager','executive','final'))
       )`;
-      const visible=sql`(${feed} in ('','all') or e.module_key=${feed}) and (${permitted})`;
+      const visible=sql`(${body.recentOnly!==true} or e.happened_at>now()-interval '720 hours') and (${feed} in ('','all') or e.module_key=${feed}) and (${permitted})`;
       if(action==="activity_count"){
         const [r]=await sql`select count(*)::int as unread from private.enl_platform_history e
           left join private.enl_history_checkpoints c on c.actor_id=${readKey}

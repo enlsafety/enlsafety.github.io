@@ -9,7 +9,7 @@
   window.enlHistoryAvailable=canView;
   const menuSelector='[data-recent-history],[data-platform-history-feed]';
   const userId=()=>{const a=actor();return a?.id&&canView(a)?JSON.stringify([a.role,a.siteId,a.id]):'';};
-  const api=body=>window.enlIncidentApi({...body,actor:actor()});
+  const api=body=>window.enlIncidentApi({...body,recentOnly:true,actor:actor()});
   const safe=v=>esc(String(v??''));
   let account='',counts={all:0,common:0,incident:0},checked=0,serial=0,opening=0,requested=false,activeHistory=null;
   function owner(){
@@ -87,7 +87,7 @@
     const tabs=document.createElement('nav');tabs.className='hub-category-tabs';tabs.setAttribute('aria-label','업무 기록 분류');
     for(const [key,title] of Object.entries(categories)){const button=document.createElement('button');button.type='button';button.textContent=title;button.setAttribute('aria-pressed',String(key===feed));button.onclick=()=>{requested=true;requestedFeed=key;render(root,key)};tabs.append(button)}
     host.querySelector('.section-head').after(tabs);
-    tabs.insertAdjacentHTML('afterend','<p class="activity-scope">'+(actor().role==='field'?'소속 현장 전체 기록과 본사 담당자의 전사 공통업무 기록입니다.':'전체 사업장과 전체 사용자의 업무 기록입니다.')+'</p>');
+    tabs.insertAdjacentHTML('afterend','<p class="activity-scope">'+(actor().role==='field'?'소속 현장 전체 기록과 본사 담당자의 전사 공통업무 기록입니다.':'전체 사업장과 전체 사용자의 업무 기록입니다.')+' 활동일로부터 30일간 표시됩니다.</p>');
     const list=host.querySelector('ol'),status=host.querySelector('[role=status]'),more=host.querySelector('[data-more]');
     const form=host.querySelector('form'),controls=form.elements;
     const names={incident:'사고보고',common:'공통 시스템',risk:'위험성평가',tbm:'TBM',organization:'안전보건조직',training:'안전보건교육'};
@@ -103,23 +103,38 @@
     const canDelete=actor().role==='safety';
     let deleting=false;
     async function removeHistory(payload,label){
-      if(deleting||!host.isConnected||userId()!==id||!confirm(label+(payload.mode==='restore'?' 복구할까요?':' 삭제할까요?')+' 모든 사용자의 기록 목록에 적용됩니다. 사고보고서는 유지됩니다.'))return;
+      if(deleting||!host.isConnected||userId()!==id)return;
+      const restoring=payload.mode==='restore',bulk=['all','range'].includes(payload.mode);
+      if(!confirm(label+(restoring?' 복구할까요?':bulk?' 삭제할 대상 건수를 확인할까요?':' 삭제할까요?')+' 모든 사용자의 업무기록 목록에 적용됩니다. 사고보고서는 유지됩니다.'))return;
       deleting=true;
       try{
-        const proof=await cleanupProof(host);if(!proof||!host.isConnected||userId()!==id)return;
-        const restoring=payload.mode==='restore';
-        const result=await api({action:restoring?'activity_restore':'activity_delete',...payload,...proof,feed,confirmed:true});
-        if(host.isConnected&&userId()===id){await load(true,false);await refresh(true);notice.textContent=restoring?result.restored+'건을 복구했습니다.':result.removed+'건을 정리했습니다.';if(audit.open)await loadAudit();}
-      }catch(err){if(host.isConnected)notice.textContent=err.message==='password_incorrect'?'비밀번호가 일치하지 않습니다.':err.message==='password_attempts_exceeded'?'확인 횟수를 초과했습니다. 15분 뒤 다시 시도하세요.':'작업 결과를 확인하지 못했습니다. 새로고침 후 확인해 주세요.';}
+        let extra={};
+        if(restoring){
+          const proof=await cleanupProof(host);if(!proof)return;extra=proof;
+        }else if(bulk){
+          const preview=await api({action:'activity_remove_preview',...payload,feed});
+          if(!host.isConnected||userId()!==id)return;
+          if(!preview.count){notice.textContent='삭제할 업무기록이 없습니다.';return}
+          if(!confirm(label+' 삭제합니다. 대상 '+preview.count+'건을 영구 삭제할까요?'))return;
+          extra={previewToken:preview.token};
+        }
+        if(!host.isConnected||userId()!==id)return;
+        const result=await api({action:restoring?'activity_restore':'activity_remove',...payload,...extra,feed,confirmed:true});
+        if(host.isConnected&&userId()===id){
+          await load(true,false);await refresh(true);
+          notice.textContent=restoring?result.restored+'건을 복구했습니다.':result.removed+'건을 삭제했습니다.';
+          window.dispatchEvent(new Event('enl-activity-changed'));if(audit.open)await loadAudit();
+        }
+      }catch(err){if(host.isConnected)notice.textContent=err.message==='preview_changed'?'대상 기록이 바뀌었습니다. 건수를 다시 확인해 주세요.':err.message==='password_incorrect'?'비밀번호가 일치하지 않습니다.':'작업 결과를 확인하지 못했습니다. 새로고침 후 확인해 주세요.';}
       finally{deleting=false;}
     }
     const audit=document.createElement('details');audit.className='history-manage';
     async function loadAudit(before=''){
       const log=audit.querySelector('ol'),next=audit.querySelector('[data-next]');next.disabled=true;
       try{const r=await api({action:'activity_cleanup_audit',before,feed});if(!before)log.replaceChildren();
-        for(const x of r.rows){const li=document.createElement('li');li.textContent=stamp.format(new Date(x.at))+' / '+x.actor_name+' / '+({one:'개별',range:'기간',all:'전체'}[x.mode])+ ' '+x.count+'건 / '+x.reason+(x.scope?.from?' / '+x.scope.from+' ~ '+x.scope.to:'')+(x.scope?.id?' / 번호 '+x.scope.id:'');
+        for(const x of r.rows){const li=document.createElement('li');li.textContent=stamp.format(new Date(x.at))+' / '+x.actor_name+' / '+({one:'개별',range:'기간',all:'전체'}[x.mode])+ ' '+x.count+'건'+(x.reason?' / '+x.reason:'')+(x.scope?.from?' / '+x.scope.from+' ~ '+x.scope.to:'')+(x.scope?.id?' / 번호 '+x.scope.id:'');
           if(x.restored_at)li.append(' / 복구 '+stamp.format(new Date(x.restored_at))+' '+x.restored_by+' / '+x.restore_reason);
-          else if(x.count){const b=document.createElement('button');b.type='button';b.textContent='복구';b.onclick=()=>removeHistory({mode:'restore',id:x.id},'이 작업으로 정리한 기록을');li.append(b);}log.append(li);}
+          else if(x.count&&!x.scope?.permanent){const b=document.createElement('button');b.type='button';b.textContent='복구';b.onclick=()=>removeHistory({mode:'restore',id:x.id},'이 작업으로 정리한 기록을');li.append(b);}log.append(li);}
         next.hidden=!r.more;next.onclick=()=>loadAudit(r.rows.at(-1).id);if(!log.children.length)log.textContent='정리 이력이 없습니다.';
       }catch{notice.textContent='감사기록을 불러오지 못했습니다.'}finally{next.disabled=false;}
     }
@@ -131,8 +146,8 @@
       const range=manage.querySelector('form');
       range.onsubmit=e=>{e.preventDefault();const fromDate=range.elements.start.value,toDate=range.elements.end.value;
         if(fromDate>toDate){notice.textContent='종료일은 시작일 이후로 선택해 주세요.';return;}
-        removeHistory({mode:'range',fromDate,toDate},fromDate+'부터 '+toDate+'까지의 현재 분류 기록을 모두');};
-      manage.querySelector('[data-delete-all]').onclick=()=>removeHistory({mode:'all'},'현재 분류의 전체 기간 기록을 모두');
+        removeHistory({mode:'range',fromDate,toDate},categories[feed]+' '+fromDate+'부터 '+toDate+'까지의 기록을 모두');};
+      manage.querySelector('[data-delete-all]').onclick=()=>removeHistory({mode:'all'},categories[feed]+' 최근 30일 기록을 모두');
     }
     function apply(){
       let fromDate='',toDate='';

@@ -16,7 +16,8 @@ async function check(engine,width){
     window.enlIncidentApi=async b=>{
      if(b.action==='activity_count')return {unread:123};
      if(b.action==='activity_document')return {archived:false};
-     if(b.action==='activity_delete'){window.lastDelete=b;rows=b.mode==='one'?rows.filter(x=>x.id!==b.id):[];return {removed:1};}
+     if(b.action==='activity_remove_preview')return {count:rows.length,token:'qa-preview'};
+     if(b.action==='activity_remove'){window.lastDelete=b;rows=b.mode==='one'?rows.filter(x=>x.id!==b.id):b.mode==='range'?rows.slice(1):[];return {removed:1};}
      if(b.action.startsWith('activity_'))return {rows,more:false};
      return base(b);
     };await enlRefreshHistoryCount(true);
@@ -36,11 +37,10 @@ async function check(engine,width){
     assert.ok(x.width>=44&&x.height>=44&&x.x>=body.x+body.width-1);
     await p.screenshot({path:'qa-output/history-roles-'+width+'.png',fullPage:true});
     p.once('dialog',d=>d.dismiss());await host.locator('.history-remove').first().click();assert.equal(await rows.count(),3);
-    async function proof(){const dialog=p.locator('.platform-proof');await dialog.locator('textarea').fill('테스트 사유');await dialog.locator('input').fill('test-only');await dialog.locator('[type=submit]').click();}
-    p.on('dialog',d=>d.accept());await host.locator('.history-remove').first().click();await proof();await p.waitForFunction(()=>document.querySelectorAll('.activity-history li').length===2);
-    await manage.locator('[name=start]').fill('2026-11-01');await manage.locator('[name=end]').fill('2026-11-04');await manage.getByText('기간별 삭제').click();await proof();
+    const prompts=[];p.on('dialog',async d=>{prompts.push(d.message());await d.accept()});await host.locator('.history-remove').first().click();assert.equal(await host.locator('.platform-proof').count(),0);await p.waitForFunction(()=>document.querySelectorAll('.activity-history li').length===2);
+    await manage.locator('[name=start]').fill('2026-11-01');await manage.locator('[name=end]').fill('2026-11-04');await manage.getByText('기간별 삭제').click();assert.equal(await host.locator('.platform-proof').count(),0);
     await p.waitForFunction(()=>window.lastDelete.mode==='range');assert.equal(await p.evaluate(()=>lastDelete.fromDate),'2026-11-01');
-    await manage.getByText('전체 삭제').click();await proof();await p.waitForFunction(()=>window.lastDelete.mode==='all');
+    await manage.getByText('전체 삭제').click();assert.equal(await host.locator('.platform-proof').count(),0);await p.waitForFunction(()=>window.lastDelete.mode==='all');assert.ok(prompts.some(msg=>msg.includes('대상 2건')));assert.ok(prompts.some(msg=>msg.includes('대상 1건')));assert.equal(await p.evaluate(()=>lastDelete.password||lastDelete.reason),undefined);
    }else if(role==='field'){await p.locator('[data-worktab=home]').click();await menu.waitFor();}
    await noOverflow(p);await c.close();
   }
