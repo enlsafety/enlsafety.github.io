@@ -315,16 +315,16 @@ index 0000000..e49b3fe
 + await page.route('**/*',route=>{const url=new URL(route.request().url());if(url.origin!=='http://localhost:9009')return route.abort();const f=path.join(process.cwd(),url.pathname);if(!fs.existsSync(f)||!fs.statSync(f).isFile())return route.fulfill({status:404,body:''});let body=fs.readFileSync(f);if(url.pathname==='/stable412.html')body=body.toString().replace('<head>','<head><script src="tests/integrated-home-fixture.js"></script>');return route.fulfill({body,contentType:({'.html':'text/html','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.json':'application/json'})[path.extname(f)]||'application/octet-stream'})});
 + await page.goto('http://localhost:9009/stable412.html?role=safety');await page.waitForFunction(()=>currentUser()&&window.enlReturnToPlatform);await page.evaluate(()=>enlReturnToPlatform(currentUser()));
 + const menu=page.locator('.hub-mobile-menu');if(await menu.isVisible())await menu.click();await page.locator('.hub-sidebar [data-hub=boards]').click();
-+ await page.locator('.hub-board-categories button').filter({hasText:'안전뉴스'}).click();await page.locator('.hub-board [data-hub=new]').click();
++ await page.locator('.hub-board-categories button').filter({hasText:'안전뉴스'}).click();await page.locator('.hub-board:visible [data-hub=new]').click();
 + await page.locator('.hub-form [name=title]').fill('난방기 안전');await page.getByRole('textbox',{name:'게시글 내용'}).fill('불을 끄고 퇴근하세요');
 + await page.locator('[data-board-files]').setInputFiles({name:'카드.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jFZkAAAAASUVORK5CYII=','base64')});
 + await page.getByRole('button',{name:'본문에 넣기'}).click();assert.equal(await page.locator('.hub-editor-content img').count(),1);
-+ await page.locator('.hub-form button[type=submit]').click();await page.locator('.hub-board [data-content-list] button').filter({hasText:'난방기 안전'}).click();
++ await page.locator('.hub-form button[type=submit]').click();await page.locator('.hub-board:visible [data-content-list] button').filter({hasText:'난방기 안전'}).click();
 + await page.locator('.hub-rich-body img').waitFor();await page.waitForFunction(()=>document.querySelector('.hub-rich-body img')?.naturalWidth>0);assert.ok((await page.locator('.hub-detail-body').innerText()).includes('불을 끄고'));
 + await page.getByRole('button',{name:'수정',exact:true}).click();await page.locator('.hub-editor-content img').waitFor();assert.equal(await page.locator('.hub-asset-row').count(),1);
 + await page.getByRole('button',{name:'제외',exact:true}).click();assert.equal(await page.locator('.hub-editor-content img').count(),0);await page.locator('.hub-form button[type=submit]').click();
-+ await page.locator('.hub-board-filter [name=query]').fill('없는내용');await page.locator('.hub-board-filter button').filter({hasText:'검색'}).click();await page.getByText('등록된 게시글이 없습니다.').waitFor();
-+ await page.locator('.hub-board-filter button[type=reset]').click();await page.locator('.hub-board [data-content-list] button').filter({hasText:'난방기 안전'}).waitFor();
++ await page.locator('.hub-board:visible .hub-board-filter [name=query]').fill('없는내용');await page.locator('.hub-board:visible .hub-board-filter button').filter({hasText:'검색'}).click();await page.getByText('등록된 게시글이 없습니다.').waitFor();
++ await page.locator('.hub-board:visible .hub-board-filter button[type=reset]').click();await page.locator('.hub-board:visible [data-content-list] button').filter({hasText:'난방기 안전'}).waitFor();
 + assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'no horizontal overflow');fs.mkdirSync('qa-output',{recursive:true});await page.screenshot({path:`qa-output/board-rich-${width}.png`,fullPage:true});assert.deepEqual(errors,[]);await page.close();
 +}console.log('PASS desktop/mobile create, inline image, detail, edit, remove, search and reset');}finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});
 diff --git a/tests/board-rich-content.cjs b/tests/board-rich-content.cjs
