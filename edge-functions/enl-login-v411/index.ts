@@ -105,7 +105,7 @@ Deno.serve(async(req:Request)=>{
         const [attempt]=await tx`select failures,started_at from private.enl_email_enrollment_attempts where account_key=${key} for update`;
         const fresh=Date.now()-new Date(attempt.started_at).getTime()<900000;
         if(fresh&&attempt.failures>=5)return json({ok:false,message:'attempts_exceeded'},429);
-        const protectedAccount=hq||account.access_role==='field'||isFieldTitle(account.job_title);
+        const protectedAccount=hq||account.access_role==='field'||isFieldTitle(account.job_title)||!!clean(account.pin_hash);
         let authorized=false;
         if(protectedAccount){
           const proof=clean(hq?account.password_hash:account.pin_hash);
@@ -132,8 +132,10 @@ Deno.serve(async(req:Request)=>{
             await tx`update private.enl_email_challenges set failures=failures+1 where account_key=${key}`;
             return json({ok:false,message:'incorrect_code'},403);
           }
+          const firstProof=clean(body.newPasswordHash);
+          if(!protectedAccount&&!/^[0-9a-f]{64}$/.test(firstProof))return json({ok:false,message:'new_password_required'},400);
           if(hq)await tx`update public.enl_hq_users set email=${email},updated_at=now(),updated_by_id=${id},updated_by_name=${account.name},updated_by_role=${account.role} where user_id=${id}`;
-          else await tx`update public.enl_site_personnel set email=${email},updated_at=now(),updated_by_id=${id},updated_by_name=${account.name},updated_by_role=${account.access_role} where personnel_id::text=${id}`;
+          else await tx`update public.enl_site_personnel set email=${email},pin_hash=${protectedAccount?account.pin_hash:firstProof},updated_at=now(),updated_by_id=${id},updated_by_name=${account.name},updated_by_role=${account.access_role} where personnel_id::text=${id}`;
           await tx`delete from private.enl_email_challenges where account_key=${key}`;
           return json({ok:true,email});
         }

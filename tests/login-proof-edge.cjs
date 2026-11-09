@@ -85,7 +85,12 @@ async function fixture(){
  const workerReg={...fieldReg,name:'QA 근로자',accountKey:'site:'+worker.personnelId,passwordHash:'',companyLocal:'qa.worker'};
  check((await call({...workerReg,registrationPassword:''})).status===403,'passwordless worker needs enrollment proof');
  check((await call(workerReg)).status===200,'worker can receive OTP');
- check((await call({...workerReg,action:'email_code_verify',code:mailbox.at(-1).code})).status===200,'worker code verified');
+ const workerVerify={...workerReg,action:'email_code_verify',code:mailbox.at(-1).code};
+ check((await call(workerVerify)).body.message==='new_password_required','enrollment cannot silently enable passwordless access');
+ const newPasswordHash=require('node:crypto').randomBytes(32).toString('hex');
+ check((await call({...workerVerify,newPasswordHash})).status===200,'worker code and first password saved together');
+ const nextLogin={action:'login_site',name:worker.name,siteId:worker.siteId};
+ check((await call(nextLogin)).status===401&&(await call({...nextLogin,passwordHash:newPasswordHash})).status===200,'subsequent worker login requires their own password');
  await db.query("insert into enl_site_personnel(personnel_id,site_id,name,access_role,active) values('qa-double','other-site','QA 안전','worker',true)");
  const duplicate=await call({action:'lookup',name:'QA 안전',fixedAccount:true});check(duplicate.body.ambiguous&&duplicate.body.options.length===0,'no arbitrary site list for ambiguous names');
  check((await call({action:'lookup',name:'QA 안전',fixedAccount:true,knownEmail:'qa.safety@enlife.co.kr'})).body.options[0].accountKey==='hq:'+safety.id,'same-name resolution');

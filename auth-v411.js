@@ -115,12 +115,13 @@
     const d=document.createElement('dialog');d.className='email-gate-dialog';d.setAttribute('aria-labelledby','emailGateTitle411');
     d.innerHTML='<form><h2 id="emailGateTitle411" tabindex="-1" autofocus>회사 이메일 인증</h2><p></p><label data-proof><span></span><input name="proof" type="password" maxlength="128" required></label><label data-otp hidden>인증번호 6자리<input name="code" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code"></label><div role="status" aria-live="polite"></div><button type="button" data-resend hidden>인증번호 다시 받기</button><footer><button type="button" data-cancel>취소</button><button type="submit">인증번호 받기</button></footer></form>';
     const form=d.querySelector('form'), otp=form.querySelector('[data-otp]'), proof=form.querySelector('[data-proof]'), submit=form.querySelector('[type=submit]'), resend=form.querySelector('[data-resend]'), note=form.querySelector('[role=status]');
+    if(!needsPassword)otp.insertAdjacentHTML('afterend','<label data-new-password hidden>앞으로 사용할 로그인 비밀번호<input name="newPassword" type="password" minlength="4" maxlength="128" autocomplete="new-password"></label>');
     d.querySelector('p').textContent=value+'@enlife.co.kr';
     proof.firstChild.textContent=needsPassword?'본인 로그인 비밀번호':'일반근로자 최초 등록 비밀번호';
     if(needsPassword)form.elements.proof.placeholder='초기 비밀번호: 본인 휴대폰 뒷번호 4자리';
     form.elements.proof.autocomplete=needsPassword?'current-password':'off';
     if(needsPassword&&pw?.value)form.elements.proof.value=pw.value;
-    const messages={email_in_use:'이미 다른 사용자에게 등록된 이메일입니다. 본인 회사 이메일로 다시 시도해 주세요.',incorrect_code:'인증번호가 일치하지 않습니다.',code_expired:'인증번호가 만료됐습니다. 다시 받아 주세요.',code_locked:'5회 틀렸습니다. 새 인증번호를 받아 주세요.',invalid_login:'본인 확인 비밀번호를 확인해 주세요.',attempts_exceeded:'확인 횟수를 초과했습니다. 15분 후 다시 시도해 주세요.',wait_resend:'마지막 발송 1분 후에 다시 받을 수 있습니다.',send_limit:'시간당 발송 한도에 도달했습니다. 1시간 후 다시 시도해 주세요.',email_already_registered:'이미 등록된 계정입니다. 이름을 다시 조회해 주세요.',gate_not_configured:'안전관리자에게 최초 등록 비밀번호를 문의해 주세요.',mail_unavailable:'메일 발송을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.'};
+    const messages={new_password_required:'앞으로 사용할 로그인 비밀번호를 입력해 주세요.',email_in_use:'이미 다른 사용자에게 등록된 이메일입니다. 본인 회사 이메일로 다시 시도해 주세요.',incorrect_code:'인증번호가 일치하지 않습니다.',code_expired:'인증번호가 만료됐습니다. 다시 받아 주세요.',code_locked:'5회 틀렸습니다. 새 인증번호를 받아 주세요.',invalid_login:'본인 확인 비밀번호를 확인해 주세요.',attempts_exceeded:'확인 횟수를 초과했습니다. 15분 후 다시 시도해 주세요.',wait_resend:'마지막 발송 1분 후에 다시 받을 수 있습니다.',send_limit:'시간당 발송 한도에 도달했습니다. 1시간 후 다시 시도해 주세요.',email_already_registered:'이미 등록된 계정입니다. 이름을 다시 조회해 주세요.',gate_not_configured:'안전관리자에게 최초 등록 비밀번호를 문의해 주세요.',mail_unavailable:'메일 발송을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.'};
     let busy=false;
     async function run(verify){
       if(busy||selected!==o||!d.open)return;
@@ -128,13 +129,18 @@
       try{
         const secret=form.elements.proof.value;
         const credentials=needsPassword?{passwordHash:await sha256(secret)}:{registrationPassword:secret};
+        if(verify&&!needsPassword)credentials.newPasswordHash=await sha256(form.elements.newPassword.value);
         await api({action:verify?'email_code_verify':'email_code_send',accountKey:o.accountKey,name:o.name||document.getElementById('loginName411').value.trim(),affiliationId:o.affiliationId,companyLocal:value,code:verify?form.elements.code.value:undefined,...credentials});
         if(selected!==o||!d.open)return;
         if(verify){
           o.hasEmail=true;o.companyLocal=value;local.value=value;local.readOnly=true;button.hidden=true;
-          if(needsPassword&&pw&&!pw.value)pw.value=secret;
+          if(!needsPassword){
+            o.requiresPassword=true;renderPassword(o);
+            document.getElementById('loginPassword411').value=form.elements.newPassword.value;
+          }else if(pw&&!pw.value)pw.value=secret;
           status('회사 이메일이 등록됐습니다. 로그인해 주세요.','ok');d.close();document.getElementById('loginSubmit411')?.focus();
         }else{
+          if(!needsPassword){form.querySelector('[data-new-password]').hidden=false;form.elements.newPassword.required=true}
           proof.hidden=true;otp.hidden=resend.hidden=false;form.elements.code.required=true;form.elements.code.value='';
           submit.textContent='인증 완료';note.textContent='메일로 보낸 6자리 인증번호를 10분 내에 입력해 주세요.';form.elements.code.focus();
         }
