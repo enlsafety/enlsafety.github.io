@@ -8,6 +8,20 @@ ctx.data.incidents=[incident({occurredAt:`${y-1}-12-01`,priority:'urgent'})];
 assert.equal(t.risk('s01').high,true,'active urgent incident triggers current high risk');assert.equal(t.risk('s01').activeHigh,true);assert.equal(t.risk('s01').count,0);assert.equal(t.risk('s01').open,1);assert.equal(t.color('s01'),'#d83f45','older unresolved urgent incident stays red');
 ctx.data.incidents[0].recordMode='historical_transfer';assert.equal(t.risk('s01').high,false,'historical urgent excluded');assert.equal(t.risk('s01').level,'안전');assert.equal(t.color('s01'),'#219653');
 ctx.data.incidents=Array.from({length:4},()=>incident({status:'closed'}));assert.equal(t.risk('s01').high,false);ctx.data.incidents.push(incident({status:'closed'}));assert.equal(t.risk('s01').high,true,'5 current-year accidents');
+// Include this year's personal and property accidents, including closed transfers.
+ctx.data.incidents=[
+ incident({category:'person'}), incident({category:'property'}),
+ incident({category:'property',status:'closed',recordMode:'historical_transfer'}),
+ incident({category:'person',historicalImport:{enabled:true}}),
+ incident({category:'property',occurredAt:`${y-1}-12-01`,recordMode:'historical_transfer'}),
+ incident({siteId:'other',category:'person'})
+];
+assert.equal(t.risk('s01').count,4);
+assert.equal(t.risk('s01').level,'주의');
+ctx.data.incidents.push(incident({category:'person',status:'closed',historicalTransfer:{mode:'historical_transfer'}}));
+assert.equal(t.risk('s01').count,5);
+assert.equal(t.risk('s01').level,'고위험');
+assert.match(t.mapHtml(),/안전: 올해 사고 0건[\s\S]*일반: 올해 사고 1~2건[\s\S]*주의: 올해 사고 3~4건[\s\S]*고위험: 올해 사고 5건/);
 for(const extra of [{severity:'major'},{potentialMajor:true},{severity:'major',potentialMajor:true,priority:'important',prioritySource:'manual'}]){
  ctx.data.incidents=[incident(extra)];assert.equal(t.risk('s01').high,false,'injury severity/potential must not override management priority');assert.equal(t.risk('s01').activeHigh,false);assert.equal(t.risk('s01').level,'일반');assert.equal(t.color('s01'),'#20252b');
 }

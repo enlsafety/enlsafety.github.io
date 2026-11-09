@@ -65,8 +65,8 @@ function mapHtml(){
  const a=dashboardRows(),mapped=a.filter(pos),high=a.filter(s=>risk(s.site_id).high);
  const highList=high.length?high.map(s=>'<div class="sd450-risk-item"><span>'+E(s.site_name||s.site_id)+'</span><b>'+risk(s.site_id).count+'건</b></div>').join(''):'<div class="sd450-legend">현재 기준 고위험 사업장이 없습니다.</div>';
  const legend=`<div class="sd450-primary-legend" role="group" aria-label="지도 색상 표시 기준">
-  <span><i class="sd450-dot normal"></i>일반: 올해 사고 1~2건</span>
   <span><i class="sd450-dot safe"></i>안전: 올해 사고 0건</span>
+  <span><i class="sd450-dot normal"></i>일반: 올해 사고 1~2건</span>
   <span><i class="sd450-dot warning"></i>주의: 올해 사고 3~4건</span>
   <span><i class="sd450-dot high"></i>고위험: 올해 사고 5건 이상 또는<br>미종결 긴급 사고 (과거이관 제외)</span>
  </div>`;
