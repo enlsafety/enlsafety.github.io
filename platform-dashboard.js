@@ -400,7 +400,9 @@
     if(hadFocus)picked?.focus({preventScroll:true});
     if(picked){const a=picked.parentElement.getBoundingClientRect(),b=strip.getBoundingClientRect();if(a.right>b.right)strip.scrollLeft+=a.right-b.right+8;else if(a.left<b.left)strip.scrollLeft+=a.left-b.left-8;}
   }
+  const org=window.enlOrganization?.(host,u,api,sameUser);
   function canLeave(){
+    if(active==='organization'&&org&&!org.canLeave())return false;
     const changed=document.querySelector('#view [data-worktab-edited],#view [data-wf440-dirty="1"]');
     if(window.enlIncidentSaveInProgress?.()){
       alert('저장 중입니다. 저장이 끝나면 탭을 이동해 주세요.');return false;
@@ -417,13 +419,14 @@
     else if(host.nextElementSibling!==view)view.before(host);
     host.querySelector('.hub-support').hidden=active!=='support';
     const preview=host.querySelector('.hub-module-preview');
-    preview.hidden=Object.hasOwn(builtins,active)||['incident','system','history','notices','approvals'].includes(active);
+    preview.hidden=Object.hasOwn(builtins,active)||['incident','system','history','notices','approvals','organization'].includes(active);
     for(const panel of host.querySelectorAll('[data-list-workspace]'))panel.hidden=panel.dataset.listWorkspace!==active;
     if(!preview.hidden)preview.querySelector('h2').textContent=tabTitle(active);
     paintTabs();
   }
   function showTab(key,historyScope='all'){
     const view=host.closest('.app-shell').querySelector('#view');
+    if(active==='organization'&&key!==active)org?.leave();
     if(active==='incident')incidentView=currentView;
     if(key==='inquiry')inquiryOrigin=active;
     if(!opened.includes(key))opened.push(key);
@@ -434,6 +437,7 @@
     const native={home:'platform',system:'system-admin',history:'common-history',recent:'history',inquiry:['field','worker'].includes(u.role)?'field-inquiry':'inquiry',notices:'notice-center',incident:incidentView||(['field','worker'].includes(u.role)?'home':'stats')};
     if(key==='history'||key==='recent')window.enlRequestHistory?.(historyScope);
     go(native[key]||'platform-tool');
+    if(key==='organization')org.open();
     if(key==='approvals')approvalWorkspace();
     if(boards[key])listBoard(key);
     if(key==='schedule')listSchedule();
@@ -441,6 +445,7 @@
     window.scrollTo(0,0);
   }
   async function selectTab(key,closing=false,historyScope='all'){
+    if(key==='organization'&&!org){status.textContent='조직도 화면을 불러오지 못했습니다. 새로고침해 주세요.';return false;}
     if(key==='recent'&&!window.enlHistoryAvailable?.(u))return false;
     const token=++request;
     if(key===active){host.classList.remove('hub-menu-open');return true;}
@@ -558,7 +563,7 @@
       }
       nav.append(row);
     }
-    paintFavorites();
+    paintFavorites();org?.badges();
   }
   function favoriteChoices(){return [...items().filter(m=>m.state!=='hidden'&&!catalog?.omitted?.includes(m.key)&&(m.key!=='system'||admin)).map(m=>({key:m.key,title:featureName(m)})),{key:'bulletins',title:'공지사항'},{key:'schedule',title:'전체 일정'}]}
   function paintFavorites(){const box=host.querySelector('.hub-favorites>div'),choices=favoriteChoices();box.replaceChildren();for(const key of content.favorites){const x=choices.find(v=>v.key===key);if(!x)continue;const b=document.createElement('button');b.type='button';b.innerHTML=menuPictogram(key)+'<span>'+safe(x.title)+'</span>';b.onclick=()=>dispatch(['bulletins','schedule'].includes(key)?key:'feature:'+key);box.append(b)}if(!box.children.length)box.innerHTML='<p>자주 쓰는 메뉴를 추가하세요.</p>'}
@@ -618,6 +623,7 @@
     window.scrollTo(0,Number(detail.dataset.listScroll)||0);
   }
   host.boardHistory=state=>{
+    if(active==='organization'&&state?.enlHub===userKey&&org&&!org.canLeave()){history.pushState({enlModuleEntry:userKey},'');return true;}
     if(!boards[active]||!sameUser())return false;
     const entry=state?.enlBoardPost;
     if(entry&&entry.owner===userKey&&entry.key===active){
@@ -821,7 +827,7 @@
   function guide(){const d=dialog(host,'모듈 안내');d.querySelector('.hub-dialog-body').innerHTML='<p>운영 중인 업무는 카드를 눌러 바로 이용할 수 있습니다. 구현 중인 업무는 관리자가 허용한 시험 사용자만 진입합니다.</p><p>공지사항과 일정은 안전관리자가 등록하고 대상 사업장의 사용자에게 공유합니다.</p>'+(admin?'<p>편집을 누르면 이름 수정, 접근 설정, 순서 이동 도구가 나타납니다. 손잡이를 끌거나 접근 설정의 앞으로/뒤로 버튼으로 순서를 변경하세요.</p>':'')}
   function dispatch(key){if(key.startsWith('feature:'))return clickFeature(key.slice(8));if(key==='home'){if(host.classList.contains('hub-incident-workspace'))return window.enlReturnToPlatform(u);host.classList.remove('hub-menu-open');window.scrollTo({top:0,behavior:'smooth'})}else if(key==='menu'||key==='close-menu')host.classList.toggle('hub-menu-open',key==='menu');else if(key==='support')support();else if(key==='search')search();else if(key==='notifications')clickFeature('notices');else if(key==='manage-cards'&&admin)manageCards();else if(key==='edit'){host.classList.toggle('hub-editing');host.querySelector('.hub-edit-toggle').textContent=host.classList.contains('hub-editing')?'편집 완료':'편집'}else if(key==='guide')guide();else if(key==='favorites')favorites();else if(key==='bulletins'||key==='schedule')selectTab(key);else if(key==='approvals')openApprovalList();else if(key==='recent')selectTab('recent');}
   host.querySelectorAll('[data-hub]').forEach(b=>b.onclick=()=>dispatch(b.dataset.hub));
-  function afterCards(c){catalog=c;historyShortcuts();navigation();paintTabs();paintApprovals();renderArtwork(host);}
+  function afterCards(c){catalog=c;historyShortcuts();navigation();paintTabs();paintApprovals();renderArtwork(host);org?.catalog(entry('organization'));}
   function historyShortcuts(){
     let nav=host.querySelector('.hub-history-shortcuts');if(!nav){nav=document.createElement('nav');nav.className='hub-history-shortcuts hub-category-tabs';nav.setAttribute('aria-label','업무 기록 바로가기');host.querySelector('.hub-support>h2').after(nav)}
     const m=entry('history');nav.hidden=!window.enlHistoryAvailable?.(u)||!m||m.canEnter===false||m.enabled===false||m.state!=='live';nav.replaceChildren();

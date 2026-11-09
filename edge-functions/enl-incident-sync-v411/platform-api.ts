@@ -1,3 +1,4 @@
+import { organizationRequest } from "./organization.ts";
 const moduleKeys=['incident','risk','tbm','organization','training','msds'];
 const systemRoles=['worker','field','manager','executive','safety'];
 const safetyArt=['policy','law','voice','emergency','ppe','ergonomics','rules'];
@@ -118,6 +119,11 @@ function boardAttachment(f:any){
 }
 export async function platformRequest(sql:any,actor:any,body:any,reply:any){
   const admin=actor.role==='safety',action=body.action;
+  if(action.startsWith('platform_org_')){
+    const [config]=await sql`select item from private.enl_platform_catalog cross join lateral jsonb_array_elements(modules) item where singleton and item->>'key'='organization'`;
+    if(!canEnter(config?.item,actor))return reply({ok:false,message:'module_unavailable'},403);
+    return organizationRequest(sql,actor,body,reply);
+  }
   if(['platform_banners','platform_banner_upload','platform_banners_save'].includes(action))return bannerRequest(sql,actor,body,reply);
   if(['platform_board_list','platform_board_file','platform_board_detail'].includes(action)){
     const hq=['safety','manager','executive'].includes(actor.role);

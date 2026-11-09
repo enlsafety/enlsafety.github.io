@@ -49,7 +49,8 @@ async function fixture({hubNotices=false,fetchMock}={}){
  vm.runInContext(read('edge-functions/enl-incident-sync-v411/site-contract-v451.js'),ctx);
  vm.runInContext(read('executive-approval-v482.js'),ctx);
  vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/lifecycle-policy.ts').replace(/export /g,'')),ctx);
- vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/platform-api.ts').replace(/export /g,'')),ctx);
+ vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/organization.ts').replace(/export /g,'')),ctx);
+ vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/platform-api.ts').replace(/^import .*;\r?\n/gm,'').replace(/export /g,'')),ctx);
  // Put the endpoint in an inner scope because each imported file has its own module scope.
  vm.runInContext('{'+stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/index.ts').replace(/^import .*;\r?\n/gm,''))+'}',ctx);
  const actors={safety:{id:'qa-safety',role:'safety'},manager:{id:'qa-manager',role:'manager'},executive:{id:'qa-executive',role:'executive'},field:{id:'qa-field',role:'field',siteId:'qa-site'},other:{id:'qa-other',role:'field',siteId:'other-site'}};
