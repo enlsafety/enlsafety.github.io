@@ -48,7 +48,13 @@ function info(id){
 function metricIncidents(){return metrics||data&&data.incidents||[]}
 function siteInc(id){return metricIncidents().filter(i=>String(i.siteId||'')===String(id))}
 function yearInc(id){const y=new Date().getFullYear();return metricIncidents().filter(i=>String(i.siteId||'')===String(id)&&new Date(i.occurredAt||0).getFullYear()===y)}
-function risk(id){const a=yearInc(id),open=siteInc(id).filter(i=>String(i.status||'')!=='closed'),activeHigh=open.some(i=>!isHistorical(i)&&String(i.priority||'')==='urgent'),closed=window.ENLContracts.closed(id),high=!closed&&(a.length>=5||activeHigh),warning=!closed&&!high&&a.length>=3,safe=!closed&&!high&&a.length===0;return {closed,high,warning,safe,level:closed?'집계 제외':high?'고위험':warning?'주의':safe?'안전':'일반',count:a.length,open:open.length,activeHigh}}
+function risk(id){
+ const count=yearInc(id).length;
+ const closed=window.ENLContracts.closed(id);
+ const high=!closed&&count>=5,warning=!closed&&count>=3&&count<5,safe=!closed&&count===0;
+ const level=closed?'집계 제외':high?'고위험':warning?'주의':safe?'안전':'일반';
+ return {count,closed,high,warning,safe,level};
+}
 function color(id){const r=risk(id);return r.closed?'#89939d':r.high?'#d83f45':r.warning?'#e88918':r.safe?'#219653':'#20252b'}
 
 function pos(s){
@@ -68,7 +74,7 @@ function mapHtml(){
   <span><i class="sd450-dot safe"></i>안전: 올해 사고 0건</span>
   <span><i class="sd450-dot normal"></i>일반: 올해 사고 1~2건</span>
   <span><i class="sd450-dot warning"></i>주의: 올해 사고 3~4건</span>
-  <span><i class="sd450-dot high"></i>고위험: 올해 사고 5건 이상 또는<br>미종결 긴급 사고 (과거이관 제외)</span>
+  <span><i class="sd450-dot high"></i>고위험: 올해 사고 5건 이상</span>
  </div>`;
  return '<section class="panel sd450-map-panel" data-sd450-map><div class="sd450-map-head"><div><div class="ey">SITE DISTRIBUTION</div><h2>전국 사업장 분포</h2>'+(loadError?'<small role="status">최신 정보 불러오기 실패</small>':'')+'</div><div class="sd450-map-badges"><span class="sd450-map-badge">사업장 '+a.length+'개</span><span class="sd450-map-badge risk">고위험 '+high.length+'개</span></div></div><div class="sd450-map-layout"><div class="sd450-map-wrap"><div class="sd450-map-frame"><div class="sd450-map-viewport" tabindex="0" aria-label="사업장 지도. 클릭 또는 탭한 뒤 확대·축소와 이동을 사용할 수 있습니다"><div class="sd450-map-canvas"><img class="sd450-map-img" src="korea-map-natural-earth-10m.svg?v=4.4.19-r1" alt="대한민국 지도"></div><div class="sd450-annotations">'+'<svg class="sd450-marker-links" aria-hidden="true"></svg>'+mapped.map(marker).join('')+'</div><button type="button" class="sd450-map-lock" data-map-lock aria-pressed="false">지도 조작하려면 클릭/탭</button></div>'+legend+'</div><div class="sd450-map-tools" role="group" aria-label="지도 확대 축소"><button type="button" data-map-zoom="out" aria-label="지도 축소">−</button><output data-map-scale aria-live="polite">100%</output><button type="button" data-map-zoom="in" aria-label="지도 확대">+</button><button type="button" data-map-zoom="reset">전체 보기</button></div><p class="sd450-map-help">기본 잠금 · 지도 클릭/탭 후 드래그 이동 · 마우스 휠/두 손가락으로 확대·축소</p><div class="sd450-map-source">지도 윤곽: Natural Earth 1:10m 공개 데이터 · 소피아그린 위치: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap 기여자</a></div></div><aside class="sd450-map-side"><div class="sd450-risk-list">'+highList+'</div></aside></div></section>';
 }
@@ -160,7 +166,9 @@ function bindMap(root,a){
 }
 function summary(id){
  const s=master(id),r=risk(id);
- return info(id)+'<div class="sd450-summary-stats"><b>올해 사고 '+r.count+'건</b><b>현재 미종결 '+r.open+'건</b><b class="'+(r.high?'sd450-high':r.warning?'sd450-warning':'')+'">위험도: '+r.level+'</b>'+(r.activeHigh?'<span class="sd450-high">미종결 긴급 관리등급 사고 있음</span>':'')+'</div>'+(!pos(s)?'<small>좌표 확인 필요</small>':'')+'<button type="button" class="primary" data-sd450-open="'+E(id)+'">사업장 사고목록 보기</button>';
+ const open=siteInc(id).filter(i=>String(i.status||'')!=='closed');
+ const hasOpenUrgent=open.some(i=>!isHistorical(i)&&String(i.priority||'')==='urgent');
+ return info(id)+'<div class="sd450-summary-stats"><b>올해 사고 '+r.count+'건</b><b>현재 미종결 '+open.length+'건</b><b class="'+(r.high?'sd450-high':r.warning?'sd450-warning':'')+'">위험도: '+r.level+'</b>'+(hasOpenUrgent?'<span class="sd450-high">미종결 긴급 관리등급 사고 있음</span>':'')+'</div>'+(!pos(s)?'<small>좌표 확인 필요</small>':'')+'<button type="button" class="primary" data-sd450-open="'+E(id)+'">사업장 사고목록 보기</button>';
 }
 function injectInfo(){
  if(view()!=='incidents')return;

@@ -71,9 +71,9 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  if(touch)assert.equal(await page.locator('.sd450-marker-label').evaluateAll(bs=>bs.filter(b=>getComputedStyle(b).visibility==='visible').length),0,'mobile starts with points only, including high-risk points');
  for(const id of await page.evaluate(()=>Object.keys(ENL_SITE_LOCATIONS).filter(id=>id!=='s34'))){await page.locator('#sd450Site').selectOption(id);const address=await page.evaluate(id=>ENL_SITE_LOCATIONS[id].address,id);await page.waitForFunction(({id,address})=>document.querySelector('#sd450Site')?.value===id&&document.querySelector('[data-sd450-summary]')?.textContent.includes(address),{id,address},{timeout:5000});}
  await page.waitForFunction(()=>{const b=document.querySelector('[data-sd450-map-site="s02"]');return b&&getComputedStyle(b).backgroundColor==='rgb(232, 137, 24)'},{timeout:5000});
- await openSite('s29');await verifyDashboard();assert.ok((await page.locator('[data-sd450-summary]').innerText()).includes('미종결 긴급·중대 사고 있음'));
- assert.equal(await page.locator('[data-sd450-map-site="s29"].high').count(),1);
- for(const [id,expected] of [['s04','rgb(33, 150, 83)'],['s01','rgb(32, 37, 43)'],['s29','rgb(216, 63, 69)'],['s02','rgb(232, 137, 24)'],['s03','rgb(216, 63, 69)']])assert.equal(await page.locator(`[data-sd450-map-site="${id}"]`).evaluate(b=>getComputedStyle(b).backgroundColor),expected);
+ await openSite('s29');await verifyDashboard();const summary=await page.locator('[data-sd450-summary]').innerText();assert.match(summary,/위험도: 안전/);assert.match(summary,/미종결 긴급 관리등급 사고 있음/);
+ assert.equal(await page.locator('[data-sd450-map-site="s29"].safe').count(),1);
+ for(const [id,expected] of [['s04','rgb(33, 150, 83)'],['s01','rgb(32, 37, 43)'],['s29','rgb(33, 150, 83)'],['s02','rgb(232, 137, 24)'],['s03','rgb(216, 63, 69)']])assert.equal(await page.locator(`[data-sd450-map-site="${id}"]`).evaluate(b=>getComputedStyle(b).backgroundColor),expected);
  assert.ok((await page.locator('[data-sd450-map-site="s04"]').getAttribute('aria-label')).includes('안전'),'0-incident marker labeled safe');assert.ok((await page.locator('[data-sd450-map-site="s01"]').getAttribute('aria-label')).includes('일반'),'1-2 incident marker labeled normal');
   const verifyLabels=async()=>{
   const labels=await page.locator('.sd450-marker:not([hidden]) .sd450-marker-label').evaluateAll(bs=>bs.map(b=>{const r=b.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,visible:getComputedStyle(b).visibility==='visible',text:b.textContent}}));

@@ -5,8 +5,12 @@ const ctx={data:{sites:[],incidents:[]},Date,console};ctx.window=ctx;vm.createCo
 const t=ctx.window.test,y=new Date().getFullYear();
 const incident=(extra={})=>({siteId:'s01',occurredAt:`${y}-05-01`,status:'reported',...extra});
 ctx.data.incidents=[incident({occurredAt:`${y-1}-12-01`,priority:'urgent'})];
-assert.equal(t.risk('s01').high,true,'active urgent incident triggers current high risk');assert.equal(t.risk('s01').activeHigh,true);assert.equal(t.risk('s01').count,0);assert.equal(t.risk('s01').open,1);assert.equal(t.color('s01'),'#d83f45','older unresolved urgent incident stays red');
-ctx.data.incidents[0].recordMode='historical_transfer';assert.equal(t.risk('s01').high,false,'historical urgent excluded');assert.equal(t.risk('s01').level,'안전');assert.equal(t.color('s01'),'#219653');
+assert.equal(t.risk('s01').level,'안전');
+assert.equal(t.risk('s01').count,0);
+assert.match(t.summary('s01'),/현재 미종결 1건/);
+assert.match(t.summary('s01'),/미종결 긴급 관리등급/);
+ctx.data.incidents[0].recordMode='historical_transfer';
+assert.doesNotMatch(t.summary('s01'),/미종결 긴급 관리등급/);
 ctx.data.incidents=Array.from({length:4},()=>incident({status:'closed'}));assert.equal(t.risk('s01').high,false);ctx.data.incidents.push(incident({status:'closed'}));assert.equal(t.risk('s01').high,true,'5 current-year accidents');
 // Include this year's personal and property accidents, including closed transfers.
 ctx.data.incidents=[
@@ -22,15 +26,18 @@ ctx.data.incidents.push(incident({category:'person',status:'closed',historicalTr
 assert.equal(t.risk('s01').count,5);
 assert.equal(t.risk('s01').level,'고위험');
 assert.match(t.mapHtml(),/안전: 올해 사고 0건[\s\S]*일반: 올해 사고 1~2건[\s\S]*주의: 올해 사고 3~4건[\s\S]*고위험: 올해 사고 5건/);
-for(const extra of [{severity:'major'},{potentialMajor:true},{severity:'major',potentialMajor:true,priority:'important',prioritySource:'manual'}]){
- ctx.data.incidents=[incident(extra)];assert.equal(t.risk('s01').high,false,'injury severity/potential must not override management priority');assert.equal(t.risk('s01').activeHigh,false);assert.equal(t.risk('s01').level,'일반');assert.equal(t.color('s01'),'#20252b');
+for(const extra of [{severity:'major'},{potentialMajor:true},{priority:'urgent'},{severity:'major',potentialMajor:true,priority:'urgent',leaveEstimate:'fatal'}]){
+ ctx.data.incidents=[incident({category:'person',...extra})];
+ assert.equal(t.risk('s01').level,'일반');
+ assert.equal(t.color('s01'),'#20252b');
+ ctx.data.incidents[0].status='closed';
+ assert.equal(t.risk('s01').level,'일반');
 }
-for(const extra of [{priority:'urgent'},{severity:'major',potentialMajor:true,priority:'urgent'},{priority:'urgent',prioritySource:'manual'}]){ctx.data.incidents=[incident(extra)];assert.equal(t.risk('s01').high,true);assert.equal(t.risk('s01').activeHigh,true);ctx.data.incidents[0].status='closed';assert.equal(t.risk('s01').high,false)}
 // Regression for the reported single-fracture / manually important case. No personal data.
 ctx.data.incidents=[incident({siteId:'s27',status:'approved',severity:'major',priority:'important',prioritySource:'manual',potentialMajor:false,pastReport:{drafterName:'fixture'}})];
 assert.equal(t.risk('s27').level,'일반');assert.equal(t.color('s27'),'#20252b');assert.match(t.summary('s27'),/위험도: 일반/);assert.doesNotMatch(t.summary('s27'),/미종결 긴급 관리등급/);
-assert.match(t.mapHtml(),/고위험: 올해 사고 5건 이상 또는<br>미종결 긴급 사고/);assert.doesNotMatch(t.mapHtml(),/또는 중대재해/);
-console.log('PASS: major injury and potential flags do not elevate a manually important accident; urgent remains high');
+assert.match(t.mapHtml(),/고위험: 올해 사고 5건 이상<\/span>/);assert.doesNotMatch(t.mapHtml(),/또는 중대재해/);
+console.log('PASS: major injury and potential flags do not elevate a manually important accident; annual count determines map color');
 ctx.window.ENL_SITE_MASTER_SEED=[{site_id:'s01',site_name:'검증',address:'주소',regular_count:3,daily_count:2}];ctx.data.sites=[{id:'s01',name:'검증'}];assert.equal(t.master('s01').address,'주소','undefined local field must not erase seed');
 t.setMasters([{site_id:'s01',active:false}]);assert.equal(t.rows().length,1,'closed site remains available for history');assert.equal(t.dashboardRows().length,0);t.setMasters([]);assert.equal(t.rows().length,0,'successful empty server response is authoritative');
 ctx.window.ENL_SITE_LOCATIONS={s01:{address:'주소',lat:35.4,lon:126.8}};assert.ok(t.pos({site_id:'s01',address:'주소'}));assert.equal(t.pos({site_id:'s01',address:'이전된 주소'}),null);assert.equal(t.pos({site_id:'s99',region:'서울'}),null);
@@ -57,6 +64,6 @@ console.log('PASS: only heavily overlapping points move; already distinct points
 
 ctx.ENLContracts.setSites([{site_id:'s01',active:true}]);
 for(const [n,level,color] of [[0,'안전','#219653'],[1,'일반','#20252b'],[2,'일반','#20252b'],[3,'주의','#e88918'],[4,'주의','#e88918'],[5,'고위험','#d83f45'],[6,'고위험','#d83f45']]){ctx.data.incidents=Array.from({length:n},()=>incident());assert.equal(t.risk('s01').level,level);assert.equal(t.color('s01'),color)}
-console.log('PASS: 0 green; 1/2 black; 3/4 orange; 5/6 red; urgent unresolved stays red');
+console.log('PASS: 0 green; 1/2 black; 3/4 orange; 5/6 red; open urgent status is independent of the map color');
 
 ctx.data.incidents=Array.from({length:6},()=>incident({siteId:'s34',priority:'urgent'}));assert.equal(t.risk('s34').high,false);assert.equal(t.color('s34'),'#89939d');assert.equal(t.dashboardRows('all').length,2);console.log('PASS: closed sites never enter current high risk, even with 6 incidents or urgent records');
