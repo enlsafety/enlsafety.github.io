@@ -7,6 +7,17 @@ const assert=require('node:assert/strict'),{fixture}=require('./final-lifecycle.
  await event('other-hq','risk','qa-other','safety');await event('other-field','tbm','qa-other','field');
  for(const role of ['safety','manager','executive','field'])await event('global-'+role,'common','',role);
  await event('unscoped-risk','risk','','safety');
+ const insertActor=async(id,actor)=>f.db.query("select private.enl_platform_event($1,'common',$1,'',$2,'검수','safety','update','처리완료','검수')",[id,actor]);
+ await insertActor('prior-roster','roster-import-20261109');
+ await f.db.exec(require('node:fs').readFileSync('supabase/migrations/20261109045400_account_activity_feed.sql','utf8'));
+ await insertActor('new-roster','roster-reconcile-20261109');
+ await insertActor('new-unknown','offline-job-2026');
+ await f.db.exec("begin; set local enl.activity_origin='maintenance'; select private.enl_platform_event('marked-job','common','qa','','qa-safety','검수','safety','update','처리완료','검수'); commit;");
+ assert.equal((await f.db.query("select count(*)::int n from private.enl_activity_events where source_key in ('module:common:prior-roster','module:common:new-roster','module:common:new-unknown','module:common:marked-job')")).rows[0].n,1);
+ await f.db.exec("begin; set local application_name='mgmt-api'; select private.enl_platform_event('external-job','common','qa','','qa-safety','검수','safety','update','처리완료','검수'); commit;");
+ await insertActor('account-action','qa-safety');
+ assert.deepEqual((await f.db.query("select source_key from private.enl_activity_events where source_key in ('module:common:account-action','module:common:external-job')")).rows,[{source_key:'module:common:account-action'}]);
+ await f.db.query("update private.enl_activity_events set listed=false where source_key='module:common:account-action'");
  const own=(await call('field','activity_list',{feed:'all'})).rows;
  assert.deepEqual(own.map(x=>x.incident_id).sort(),['own-field','own-hq','global-safety','global-manager','global-executive'].sort());
  for(const role of ['safety','manager','executive'])assert.equal((await call(role,'activity_list',{feed:'all'})).rows.length,9);

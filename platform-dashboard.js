@@ -221,7 +221,19 @@
   b.insertAdjacentHTML('beforeend','<span class="hub-card-description">'+(descriptions[m.key]||'')+'</span><span class="hub-card-arrow" aria-hidden="true">'+svg('arrow')+'</span>');
  }
  let stopBanner=()=>{};
- function startBanner(host){
+ const bannerNotices={
+  welcome:['286f859b-4f6d-497a-b086-c2286a266f01','통합홈 이용 안내'],
+  opening:['286f859b-4f6d-497a-b086-c2286a266f02','시스템 오픈 및 이용 문의'],
+  health:['286f859b-4f6d-497a-b086-c2286a266f03','건강검진 대상 확인 및 예약'],
+  fire:['286f859b-4f6d-497a-b086-c2286a266f04','골프장 화재예방 점검'],
+  report:['286f859b-4f6d-497a-b086-c2286a266f05','사고 발생 즉시 보고']
+ };
+ function syncBannerNoticeLinks(host){
+  for(const button of host.querySelectorAll('.hub-banner-notice')){
+   button.hidden=Boolean(host.availableNoticeIds&&!host.availableNoticeIds.has(button.dataset.noticeId));
+  }
+ }
+ function startBanner(host,openNotice){
   stopBanner();const hero=host.querySelector('.hub-hero'),motion=matchMedia('(prefers-reduced-motion: reduce)');
   let index=0,position=1,moving=false,timer=0,settleTimer=0,frame=0,stopped=false,touch=null;
   if(!hero.enlOriginalBanner)hero.enlOriginalBanner=Array.from(hero.children).map(n=>n.cloneNode(true));
@@ -238,12 +250,19 @@
     slide.innerHTML=(s.image?'<img class="hub-campaign-background" src="assets/banners/'+s.image+'" alt="" width="2172" height="724" decoding="async">':'')+
      '<div class="hub-campaign-copy"><small>'+safe(s.eyebrow||'SAFE WORKPLACE')+'</small><h2>'+safe(s.title)+'</h2><p>'+safe(s.body)+'</p></div>'+
      (s.art?'<img class="hub-campaign-art" src="assets/safety-cards/'+s.art+'.webp" width="320" height="320" alt="">':'');
-   }track.append(slide);
+   }
+   const notice=bannerNotices[s?s.key:'welcome'];
+   if(notice){
+    const link=document.createElement('button');link.type='button';link.className='hub-banner-notice';
+    link.dataset.noticeId=notice[0];link.setAttribute('aria-label',notice[1]+' 공지 읽기');
+    const caption=document.createElement('span');caption.textContent='자세히 보기 ›';link.append(caption);slide.append(link);
+   }
+   track.append(slide);
   }
   const first=track.firstElementChild.cloneNode(true);track.prepend(track.lastElementChild.cloneNode(true));track.append(first);
   const controls=document.createElement('div');controls.className='hub-banner-controls';controls.hidden=slides.length<2;
   controls.innerHTML='<button type="button" data-prev aria-label="이전 배너"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg></button><div data-dots aria-label="배너 선택"></div><button type="button" data-next aria-label="다음 배너"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>';
-  hero.replaceChildren(track,controls);
+  hero.replaceChildren(track,controls);syncBannerNoticeLinks(host);
   const nodes=Array.from(track.children);
   slides.forEach((_,n)=>{const b=document.createElement('button');b.type='button';b.setAttribute('aria-label',(n+1)+' / '+slides.length+'번 배너 보기');b.onclick=()=>move(n,n-index);controls.querySelector('[data-dots]').append(b)});
   function paint(){
@@ -280,8 +299,13 @@
   controls.querySelector('[data-prev]').onclick=()=>move(index-1,-1);controls.querySelector('[data-next]').onclick=()=>move(index+1,1);
   hero.onpointerenter=null;hero.onpointerleave=null;
   hero.onkeydown=e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();move(index+(e.key==='ArrowLeft'?-1:1),e.key==='ArrowLeft'?-1:1)}};
-  hero.onpointerdown=e=>{touch=e.pointerType==='touch'&&!e.target.closest('button,a')?{x:e.clientX,y:e.clientY}:null};
-  hero.onpointerup=e=>{if(!touch)return;const dx=e.clientX-touch.x,dy=e.clientY-touch.y;touch=null;if(Math.abs(dx)>40&&Math.abs(dx)>Math.abs(dy)*1.3)move(index+(dx<0?1:-1),dx<0?1:-1)};
+  let suppressTapUntil=0;
+  track.onclick=e=>{
+   const link=e.target.closest('.hub-banner-notice');
+   if(link&&!moving&&!stopped&&(e.detail===0||Date.now()>=suppressTapUntil))openNotice(link.dataset.noticeId);
+  };
+  hero.onpointerdown=e=>{touch=e.pointerType==='touch'&&!e.target.closest('.hub-banner-controls')?{x:e.clientX,y:e.clientY}:null};
+  hero.onpointerup=e=>{if(!touch)return;const dx=e.clientX-touch.x,dy=e.clientY-touch.y;touch=null;if(Math.abs(dx)>40&&Math.abs(dx)>Math.abs(dy)*1.3){suppressTapUntil=Date.now()+600;move(index+(dx<0?1:-1),dx<0?1:-1)}};
   hero.onpointercancel=()=>{touch=null};
   const reduce=()=>{finish();track.classList.toggle('no-motion',motion.matches)};motion.addEventListener('change',reduce);
   function stop(){stopped=true;clearTimeout(timer);clearTimeout(settleTimer);cancelAnimationFrame(frame);motion.removeEventListener('change',reduce)}
@@ -558,9 +582,11 @@
   function paintContent(){for(const [kind,rows] of [['bulletins',content.notices],['schedule',content.events.filter(x=>day(new Date(x.starts_at))<=day()&&day(new Date(x.ends_at||x.starts_at))>=day())]]){const box=host.querySelector('[data-list='+kind+']');box.replaceChildren();for(const x of rows.slice(0,kind==='bulletins'?5:4)){const b=rowButton(box,x.title,kind==='bulletins'?date(x.created_at):time(x.starts_at)+' ~ '+time(x.ends_at),()=>readContent(x),kind==='bulletins'?'notice':'calendar');if(kind==='bulletins'){b.classList.add('hub-notice-row');b.querySelector('svg').outerHTML='<span class="hub-tag '+safe(x.label)+'">'+({important:'중요',info:'안내',general:'일반'}[x.label]||'안내')+'</span>'}else b.classList.add('hub-event-row')}
    if(!rows.length)box.innerHTML='<p class="hub-empty">'+safe(contentError||(loaded?(kind==='bulletins'?'등록된 공지사항이 없습니다.':'오늘 등록된 일정이 없습니다.'):'불러오는 중입니다.'))+'</p>';
   }paintFavorites()}
-  async function loadContent(){try{const r=await api({action:'platform_hub',includePublicationSites:admin});if(!sameUser())return;content={publicationSites:r.publicationSites,notices:r.notices||[],events:r.events||[],favorites:r.favorites||[]};loaded=true;contentError=''}catch{contentError='자료를 불러오지 못했습니다. 더보기에서 다시 시도하세요.'}if(sameUser())paintContent()}
+  async function loadContent(){try{const r=await api({action:'platform_hub',includePublicationSites:admin});if(!sameUser())return;content={publicationSites:r.publicationSites,notices:r.notices||[],events:r.events||[],favorites:r.favorites||[]};loaded=true;contentError='';
+   host.availableNoticeIds=content.notices.length<250?new Set(content.notices.map(n=>n.id)):null;syncBannerNoticeLinks(host);
+  }catch{contentError='자료를 불러오지 못했습니다. 더보기에서 다시 시도하세요.'}if(sameUser())paintContent()}
   function renderPostBody(x,body){
-    if(x.document){body.classList.add('hub-rich-body');boardRender(x.document,body);return}
+    if(x.document){if(Object.values(bannerNotices).some(([id])=>id===x.id))body.classList.add('hub-campaign-article');body.classList.add('hub-rich-body');boardRender(x.document,body);return}
     for(const part of String(x.body||'').split(/(https?:\/\/[^\s<>"']+)/gi)){
       if(/^https?:\/\//i.test(part)){const a=document.createElement('a');a.href=part;a.textContent=part;a.target='_blank';a.rel='noopener noreferrer';body.append(a)}
       else body.append(part);
@@ -784,16 +810,17 @@
   }
   const refresh=()=>{if(sameUser())paintApprovals();else window.removeEventListener('enl-incidents-pulled',refresh)};window.addEventListener('enl-incidents-pulled',refresh);
   if(!window.enlHistoryAvailable)window.addEventListener('enl-history-ready',()=>{if(sameUser())loadRecent()},{once:true});
+  const openBannerNotice=id=>{if(sameUser()&&active==='home')readContent({id,kind:'notice'})};
   async function loadBanners(){try{const config=await api({action:'platform_banners'});if(!sameUser())return;
    const previous=host.bannerConfig;if(previous&&previous.revision>config.revision)return;host.bannerConfig=config;
-   if(!previous||previous.revision!==config.revision)startBanner(host);
+   if(!previous||previous.revision!==config.revision)startBanner(host,openBannerNotice);
    else for(const img of host.querySelectorAll('.hub-uploaded-banner')){
     const match=config.assets?.find(a=>img.src.split('?')[0]===a.url.split('?')[0]);if(match&&img.src!==match.url)img.src=match.url;
    }
   }catch{/* Keep the last successfully loaded banner set on transient failure. */}}
   const bannerRefresh=()=>{if(sameUser())loadBanners();else window.removeEventListener('enl-banners-changed',bannerRefresh)};
   window.addEventListener('enl-banners-changed',bannerRefresh);
-  startBanner(host);loadBanners();
+  startBanner(host,openBannerNotice);loadBanners();
   const bannerRenew=setInterval(()=>{if(!sameUser()){clearInterval(bannerRenew);window.removeEventListener('enl-banners-changed',bannerRefresh)}else if(active==='home')loadBanners()},3600000);
   const recentRefresh=()=>{if(sameUser())loadRecent();else window.removeEventListener('enl-activity-changed',recentRefresh)};window.addEventListener('enl-activity-changed',recentRefresh);
   navigation();loadContent();loadRecent();
