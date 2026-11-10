@@ -12,6 +12,12 @@
    if(!valid(t)){t=Array.from(crypto.getRandomValues(new Uint8Array(32)),x=>x.toString(16).padStart(2,'0')).join('');localStorage.setItem(k,t)}
    return t;
  }
+ async function isTrusted(key,api){
+   const saved=localStorage.getItem('enl.trusted-browser.v1.'+key);
+   if(!valid(saved))return false;
+   try{return (await api({action:'device_status',accountKey:key,deviceKey:saved})).verified===true}
+   catch{return false}
+ }
  function capture(key,r){
    if(!valid(r.deviceSession)||!Number.isFinite(Date.parse(r.expiresAt))||!r.passwordPolicy)throw Error('device_client_update_required');
    localStorage.setItem(activeKey,JSON.stringify({key,token:r.deviceSession,expires:r.expiresAt,policy:r.passwordPolicy}));
@@ -67,6 +73,6 @@
      d.onclose=()=>{d.remove();if(d.returnValue!=='verified')reject(Error('device_cancelled'))};document.body.append(d);d.showModal();
    });
  }
- window.enlDeviceAuth={login,capture,deviceKey,validFor,keyOf,active,expire,clear,
+ window.enlDeviceAuth={login,capture,deviceKey,isTrusted,validFor,keyOf,active,expire,clear,
    savePolicy(key,policy){const a=active();if(a?.key===key){a.policy=policy;localStorage.setItem(activeKey,JSON.stringify(a))}}};
 })();

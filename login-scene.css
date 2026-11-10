@@ -80,6 +80,10 @@
 .login-v411 .login-remember label{display:inline-flex;align-items:center;gap:6px;min-height:32px;font-size:14px;font-weight:650;cursor:pointer}
 .login-remember input{width:16px;height:16px;accent-color:#1e5d91}
 .login-remember small{display:block;font-size:12px;line-height:1.5}
+.safety-ui .login-v411 .login-card:has([data-device-gate]) .login-preview-password{display:none}
+#firstDevice411>p{margin:8px 0 16px}
+#firstDevice411 form>label>span{position:static;width:auto;height:auto;clip-path:none;overflow:visible;margin:0}
+#firstDevice411 .login411-pw{display:grid;gap:10px}
 .email-gate-dialog [hidden]{display:none!important}
 
 .email-gate-dialog input[name=proof]::placeholder{color:#758697;opacity:1}

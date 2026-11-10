@@ -45,7 +45,7 @@ async function run(engine){
   await page.addScriptTag({content:fs.readFileSync('device-auth.js','utf8')});
   await page.addScriptTag({content:fs.readFileSync('auth-v411.js','utf8')});
   await page.evaluate(()=>{window.qaOriginalAuthApi=enlAuthApi;enlRenderLogin()});
-  await page.fill('#loginName411','QA 안전');await page.locator('#loginPassword411').waitFor();
+  await page.fill('#loginName411','QA 안전');await page.getByRole('button',{name:'이메일 인증',exact:true}).click();await page.locator('#loginPassword411').waitFor();
   await page.fill('#loginPassword411','qa-hq-password');await page.click('#loginSubmit411');
   await page.waitForFunction(()=>qaRequests.some(x=>x.body.action==='hq_list'));
   let requests=await page.evaluate(()=>qaRequests);
@@ -76,7 +76,7 @@ async function run(engine){
   body=(await page.evaluate(()=>qaRequests.at(-1))).body;assert.equal(body.actorPasswordHash,undefined);assert.equal(body.actorPinHash,undefined);checks.push('Public lookup never receives injected proof');
   await page.evaluate(()=>{session={};return enlAuthApi({action:'hq_list',actor:{id:'qa-safety',role:'safety'}})});
   body=(await page.evaluate(()=>qaRequests.at(-1))).body;assert.equal(body.actorPasswordHash,undefined);checks.push('Logged-out caller never borrows locally saved proof');
-  await page.evaluate(()=>{qaStrict=true;enlRenderLogin()});await page.fill('#loginName411','QA 현장');await page.locator('#loginPassword411').waitFor();await page.fill('#loginPassword411','qa-field-password');await page.click('#loginSubmit411');
+  await page.evaluate(()=>{qaStrict=true;enlRenderLogin()});await page.fill('#loginName411','QA 현장');await page.getByRole('button',{name:'이메일 인증',exact:true}).click();await page.locator('#loginPassword411').waitFor();await page.fill('#loginPassword411','qa-field-password');await page.click('#loginSubmit411');
   await page.waitForFunction(()=>currentUser()?.id==='qa-field');
   assert.equal(await page.evaluate(()=>currentUser().pinHash),proofs.field);
   await page.evaluate(()=>qaOriginalAuthApi({action:'personnel_pull',actor:enlCurrentActor(),siteId:'qa-site'}));

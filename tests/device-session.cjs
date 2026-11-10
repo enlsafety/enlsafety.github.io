@@ -12,10 +12,15 @@ const assert=require('node:assert/strict'),crypto=require('node:crypto'),{fixtur
   assert.equal((await call({...login,passwordHash:'wrong'})).status,401);assert.equal(mailbox.length,0);
   assert.equal((await call(login)).status,428);assert.equal(mailbox[0].to,'qa.field@enlife.co.kr');
   assert.equal((await call(login)).status,428);assert.equal(mailbox.length,1);
+  const deviceStatus={action:'device_status',accountKey:key};
+  assert.equal((await call(deviceStatus)).body.verified,false);
   const code=mailbox[0].code;
   assert.equal((await call({...login,deviceKey:'b'.repeat(64),deviceCode:code})).status,409);
   assert.equal((await call({...login,deviceCode:code==='000000'?'111111':'000000'})).status,403);
   const first=(await call({...login,deviceCode:code})).body;assert.equal(first.passwordPolicy.initial,true);
+  assert.equal((await call(deviceStatus)).body.verified,true);
+  assert.equal((await call({...deviceStatus,deviceKey:'b'.repeat(64)})).body.verified,false);
+  assert.equal((await call({...deviceStatus,accountKey:'hq:'+actor.id})).body.verified,false);
   assert.ok(first.person&&first.deviceSession);assert.equal((await call({...protectedBody,deviceSession:first.deviceSession})).status,200);
   assert.equal((await call({...protectedBody,actor:{role:'safety',id:actor.id},deviceSession:first.deviceSession})).status,403);
   const again=(await call(login)).body;assert.ok(again.deviceSession);assert.equal(mailbox.length,1);

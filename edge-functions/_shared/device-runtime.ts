@@ -45,4 +45,4 @@ export const directory=runtime(['site_directory']);
 export const push=runtime(['health','dispatch']);
 export const mail=runtime(['health','dispatch','keepalive']);
 export const pushAdmin=runtime(['health','ack_test_token']);
-export const login=runtime(['lookup','login_hq','login_site','email_code_send','email_code_verify','register_company_email']);
+export const login=runtime(['lookup','device_status','login_hq','login_site','email_code_send','email_code_verify','register_company_email']);

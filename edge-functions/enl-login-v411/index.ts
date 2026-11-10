@@ -159,6 +159,12 @@ Deno.serve(async(req:Request)=>{
     }
     // Legacy clients may still send the address during login. Never enroll through login.
     if(["login_site","login_hq"].includes(action)&&clean(body.companyLocal)&&!body.accountKey)return json({ok:false,message:"update_required"},409);
+    if(action==='device_status'){
+      const key=clean(body.accountKey),token=clean(body.deviceKey);
+      if(!/^(hq|site):.{1,160}$/.test(key)||!/^[a-f0-9]{64}$/.test(token))return json({ok:true,verified:false});
+      const [known]=await sql`select 1 from private.enl_login_devices where account_key=${key} and device_hash=${await sha256(token)}`;
+      return json({ok:true,verified:!!known});
+    }
     if(action==="lookup"){
       const name=clean(body.name);if(!name)return json({ok:false,message:"name_required"},400);
       const sites=await siteMap(),people=await sql`select personnel_id,site_id,name,email,job_title,access_role,(nullif(pin_hash,'') is not null) as has_password from public.enl_site_personnel where active=true and regexp_replace(lower(name),'[[:space:]]','','g')=${norm(name)}`;
