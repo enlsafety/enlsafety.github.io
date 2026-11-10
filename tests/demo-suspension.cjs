@@ -3,8 +3,8 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
 const auth=fs.readFileSync('auth-v411.js','utf8');
 const app={innerHTML:''},name={dataset:{},addEventListener(){}};
 const styles=new Map();
-const context={app,window:{ENL_DEPLOY_VERSION:'4.7.3'},session:{},currentUser(){},roleName(){},renderLogin(){},
- document:{getElementById(id){return id==='loginName411'?name:styles.get(id)||null},querySelector(){return null},createElement(){return {}},head:{appendChild(el){styles.set(el.id,el)}}}};
+const context={app,window:{ENL_DEPLOY_VERSION:'4.7.3',addEventListener(){}},session:{},currentUser(){},roleName(){},renderLogin(){},
+ document:{getElementById(id){return id==='loginName411'?name:styles.get(id)||null},querySelector(selector){return ['#rememberId411','#rememberPw411'].includes(selector)?{}:null},createElement(){return {}},head:{appendChild(el){styles.set(el.id,el)}}}};
 vm.runInNewContext(auth,context);
 for(let attempt=0;attempt<3;attempt++){
  context.window.enlRenderLogin();
