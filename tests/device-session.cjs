@@ -49,6 +49,12 @@ const assert=require('node:assert/strict'),crypto=require('node:crypto'),{fixtur
   await db.query("update enl_site_personnel set email='replacement@enlife.co.kr' where personnel_id=$1",[actor.id]);
   assert.equal((await call(lookup)).body.options[0].emailVerified,false);
   assert.equal((await call(login)).status,428);assert.equal(mailbox.at(-1).to,'replacement@enlife.co.kr');
+  await db.query("update enl_site_personnel set email='' where personnel_id=$1",[actor.id]);
+  assert.equal((await call({...login,passwordOnly:true})).status,409);
+  await db.query("update private.enl_password_schedule set demo_password_only=true where account_key=$1",[key]);
+  assert.equal((await call(lookup)).body.options[0].passwordOnly,true);
+  assert.equal((await call({...login,passwordHash:'invalid'})).status,401);
+  assert.ok((await call(login)).body.deviceSession);
   console.log('PASS first account OTP across browsers, identity binding, trusted login, token rotation/revocation, yearly deferral and email reassignment');
  }finally{await db.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});

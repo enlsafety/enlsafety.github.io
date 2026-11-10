@@ -52,6 +52,9 @@ const {fixture}=require('./login-proof-edge.cjs');
   await p.locator('#userChip').click();await p.locator('#logoutBtn').click();await start(p,'qa-changed-new',false);await p.locator('[data-module=incident]').waitFor();assert.equal(f.mailbox.length,1);
   const mobile=await open(393);await start(mobile,'qa-changed-new',false);
   await mobile.locator('[data-module=incident]').waitFor();assert.equal(f.mailbox.length,1);assert.equal(await mobile.locator('.enl420-device-dialog').count(),0);
+  await f.db.exec("update enl_hq_users set email='' where user_id='qa-auth-safety-472';update private.enl_password_schedule set demo_password_only=true where account_key='hq:qa-auth-safety-472'");
+  const demo=await open(1024);await demo.evaluate(()=>{localStorage.clear();sessionStorage.clear()});await demo.reload();await start(demo,'qa-changed-new',false);
+  await demo.locator('[data-module=incident]').waitFor();assert.equal(f.mailbox.length,1);
   console.log('PASS complete UI: first OTP, initial reminder twice on navigation, password change, annual deferral, trusted relogin, new mobile browser and cross-device schedule');
  }finally{await b.close();await f.db.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});

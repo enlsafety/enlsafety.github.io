@@ -637,7 +637,12 @@ Deno.serve(async(req:Request)=>{
           official.reportHash=await reportHash(next);official.approvalInvalidatedAt=null;official.approvalInvalidatedBy="";
         }
         if(clean(next.corrective?.status)==="approved"&&clean(prev?.corrective?.status)!=="approved"&&!isHistoricalTransfer(next)){
-          const roster=await sql`select user_id as id,name,position from public.enl_hq_users where active=true and role='executive' order by name`;
+          const roster=await sql`select u.user_id as id,u.name,u.position from public.enl_hq_users u
+            where u.active and u.role='executive' and (
+              (to_jsonb(u)->>'source') is distinct from 'role-demonstration' or
+              exists(select 1 from public.enl_site_personnel p where p.personnel_id::text=${clean(next.reporterId)} and (to_jsonb(p)->>'source')='role-demonstration') or
+              exists(select 1 from public.enl_hq_users h where h.user_id=${clean(next.reporterId)} and (to_jsonb(h)->>'source')='role-demonstration')
+            ) order by u.name`;
           if(!roster.length)rejectWrite("executive_roster_empty");
           const presidents=roster.filter((globalThis as any).ENLExecutiveApproval.isPresident);
           if(presidents.length!==1)rejectWrite("president_approver_required");

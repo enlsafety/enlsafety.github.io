@@ -98,10 +98,15 @@
         panel.querySelector('form').onsubmit=ev=>{ev.preventDefault();lookup(true,panel.querySelector('input').value.trim())};return;
       }
       const o=r.options?.[0];if(!o){status('등록된 이름을 찾지 못했습니다.','err');return;}
-      const needsVerification=o.hasEmail&&o.emailVerified!==true;
+      const needsVerification=!o.passwordOnly&&o.hasEmail&&o.emailVerified!==true;
       if(seq!==lookupSeq||!nameField.isConnected||nameField.value.trim()!==name)return;
       selected=o;const aff=document.getElementById('loginAff411');aff.hidden=false;aff.textContent=o.affiliationLabel;
       const email=document.getElementById('loginEmail411');email.hidden=false;
+      if(o.passwordOnly){
+        email.replaceChildren();
+        status('시연 계정입니다. 비밀번호를 입력해 주세요.');
+        renderPassword(o);document.getElementById('loginPassword411')?.focus();return;
+      }
       email.innerHTML='<label for="companyLocal411">회사 이메일</label><div class="company-address"><input id="companyLocal411" placeholder="이메일 아이디" aria-label="회사 이메일 아이디" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="64"><b>@enlife.co.kr</b><button type="button" data-enroll>인증</button></div>';
       const local=email.querySelector('input'),enroll=email.querySelector('[data-enroll]');local.value=o.companyLocal||'';local.readOnly=!!o.hasEmail;enroll.hidden=!!o.hasEmail;
       enroll.onclick=()=>registerEmail(o,local,enroll);
@@ -401,7 +406,7 @@
   }
   async function loginPassword(ev){
     ev.preventDefault();const o=selected,name=document.getElementById('loginName411')?.value.trim()||'',pw=document.getElementById('loginPassword411')?.value||'',btn=document.getElementById('loginSubmit411');if(!o||!name)return;
-    if(!o.hasEmail){status('회사 이메일 인증을 먼저 완료해 주세요.','err');document.getElementById('companyLocal411')?.focus();return;}
+    if(!o.hasEmail&&!o.passwordOnly){status('회사 이메일 인증을 먼저 완료해 주세요.','err');document.getElementById('companyLocal411')?.focus();return;}
     const input=document.getElementById('loginPassword411');
     const ticket=!pw&&document.querySelector('#rememberPw411')?.checked&&input?.dataset.restored;
     if((o.kind==='hq'||o.requiresPassword)&&!pw&&!ticket)return;

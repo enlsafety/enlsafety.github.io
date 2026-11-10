@@ -3,9 +3,9 @@ export async function schedule(sql:any,key:string){
  const [p]=await sql`select initial,next_prompt,now() as server_now from private.enl_password_schedule where account_key=${key}`;
  return p?{initial:p.initial,nextPrompt:p.next_prompt,serverNow:p.server_now}:{initial:true,nextPrompt:null};
 }
-export async function emailVerified(sql:any,key:string,email:string){
- const [match]=await sql`select 1 from private.enl_password_schedule where account_key=${key} and verified_email=${email}`;
- return !!match;
+export async function loginPolicy(sql:any,key:string,email:string){
+ const [row]=await sql`select demo_password_only,verified_email from private.enl_password_schedule where account_key=${key}`;
+ return {passwordOnly:row?.demo_password_only===true,emailVerified:!!email&&row?.verified_email===email};
 }
 export async function confirmEmail(tx:any,key:string,email:string){
  await tx`update private.enl_password_schedule set verified_email=${email} where account_key=${key}`;
@@ -18,8 +18,11 @@ export async function finishLogin(sql:any,key:string,body:any,result:any,send:an
   const [u]=hq?await tx`select email,password_hash as proof from public.enl_hq_users where user_id=${id} and active for update`:
     await tx`select email,pin_hash as proof from public.enl_site_personnel where personnel_id::text=${id} and active for update`;
   const email=String(u?.email||'').trim().toLowerCase();
-  if(!u||!u.proof||u.proof!==body.passwordHash||!email.endsWith('@enlife.co.kr'))return reply({ok:false,message:'invalid_login'},403);
-  if(!await emailVerified(tx,key,email)){
+  if(!u||!u.proof||u.proof!==body.passwordHash)return reply({ok:false,message:'invalid_login'},403);
+  const policy=await loginPolicy(tx,key,email);
+  if(!policy.passwordOnly&&!email)return reply({ok:false,message:'email_required'},409);
+  if(!policy.passwordOnly&&!email.endsWith('@enlife.co.kr'))return reply({ok:false,message:'invalid_login'},403);
+  if(!policy.passwordOnly&&!policy.emailVerified){
    const [c]=await tx`select * from private.enl_device_challenge where account_key=${key} for update`;
    const now=Date.now(),same=c&&c.device_hash===device&&c.email===email,live=same&&new Date(c.expires_at).getTime()>now;
    const code=String(body.deviceCode||'');

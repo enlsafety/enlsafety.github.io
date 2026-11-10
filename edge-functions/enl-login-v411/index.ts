@@ -1,4 +1,4 @@
-import { finishLogin, schedule, emailVerified, confirmEmail } from "./device-login.ts";
+import { finishLogin, schedule, loginPolicy, confirmEmail } from "./device-login.ts";
 import { login as Deno } from "../_shared/device-runtime.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import postgres from "npm:postgres@3.4.5";
@@ -174,7 +174,7 @@ Deno.serve(async(req:Request)=>{
       if(hq?.active&&hqAllowed(hq.role)){const a=affiliation(hq);options.push({accountKey:'hq:'+hq.user_id,kind:'hq',affiliationId:a.id,affiliationLabel:a.label,name:hq.name,role:hqRole(hq.role),position:hq.position,requiresPassword:true,companyLocal:localPart(hq.email),hasEmail:!!clean(hq.email)});}
       async function selectedOptions(list:any[]){
         const o=list[0];
-        if(list.length===1&&o?.hasEmail&&o.companyLocal)o.emailVerified=await emailVerified(sql,o.accountKey,o.companyLocal+companyDomain);
+        if(list.length===1)Object.assign(o,await loginPolicy(sql,o.accountKey,o.companyLocal?o.companyLocal+companyDomain:""));
         return list;
       }
       if(body.fixedAccount&&options.length>1){
@@ -199,8 +199,7 @@ Deno.serve(async(req:Request)=>{
       if(matches.length!==1)return json({ok:false,message:"account_not_unique"},403);
       const p=matches[0],manager=p.access_role==='field'||isFieldTitle(p.job_title);
       if((manager||clean(p.pin_hash))&&(!passwordHash||!p.pin_hash||!sameProof(p.pin_hash,passwordHash)))return json({ok:false,message:"invalid_login"},401);
-      if(!clean(p.email))return json({ok:false,message:'email_required'},409);
-      if(clean(body.companyLocal)&&clean(body.companyLocal).toLowerCase()!==localPart(p.email))return json({ok:false,message:'use_email_registration'},409);
+      if(clean(p.email)&&clean(body.companyLocal)&&clean(body.companyLocal).toLowerCase()!==localPart(p.email))return json({ok:false,message:'use_email_registration'},409);
       const names=await siteMap();return await finishLogin(sql,'site:'+p.personnel_id,body,{ok:true,person:{personnel_id:p.personnel_id,site_id:p.site_id,site_name:names.get(p.site_id)||p.site_id,name:p.name,job_title:p.job_title,access_role:manager?'field':'worker',active:true,email:p.email||''}},sendEnrollmentCode,verifier,json);
     }
     if(action==="login_hq"){
@@ -208,8 +207,7 @@ Deno.serve(async(req:Request)=>{
       if(!name||!affiliationId||!passwordHash)return json({ok:false,message:"input_required"},400);
       const hq=await findHqByName(name);
       if(!hq?.active||!hqAllowed(hq.role)||affiliation(hq).id!==affiliationId||(body.accountKey&&body.accountKey!=='hq:'+hq.user_id)||!sameProof(clean(hq.password_hash),passwordHash))return json({ok:false,message:"invalid_login"},401);
-      if(!clean(hq.email))return json({ok:false,message:'email_required'},409);
-      if(clean(body.companyLocal)&&clean(body.companyLocal).toLowerCase()!==localPart(hq.email))return json({ok:false,message:'use_email_registration'},409);
+      if(clean(hq.email)&&clean(body.companyLocal)&&clean(body.companyLocal).toLowerCase()!==localPart(hq.email))return json({ok:false,message:'use_email_registration'},409);
       return await finishLogin(sql,'hq:'+hq.user_id,body,{ok:true,user:publicHq(hq)},sendEnrollmentCode,verifier,json);
     }
     if(['password_schedule','defer_password_year','device_logout'].includes(action)){
