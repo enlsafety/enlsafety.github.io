@@ -2,3 +2,7 @@ node_modules/
 qa-output/
 qa-artifacts/
 qa-functional-v3/
+.env
+.env.*
+!.env.example
+private-secrets/

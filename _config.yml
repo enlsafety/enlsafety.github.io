@@ -20,3 +20,6 @@ exclude:
   - qa-functional-v4-wrapper.mjs
   - qa-live-mini.mjs
   - qa-live-v2.mjs
+  - ops
+  - maintenance
+  - scripts
