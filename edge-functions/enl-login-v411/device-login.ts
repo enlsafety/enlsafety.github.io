@@ -3,9 +3,12 @@ export async function schedule(sql:any,key:string){
  const [p]=await sql`select initial,next_prompt,now() as server_now from private.enl_password_schedule where account_key=${key}`;
  return p?{initial:p.initial,nextPrompt:p.next_prompt,serverNow:p.server_now}:{initial:true,nextPrompt:null};
 }
-export async function trustEnrollment(tx:any,key:string,email:string,token:unknown){
- if(validToken(token))await tx`insert into private.enl_login_devices(account_key,device_hash,email)
-   values(${key},${await hashToken(token as string)},${email}) on conflict(account_key,device_hash) do update set email=excluded.email,verified_at=now()`;
+export async function emailVerified(sql:any,key:string,email:string){
+ const [match]=await sql`select 1 from private.enl_password_schedule where account_key=${key} and verified_email=${email}`;
+ return !!match;
+}
+export async function confirmEmail(tx:any,key:string,email:string){
+ await tx`update private.enl_password_schedule set verified_email=${email} where account_key=${key}`;
 }
 export async function finishLogin(sql:any,key:string,body:any,result:any,send:any,verifier:any,reply:any){
  if(!validToken(body.deviceKey))return reply({ok:false,message:'device_client_update_required'},409);
@@ -16,8 +19,7 @@ export async function finishLogin(sql:any,key:string,body:any,result:any,send:an
     await tx`select email,pin_hash as proof from public.enl_site_personnel where personnel_id::text=${id} and active for update`;
   const email=String(u?.email||'').trim().toLowerCase();
   if(!u||!u.proof||u.proof!==body.passwordHash||!email.endsWith('@enlife.co.kr'))return reply({ok:false,message:'invalid_login'},403);
-  const [known]=await tx`select 1 from private.enl_login_devices where account_key=${key} and device_hash=${device} and email=${email}`;
-  if(!known){
+  if(!await emailVerified(tx,key,email)){
    const [c]=await tx`select * from private.enl_device_challenge where account_key=${key} for update`;
    const now=Date.now(),same=c&&c.device_hash===device&&c.email===email,live=same&&new Date(c.expires_at).getTime()>now;
    const code=String(body.deviceCode||'');
@@ -27,7 +29,7 @@ export async function finishLogin(sql:any,key:string,body:any,result:any,send:an
     if(!/^\d{6}$/.test(code)||await verifier(code,c.salt)!==c.digest){
      await tx`update private.enl_device_challenge set failures=failures+1 where account_key=${key}`;return reply({ok:false,message:'incorrect_code'},403);
     }
-    await trustEnrollment(tx,key,email,body.deviceKey);
+    await confirmEmail(tx,key,email);
     // Consume the challenge, retaining resend quotas for the rest of the hour.
     await tx`update private.enl_device_challenge set expires_at=now(),digest='' where account_key=${key}`;
    }else{
@@ -46,6 +48,9 @@ export async function finishLogin(sql:any,key:string,body:any,result:any,send:an
     return reply({ok:false,message:'device_code_required'},428);
    }
   }
+  // Each password login still receives its own revocable session.
+  await tx`insert into private.enl_login_devices(account_key,device_hash,email) values(${key},${device},${email})
+    on conflict(account_key,device_hash) do nothing`;
   return reply({...result,...await issueSession(tx,key,device),passwordPolicy:await schedule(tx,key)});
  });
 }

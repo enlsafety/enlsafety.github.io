@@ -1,4 +1,4 @@
-import { finishLogin, schedule, trustEnrollment } from "./device-login.ts";
+import { finishLogin, schedule, emailVerified, confirmEmail } from "./device-login.ts";
 import { login as Deno } from "../_shared/device-runtime.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import postgres from "npm:postgres@3.4.5";
@@ -139,7 +139,7 @@ Deno.serve(async(req:Request)=>{
           if(hq)await tx`update public.enl_hq_users set email=${email},updated_at=now(),updated_by_id=${id},updated_by_name=${account.name},updated_by_role=${account.role} where user_id=${id}`;
           else await tx`update public.enl_site_personnel set email=${email},pin_hash=${protectedAccount?account.pin_hash:firstProof},updated_at=now(),updated_by_id=${id},updated_by_name=${account.name},updated_by_role=${account.access_role} where personnel_id::text=${id}`;
           await tx`delete from private.enl_email_challenges where account_key=${key}`;
-          await trustEnrollment(tx,key,email,body.deviceKey);
+          await confirmEmail(tx,key,email);
           return json({ok:true,email});
         }
         const recent=challenge&&Date.now()-new Date(challenge.window_start).getTime()<3600000;
@@ -172,6 +172,11 @@ Deno.serve(async(req:Request)=>{
         name:p.name,position:p.job_title,accessRole:p.access_role,requiresPassword:p.has_password||p.access_role==='field'||isFieldTitle(p.job_title),companyLocal:localPart(p.email),hasEmail:!!clean(p.email)}));
       const hq=await findHqByName(name);
       if(hq?.active&&hqAllowed(hq.role)){const a=affiliation(hq);options.push({accountKey:'hq:'+hq.user_id,kind:'hq',affiliationId:a.id,affiliationLabel:a.label,name:hq.name,role:hqRole(hq.role),position:hq.position,requiresPassword:true,companyLocal:localPart(hq.email),hasEmail:!!clean(hq.email)});}
+      async function selectedOptions(list:any[]){
+        const o=list[0];
+        if(list.length===1&&o?.hasEmail&&o.companyLocal)o.emailVerified=await emailVerified(sql,o.accountKey,o.companyLocal+companyDomain);
+        return list;
+      }
       if(body.fixedAccount&&options.length>1){
         const key=clean(body.accountKey),email=clean(body.knownEmail).toLowerCase();
         const matched=options.filter(o=>(key&&o.accountKey===key)||(email&&o.companyLocal&&o.companyLocal+companyDomain===email));
@@ -180,11 +185,11 @@ Deno.serve(async(req:Request)=>{
           // Shared addresses can only be assigned to explicitly linked accounts by the database.
           return json({ok:true,name,ambiguous:true,options:[],jointSites:candidates.map(o=>({accountKey:o.accountKey,label:o.affiliationLabel}))});
         }
-        return json({ok:true,name,ambiguous:matched.length!==1,options:matched.length===1?matched:[]});
+        return json({ok:true,name,ambiguous:matched.length!==1,options:matched.length===1?await selectedOptions(matched):[]});
       }
       // Older clients only need affiliation choices, not identifiers or addresses.
       if(!body.fixedAccount)return json({ok:true,name,options:options.map(({accountKey,companyLocal,hasEmail,...choice})=>choice)});
-      return json({ok:true,name,options});
+      return json({ok:true,name,options:await selectedOptions(options)});
     }
     if(action==="login_site"){
       const name=clean(body.name),siteId=clean(body.siteId),passwordHash=clean(body.passwordHash),key=clean(body.accountKey);

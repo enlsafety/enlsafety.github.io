@@ -12,12 +12,6 @@
    if(!valid(t)){t=Array.from(crypto.getRandomValues(new Uint8Array(32)),x=>x.toString(16).padStart(2,'0')).join('');localStorage.setItem(k,t)}
    return t;
  }
- async function isTrusted(key,api){
-   const saved=localStorage.getItem('enl.trusted-browser.v1.'+key);
-   if(!valid(saved))return false;
-   try{return (await api({action:'device_status',accountKey:key,deviceKey:saved})).verified===true}
-   catch{return false}
- }
  function capture(key,r){
    if(!valid(r.deviceSession)||!Number.isFinite(Date.parse(r.expiresAt))||!r.passwordPolicy)throw Error('device_client_update_required');
    localStorage.setItem(activeKey,JSON.stringify({key,token:r.deviceSession,expires:r.expiresAt,policy:r.passwordPolicy}));
@@ -56,7 +50,7 @@
    if(!isCurrent())throw Error('account_changed');
    return new Promise((resolve,reject)=>{
      const d=document.createElement('dialog');d.className='email-gate-dialog';d.setAttribute('aria-labelledby','deviceOtpTitle');
-     d.innerHTML='<form><h2 id="deviceOtpTitle">새 기기 이메일 인증</h2><p>등록된 회사 이메일로 받은 인증번호를 입력해 주세요. 이 브라우저에서는 계정별로 한 번만 인증합니다.</p><label>인증번호 6자리<input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autocomplete="one-time-code" autofocus></label><div role="status" aria-live="polite"></div><button type="button" data-resend>인증번호 다시 받기</button><footer><button type="button" data-cancel>취소</button><button type="submit">인증하고 로그인</button></footer></form>';
+     d.innerHTML='<form><h2 id="deviceOtpTitle">아이디 최초 이메일 인증</h2><p>등록된 회사 이메일로 받은 인증번호를 입력해 주세요. 이 아이디로 한 번 인증하면 다른 기기에서는 비밀번호만 입력하면 됩니다.</p><label>인증번호 6자리<input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autocomplete="one-time-code" autofocus></label><div role="status" aria-live="polite"></div><button type="button" data-resend>인증번호 다시 받기</button><footer><button type="button" data-cancel>취소</button><button type="submit">인증하고 로그인</button></footer></form>';
      const f=d.querySelector('form'),note=f.querySelector('[role=status]');note.textContent=firstMessage||'인증번호를 보냈습니다. 10분 내 입력해 주세요.';let busy=false;
      async function run(resend){
        if(busy||!isCurrent())return;busy=true;
@@ -73,6 +67,6 @@
      d.onclose=()=>{d.remove();if(d.returnValue!=='verified')reject(Error('device_cancelled'))};document.body.append(d);d.showModal();
    });
  }
- window.enlDeviceAuth={login,capture,deviceKey,isTrusted,validFor,keyOf,active,expire,clear,
+ window.enlDeviceAuth={login,capture,deviceKey,validFor,keyOf,active,expire,clear,
    savePolicy(key,policy){const a=active();if(a?.key===key){a.policy=policy;localStorage.setItem(activeKey,JSON.stringify(a))}}};
 })();

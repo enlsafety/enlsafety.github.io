@@ -12,6 +12,7 @@ async function fixture(guarded=false){
  await db.exec(fs.readFileSync('supabase/migrations/20261109022811_joint_site_email_members.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/migrations/20261103005403_audit_hq_account_security_changes.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/migrations/20261110040000_verified_login_devices.sql','utf8'));
+ await db.exec(fs.readFileSync('supabase/migrations/20261110073000_account_email_verification.sql','utf8'));
  const tag=conn=>async(parts,...args)=>(await conn.query(parts.reduce((s,p,i)=>s+(i?'$'+i:'')+p,''),args)).rows;const sql=tag(db);sql.begin=f=>db.transaction(tx=>f(tag(tx)));sql.json=JSON.stringify;sql.end=async()=>{};
  const ctx={Deno:{env:{get:()=> 'isolated'},serve:h=>handler=h},postgres:()=>sql,Request,Response,TextEncoder,crypto,AbortSignal,fetch:async(url,opts)=>{
   if(url.endsWith('/senders'))return Response.json({senders:[{active:true,email:'qa@example.test'}]});

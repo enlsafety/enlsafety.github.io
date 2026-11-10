@@ -4,8 +4,7 @@ const {webkit,chromium}=require('playwright'),{tab}=require('./field-entry-table
  let submitted='',loginBody,changes=0,initial=true;
  const signed=()=>({deviceSession:'b'.repeat(64),expiresAt:new Date(Date.now()+86400000).toISOString(),passwordPolicy:{initial,nextPrompt:'2099-01-01'}});
  await p.route('**/functions/v1/**',async route=>{const req=route.request(),body=req.method()==='POST'?req.postDataJSON():{};
- let data;if(body.action==='lookup')data={options:[{kind:hq?'hq':'site',siteId:'s01',affiliationId:'dept:qa',affiliationLabel:'QA본사',requiresPassword:true,accountKey:body.name==='다른사용자'?'hq:other-account':accountKey,hasEmail:width>500||!!submitted,companyLocal:width>500?'qa.saved':submitted}]};
- if(body.action==='device_status')data={verified:true};
+ let data;if(body.action==='lookup')data={options:[{kind:hq?'hq':'site',siteId:'s01',affiliationId:'dept:qa',affiliationLabel:'QA본사',requiresPassword:true,accountKey:body.name==='다른사용자'?'hq:other-account':accountKey,hasEmail:width>500||!!submitted,emailVerified:hq||!!submitted,companyLocal:width>500?'qa.saved':submitted}]};
  if(body.action==='email_code_send'){
    if(body.companyLocal==='duplicate')return route.fulfill({status:409,json:{ok:false,message:'email_in_use'}});
    data={};
@@ -33,11 +32,6 @@ const {webkit,chromium}=require('playwright'),{tab}=require('./field-entry-table
    Object.defineProperty(window,'PasswordCredential',{configurable:true,value:undefined});
 
  });
- await p.evaluate(({hq,accountKey})=>{
-   // Exercise the ordinary password and remember controls on a previously verified browser.
-   if(hq)enlDeviceAuth.deviceKey(accountKey);
-   enlDeviceAuth.deviceKey('hq:other-account');
- },{hq,accountKey});
  // A previous version recorded that it opened the dialog, even without acknowledgement.
  await p.evaluate(k=>localStorage.setItem('enl.firstPasswordPrompt.v1.'+k,'1'),accountKey);
  await p.locator('#loginName411').fill('통합검수');await p.locator('#loginPassword411').waitFor();

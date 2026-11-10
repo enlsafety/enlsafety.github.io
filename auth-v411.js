@@ -98,7 +98,7 @@
         panel.querySelector('form').onsubmit=ev=>{ev.preventDefault();lookup(true,panel.querySelector('input').value.trim())};return;
       }
       const o=r.options?.[0];if(!o){status('등록된 이름을 찾지 못했습니다.','err');return;}
-      const needsDevice=o.hasEmail&&!await window.enlDeviceAuth.isTrusted(o.accountKey,api);
+      const needsVerification=o.hasEmail&&o.emailVerified!==true;
       if(seq!==lookupSeq||!nameField.isConnected||nameField.value.trim()!==name)return;
       selected=o;const aff=document.getElementById('loginAff411');aff.hidden=false;aff.textContent=o.affiliationLabel;
       const email=document.getElementById('loginEmail411');email.hidden=false;
@@ -108,15 +108,15 @@
       status(o.hasEmail&&!o.companyLocal?'기존 이메일 변경은 시스템 관리에서 가능합니다.':'등록된 소속을 확인했습니다.');
       if(!o.hasEmail)status('처음 로그인하려면 회사 이메일을 입력하고 인증해 주세요.');
       renderPassword(o);
-      if(needsDevice){
+      if(needsVerification){
         const box=document.getElementById('loginPwWrap411');
         box.hidden=true;enroll.hidden=false;enroll.dataset.deviceGate='';enroll.textContent='이메일 인증';
         enroll.onclick=()=>openDevicePrompt(o,box,enroll);
-        status('이 기기에서 처음 로그인하려면 이메일 인증을 눌러 주세요.');
+        status('이 아이디로 처음 로그인하려면 이메일 인증을 눌러 주세요.');
       }
       // An identity form is removed on submission, leaving focus on the document.
       if(document.activeElement===nameField||(identity&&document.activeElement===document.body)){
-        (needsDevice?enroll:o.hasEmail?document.getElementById('loginPassword411'):local)?.focus();
+        (needsVerification?enroll:o.hasEmail?document.getElementById('loginPassword411'):local)?.focus();
       }
     }catch{if(seq===lookupSeq)status('계정 정보를 불러오지 못했습니다. 다시 시도해 주세요.','err');}
   }
@@ -125,7 +125,7 @@
     if(!form||selected!==o)return;
     const dialog=document.createElement('dialog');
     dialog.id='firstDevice411';dialog.className='email-gate-dialog';dialog.setAttribute('aria-labelledby','firstDeviceTitle411');
-    dialog.innerHTML='<h2 id="firstDeviceTitle411">새 기기 이메일 인증</h2><p>로그인 비밀번호를 확인한 후 등록된 회사 이메일로 인증번호를 보내드립니다.</p>';
+    dialog.innerHTML='<h2 id="firstDeviceTitle411">아이디 최초 이메일 인증</h2><p>로그인 비밀번호를 확인한 후 등록된 회사 이메일로 인증번호를 보내드립니다.</p>';
     const feedback=document.createElement('p');feedback.dataset.feedback='';feedback.setAttribute('role','status');
     const footer=document.createElement('footer'),cancel=document.createElement('button'),submit=form.querySelector('[type=submit]');
     cancel.type='button';cancel.textContent='취소';
@@ -364,7 +364,7 @@
     const name=document.getElementById('loginName411')?.value.trim()||'';document.querySelectorAll('.login411-aff-btn').forEach(b=>b.disabled=true);status(`${option.affiliationLabel} 로그인 확인 중…`);
     let person;
     try{const r=await window.enlDeviceAuth.login(option,{action:'login_site',name,siteId:option.siteId,passwordHash,accountKey:option.accountKey},api,()=>selected===option);person=r.person;if(!person||norm(person.name)!==norm(name)||String(person.site_id)!==String(option.siteId))throw new Error('mismatch')}
-    catch(e){if(selected!==option)return false;discardRejectedProof(e,ticket);document.querySelectorAll('.login411-aff-btn').forEach(b=>b.disabled=false);const btn=document.getElementById('loginSubmit411');if(btn){btn.disabled=false;btn.textContent=btn.dataset.idleLabel||'로그인'}const msg=e.message==='device_cancelled'?'기기 인증을 취소했습니다.':e.message==='mail_unavailable'?'인증메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.':e.message==='registration_code_required'?'등록코드를 확인해 주세요. 코드는 발급 후 30분간 유효합니다.':e.message==='account_changed'?'계정 정보가 변경됐습니다. 이름을 다시 입력해 주세요.':'로그인 정보를 다시 확인해 주세요.';status(msg,'err');return false}
+    catch(e){if(selected!==option)return false;discardRejectedProof(e,ticket);document.querySelectorAll('.login411-aff-btn').forEach(b=>b.disabled=false);const btn=document.getElementById('loginSubmit411');if(btn){btn.disabled=false;btn.textContent=btn.dataset.idleLabel||'로그인'}const msg=e.message==='device_cancelled'?'이메일 인증을 취소했습니다.':e.message==='mail_unavailable'?'인증메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.':e.message==='registration_code_required'?'등록코드를 확인해 주세요. 코드는 발급 후 30분간 유효합니다.':e.message==='account_changed'?'계정 정보가 변경됐습니다. 이름을 다시 입력해 주세요.':'로그인 정보를 다시 확인해 주세요.';status(msg,'err');return false}
     if(selected!==option)return false;await rememberLogin(option,passwordHash,!!ticket);if(selected!==option)return false;saveSiteSession(person,passwordHash);enterApp();return true;
   }
   function renderPassword(o){
@@ -408,7 +408,7 @@
     if(o.kind==='site'){await loginSite(o,hash,ticket);return}
     let serverUser;
     try{const r=await window.enlDeviceAuth.login(o,{action:'login_hq',name,affiliationId:o.affiliationId,passwordHash:hash,accountKey:o.accountKey},api,()=>selected===o);serverUser=r.user;if(!serverUser)throw new Error('invalid_user')}
-    catch(e){if(selected!==o)return;discardRejectedProof(e,ticket);btn.disabled=false;btn.textContent=btn.dataset.idleLabel||'로그인';status(e.message==='device_cancelled'?'기기 인증을 취소했습니다.':e.message==='mail_unavailable'?'인증메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.':'이름, 소속과 비밀번호를 다시 확인해 주세요.','err');return}
+    catch(e){if(selected!==o)return;discardRejectedProof(e,ticket);btn.disabled=false;btn.textContent=btn.dataset.idleLabel||'로그인';status(e.message==='device_cancelled'?'이메일 인증을 취소했습니다.':e.message==='mail_unavailable'?'인증메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.':'이름, 소속과 비밀번호를 다시 확인해 주세요.','err');return}
     if(selected!==o)return;await rememberLogin(o,hash,!!ticket);if(selected!==o)return;const user=mergeHq(serverUser,hash);session={loggedAt:nowISO(),manager:{...user}};saveSession();enterApp();setTimeout(()=>{if(user.role==='safety')syncHqUsers(user)},350);
   }
 

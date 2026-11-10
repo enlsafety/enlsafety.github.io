@@ -23,6 +23,11 @@ const assert=require('node:assert/strict'),crypto=require('node:crypto'),{fixtur
   assert.equal((await call({...deviceStatus,accountKey:'hq:'+actor.id})).body.verified,false);
   assert.ok(first.person&&first.deviceSession);assert.equal((await call({...protectedBody,deviceSession:first.deviceSession})).status,200);
   assert.equal((await call({...protectedBody,actor:{role:'safety',id:actor.id},deviceSession:first.deviceSession})).status,403);
+  const lookup={action:'lookup',name:login.name,fixedAccount:true,accountKey:key};
+  assert.equal((await call(lookup)).body.options[0].emailVerified,true);
+  const otherBrowser={...login,deviceKey:'b'.repeat(64)};
+  assert.equal((await call({...otherBrowser,passwordHash:'incorrect'})).status,401);
+  assert.ok((await call(otherBrowser)).body.deviceSession);assert.equal(mailbox.length,1);
   const again=(await call(login)).body;assert.ok(again.deviceSession);assert.equal(mailbox.length,1);
   const change={action:'password_change_self',actor,currentPasswordHash:proof,newPasswordHash:next,deviceSession:again.deviceSession};
   const updated=await call(change,'account');assert.equal(updated.status,200,JSON.stringify(updated.body));
@@ -37,8 +42,13 @@ const assert=require('node:assert/strict'),crypto=require('node:crypto'),{fixtur
   assert.equal((await call({...signed,action:'defer_password_year'})).body.passwordPolicy.nextPrompt,deferred.nextPrompt);
   assert.equal((await call({...signed,action:'device_logout'})).status,200);
   assert.equal((await call({...signed,action:'password_schedule'})).status,403);
+  // An administrator can reset the password without losing the account's email verification.
+  await db.query("update enl_site_personnel set pin_hash=$1,updated_by_id='qa-auth-safety-472' where personnel_id=$2",[proof,actor.id]);
+  assert.equal((await call(lookup)).body.options[0].emailVerified,true);
+  assert.equal((await call({...login,deviceKey:'c'.repeat(64)})).status,200);assert.equal(mailbox.length,1);
   await db.query("update enl_site_personnel set email='replacement@enlife.co.kr' where personnel_id=$1",[actor.id]);
-  assert.equal((await call({...login,passwordHash:next})).status,428);assert.equal(mailbox.at(-1).to,'replacement@enlife.co.kr');
-  console.log('PASS first browser OTP, identity binding, trusted login, token rotation/revocation, yearly deferral and email reassignment');
+  assert.equal((await call(lookup)).body.options[0].emailVerified,false);
+  assert.equal((await call(login)).status,428);assert.equal(mailbox.at(-1).to,'replacement@enlife.co.kr');
+  console.log('PASS first account OTP across browsers, identity binding, trusted login, token rotation/revocation, yearly deferral and email reassignment');
  }finally{await db.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});
