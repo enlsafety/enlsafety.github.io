@@ -201,7 +201,7 @@ Deno.serve(async(req:Request)=>{
       if((manager||clean(p.pin_hash))&&(!passwordHash||!p.pin_hash||!sameProof(p.pin_hash,passwordHash)))return json({ok:false,message:"invalid_login"},401);
       if(!clean(p.email))return json({ok:false,message:'email_required'},409);
       if(clean(body.companyLocal)&&clean(body.companyLocal).toLowerCase()!==localPart(p.email))return json({ok:false,message:'use_email_registration'},409);
-      const names=await siteMap();return finishLogin(sql,'site:'+p.personnel_id,body,{ok:true,person:{personnel_id:p.personnel_id,site_id:p.site_id,site_name:names.get(p.site_id)||p.site_id,name:p.name,job_title:p.job_title,access_role:manager?'field':'worker',active:true,email:p.email||''}},sendEnrollmentCode,verifier,json);
+      const names=await siteMap();return await finishLogin(sql,'site:'+p.personnel_id,body,{ok:true,person:{personnel_id:p.personnel_id,site_id:p.site_id,site_name:names.get(p.site_id)||p.site_id,name:p.name,job_title:p.job_title,access_role:manager?'field':'worker',active:true,email:p.email||''}},sendEnrollmentCode,verifier,json);
     }
     if(action==="login_hq"){
       const name=clean(body.name),affiliationId=clean(body.affiliationId),passwordHash=clean(body.passwordHash);
@@ -210,7 +210,7 @@ Deno.serve(async(req:Request)=>{
       if(!hq?.active||!hqAllowed(hq.role)||affiliation(hq).id!==affiliationId||(body.accountKey&&body.accountKey!=='hq:'+hq.user_id)||!sameProof(clean(hq.password_hash),passwordHash))return json({ok:false,message:"invalid_login"},401);
       if(!clean(hq.email))return json({ok:false,message:'email_required'},409);
       if(clean(body.companyLocal)&&clean(body.companyLocal).toLowerCase()!==localPart(hq.email))return json({ok:false,message:'use_email_registration'},409);
-      return finishLogin(sql,'hq:'+hq.user_id,body,{ok:true,user:publicHq(hq)},sendEnrollmentCode,verifier,json);
+      return await finishLogin(sql,'hq:'+hq.user_id,body,{ok:true,user:publicHq(hq)},sendEnrollmentCode,verifier,json);
     }
     if(['password_schedule','defer_password_year','device_logout'].includes(action)){
       const key=(['field','worker'].includes(actor.role)?'site:':'hq:')+actor.id;

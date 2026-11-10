@@ -360,11 +360,22 @@
     const p={id:String(person.personnel_id||person.id||''),personnelId:String(person.personnel_id||person.id||''),name:person.name,position:person.job_title||person.position||(kind==='field'?'현장관리':'일반근로자'),role:kind,siteId:person.site_id||person.siteId,active:person.active!==false};if(passwordHash)p.pinHash=passwordHash;
     session=kind==='worker'?{loggedAt:nowISO(),worker:p}:{loggedAt:nowISO(),manager:p};saveSession();return p;
   }
+  function loginError(e){
+    switch(e.message){
+      case 'invalid_login':return '비밀번호가 일치하지 않거나 계정 정보가 변경됐습니다. 이름을 다시 조회한 후 입력해 주세요.';
+      case 'device_cancelled':return '이메일 인증을 취소했습니다.';
+      case 'mail_unavailable':return '인증메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.';
+      case 'device_client_update_required':return '로그인 화면을 새로고침한 후 다시 시도해 주세요.';
+      case 'registration_code_required':return '등록코드를 확인해 주세요. 코드는 발급 후 30분간 유효합니다.';
+      case 'account_changed':return '계정 정보가 변경됐습니다. 이름을 다시 입력해 주세요.';
+      default:return !e.status?'서버에 연결하지 못했습니다. 연결 상태를 확인한 후 다시 시도해 주세요.':'서버에서 로그인 요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.';
+    }
+  }
   async function loginSite(option,passwordHash='',ticket=''){
     const name=document.getElementById('loginName411')?.value.trim()||'';document.querySelectorAll('.login411-aff-btn').forEach(b=>b.disabled=true);status(`${option.affiliationLabel} 로그인 확인 중…`);
     let person;
     try{const r=await window.enlDeviceAuth.login(option,{action:'login_site',name,siteId:option.siteId,passwordHash,accountKey:option.accountKey},api,()=>selected===option);person=r.person;if(!person||norm(person.name)!==norm(name)||String(person.site_id)!==String(option.siteId))throw new Error('mismatch')}
-    catch(e){if(selected!==option)return false;discardRejectedProof(e,ticket);document.querySelectorAll('.login411-aff-btn').forEach(b=>b.disabled=false);const btn=document.getElementById('loginSubmit411');if(btn){btn.disabled=false;btn.textContent=btn.dataset.idleLabel||'로그인'}const msg=e.message==='device_cancelled'?'이메일 인증을 취소했습니다.':e.message==='mail_unavailable'?'인증메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.':e.message==='registration_code_required'?'등록코드를 확인해 주세요. 코드는 발급 후 30분간 유효합니다.':e.message==='account_changed'?'계정 정보가 변경됐습니다. 이름을 다시 입력해 주세요.':'로그인 정보를 다시 확인해 주세요.';status(msg,'err');return false}
+    catch(e){if(selected!==option)return false;discardRejectedProof(e,ticket);document.querySelectorAll('.login411-aff-btn').forEach(b=>b.disabled=false);const btn=document.getElementById('loginSubmit411');if(btn){btn.disabled=false;btn.textContent=btn.dataset.idleLabel||'로그인'}status(loginError(e),'err');return false}
     if(selected!==option)return false;await rememberLogin(option,passwordHash,!!ticket);if(selected!==option)return false;saveSiteSession(person,passwordHash);enterApp();return true;
   }
   function renderPassword(o){
@@ -408,7 +419,7 @@
     if(o.kind==='site'){await loginSite(o,hash,ticket);return}
     let serverUser;
     try{const r=await window.enlDeviceAuth.login(o,{action:'login_hq',name,affiliationId:o.affiliationId,passwordHash:hash,accountKey:o.accountKey},api,()=>selected===o);serverUser=r.user;if(!serverUser)throw new Error('invalid_user')}
-    catch(e){if(selected!==o)return;discardRejectedProof(e,ticket);btn.disabled=false;btn.textContent=btn.dataset.idleLabel||'로그인';status(e.message==='device_cancelled'?'이메일 인증을 취소했습니다.':e.message==='mail_unavailable'?'인증메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.':'이름, 소속과 비밀번호를 다시 확인해 주세요.','err');return}
+    catch(e){if(selected!==o)return;discardRejectedProof(e,ticket);btn.disabled=false;btn.textContent=btn.dataset.idleLabel||'로그인';status(loginError(e),'err');return}
     if(selected!==o)return;await rememberLogin(o,hash,!!ticket);if(selected!==o)return;const user=mergeHq(serverUser,hash);session={loggedAt:nowISO(),manager:{...user}};saveSession();enterApp();setTimeout(()=>{if(user.role==='safety')syncHqUsers(user)},350);
   }
 
