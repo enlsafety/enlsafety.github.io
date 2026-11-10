@@ -235,8 +235,16 @@
         folders=result.sites;available=result.candidates||[];listingPeriod=shownPeriod=result.period;
         if(admin){
           const tools=el('div',null,'org-manage-tools');
-          for(const [key,title] of [['create','생성'],['rename','수정'],['delete','삭제']]){
-            const b=button(title,()=>manage(key));b.setAttribute('aria-label','폴더 '+title);tools.append(b);
+          tools.setAttribute('role','group');tools.setAttribute('aria-label','사업장 폴더 관리');
+          for(const [key,title,path] of [
+            ['create','생성','M3 8h10M8 3v10'],
+            ['rename','수정','m3 10-.5 3.5 3.5-.5 7.5-7.5-3-3L3 10Zm6-6 3 3'],
+            ['delete','삭제','M2.5 4.5h11M6 4.5v-2h4v2m-6 0 .7 9h6.6l.7-9M7 7v4m2-4v4']
+          ]){
+            const b=button(title,()=>manage(key));b.setAttribute('aria-label','폴더 '+title);b.dataset.folderAction=key;
+            const icon=document.createElementNS(ns,'svg'),stroke=document.createElementNS(ns,'path');
+            icon.setAttribute('viewBox','0 0 16 16');icon.setAttribute('aria-hidden','true');stroke.setAttribute('d',path);
+            icon.append(stroke);b.prepend(icon);tools.append(b);
             if(key!=='create')b.dataset.needsSite='';
           }
           railBody.before(tools);

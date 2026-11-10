@@ -28,7 +28,16 @@
 .org-panel .org-submenu button{text-align:left;background:transparent;border:0;padding:7px 6px;font-size:13px}
 .org-panel .org-submenu button[aria-current=page]{background:#dcebf7;color:#103c60;font-weight:700}
 .org-folder small{font-size:11px;white-space:nowrap}.org-folder :is(.pending,.approved)::before{width:6px;height:6px;margin-right:4px}
-.org-manage-tools{display:flex;gap:4px;margin:8px 3px}.org-manage-tools button,.org-manage button{font-size:12px;padding:5px 8px}
+.org-manage-tools{display:flex;align-items:center;gap:2px;margin:3px 2px 7px}
+#app .org-manage-tools>button{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:4px;width:auto;height:27px;min-height:0;min-width:0;padding:0 5px;border:0;border-radius:4px;background:transparent;box-shadow:none;color:#496073;font-family:inherit;font-size:12px;font-weight:600;line-height:1.2;white-space:nowrap}
+#app .org-manage-tools svg{width:13px;height:13px;flex:none;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+#app .org-manage-tools [data-folder-action=create]{color:#206498}
+#app .org-manage-tools>button:hover:enabled{color:#184e76;background:#e0edf6}
+#app .org-manage-tools [data-folder-action=delete]:hover:enabled{color:#a2333d;background:#fae9eb}
+#app .org-manage-tools>button:focus-visible{outline:2px solid #327ba8;outline-offset:1px}
+#app .org-manage-tools>button:disabled{color:#7f909e;opacity:.75}
+@media(max-width:750px),(pointer:coarse){#app .org-manage-tools>button{height:44px;min-width:44px}.org-manage-tools{margin-block:0 2px}}
+.org-manage button{font-size:12px;padding:5px 8px}
 .org-manage{background:white;border:1px solid #c5d7e5;padding:8px;border-radius:6px;margin:5px 0;font-size:13px}
 .org-manage label{display:grid;gap:4px;margin:6px 0}.org-manage :is(input,select){width:100%;min-width:0;padding:5px;border:1px solid #abc4d8;border-radius:4px}
 .org-main{min-width:0;padding:16px}
