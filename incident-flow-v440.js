@@ -246,7 +246,7 @@
       environment:'경기구역에서 작업 위치까지의 타구 노출 범위 확인 필요',
       behavior:'경기 진행 중 작업 위치와 대피 시점 확인 필요',
       mechanism:'타구 경로와 작업 위치가 겹친 경위'},
-    {types:['차량/중장비','차량사고','차량 충돌'],pattern:/카트|지게차|차량|트럭|화물차|승용차|굴삭기|로더|중장비|후진|주행|운행/,
+    {types:['차량/중장비','차량사고','차량 충돌'],pattern:/카트(?!\s*(?:도로|길))|지게차|차량|트럭|화물차|승용차|굴삭기|로더|중장비|후진|주행|운행/,
       environment:'차량과 주변 사람 또는 시설물 사이의 통행 공간 확인 필요',
       behavior:'차량 이동 전 진행 방향과 주변 간격 확인 여부',
       mechanism:'차량 이동 경로가 주변 동선과 겹쳤는지'},
@@ -291,22 +291,16 @@
       behavior:'파손 직전 설비 조작 또는 이동 경로 확인 필요',
       mechanism:'시설에 힘이 가해진 지점과 파손 경위'}
   ];
-  function buildCauseDraft(i){
-    const d=i?.reportDetails||{},event=text(i?.eventType);
-    const summary=text(i?.summary);
-    const narrative=summary.match(/\[사고 경위\]\s*([^[]+)/)?.[1];
-    const how=text(d.incidentHow)||text(narrative),work=text(d.workAction);
-    // Use firsthand descriptions before a broad classification such as facility damage.
-    // A generated summary also contains later prevention measures; those are not evidence.
-    const legacy=!how&&!work&&!/^\[사고 개요\]/.test(summary)?summary:'';
-    const movement=[how,work,legacy].filter(Boolean).join(' ');
-    const scene=[movement,text(d.place)].join(' ');
-    const damage=[how,d.damagedItem,d.damageDetail,legacy].map(text).join(' ');
+  function causeGuidance(d,event,how,work){
+    const movement=[how,work].filter(Boolean).join(' ');
+    // A cart road is a location, not evidence that a vehicle was involved.
+    const scene=movement.replace(/카트\s*(?:도로|길)/g,'통행로');
+    const damage=[scene,d.damagedItem,d.damageDetail].map(text).join(' ');
     const vehicle=/차량|자동차|승용차|화물차|트럭|작업차|카트|지게차|트랙터|승용모어|바퀴|타이어/.test(scene+' '+damage);
     const turn=/회전|선회|유턴|방향.{0,3}전환|차를 돌리|차량을 돌리/.test(movement);
     const reverse=/후진/.test(movement);
     const fixture=(scene+' '+text(d.damagedItem)).match(/홀\s*맵\s*지주|안내표지판|안내판|표지판|볼라드|연석|경계석|기둥|펜스/)?.[0];
-    const contact=/충돌|접촉|들이받|부딪|부딫|충격을 가|추돌/.test(how||legacy)&&!/충돌.{0,4}(?:없|않)|접촉.{0,4}(?:없|않)/.test(how||legacy);
+    const contact=/충돌|접촉|들이받|부딪|부딫|충격을 가|추돌/.test(how)&&!/충돌.{0,4}(?:없|않)|접촉.{0,4}(?:없|않)/.test(how);
     if(vehicle&&(turn||reverse||fixture&&contact)&&!/회전체|회전날/.test(movement)){
       const narrow=/좁[은아았고]|좁음|협소|비좁|공간.{0,4}부족/.test(scene);
       const wheelHit=damage.match(/(뒷바퀴|뒤쪽?\s*바퀴|후륜|뒤\s*타이어|앞바퀴|전륜|타이어)[^.!?]{0,14}?(?:파손|손상|펑크|찢어|터짐)/);
@@ -320,13 +314,30 @@
       const mechanism=narrow&&turn&&wheel?'회전 궤적과 주변 간격이 파손에 영향을 주었을 가능성.':path+'와 주변 간격이 사고에 미친 영향 확인 필요.';
       return {environmentCause,behaviorCause,causeAnalysisNote:outcome+'. '+mechanism};
     }
-    const fall=/미끄러[져졌짐]|넘어[져졌짐]|헛디[뎌딤]|헛딛/.test(movement);
-    const ice=/빙판|결빙|얼어붙|살얼음/.test(scene),wet=/젖은|젖어|물기|빗물/.test(scene);
-    if(fall&&(ice||wet)){
-      const surface=ice?'결빙된 바닥':'젖은 바닥';
-      return {environmentCause:surface+'으로 미끄러질 위험이 있는 통행 구간',
-        behaviorCause:'이동 전 노면 상태 확인 및 우회 가능 여부 확인 필요',
-        causeAnalysisNote:surface+'에서 이동 중 균형을 잃은 경위와 노면 상태의 관련성 확인 필요.'};
+    const fallEvent=/^(넘어짐|미끄러짐|낙상)$/.test(event);
+    const fallMotion=/넘어(?:질\s*때|지면서|지며|졌|져|짐)|미끄러(?:지면서|졌|져|짐)|헛디[뎌딤]|헛딛|걸려\s*넘어/.test(how);
+    const negatedFall=/넘어지지|미끄러지지|넘어질\s*뻔|미끄러질\s*뻔/.test(how);
+    if((fallEvent||fallMotion)&&!negatedFall&&!/추락|전복|사다리.{0,15}떨어|(?:나무|지주|시설물|표지판|차량|카트)(?:이|가)\s*넘어/.test(how)){
+      const carry=/운반|옮기|옮기던|나르|들고/.test(movement);
+      // Only link a surface to the fall when the report describes the slip there.
+      const surface=how.match(/(?:빙판|결빙된|얼어붙은|젖은|물기가\s*있는|빗물에\s*젖은)[^.,\n]{0,18}?(?:에서|때문에|밟고|으로)\s*미끄러(?:졌|져|짐|지면서)/)?.[0];
+      const uncertainSurface=/없|않|미확인|불명|아님|추정|가능성/.test(how);
+      const onIce=surface&&/빙판|결빙|얼어붙/.test(surface);
+      const environment=surface&&!uncertainSurface
+        ?(onIce?'결빙된 바닥':'젖은 바닥')+'에서 미끄러졌다고 보고됨. 해당 지점의 노면 상태 확인 필요.'
+        :'넘어진 지점의 노면 상태, 단차 및 장애물 유무 확인 필요.';
+      const obstacle=how.match(/(단차|연석|경계석|턱|돌부리|호스|전선|로프|나무뿌리|매트|그린\s*(?:커버|카바))에\s*(?:발이?\s*)?(?:걸려|걸리면서)\s*넘어(?:져|졌|짐|지)/);
+      const reportedObstacle=obstacle&&!uncertainSurface?obstacle[1]:'';
+      const trigger=/걸려\s*넘어|헛디[뎌딤]|헛딛|미끄러(?:져|졌|짐)/.test(how);
+      const carriedImpact=how.match(/(?:주머니|호주머니)[^.,!?\n]{0,18}?(휴대폰|휴대전화|핸드폰|무전기|공구)(?:이|가|에)?\s*(옆구리|허리|가슴|복부|허벅지|골반)(?:에|를|와)\s*(?:부딪[혀힘혔]|부딫[혀힘]|충돌|닿음|충격을\s*줌)/);
+      const injuryMechanism=carriedImpact&&!/않|아님|추정|가능성|불명/.test(how)
+        ?'넘어지는 과정에서 휴대한 '+carriedImpact[1]+'에 의한 '+carriedImpact[2]+' 충격이 보고됨':'';
+      return {
+        injuryMechanism,
+        environmentCause:reportedObstacle?'넘어진 지점에 '+reportedObstacle+' 관련 걸림이 보고됨. 통행 경로와 장애물 위치 확인 필요.':environment,
+        behaviorCause:carry?'운반 당시 시야와 발 디딤 위치, 운반물이 이동에 영향을 주었는지 확인 필요.':'이동 당시 발 디딤 위치와 노면 상태 확인 필요.',
+        causeAnalysisNote:trigger?'경위서에 기재된 넘어짐 과정과 현장 조건의 관련성 확인 필요.':'최초로 넘어진 직접 원인은 확인 필요.'
+      };
     }
     if(/사다리/.test(scene)&&/추락|떨어[져졌짐]/.test(how)){
       return {environmentCause:'사다리 설치면과 발판의 지지 상태 확인 필요',behaviorCause:'추락 직전 발 디딤 위치와 작업 자세 확인 필요',causeAnalysisNote:'사다리 작업 중 추락. 발판 상태와 작업 자세가 추락에 미친 영향 확인 필요.'};
@@ -337,7 +348,7 @@
     }
     const categoryRule=CAUSE_DRAFT_RULES.find(x=>x.types.includes(event));
     const rule=(categoryRule&&!['설비/시설 파손','차량/중장비'].includes(event)?categoryRule:null)
-      ||CAUSE_DRAFT_RULES.find(x=>x.pattern.test(how||legacy))
+      ||CAUSE_DRAFT_RULES.find(x=>x.pattern.test(how))
       ||categoryRule
       ||CAUSE_DRAFT_RULES.find(x=>x.pattern.test([work,d.damageDetail,d.injuryDetail,event].map(text).join(' ')));
     if(!rule)return {
@@ -350,6 +361,29 @@
       behaviorCause:rule.behavior,
       causeAnalysisNote:rule.mechanism+' 확인 필요.'
     };
+  }
+
+  // Keep reported facts separate from the checks suggested by the matching rule.
+  function buildCauseDraft(i){
+    const d=i?.reportDetails||{},summary=text(i?.summary);
+    const section=summary.match(/\[사고 경위\]\s*([^[]+)/)?.[1];
+    const how=text(d.incidentHow)||text(section)||(!summary.startsWith('[')?summary:'');
+    const work=text(d.workAction),place=text(d.place);
+    const outcome=text(i?.category==='property'?d.damageDetail:d.injuryDetail)||text(d.damageDetail);
+    const {injuryMechanism,...draft}=causeGuidance(d,text(i?.eventType),how,work);
+    // Clip displayed quotations only after matching against the full description.
+    const quote=value=>{
+      const line=value.replace(/\s+/g,' ').trim();
+      return '“'+(line.length>150?line.slice(0,149)+'…':line)+'”';
+    };
+    if(place)draft.environmentCause='사고 장소 '+quote(place)+'. '+draft.environmentCause;
+    if(work)draft.behaviorCause='사고 전 작업 '+quote(work)+'. '+draft.behaviorCause;
+    const observations=[];
+    if(injuryMechanism)observations.push(injuryMechanism);
+    else if(how)observations.push('보고 경위 '+quote(how));
+    if(outcome&&outcome!==how)observations.push('보고된 피해 '+quote(outcome));
+    if(observations.length)draft.causeAnalysisNote=observations.join('. ')+'. '+draft.causeAnalysisNote;
+    return draft;
   }
 
   function hasSavedCause(d){
@@ -575,6 +609,7 @@
   window.enlCreateCauseEditor=i=>{const panel=causePanel(i);bindCausePanel(panel,i);return panel;};
   window.enlCollectCause=collectCause;
   window.enlBuildCauseDraft=buildCauseDraft;
+  window.enlUnreviewedCauseDraft=i=>hasSavedCause(i?.reportDetails)?null:buildCauseDraft(i);
   window.enlOpenIncidentSupplement=openSupplementForm;
   window.enlRequestIncidentSupplement=openSupplementRequest;
   window.ENL_INCIDENT_FLOW_VERSION=VERSION;

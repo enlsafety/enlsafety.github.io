@@ -107,13 +107,16 @@
  function causeCorrection(i){
   if(currentUser()?.role!=='safety')return alert('안전관리자만 원인분석을 정정할 수 있습니다.');
   if(!['approved','closed'].includes(String(i?.status||'')))return alert('승인·종결된 사고만 정정할 수 있습니다.');
-  const d=i.reportDetails||{},isPending=d.causeAnalysisStatus==='investigating';
+  const d=i.reportDetails||{};
+  const draft=window.enlUnreviewedCauseDraft?.(i);
+  const initial=draft||d,isPending=!!draft||d.causeAnalysisStatus==='investigating';
   const textarea=(id,label,value,tip)=>'<label class="lbl"><span>'+label+'</span><textarea id="'+id+'" rows="3" maxlength="4000" style="width:100%;box-sizing:border-box" placeholder="'+tip+'">'+e(value||'')+'</textarea></label>';
   openModal('<div class="modal-head"><div><h2>사고원인 분석 정정</h2><p>기존 승인·종결 정보는 유지되며, 원인분석의 변경 전후 내용과 사유를 서버 이력으로 보존합니다.</p></div><button class="x" data-close>×</button></div>'
+    +(draft?'<p>사고경위서에서 작성한 원인분석 초안입니다. 내용을 검토한 뒤 변경 사유와 함께 저장하세요.</p>':'')
     +'<form id="cause438Form">'
-    +textarea('cause438Environment','환경적 요인',d.environmentCause,'확인된 작업환경·시설물·장비 요인')
-    +textarea('cause438Behavior','행동적 요인',d.behaviorCause,'확인된 작업방법 요인. 추측이나 책임 단정은 피하세요.')
-    +textarea('cause438Other','기타·종합 원인',d.causeAnalysisNote,'기타 원인 또는 조사 근거')
+    +textarea('cause438Environment','환경적 요인',initial.environmentCause,'확인된 작업환경·시설물·장비 요인')
+    +textarea('cause438Behavior','행동적 요인',initial.behaviorCause,'확인된 작업방법 요인. 추측이나 책임 단정은 피하세요.')
+    +textarea('cause438Other','기타·종합 원인',initial.causeAnalysisNote,'기타 원인 또는 조사 근거')
     +'<label class="lbl" style="display:flex;align-items:flex-start;gap:10px;padding:12px;background:#fff7e9;border:1px solid #e3c58a;border-radius:10px"><input id="cause438Pending" type="checkbox" style="min-width:20px;min-height:20px" '+(isPending?'checked':'')+'><span>조사 중 · 사고원인 미확정</span></label>'
     +'<label class="lbl"><span>변경 사유 *</span><textarea id="cause438Reason" required maxlength="2000" rows="3" placeholder="예: 현장 재조사 및 추가 증빙에 따른 원인분석 변경"></textarea></label>'
     +'<p id="cause438Feedback" role="alert" aria-live="polite" style="color:#ad3434;font-size:13px"></p>'

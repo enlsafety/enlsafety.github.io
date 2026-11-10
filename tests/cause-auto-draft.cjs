@@ -40,3 +40,22 @@ assert.ok(src.includes("box.dataset.wf440Draft==='unreviewed'&&!allowAutoDraft")
 assert.ok(src.includes("collectCause({allowAutoDraft:true})"));
 assert.ok(src.includes("bindCausePanel(cause,i)"));
 console.log('PASS: 7 accident draft cases, unknown case, manual retention and explicit review guard');
+
+const carrying={category:'person',eventType:'부딪힘',reportDetails:{
+  place:'1번 그린 우측 카트도로',workAction:'그린 카바를 정리 후 운반 하던 중',
+  incidentHow:'넘어질때 주머니에 있던 휴대폰이 옆구리에 부딪힘',injuryDetail:'갈비뼈 부위 통증이 있음'
+}};
+const carryDraft=buildCauseDraft(carrying);
+assert.match(carryDraft.environmentCause,/1번 그린 우측 카트도로/);
+assert.match(carryDraft.behaviorCause,/그린 카바.*운반.*시야/);
+assert.match(carryDraft.causeAnalysisNote,/휴대폰에 의한 옆구리 충격이 보고됨/);
+assert.match(carryDraft.causeAnalysisNote,/최초로 넘어진 직접 원인은 확인 필요/);
+assert.doesNotMatch(Object.values(carryDraft).join(' '),/차량 이동|젖은 바닥|골절/);
+const dry=buildCauseDraft({eventType:'넘어짐',reportDetails:{incidentHow:'노면에 물기는 없었고 이동 중 넘어짐'}});
+assert.doesNotMatch(dry.environmentCause,/젖은 바닥/);
+const archived=buildCauseDraft({summary:'[사고 개요] 예제 [사고 경위] 계단에서 발을 헛디뎌 넘어짐 [재발 방지 대책] 지게차 진입 금지'});
+assert.match(archived.causeAnalysisNote,/발을 헛디뎌/);
+assert.doesNotMatch(Object.values(archived).join(' '),/지게차/);
+console.log('PASS: fall with secondary impact, dry surface, legacy incident narrative');
+const hose=buildCauseDraft({eventType:'넘어짐',reportDetails:{incidentHow:'호스에 발이 걸려 넘어짐'}});
+assert.match(hose.environmentCause,/호스 관련 걸림/);
