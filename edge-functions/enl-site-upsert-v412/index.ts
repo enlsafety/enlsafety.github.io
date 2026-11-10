@@ -1,3 +1,4 @@
+import { restricted as Deno } from "../_shared/device-runtime.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 const ORIGIN="https://enlsafety.github.io";
@@ -23,6 +24,6 @@ Deno.serve(async(req:Request)=>{
      ? [p.manager_name,p.part_name,p.clerk_name].some(v=>!!clean(v))
      : clean(prev.manager_name)!==clean(p.manager_name)||clean(prev.part_name)!==clean(p.part_name)||clean(prev.clerk_name)!==clean(p.clerk_name);
    if(changed){const passwordHash=clean(body.passwordHash);if(!passwordHash)return json({ok:false,message:"password_required"},428);if(passwordHash!==clean(user.password_hash))return json({ok:false,message:"invalid_password"},401);}
-   const f=await forward({action:"site_upsert",actor:{id:actor.id,name:clean(user.name)||actor.name,role:"safety",position:actor.position},role:"safety",actorPasswordHash:clean(body.actorPasswordHash),site:p});return json(f.data,f.status||200);
+   const f=await forward({action:"site_upsert",deviceSession:body.deviceSession,actor:{id:actor.id,name:clean(user.name)||actor.name,role:"safety",position:actor.position},role:"safety",actorPasswordHash:clean(body.actorPasswordHash),site:p});return json(f.data,f.status||200);
  }catch(e:any){return json({ok:false,message:e?.message||"site_upsert_failed"},500)}
 });

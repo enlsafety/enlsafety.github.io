@@ -2,6 +2,7 @@
 (()=>{
  const role=new URLSearchParams(location.search).get('role')||'safety',actor={id:'fixture-'+role,name:'검수 담당',position:new URLSearchParams(location.search).get('position')||(role==='field'?'현장소장':role==='executive'?'상무':'안전관리자'),role,siteId:['field','worker'].includes(role)?'qa-site':'',active:true};
  localStorage.clear();sessionStorage.clear();localStorage.setItem('enl_setup_intro_seen_v1','1');localStorage.setItem('enl_safety_session_v3',JSON.stringify({manager:actor,loggedAt:new Date().toISOString()}));
+ localStorage.setItem('enl.verified-session.v1',JSON.stringify({key:(['field','worker'].includes(role)?'site:':'hq:')+actor.id,token:'a'.repeat(64),expires:new Date(Date.now()+86400000).toISOString(),policy:{initial:false,nextPrompt:'2099-01-01'}}));
  const sites=[{site_id:'qa-site',site_name:'검수 골프장',active:true,manager_name:'검수 담당'}];
  const incidents=[{id:'qa-incident',siteId:'qa-site',category:'property',status:'reported',summary:'격리된 검수용 작업차량 접촉',eventType:'차량 접촉',occurredAt:'2026-11-04T01:00:00Z',updatedAt:new Date().toISOString(),reporterId:'fixture-field',reporterName:'검수 담당',reportDetails:{place:'검수 구역',incidentHow:'검수용 사고 내용'},photos:[],_syncVersion:1}];
  const moduleKeys=['incident','risk','tbm','organization','training','msds'],serviceKeys=['history','approvals','notices','documents','dashboard',...(role==='safety'?['system']:[])];

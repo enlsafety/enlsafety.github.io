@@ -13,6 +13,10 @@
   const siteLabel=id=>{try{return siteById?.(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}};
   const deployedVersion=()=>document.querySelector('meta[name="enl-build"]')?.content||VERSION;
 
+  const restoredUser=session?.worker||session?.manager||(session?.userId&&userById(session.userId));
+  if(restoredUser&&!window.enlDeviceAuth.validFor(restoredUser)){
+    window.enlClearRefreshSession?.('device_login_required');session=null;
+  }
   currentUser=function(){
     try{
       if(session?.worker)return session.worker;
@@ -130,7 +134,7 @@
         const secret=form.elements.proof.value;
         const credentials=needsPassword?{passwordHash:await sha256(secret)}:{registrationPassword:secret};
         if(verify&&!needsPassword)credentials.newPasswordHash=await sha256(form.elements.newPassword.value);
-        await api({action:verify?'email_code_verify':'email_code_send',accountKey:o.accountKey,name:o.name||document.getElementById('loginName411').value.trim(),affiliationId:o.affiliationId,companyLocal:value,code:verify?form.elements.code.value:undefined,...credentials});
+        await api({action:verify?'email_code_verify':'email_code_send',accountKey:o.accountKey,deviceKey:window.enlDeviceAuth.deviceKey(o.accountKey),name:o.name||document.getElementById('loginName411').value.trim(),affiliationId:o.affiliationId,companyLocal:value,code:verify?form.elements.code.value:undefined,...credentials});
         if(selected!==o||!d.open)return;
         if(verify){
           o.hasEmail=true;o.companyLocal=value;local.value=value;local.readOnly=true;button.hidden=true;
@@ -327,8 +331,8 @@
   async function loginSite(option,passwordHash='',ticket=''){
     const name=document.getElementById('loginName411')?.value.trim()||'';document.querySelectorAll('.login411-aff-btn').forEach(b=>b.disabled=true);status(`${option.affiliationLabel} 로그인 확인 중…`);
     let person;
-    try{const r=await api({action:'login_site',name,siteId:option.siteId,passwordHash,accountKey:option.accountKey});person=r.person;if(!person||norm(person.name)!==norm(name)||String(person.site_id)!==String(option.siteId))throw new Error('mismatch')}
-    catch(e){if(selected!==option)return false;discardRejectedProof(e,ticket);document.querySelectorAll('.login411-aff-btn').forEach(b=>b.disabled=false);const btn=document.getElementById('loginSubmit411');if(btn){btn.disabled=false;btn.textContent='로그인'}const msg=e.message==='registration_code_required'?'등록코드를 확인해 주세요. 코드는 발급 후 30분간 유효합니다.':e.message==='account_changed'?'계정 정보가 변경됐습니다. 이름을 다시 입력해 주세요.':'로그인 정보를 다시 확인해 주세요.';status(msg,'err');return false}
+    try{const r=await window.enlDeviceAuth.login(option,{action:'login_site',name,siteId:option.siteId,passwordHash,accountKey:option.accountKey},api,()=>selected===option);person=r.person;if(!person||norm(person.name)!==norm(name)||String(person.site_id)!==String(option.siteId))throw new Error('mismatch')}
+    catch(e){if(selected!==option)return false;discardRejectedProof(e,ticket);document.querySelectorAll('.login411-aff-btn').forEach(b=>b.disabled=false);const btn=document.getElementById('loginSubmit411');if(btn){btn.disabled=false;btn.textContent='로그인'}const msg=e.message==='device_cancelled'?'기기 인증을 취소했습니다.':e.message==='mail_unavailable'?'인증메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.':e.message==='registration_code_required'?'등록코드를 확인해 주세요. 코드는 발급 후 30분간 유효합니다.':e.message==='account_changed'?'계정 정보가 변경됐습니다. 이름을 다시 입력해 주세요.':'로그인 정보를 다시 확인해 주세요.';status(msg,'err');return false}
     if(selected!==option)return false;await rememberLogin(option,passwordHash,!!ticket);if(selected!==option)return false;saveSiteSession(person,passwordHash);enterApp();return true;
   }
   function renderPassword(o){
@@ -371,8 +375,8 @@
     if(ticket&&(input.dataset.restored!==ticket||pref(ticketKey)!==ticket)){btn.disabled=false;btn.textContent='로그인';return}
     if(o.kind==='site'){await loginSite(o,hash,ticket);return}
     let serverUser;
-    try{const r=await api({action:'login_hq',name,affiliationId:o.affiliationId,passwordHash:hash,accountKey:o.accountKey});serverUser=r.user;if(!serverUser)throw new Error('invalid_user')}
-    catch(e){if(selected!==o)return;discardRejectedProof(e,ticket);btn.disabled=false;btn.textContent='로그인';status('이름, 소속과 비밀번호를 다시 확인해 주세요.','err');alert('이름, 소속과 비밀번호를 다시 확인하세요.');return}
+    try{const r=await window.enlDeviceAuth.login(o,{action:'login_hq',name,affiliationId:o.affiliationId,passwordHash:hash,accountKey:o.accountKey},api,()=>selected===o);serverUser=r.user;if(!serverUser)throw new Error('invalid_user')}
+    catch(e){if(selected!==o)return;discardRejectedProof(e,ticket);btn.disabled=false;btn.textContent='로그인';status(e.message==='device_cancelled'?'기기 인증을 취소했습니다.':e.message==='mail_unavailable'?'인증메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요.':'이름, 소속과 비밀번호를 다시 확인해 주세요.','err');return}
     if(selected!==o)return;await rememberLogin(o,hash,!!ticket);if(selected!==o)return;const user=mergeHq(serverUser,hash);session={loggedAt:nowISO(),manager:{...user}};saveSession();enterApp();setTimeout(()=>{if(user.role==='safety')syncHqUsers(user)},350);
   }
 

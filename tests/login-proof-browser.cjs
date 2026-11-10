@@ -23,13 +23,14 @@ async function run(engine){
    window.sha256=async v=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v))),b=>b.toString(16).padStart(2,'0')).join('');
    window.esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
    window.renderShell=()=>{app.innerHTML='<div id="view"></div>'};window.openModal=html=>document.getElementById('modalRoot').innerHTML=html;window.closeModal=()=>document.getElementById('modalRoot').innerHTML='';
+   const fixtureSession={deviceSession:'b'.repeat(64),expiresAt:new Date(Date.now()+86400000).toISOString(),passwordPolicy:{initial:false,nextPrompt:'2099-01-01'}};
    window.fetch=async(url,init)=>{
     const body=JSON.parse(init?.body||'{}');qaRequests.push({url:String(url),body});
     const reply=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'content-type':'application/json'}});
-    if(body.action==='lookup')return reply({ok:true,options:body.name==='QA 안전'?[{kind:'hq',affiliationId:'qa-hq',affiliationLabel:'QA 본사',role:'safety',requiresPassword:true}]:[{kind:'site',siteId:'qa-site',affiliationLabel:'QA 사업장',position:'현장소장',requiresPassword:true}]});
-    if(body.action==='login_hq')return body.passwordHash===proofs.hq?reply({ok:true,user:qaHq[0]}):reply({ok:false,message:'invalid_login'},403);
-    if(body.action==='login_site')return body.passwordHash===proofs.field?reply({ok:true,person:{personnel_id:'qa-field',name:'QA 현장',job_title:'현장소장',site_id:'qa-site',access_role:'field',active:true}}):reply({ok:false,message:'invalid_login'},403);
-    if(body.action==='password_change_self'){if(qaAccountFail||body.currentPasswordHash!==proofs.field)return reply({ok:false,message:'current_password_incorrect'},403);proofs.field=body.newPasswordHash;return reply({ok:true})}
+    if(body.action==='lookup')return reply({ok:true,options:body.name==='QA 안전'?[{kind:'hq',accountKey:'hq:qa-safety',hasEmail:true,affiliationId:'qa-hq',affiliationLabel:'QA 본사',role:'safety',requiresPassword:true}]:[{kind:'site',accountKey:'site:qa-field',hasEmail:true,siteId:'qa-site',affiliationLabel:'QA 사업장',position:'현장소장',requiresPassword:true}]});
+    if(body.action==='login_hq')return body.passwordHash===proofs.hq?reply({ok:true,...fixtureSession,user:qaHq[0]}):reply({ok:false,message:'invalid_login'},403);
+    if(body.action==='login_site')return body.passwordHash===proofs.field?reply({ok:true,...fixtureSession,person:{personnel_id:'qa-field',name:'QA 현장',job_title:'현장소장',site_id:'qa-site',access_role:'field',active:true}}):reply({ok:false,message:'invalid_login'},403);
+    if(body.action==='password_change_self'){if(qaAccountFail||body.currentPasswordHash!==proofs.field)return reply({ok:false,message:'current_password_incorrect'},403);proofs.field=body.newPasswordHash;return reply({ok:true,...fixtureSession})}
     const protectedAction=['hq_list','hq_upsert','personnel_pull','personnel_upsert','personnel_delete'].includes(body.action);
     const validSafety=body.actor?.id==='qa-safety'&&body.actor?.role==='safety'&&body.actorPasswordHash===proofs.hq;
     const validField=body.actor?.id==='qa-field'&&body.actor?.role==='field'&&body.actor?.siteId==='qa-site'&&body.actorPinHash===proofs.field&&(!body.siteId||body.siteId==='qa-site')&&(!body.person?.siteId||body.person.siteId==='qa-site');
@@ -41,6 +42,7 @@ async function run(engine){
     return reply({ok:true});
    };
   },proofs);
+  await page.addScriptTag({content:fs.readFileSync('device-auth.js','utf8')});
   await page.addScriptTag({content:fs.readFileSync('auth-v411.js','utf8')});
   await page.evaluate(()=>{window.qaOriginalAuthApi=enlAuthApi;enlRenderLogin()});
   await page.fill('#loginName411','QA 안전');await page.locator('#loginPassword411').waitFor();

@@ -1,3 +1,4 @@
+import { hasHealth as Deno } from "../_shared/device-runtime.ts";
 import { platformRequest, serviceAllowed } from "./platform-api.ts";
 import "./site-contract-v451.js";
 import "./executive-approval-v482.js";

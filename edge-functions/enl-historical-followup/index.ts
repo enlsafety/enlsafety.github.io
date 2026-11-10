@@ -1,3 +1,4 @@
+import { restricted as Deno } from "../_shared/device-runtime.ts";
 import postgres from "npm:postgres@3.4.5";
 import { createClient } from "jsr:@supabase/supabase-js@2.57.4";
 import { transition,canRead,fieldAllowed,historical,eventKind,attachments } from "./model.js";

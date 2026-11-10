@@ -1,0 +1,39 @@
+'use strict';
+const assert=require('node:assert/strict'),crypto=require('node:crypto'),{fixture}=require('./login-proof-edge.cjs');
+(async()=>{
+ const {db,call,mailbox}=await fixture(true);
+ try{
+  const proof=crypto.createHash('sha256').update('test-password').digest('hex'),next=crypto.createHash('sha256').update('changed-password').digest('hex');
+  const actor={id:'qa-auth-field-472',role:'field',siteId:'qa-auth-site-472'},key='site:'+actor.id;
+  await db.query("update enl_site_personnel set email='qa.field@enlife.co.kr',pin_hash=$1 where personnel_id=$2",[proof,actor.id]);
+  const login={action:'login_site',siteId:actor.siteId,name:'QA 현장',accountKey:key,passwordHash:proof};
+  const protectedBody={action:'password_schedule',actor};
+  assert.equal((await call({...protectedBody,actorPinHash:proof})).status,403);
+  assert.equal((await call({...login,passwordHash:'wrong'})).status,401);assert.equal(mailbox.length,0);
+  assert.equal((await call(login)).status,428);assert.equal(mailbox[0].to,'qa.field@enlife.co.kr');
+  assert.equal((await call(login)).status,428);assert.equal(mailbox.length,1);
+  const code=mailbox[0].code;
+  assert.equal((await call({...login,deviceKey:'b'.repeat(64),deviceCode:code})).status,409);
+  assert.equal((await call({...login,deviceCode:code==='000000'?'111111':'000000'})).status,403);
+  const first=(await call({...login,deviceCode:code})).body;assert.equal(first.passwordPolicy.initial,true);
+  assert.ok(first.person&&first.deviceSession);assert.equal((await call({...protectedBody,deviceSession:first.deviceSession})).status,200);
+  assert.equal((await call({...protectedBody,actor:{role:'safety',id:actor.id},deviceSession:first.deviceSession})).status,403);
+  const again=(await call(login)).body;assert.ok(again.deviceSession);assert.equal(mailbox.length,1);
+  const change={action:'password_change_self',actor,currentPasswordHash:proof,newPasswordHash:next,deviceSession:again.deviceSession};
+  const updated=await call(change,'account');assert.equal(updated.status,200,JSON.stringify(updated.body));
+  assert.ok(updated.body.deviceSession);assert.equal(updated.body.passwordPolicy.initial,false);
+  assert.equal((await call({...protectedBody,deviceSession:first.deviceSession})).status,403);
+  assert.equal((await call(login)).status,401);
+  const withNew=await call({...login,passwordHash:next});assert.equal(withNew.status,200);assert.equal(mailbox.length,1);
+  const signed={actor,deviceSession:withNew.body.deviceSession};
+  await db.query("update private.enl_password_schedule set next_prompt=now()-interval '1 day' where account_key=$1",[key]);
+  const deferred=(await call({...signed,action:'defer_password_year'})).body.passwordPolicy;
+  assert.ok(Date.parse(deferred.nextPrompt)>Date.now()+364*86400000);
+  assert.equal((await call({...signed,action:'defer_password_year'})).body.passwordPolicy.nextPrompt,deferred.nextPrompt);
+  assert.equal((await call({...signed,action:'device_logout'})).status,200);
+  assert.equal((await call({...signed,action:'password_schedule'})).status,403);
+  await db.query("update enl_site_personnel set email='replacement@enlife.co.kr' where personnel_id=$1",[actor.id]);
+  assert.equal((await call({...login,passwordHash:next})).status,428);assert.equal(mailbox.at(-1).to,'replacement@enlife.co.kr');
+  console.log('PASS first browser OTP, identity binding, trusted login, token rotation/revocation, yearly deferral and email reassignment');
+ }finally{await db.close()}
+})().catch(e=>{console.error(e);process.exitCode=1});

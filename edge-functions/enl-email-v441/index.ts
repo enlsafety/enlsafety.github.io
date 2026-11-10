@@ -1,3 +1,4 @@
+import { mail as Deno } from "../_shared/device-runtime.ts";
 import "./executive-approval-v482.js";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import postgres from "npm:postgres@3.4.5";

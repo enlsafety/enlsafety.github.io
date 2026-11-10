@@ -8,7 +8,7 @@
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   const escx=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   const actor=(u=currentUser?.())=>u?{id:u.id||u.personnelId||u.username||'',name:u.name||'',role:roleNorm(u.role),position:u.position||u.jobTitle||'',siteId:u.siteId||''}:null;
-  const eligibleSelf=u=>!!u&&((roleNorm(u.role)==='field'&&FIELD_TITLES.includes(String(u.position||u.jobTitle||'')))||['safety','manager','executive'].includes(roleNorm(u.role)));
+  const eligibleSelf=u=>!!u&&((roleNorm(u.role)==='field'&&FIELD_TITLES.includes(String(u.position||u.jobTitle||'')))||['worker','safety','manager','executive'].includes(roleNorm(u.role)));
 
   async function hash(v){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(String(v||'')));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
   async function api(body,timeout=15000){
@@ -39,31 +39,36 @@
     }catch(e){}
   }
 
-  const accountKey=u=>(roleNorm(u.role)==='field'?'site:':'hq:')+(u.id||u.personnelId);
-  const acknowledged=new Set();
-  function openSelfChange(firstLogin=false){
+  const accountKey=u=>window.enlDeviceAuth.keyOf(u);
+  let lastNavigation='',navigationVersion=0;
+  function openSelfChange(reason='manual'){
     const u=currentUser?.();if(!eligibleSelf(u))return;
-    const initial=firstLogin===true,key=accountKey(u);
-    const title=initial?'이 기기의 첫 로그인':'비밀번호 변경';
-    const description=initial?'초기 비밀번호를 변경할 수 있습니다. 이미 변경했다면 현재 비밀번호를 입력하세요.':escx(u.name||'사용자');
+    const initial=reason==='initial',annual=reason==='annual',automatic=initial||annual,key=accountKey(u);
+    const title=initial?'초기 비밀번호 변경':annual?'정기 비밀번호 변경':'비밀번호 변경';
+    const description=initial?'초기 비밀번호를 바꿀 때까지 메뉴 이동 시 다시 안내합니다.':annual?'비밀번호를 변경하거나 다음 안내를 1년 뒤로 미룰 수 있습니다.':escx(u.name||'사용자');
     const html=`<div class="modal-head"><div><h2 id="enl420PwTitle" tabindex="-1">${title}</h2><p>${description}</p></div><button type="button" aria-label="닫기" data-close>×</button></div>
     <form id="enl420SelfForm" class="enl420-pwform">
       <label><span>${initial?'초기 비밀번호 (변경한 경우 현재 비밀번호)':'현재 비밀번호'}</span><input name="currentPw" id="enl420Current" type="password" autocomplete="current-password" required></label>
       <label><span>새로 설정할 비밀번호</span><input name="newPw" id="enl420New" type="password" autocomplete="new-password" minlength="4" maxlength="32" required placeholder="4자 이상"></label>
       <label><span>새 비밀번호 확인</span><input name="repeatPw" id="enl420New2" type="password" autocomplete="new-password" minlength="4" maxlength="32" required></label>
       <div class="enl420-note">변경한 비밀번호는 모든 기기에서 사용합니다.</div><p role="status" aria-live="polite"></p>
-      <div class="enl420-actions"><button type="button" data-close>${initial?'다음에 변경':'취소'}</button><button type="submit" class="primary">비밀번호 변경</button></div></form>`;
+      <div class="enl420-actions"><button type="button" data-close>${annual?'다음에':initial?'닫기':'취소'}</button><button type="submit" class="primary">비밀번호 변경</button></div></form>`;
     let dialog=null;
-    if(initial){
+    if(automatic){
       dialog=document.createElement('dialog');dialog.className='enl420-device-dialog';dialog.setAttribute('aria-labelledby','enl420PwTitle');dialog.innerHTML=html;
-      const acknowledge=()=>{
-        acknowledged.add(key);
-        try{localStorage.setItem('enl.firstPasswordPrompt.ack.'+key,'1')}catch{}
-      };
-      document.body.append(dialog);
-      dialog.onclose=()=>{if(dialog.returnValue==='confirmed')acknowledge();dialog.remove()};
-      dialog.oncancel=event=>{event.preventDefault();dialog.close('confirmed')};
-      dialog.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>dialog.close('confirmed'));
+      document.body.append(dialog);dialog.onclose=()=>dialog.remove();
+      dialog.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>dialog.close());
+      if(annual){
+        const later=dialog.querySelector('.enl420-actions [data-close]');
+        later.onclick=async()=>{
+          if(later.disabled)return;later.disabled=true;
+          try{
+            const r=await window.enlAuthApi({action:'defer_password_year',actor:actor(u)});
+            window.enlDeviceAuth.savePolicy(key,r.passwordPolicy);dialog.close();
+          }catch{dialog.querySelector('[role=status]').textContent='연기 일정을 저장하지 못했습니다. 다시 시도해 주세요.'}
+          finally{later.disabled=false}
+        };
+      }
       dialog.showModal();dialog.querySelector('h2').focus();
     }else openModal(html);
     const form=(dialog||document).querySelector('#enl420SelfForm');
@@ -76,27 +81,34 @@
       submit.disabled=true;submit.textContent='변경 중…';note.textContent='';
       try{
         const currentPasswordHash=await hash(current),newPasswordHash=await hash(newPw);
-        await api({action:'password_change_self',actor:actor(u),currentPasswordHash,newPasswordHash});
+        const changed=await api({action:'password_change_self',actor:actor(u),currentPasswordHash,newPasswordHash});
         if(!currentUser?.()||accountKey(currentUser())!==key)return;
-        syncLocalPassword(newPasswordHash);
+        window.enlDeviceAuth.capture(key,changed);syncLocalPassword(newPasswordHash);
         form.reset();
         if(dialog?.open)dialog.close('confirmed');else if(!dialog&&form.isConnected)closeModal();
         await window.enlUpdateRememberedProof?.(key,newPasswordHash);
         alert('비밀번호를 변경했습니다. 다음 로그인부터 새 비밀번호를 사용해 주세요.');
       }catch(e){
-        note.textContent=e.message==='current_password_incorrect'?'현재 비밀번호가 맞지 않습니다.':e.message==='same_password'?'다른 새 비밀번호를 입력해 주세요.':'변경하지 못했습니다. 다시 시도해 주세요.';
+        note.textContent=e.message==='current_password_incorrect'?'현재 비밀번호가 맞지 않습니다.':e.message==='initial_password_reused'?'전화번호 끝 4자리와 다른 비밀번호를 입력해 주세요.':e.message==='same_password'?'다른 새 비밀번호를 입력해 주세요.':'변경하지 못했습니다. 다시 시도해 주세요.';
       }finally{submit.disabled=false;submit.textContent='비밀번호 변경';}
     };
   }
   window.enlOpenSelfPasswordChange420=openSelfChange;
-  window.enlOfferDevicePasswordChange=u=>{
-    if(!eligibleSelf(u)||document.querySelector('.enl420-device-dialog[open]'))return;
-    const key=accountKey(u);
-    if(acknowledged.has(key))return;
-    try{if(localStorage.getItem('enl.firstPasswordPrompt.ack.'+key)==='1')return}catch{}
-    openSelfChange(true);
-  };
-
+  function navigation(){
+    const u=currentUser?.();if(!eligibleSelf(u)||!window.enlDeviceAuth.validFor(u))return;
+    const key=accountKey(u),host=document.querySelector('.platform-hub');
+    const stamp=[key,window.enlDeviceAuth.active()?.token,currentView,host?.dataset.workspace,host?.querySelector('.org-submenu [aria-current=page]')?.dataset.owner,host?.querySelector('.org-submenu [aria-current=page]')?.dataset.doc].join('|');
+    if(lastNavigation===stamp)return;lastNavigation=stamp;const version=++navigationVersion;
+    const show=p=>{
+      if(version!==navigationVersion||!currentUser?.()||accountKey(currentUser())!==key||document.querySelector('.enl420-device-dialog[open],#enl420SelfForm'))return;
+      if(p?.initial)openSelfChange('initial');
+      else if(p?.nextPrompt&&Date.parse(p.nextPrompt)<=(Date.parse(p.serverNow)||Date.now()))openSelfChange('annual');
+    };
+    window.enlAuthApi({action:'password_schedule',actor:actor(u)}).then(r=>{
+      if(version===navigationVersion&&r.passwordPolicy){window.enlDeviceAuth.savePolicy(key,r.passwordPolicy);show(r.passwordPolicy)}
+    }).catch(()=>show(window.enlDeviceAuth.active()?.policy));
+  }
+  window.enlOfferDevicePasswordChange=()=>requestAnimationFrame(navigation);
   function safetyResetTarget(target){
     const u=currentUser?.();if(roleNorm(u?.role)!=='safety'||!target?.id)return;
     const label=target.kind==='site'?`${target.name||'현장관리자'} · ${target.position||'현장관리'}`:`${target.name||'본사 사용자'} · ${roleName?.(roleNorm(target.role))||'관리자'}`;
@@ -130,7 +142,7 @@
   }
 
   function patchLoginPassword(){const p=document.getElementById('loginPassword411');if(p){if(p.required)p.placeholder='설정한 비밀번호'}}
-  function apply(){css();injectProfile();injectFieldResetButtons();patchLoginPassword()}
+  function apply(){css();injectProfile();injectFieldResetButtons();patchLoginPassword();navigation()}
   const mo=new MutationObserver(()=>requestAnimationFrame(apply));mo.observe(document.documentElement,{childList:true,subtree:true});apply();
   window.ENL_ACCOUNT_SECURITY_VERSION=VERSION;
 })();

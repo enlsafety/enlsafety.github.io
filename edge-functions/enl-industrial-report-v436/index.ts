@@ -1,3 +1,4 @@
+import { hasHealth as Deno } from "../_shared/device-runtime.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import postgres from "npm:postgres@3.4.5";
 import { PDFDocument } from "npm:pdf-lib@1.17.1";

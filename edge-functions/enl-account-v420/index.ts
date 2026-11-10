@@ -1,3 +1,5 @@
+import postgres from "npm:postgres@3.4.5";
+import { hasHealth as Deno, hashToken, issueSession } from "../_shared/device-runtime.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -22,24 +24,6 @@ Deno.serve(async(req:Request)=>{
   let body:any={};try{body=await req.json()}catch{return json({ok:false,message:"invalid_json"},400)}
   const action=clean(body.action),actor=body.actor||{},actorId=clean(actor.id),actorRole=roleNorm(actor.role),actorSite=clean(actor.siteId),now=new Date().toISOString();
 
-  async function selfTarget(){
-    if(!actorId)return null;
-    if(["safety","manager","executive"].includes(actorRole)){
-      const {data,error}=await db.from("enl_hq_users").select("user_id,name,role,position,active,password_hash").eq("user_id",actorId).maybeSingle();
-      if(error)throw error;
-      if(!data||data.active===false||roleNorm(data.role)!==actorRole)return null;
-      return {kind:"hq",id:clean(data.user_id),name:clean(data.name),role:roleNorm(data.role),position:clean(data.position),hash:clean(data.password_hash)};
-    }
-    if(actorRole==="field"){
-      const {data,error}=await db.from("enl_site_personnel").select("personnel_id,site_id,name,job_title,access_role,active,pin_hash").eq("personnel_id",actorId).maybeSingle();
-      if(error)throw error;
-      if(!data||data.active===false||clean(data.access_role)!=="field"||!FIELD_TITLES.includes(clean(data.job_title)))return null;
-      if(actorSite&&clean(data.site_id)!==actorSite)return null;
-      return {kind:"site",id:clean(data.personnel_id),name:clean(data.name),role:"field",position:clean(data.job_title),siteId:clean(data.site_id),hash:clean(data.pin_hash)};
-    }
-    return null;
-  }
-
   async function verifiedSafety(proof:string){
     if(!actorId||actorRole!=="safety"||!validHash(proof))return null;
     const {data,error}=await db.from("enl_hq_users").select("user_id,name,role,position,active,password_hash").eq("user_id",actorId).maybeSingle();
@@ -54,20 +38,23 @@ Deno.serve(async(req:Request)=>{
     if(action==="password_change_self"){
       const currentHash=clean(body.currentPasswordHash),newHash=clean(body.newPasswordHash);
       if(!validHash(currentHash)||!validHash(newHash))return json({ok:false,message:"invalid_password_hash"},400);
-      const target=await selfTarget();
-      if(!target)return json({ok:false,message:"forbidden"},403);
-      if(target.hash!==currentHash)return json({ok:false,message:"current_password_incorrect"},401);
       if(currentHash===newHash)return json({ok:false,message:"same_password"},409);
-      if(target.kind==="hq"){
-        const q=await db.from("enl_hq_users").update({password_hash:newHash,updated_at:now,updated_by_id:target.id,updated_by_name:target.name,updated_by_role:target.role}).eq("user_id",target.id).eq("active",true).eq("password_hash",currentHash).select("user_id").maybeSingle();
-        if(q.error)throw q.error;
-        if(!q.data)return json({ok:false,message:"current_password_incorrect"},409);
-      }else{
-        const q=await db.from("enl_site_personnel").update({pin_hash:newHash,updated_at:now,updated_by_id:target.id,updated_by_name:target.name,updated_by_role:"field",updated_by_position:target.position}).eq("personnel_id",target.id).eq("active",true).eq("pin_hash",currentHash).select("personnel_id").maybeSingle();
-        if(q.error)throw q.error;
-        if(!q.data)return json({ok:false,message:"current_password_incorrect"},409);
-      }
-      return json({ok:true});
+      const hq=["safety","manager","executive"].includes(actorRole),key=(hq?'hq:':'site:')+actorId;
+      const sql=postgres(Deno.env.get('SUPABASE_DB_URL')||'',{prepare:false,max:1,connect_timeout:5});
+      try{return await sql.begin(async(tx:any)=>{
+        const [u]=hq?await tx`select role,password_hash as proof from public.enl_hq_users where user_id=${actorId} and active for update`:
+          await tx`select access_role as role,pin_hash as proof,site_id,job_title,phone from public.enl_site_personnel where personnel_id::text=${actorId} and active for update`;
+        if(!u||roleNorm(u.role)!==actorRole||!hq&&u.site_id!==actorSite)return json({ok:false,message:'forbidden'},403);
+        if(u.proof!==currentHash)return json({ok:false,message:'current_password_incorrect'},401);
+        const [session]=await tx`select device_hash from private.enl_device_sessions where token_hash=${await hashToken(body.deviceSession)} and account_key=${key} and expires_at>now()`;
+        if(!session)return json({ok:false,message:'device_session_required'},403);
+        const digits=String(u.phone||'').replace(/\D/g,'');
+        if(!hq&&digits.length>=4&&await hashToken(digits.slice(-4))===newHash)return json({ok:false,message:'initial_password_reused'},400);
+        if(hq)await tx`update public.enl_hq_users set password_hash=${newHash},updated_at=now(),updated_by_id=${actorId},updated_by_role=${actorRole} where user_id=${actorId}`;
+        else await tx`update public.enl_site_personnel set pin_hash=${newHash},updated_at=now(),updated_by_id=${actorId},updated_by_role=${actorRole},updated_by_position=${u.job_title} where personnel_id::text=${actorId}`;
+        const [policy]=await tx`select initial,next_prompt as "nextPrompt",now() as "serverNow" from private.enl_password_schedule where account_key=${key}`;
+        return json({ok:true,...await issueSession(tx,key,session.device_hash),passwordPolicy:policy});
+      })}finally{await sql.end({timeout:1})}
     }
 
     if(action==="password_reset_safety"){

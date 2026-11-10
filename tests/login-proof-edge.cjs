@@ -2,7 +2,7 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const {stripTypeScriptTypes}=require('node:module'),{PGlite}=require('@electric-sql/pglite');
 const safety={id:'qa-auth-safety-472',role:'safety'},field={id:'qa-auth-field-472',role:'field',siteId:'qa-auth-site-472'};
-async function fixture(){
+async function fixture(guarded=false){
  const db=new PGlite();await db.exec(fs.readFileSync('tests/fixtures/login-proof-schema.sql','utf8'));await db.exec('create role anon;create role authenticated;create role service_role;create schema private;'+fs.readFileSync('supabase/migrations/20261104080927_platform_foundation.sql','utf8').split('create table private.enl_platform_catalog')[0]);await db.exec("update enl_hq_users set name='박태영' where user_id='qa-auth-safety-472'");
  await db.exec(fs.readFileSync('supabase/migrations/20261104091401_email_enrollment_gate.sql','utf8'));
  await db.exec("update enl_hq_users set name='QA 안전' where user_id='qa-auth-safety-472'");let handler;const mailbox=[];
@@ -10,16 +10,25 @@ async function fixture(){
  await db.exec(fs.readFileSync('supabase/migrations/20261105152600_email_challenge_sidebar.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/migrations/20261105160000_unique_account_email.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/migrations/20261109022811_joint_site_email_members.sql','utf8'));
+ await db.exec(fs.readFileSync('supabase/migrations/20261103005403_audit_hq_account_security_changes.sql','utf8'));
+ await db.exec(fs.readFileSync('supabase/migrations/20261110040000_verified_login_devices.sql','utf8'));
  const tag=conn=>async(parts,...args)=>(await conn.query(parts.reduce((s,p,i)=>s+(i?'$'+i:'')+p,''),args)).rows;const sql=tag(db);sql.begin=f=>db.transaction(tx=>f(tag(tx)));sql.json=JSON.stringify;sql.end=async()=>{};
  const ctx={Deno:{env:{get:()=> 'isolated'},serve:h=>handler=h},postgres:()=>sql,Request,Response,TextEncoder,crypto,AbortSignal,fetch:async(url,opts)=>{
   if(url.endsWith('/senders'))return Response.json({senders:[{active:true,email:'qa@example.test'}]});
   const mail=JSON.parse(opts.body);mailbox.push({to:mail.to[0].email,code:mail.textContent.match(/\d{6}/)[0]});return Response.json({messageId:'isolated'});
  }};vm.createContext(ctx);
- vm.runInContext(stripTypeScriptTypes(fs.readFileSync('edge-functions/enl-login-v411/index.ts','utf8').replace(/^import .*;\r?\n/gm,'')),ctx);
- const call=async body=>{const response=await handler(new Request('https://isolated.test',{method:'POST',headers:{'content-type':'application/json','x-enl-app':'incident-report-v2',origin:'https://enlsafety.github.io'},body:JSON.stringify(body)}));return {status:response.status,body:await response.json()};};
+ const source=file=>stripTypeScriptTypes(fs.readFileSync(file,'utf8').replace(/^import .*;\r?\n/gm,'').replace(/^export /gm,''));
+ vm.runInContext(source('edge-functions/_shared/device-runtime.ts'),ctx);
+ vm.runInContext(source('edge-functions/enl-login-v411/device-login.ts'),ctx);
+ const evaluate=(file,policy)=>vm.runInContext('{const Deno='+(guarded?policy:'native')+';'+source(file)+'}',ctx);
+ evaluate('edge-functions/enl-login-v411/index.ts','login');
+ const loginHandler=handler;
+ ctx.createClient=()=>({});evaluate('edge-functions/enl-account-v420/index.ts','hasHealth');const accountHandler=handler;
+ const call=async (body,endpoint='login')=>{const response=await (endpoint==='login'?loginHandler:accountHandler)(new Request('https://isolated.test',{method:'POST',headers:{'content-type':'application/json','x-enl-app':'incident-report-v2',origin:'https://enlsafety.github.io'},body:JSON.stringify({deviceKey:'a'.repeat(64),...body})}));return {status:response.status,body:await response.json()};};
  return {db,call,mailbox};
 }
-(async()=>{const {db,call,mailbox}=await fixture();let checks=0;const check=(v,label)=>{assert.ok(v,label);checks++};try{
+module.exports={fixture};
+if(require.main===module)(async()=>{const {db,call,mailbox}=await fixture();let checks=0;const check=(v,label)=>{assert.ok(v,label);checks++};try{
  const hqTarget={duties:['safety','supervisor'],id:'qa-auth-target-472',name:'QA 변경대상',role:'manager',department:'QA',passwordHash:'qa-auth-target-proof-472'};
  const worker={personnelId:'qa-auth-worker-472',siteId:field.siteId,name:'QA 근로자',jobTitle:'일반근로자',accessRole:'worker',active:true};
  for(const body of [
@@ -31,11 +40,13 @@ async function fixture(){
  ]){check((await call(body)).status===403,'ID-only request denied');check((await call({...body,actorPasswordHash:'incorrect',actorPinHash:'incorrect'})).status===403,'wrong proof denied');}
  check((await db.query('select count(*) n from public.enl_hq_users')).rows[0].n===2,'denied HQ creation has no writes');
  check((await db.query('select count(*) n from public.enl_personnel_audit')).rows[0].n===0,'denied personnel actions have no audit writes');
- await db.exec("update enl_hq_users set email=user_id||'@example.test'; update enl_site_personnel set email=personnel_id||'@example.test'");
+ await db.exec("update enl_hq_users set email=user_id||'@enlife.co.kr'; update enl_site_personnel set email=personnel_id||'@enlife.co.kr'");
+ const trust=async(key,email)=>db.query("insert into private.enl_login_devices(account_key,device_hash,email) values($1,$2,$3) on conflict do nothing",[key,require('node:crypto').createHash('sha256').update('a'.repeat(64)).digest('hex'),email]);
+ await trust('hq:'+safety.id,safety.id+'@enlife.co.kr');await trust('site:'+field.id,field.id+'@enlife.co.kr');
  let r=await call({action:'login_hq',name:'QA 안전',affiliationId:'dept:qa',passwordHash:'qa-auth-safety-proof-472'});check(r.status===200&&r.body.user.id===safety.id,'normal HQ login unchanged');check(!('password_hash' in r.body.user)&&!('passwordHash' in r.body.user),'login never returns credential hash');
  check((await call({action:'login_hq',name:'QA 안전',affiliationId:'dept:qa',passwordHash:'incorrect'})).status===401,'wrong login password denied');
  r=await call({action:'login_site',name:'QA 현장',siteId:field.siteId,passwordHash:'qa-auth-field-proof-472'});check(r.status===200&&r.body.person.access_role==='field','normal field login unchanged');
- check((await call({action:'login_site',name:'QA 근로자',siteId:field.siteId})).status===200,'existing worker login unchanged');
+ check((await call({action:'login_site',name:'QA 근로자',siteId:field.siteId})).status===403,'passwordless account cannot skip password and device verification');
  r=await call({action:'lookup',name:'QA 안전'});check(r.status===200&&r.body.options.length===1,'public affiliation lookup unchanged');
  r=await call({action:'hq_list',actor:safety,actorPasswordHash:'qa-auth-safety-proof-472'});check(r.status===200&&r.body.users.length===2,'valid active safety can list HQ');
  r=await call({action:'hq_upsert',actor:safety,actorPasswordHash:'qa-auth-safety-proof-472',user:hqTarget});check(r.status===200&&r.body.user.id===hqTarget.id,'valid active safety can manage synthetic HQ');check((await db.query("select count(*) n from private.enl_duty_assignments where ended_at is null")).rows[0].n===2,'HQ multiselect stored separately');
@@ -106,6 +117,7 @@ async function fixture(){
  for(const [id,site] of [['joint-a','site-a'],['joint-b','site-b']]){
   const choice=await call({...lookup,accountKey:'site:'+id});
   check(choice.body.options.length===1&&choice.body.options[0].siteId===site,'select specific joint site');
+  await trust('site:'+id,shared);
   const login={action:'login_site',name:lookup.name,accountKey:'site:'+id,siteId:site,passwordHash:'synthetic-proof'};
   check((await call(login)).body.person.site_id===site,'scoped joint login');
   check((await call({...login,passwordHash:'wrong'})).status===401,'wrong joint site password');

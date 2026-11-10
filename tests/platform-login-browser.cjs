@@ -1,7 +1,8 @@
 const {webkit,chromium}=require('playwright'),{tab}=require('./field-entry-table-browser.cjs'),assert=require('node:assert/strict');
 (async()=>{for(const [engine,width] of [[chromium,1365],[webkit,390]]){const b=await engine.launch();try{
  const {p}=await tab(b,width,'safety',undefined,false);const hq=width>500,accountKey=hq?'hq:qa-login':'site:qa-login';
- let submitted='',loginBody,changes=0;
+ let submitted='',loginBody,changes=0,initial=true;
+ const signed=()=>({deviceSession:'b'.repeat(64),expiresAt:new Date(Date.now()+86400000).toISOString(),passwordPolicy:{initial,nextPrompt:'2099-01-01'}});
  await p.route('**/functions/v1/**',async route=>{const req=route.request(),body=req.method()==='POST'?req.postDataJSON():{};
  let data;if(body.action==='lookup')data={options:[{kind:hq?'hq':'site',siteId:'s01',affiliationId:'dept:qa',affiliationLabel:'QA본사',requiresPassword:true,accountKey:body.name==='다른사용자'?'hq:other-account':accountKey,hasEmail:width>500||!!submitted,companyLocal:width>500?'qa.saved':submitted}]};
  if(body.action==='email_code_send'){
@@ -11,7 +12,7 @@ const {webkit,chromium}=require('playwright'),{tab}=require('./field-entry-table
  if(body.action==='password_change_self'){
    const hash=v=>require('node:crypto').createHash('sha256').update(v).digest('hex');
    if(body.currentPasswordHash!==hash('isolated'))return route.fulfill({status:401,json:{ok:false,message:'current_password_incorrect'}});
-   assert.equal(body.newPasswordHash,hash('changed-in-fixture'));changes++;data={};
+   assert.equal(body.newPasswordHash,hash('changed-in-fixture'));changes++;initial=false;data=signed();
  }
  if(body.action==='email_code_verify'){assert.equal(body.code,'123456');submitted=body.companyLocal;data={email:submitted+'@enlife.co.kr'};}
  if(['login_hq','login_site'].includes(body.action)){
@@ -20,8 +21,9 @@ const {webkit,chromium}=require('playwright'),{tab}=require('./field-entry-table
    if(hash!==body.passwordHash)return route.fulfill({status:401,json:{ok:false,message:'invalid_login'}});
    loginBody=body;
  }
- if(body.action==='login_hq')data={user:{id:'qa-login',name:'통합검수',department:'QA',role:'safety',active:true}};
- if(body.action==='login_site')data={person:{personnel_id:'qa-login',site_id:'s01',name:'통합검수',job_title:'현장소장',access_role:'field',active:true}};
+ if(body.action==='login_hq')data={...signed(),user:{id:'qa-login',name:'통합검수',department:'QA',role:'safety',active:true}};
+ if(body.action==='login_site')data={...signed(),person:{personnel_id:'qa-login',site_id:'s01',name:'통합검수',job_title:'현장소장',access_role:'field',active:true}};
+ if(body.action==='password_schedule')data={passwordPolicy:signed().passwordPolicy};
  if(body.action==='platform_catalog')data={revision:1,services:[],modules:['incident','risk','tbm','organization','training'].map(key=>({key,state:key==='incident'?'live':'building'}))};
  if(!data)return route.fallback();return route.fulfill({json:{ok:true,...data}});
  });
@@ -66,7 +68,7 @@ const {webkit,chromium}=require('playwright'),{tab}=require('./field-entry-table
    await device.locator('[name=repeatPw]').fill('changed-in-fixture');await device.locator('[type=submit]').click();
    await device.getByText('현재 비밀번호가 맞지 않습니다.').waitFor();
    await device.locator('[name=currentPw]').fill('isolated');await device.locator('[type=submit]').click();
- }else await device.getByText('다음에 변경').click();
+ }else{await device.locator('.enl420-actions [data-close]').click(); initial=false;}
  await device.waitFor({state:'detached'});assert.equal(changes,width>500?1:0);
  await p.locator('[data-module=incident]').waitFor();await p.waitForTimeout(450);assert.equal(await p.evaluate(()=>currentView),'platform');assert.equal(submitted,width>500?'':'qa.new');assert.equal(loginBody.companyLocal,undefined);const logout=async()=>{await p.locator('#userChip').click();await p.locator('#logoutBtn').click();await p.locator('#loginName411').waitFor();assert.equal(await p.evaluate(()=>currentUser()),null)};
  await logout();await p.reload();

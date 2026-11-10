@@ -18,7 +18,7 @@ const cases=[
 async function tab(browser,width,role,dataset=cases,seedSession=true){
   const c=await browser.newContext({viewport:{width,height:width<500?844:940},deviceScaleFactor:1,isMobile:width<900,hasTouch:width<900,serviceWorkers:'block'});
   const actor={id:'sample-'+role,name:role==='field'?'검수 소장':'검수 담당',position:role==='field'?'현장소장':'안전관리자',role,siteId:role==='field'?'s01':'',active:true};
-  await c.addInitScript(u=>{localStorage.setItem('enl_setup_intro_seen_v1','1');if(u)localStorage.setItem('enl_safety_session_v3',JSON.stringify({manager:u,loggedAt:new Date().toISOString()}))},seedSession?actor:null);
+  await c.addInitScript(u=>{localStorage.setItem('enl_setup_intro_seen_v1','1');if(u){localStorage.setItem('enl_safety_session_v3',JSON.stringify({manager:u,loggedAt:new Date().toISOString()}));localStorage.setItem('enl.verified-session.v1',JSON.stringify({key:(['field','worker'].includes(u.role)?'site:':'hq:')+u.id,token:'a'.repeat(64),expires:new Date(Date.now()+86400000).toISOString(),policy:{initial:false,nextPrompt:'2099-01-01'}}))}},seedSession?actor:null);
   const records=dataset.map(i=>role==='field' && i.id==='sample-1'
     ? {...i,corrective:{status:'planned',planDetail:'작업 전 이동 구역을 확인합니다.',actionOwner:'검수 소장',planAt:'2026-10-23T00:00:00Z'}}
     : i);
