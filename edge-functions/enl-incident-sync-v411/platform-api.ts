@@ -321,7 +321,9 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
   if(action==='platform_catalog'){
     const modules=publicItems(config.modules),services=publicItems(config.services);
     const visible=new Set([...modules,...services].map(m=>m.key).concat('support'));
-    return reply({ok:true,revision:config.revision,modules,services,omitted:(config.home_omitted||[]).filter((k:string)=>visible.has(k)),sidebarOrder:sidebarOrder.filter(k=>visible.has(k)&&(admin||!(config.home_omitted||[]).includes(k))),homeOrder:order.filter(k=>visible.has(k))});
+    const documentMenus=config.modules.filter((m:any)=>/^\d{2}\. /.test(m.displayName||'') && !(config.home_omitted||[]).includes(m.key))
+      .map((m:any)=>({key:m.key,displayName:m.displayName})).sort((a:any,b:any)=>a.displayName.localeCompare(b.displayName,'ko'));
+    return reply({ok:true,revision:config.revision,modules,services,documentMenus,omitted:(config.home_omitted||[]).filter((k:string)=>visible.has(k)),sidebarOrder:sidebarOrder.filter(k=>visible.has(k)&&(admin||!(config.home_omitted||[]).includes(k))),homeOrder:order.filter(k=>visible.has(k))});
   }
   if(action==='platform_home_cards'){
     if(!admin)return reply({ok:false,message:'forbidden'},403);

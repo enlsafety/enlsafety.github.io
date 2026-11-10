@@ -220,10 +220,11 @@
         }
       }catch(err){if(onScreen()&&token===sequence)failure(err,()=>folder(siteId,version),main)}
     }
-    function renderFolder({site,history,document:doc,period}){
+    function renderFolder({site,history,document:doc,period,confirmedPeriods=[]}){
       shownPeriod=period;shownSite=site.site_id;
       const latest=history[0],historic=!!doc&&doc.revision!==latest?.revision;
-      const editable=(admin||u.role==='field'&&site.active!==false)&&!historic;
+      const editable=admin||u.role==='field'&&(site.active!==false||!!doc);
+      const mayDelete=!!doc&&(admin||u.role==='field'&&!confirmedPeriods.includes(period)&&!confirmedPeriods.includes(doc.period));
       const checked=latest?.confirmed&&latest.period===period;
       let chart=structuredClone(doc?.chart||defaults());
       const head=el('div',null,'org-head'),title=el('div'),tools=el('div',null,'org-actions'),note=status('');
@@ -244,11 +245,12 @@
       const change=()=>{dirty=true;update();note.textContent='변경사항을 저장해 주세요.'};
       const printedSite=doc?.site_name||site.site_name;
       const reload=()=>folder(site.site_id);
-      let save,check,print;
+      let save,check,print,remove;
       function update(){
         if(save)save.disabled=busy||(!dirty&&!!doc);
         if(check)check.disabled=busy||dirty||!doc||checked;
         if(print)print.disabled=busy||dirty||!doc;
+        if(remove)remove.disabled=busy||dirty;
       }
       async function write(confirming){
         if(busy||(confirming&&(dirty||!doc||checked)))return;
@@ -256,7 +258,7 @@
         if(confirming&&!confirm(periodName(period)+' 조직도의 담당자와 인원 현황이 최신인지 확인했습니까?'))return;
         busy=true;update();form.inert=true;note.textContent='저장 중입니다.';
         try{
-          await api({action:confirming?'platform_org_confirm':'platform_org_save',siteId:site.site_id,folderRevision:site.folder_revision,period,revision:doc?.revision||0,...(confirming?{}:{chart})});
+          await api({action:confirming?'platform_org_confirm':'platform_org_save',siteId:site.site_id,folderRevision:site.folder_revision,period,revision:latest?.revision||0,...(confirming?{}:{chart})});
           busy=false;dirty=false;
           if(!onScreen())return;
           await folder(site.site_id);refresh();
@@ -267,8 +269,8 @@
         }finally{busy=false;form.inert=false;update();}
       }
       if(form){
-        save=el('button','조직도 저장','org-primary');save.type='submit';
-        if(u.role==='field')check=button('이번 반기 최신화 확인',()=>write(true));
+        save=el('button',historic?'수정본을 최신본으로 저장':'조직도 저장','org-primary');save.type='submit';
+        if(u.role==='field'&&!historic&&site.active!==false)check=button('이번 반기 최신화 확인',()=>write(true));
         form.onsubmit=e=>{e.preventDefault();write(false)};
         const actions=el('div',null,'org-actions');actions.append(save);if(check)actions.append(check);
         const zoom=button('양식 확대',()=>{
@@ -276,6 +278,20 @@
         },'org-zoom');zoom.setAttribute('aria-pressed','false');actions.append(zoom);
         form.append(actions,note,preview);main.append(form);
       }else{main.append(note,preview)}
+      if(mayDelete){
+        remove=button('저장본 삭제',async()=>{
+          if(busy||dirty||!confirm(site.site_name+'의 '+periodName(doc.period)+' 저장본 v'+doc.revision+'을 삭제할까요?'))return;
+          busy=true;update();if(form)form.inert=true;
+          try{
+            await api({action:'platform_org_delete',siteId:site.site_id,folderRevision:site.folder_revision,
+              revision:latest.revision,targetRevision:doc.revision,period});
+            busy=false;
+            if(onScreen()){await folder(site.site_id);refresh();}
+          }catch(err){
+            note.replaceChildren(el('span',err.message==='confirmed_delete_forbidden'?'반기 확인을 마친 자료는 안전관리자만 삭제할 수 있습니다.':'삭제하지 못했습니다. 최신본을 확인해 주세요.'),button('최신본 불러오기',reload));
+          }finally{busy=false;if(form)form.inert=false;update();}
+        });tools.append(remove);
+      }
       if(doc){
         print=button('PDF 출력',async()=>{
           if(dirty||busy)return;

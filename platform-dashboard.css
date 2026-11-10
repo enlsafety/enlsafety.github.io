@@ -632,3 +632,7 @@
  .hub-campaign-article[data-campaign=report]>div:first-child{display:flex;flex-direction:column-reverse}
  .hub-campaign-article[data-campaign=report]>div:first-child img{height:auto;max-height:175px;object-fit:cover;object-position:50% 40%}
 }
+
+.hub-document-menus{display:grid;gap:3px;border-top:1px solid #c3d6e7;margin-top:6px;padding-top:8px}
+.hub-document-menus h3{margin:3px 12px 5px;color:#315777;font-size:13px}
+.platform-hub .hub-document-menus button:disabled{color:#627284;cursor:default}
