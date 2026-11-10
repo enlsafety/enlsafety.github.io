@@ -3,6 +3,8 @@
   const roles = ['field','safety','manager','executive'];
   const ns = 'http://www.w3.org/2000/svg';
   const defaults = () => ({lead:'',supervisor:'',teams:['코스관리','스프링쿨러','서무','기타'].map(name => ({name,regular:0,daily:0}))});
+  const documents={chart:'01. 조직도',appointment:'02. 임명장',evaluation:'03. 업무수행평가표'};
+  const selectPrompt='좌측 사이드바에서 조회 할 내용을 선택하세요.';
   const stages={empty:'미작성',draft:'최신화 미확인',pending:'승인 대기',approved:'승인 완료'};
   const periodName = p => p.slice(0,4)+'년 '+(p.endsWith('1')?'상반기':'하반기');
   const when = d => new Date(d).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
@@ -78,7 +80,7 @@
     try{window.print()}catch(err){cleanup();throw err}
   }
   function controller(host,u,api,sameUser) {
-    let panel, sequence=0, listRequest=0, allowed=false, busy=false, dirty=false, pending=0, shownRevision, refreshTimer, shownPeriod, shownSite, template;
+    let panel, sequence=0, listRequest=0, allowed=false, busy=false, dirty=false, pending=0, shownRevision, refreshTimer, shownPeriod, shownSite, shownDoc, template;
     let main,rail,railBody,folders=[],available=[],listingPeriod,managerForm;
     const admin=u.role==='safety';
     const onScreen=()=>sameUser()&&host.dataset.workspace==='organization';
@@ -103,13 +105,14 @@
     function refresh(){
       if(!allowed||!sameUser()||document.hidden)return;
       readList().then(result=>{
-        if(onScreen()&&railBody&&!managerForm&&!busy){
+        if(onScreen()&&shownPeriod&&railBody&&!managerForm&&!busy){
           folders=result.sites;listingPeriod=result.period;paintRail();
         }
         const current=result.sites.find(s=>s.site_id===shownSite);
-        if(onScreen()&&shownPeriod&&!dirty&&!busy&&(shownPeriod!==result.period || current && shownRevision!==undefined && (current.revision||0)!==shownRevision)){
+        if(onScreen()&&shownSite&&!current&&!busy&&!dirty){open();return;}
+        if(onScreen()&&shownDoc==='chart'&&shownPeriod&&!dirty&&!busy&&(shownPeriod!==result.period || current && shownRevision!==undefined && (current.revision||0)!==shownRevision)){
           shownPeriod=null;
-          if(shownSite)folder(shownSite);else open();
+          folder(shownSite);
         }
       }).catch(()=>{});
     }
@@ -126,10 +129,24 @@
       if(allowed){refresh();schedule()}else{pending=0;clearTimeout(refreshTimer);}
     }
     function canLeave(){return !busy&&(!dirty||confirm('저장하지 않은 조직도 변경사항이 있어요. 화면을 이동할까요?'))}
-    function leave(){sequence++;dirty=false;shownPeriod=null;shownSite=null;main=null;railBody=null;managerForm=null;panel?.replaceChildren()}
+    function leave(){sequence++;dirty=false;shownPeriod=null;shownSite=null;shownDoc=null;main=null;railBody=null;managerForm=null;panel?.replaceChildren()}
     function status(text){const p=el('p',text,'org-status');p.setAttribute('role','status');return p}
     function failure(err,retry,target=panel){
       target.replaceChildren(status('자료를 불러오지 못했습니다. 연결 상태를 확인해 주세요.'),button('다시 불러오기',retry));
+    }
+    function selectFolder(siteId){
+      if(!canLeave())return;
+      ++sequence;dirty=false;closeManager();
+      shownSite=shownSite===siteId?null:siteId;shownDoc=null;shownRevision=undefined;
+      paintRail();main.replaceChildren(status(selectPrompt));
+    }
+    function selectDocument(site,key){
+      if(key==='chart'){folder(site.site_id);return;}
+      if(!canLeave())return;
+      ++sequence;dirty=false;closeManager();
+      shownSite=site.site_id;shownDoc=key;shownRevision=undefined;
+      paintRail();if(innerWidth<=750)rail.open=false;
+      main.replaceChildren(el('h2',site.site_name+' / '+documents[key]),status('준비 중입니다.'));
     }
     function paintRail(){
       if(!railBody)return;
@@ -137,14 +154,33 @@
       rail.querySelector('summary').textContent='사업장 폴더 ('+folders.length+')';
       rail.querySelector('.org-summary').textContent=periodName(listingPeriod)+' 미승인 '+count+'곳';
       const scroll=railBody.scrollTop;
+      const focus=railBody.contains(document.activeElement)?document.activeElement.dataset:null;
+      rail.querySelectorAll('[data-needs-site]').forEach(b=>{b.disabled=!shownSite});
       railBody.replaceChildren();
       for(const s of folders){
-        const b=button('',()=>folder(s.site_id),'org-folder');
+        const expanded=s.site_id===shownSite;
+        const b=button('',()=>selectFolder(s.site_id),'org-folder');
         b.dataset.siteId=s.site_id;
-        if(s.site_id===shownSite)b.setAttribute('aria-current','page');
+        b.setAttribute('aria-expanded',String(expanded));
         const state=s.active===false?'종료':stages[s.state]||'미작성';
         b.append(el('span',s.folder_name||s.site_name),el('small',state,'org-state '+(s.active===false?'':s.checked?'approved':'pending')));
         railBody.append(b);
+        if(expanded){
+          const children=el('div',null,'org-submenu');
+          children.setAttribute('role','group');children.setAttribute('aria-label',s.folder_name||s.site_name);
+          for(const [key,label] of Object.entries(documents)){
+            const sub=button(label,()=>selectDocument(s,key));
+            sub.dataset.doc=key;sub.dataset.owner=s.site_id;
+            if(shownDoc===key)sub.setAttribute('aria-current','page');
+            children.append(sub);
+          }
+          railBody.append(children);
+        }
+      }
+      if(focus){
+        const next=Array.from(railBody.querySelectorAll('button')).find(b=>focus.doc?
+          b.dataset.doc===focus.doc&&b.dataset.owner===focus.owner:b.dataset.siteId===focus.siteId);
+        next?.focus({preventScroll:true});
       }
       railBody.scrollTop=scroll;
     }
@@ -184,35 +220,35 @@
     }
     async function open(preferred){
       if(!panel){panel=el('section',null,'hub-tool-panel org-panel');panel.dataset.listWorkspace='organization';host.append(panel)}
-      panel.hidden=false;dirty=false;shownPeriod=null;shownSite=null;railBody=null;closeManager();
+      panel.hidden=false;dirty=false;shownPeriod=null;shownSite=null;shownDoc=null;shownRevision=undefined;closeManager();
       const token=++sequence;
-      panel.replaceChildren(status('사업장 폴더를 불러오는 중입니다.'));
+      const layout=el('div',null,'org-workspace');
+      rail=el('details',null,'org-rail');rail.open=true;
+      rail.append(el('summary','사업장 폴더'),el('p','','org-summary'));
+      railBody=el('nav',null,'org-rail-list');railBody.setAttribute('aria-label','사업장별 서류');
+      railBody.append(status('사업장 폴더를 불러오는 중입니다.'));
+      rail.append(railBody);main=el('div',null,'org-main');main.append(status(selectPrompt));layout.append(rail,main);
+      panel.replaceChildren(el('h2','안전보건조직'),layout);
       try{
         const result=await readList(admin);
         if(!onScreen()||token!==sequence)return;
         folders=result.sites;available=result.candidates||[];listingPeriod=shownPeriod=result.period;
-        const layout=el('div',null,'org-workspace');
-        rail=el('details',null,'org-rail');rail.open=innerWidth>750||!folders.length;
-        rail.append(el('summary'),el('p','','org-summary'));
         if(admin){
           const tools=el('div',null,'org-manage-tools');
           for(const [key,title] of [['create','생성'],['rename','수정'],['delete','삭제']]){
             const b=button(title,()=>manage(key));b.setAttribute('aria-label','폴더 '+title);tools.append(b);
-            if(key!=='create'&&!folders.length)b.disabled=true;
+            if(key!=='create')b.dataset.needsSite='';
           }
-          rail.append(tools);
+          railBody.before(tools);
         }
-        railBody=el('nav',null,'org-rail-list');railBody.setAttribute('aria-label','사업장별 조직도');
-        rail.append(railBody);main=el('div',null,'org-main');layout.append(rail,main);
-        panel.replaceChildren(el('h2','안전보건조직'),layout);paintRail();
-        const first=folders.find(s=>s.site_id===preferred)||folders[0];
-        if(first)await folder(first.site_id);
-        else main.append(status('조회 가능한 사업장 폴더가 없습니다.'));
-      }catch(err){if(onScreen()&&token===sequence)failure(err,()=>open())}
+        shownSite=folders.find(s=>s.site_id===preferred)?.site_id||null;
+        paintRail();
+        if(!folders.length)main.replaceChildren(status('조회 가능한 사업장 폴더가 없습니다.'));
+      }catch(err){if(onScreen()&&token===sequence)failure(err,()=>open(),railBody)}
     }
     async function folder(siteId,version){
       if(!canLeave())return;
-      dirty=false;closeManager();shownSite=siteId;shownRevision=undefined;paintRail();if(innerWidth<=750)rail.open=false;const token=++sequence;
+      dirty=false;closeManager();shownSite=siteId;shownDoc='chart';shownRevision=undefined;paintRail();if(innerWidth<=750)rail.open=false;const token=++sequence;
       main.replaceChildren(status('조직도를 불러오는 중입니다.'));
       try{
         const result=await api({action:'platform_org_open',siteId,revision:version,includeTemplate:!template});

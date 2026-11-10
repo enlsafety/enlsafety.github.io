@@ -20,7 +20,13 @@
 .org-summary{margin:4px 6px 10px}
 .org-rail-list{display:grid;gap:2px;max-height:72vh;overflow-y:auto}
 .org-panel .org-folder{display:flex;justify-content:space-between;align-items:center;gap:6px;width:100%;border:0;border-radius:5px;padding:9px 6px;background:transparent;text-align:left;font-size:13px}
-.org-panel .org-folder[aria-current=page]{background:#dae9f6;color:#103c60;font-weight:700}
+.org-panel .org-folder[aria-expanded=true]{background:#dae9f6;color:#103c60;font-weight:700}
+.org-folder::before{content:"";width:6px;height:6px;flex:none;border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:rotate(-45deg);margin:0 3px}
+.org-folder[aria-expanded=true]::before{transform:rotate(45deg)}
+.org-folder>span{flex:1;min-width:0}
+.org-submenu{display:grid;gap:2px;margin:0 0 5px 13px;padding-left:5px;border-left:1px solid #bfd1de}
+.org-panel .org-submenu button{text-align:left;background:transparent;border:0;padding:7px 6px;font-size:13px}
+.org-panel .org-submenu button[aria-current=page]{background:#dcebf7;color:#103c60;font-weight:700}
 .org-folder small{font-size:11px;white-space:nowrap}.org-folder :is(.pending,.approved)::before{width:6px;height:6px;margin-right:4px}
 .org-manage-tools{display:flex;gap:4px;margin:8px 3px}.org-manage-tools button,.org-manage button{font-size:12px;padding:5px 8px}
 .org-manage{background:white;border:1px solid #c5d7e5;padding:8px;border-radius:6px;margin:5px 0;font-size:13px}
