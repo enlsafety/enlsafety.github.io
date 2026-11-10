@@ -3,6 +3,7 @@
   const roles = ['field','safety','manager','executive'];
   const ns = 'http://www.w3.org/2000/svg';
   const defaults = () => ({lead:'',supervisor:'',teams:['코스관리','스프링쿨러','서무','기타'].map(name => ({name,regular:0,daily:0}))});
+  const stages={empty:'미작성',draft:'최신화 미확인',pending:'승인 대기',approved:'승인 완료'};
   const periodName = p => p.slice(0,4)+'년 '+(p.endsWith('1')?'상반기':'하반기');
   const when = d => new Date(d).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
   function el(tag, text, cls) {
@@ -77,7 +78,7 @@
     try{window.print()}catch(err){cleanup();throw err}
   }
   function controller(host,u,api,sameUser) {
-    let panel, sequence=0, listRequest=0, allowed=false, busy=false, dirty=false, pending=0, refreshTimer, shownPeriod, shownSite, template;
+    let panel, sequence=0, listRequest=0, allowed=false, busy=false, dirty=false, pending=0, shownRevision, refreshTimer, shownPeriod, shownSite, template;
     let main,rail,railBody,folders=[],available=[],listingPeriod,managerForm;
     const admin=u.role==='safety';
     const onScreen=()=>sameUser()&&host.dataset.workspace==='organization';
@@ -87,7 +88,7 @@
         if(!allowed||!pending){dot?.remove();continue}
         if(!dot){dot=el('span',null,'org-dot');node.append(dot)}
         dot.setAttribute('role','img');
-        dot.setAttribute('aria-label','최신화 미확인 '+pending+'개 사업장');dot.title=dot.getAttribute('aria-label');
+        dot.setAttribute('aria-label','최신화 미승인 '+pending+'개 사업장');dot.title=dot.getAttribute('aria-label');
       }
     }
     async function readList(manageFolders=false){
@@ -105,7 +106,8 @@
         if(onScreen()&&railBody&&!managerForm&&!busy){
           folders=result.sites;listingPeriod=result.period;paintRail();
         }
-        if(onScreen()&&shownPeriod&&shownPeriod!==result.period&&!dirty&&!busy){
+        const current=result.sites.find(s=>s.site_id===shownSite);
+        if(onScreen()&&shownPeriod&&!dirty&&!busy&&(shownPeriod!==result.period || current && shownRevision!==undefined && (current.revision||0)!==shownRevision)){
           shownPeriod=null;
           if(shownSite)folder(shownSite);else open();
         }
@@ -133,15 +135,15 @@
       if(!railBody)return;
       const count=folders.filter(s=>s.active!==false&&!s.checked).length;
       rail.querySelector('summary').textContent='사업장 폴더 ('+folders.length+')';
-      rail.querySelector('.org-summary').textContent=periodName(listingPeriod)+' 미확인 '+count+'곳';
+      rail.querySelector('.org-summary').textContent=periodName(listingPeriod)+' 미승인 '+count+'곳';
       const scroll=railBody.scrollTop;
       railBody.replaceChildren();
       for(const s of folders){
         const b=button('',()=>folder(s.site_id),'org-folder');
         b.dataset.siteId=s.site_id;
         if(s.site_id===shownSite)b.setAttribute('aria-current','page');
-        const state=s.active===false?'종료':s.checked?'확인 완료':s.revision?'작성 / 미확인':'미작성';
-        b.append(el('span',s.folder_name||s.site_name),el('small',state,'org-state '+(s.active!==false&&!s.checked?'pending':'')));
+        const state=s.active===false?'종료':stages[s.state]||'미작성';
+        b.append(el('span',s.folder_name||s.site_name),el('small',state,'org-state '+(s.active===false?'':s.checked?'approved':'pending')));
         railBody.append(b);
       }
       railBody.scrollTop=scroll;
@@ -210,7 +212,7 @@
     }
     async function folder(siteId,version){
       if(!canLeave())return;
-      dirty=false;closeManager();shownSite=siteId;paintRail();if(innerWidth<=750)rail.open=false;const token=++sequence;
+      dirty=false;closeManager();shownSite=siteId;shownRevision=undefined;paintRail();if(innerWidth<=750)rail.open=false;const token=++sequence;
       main.replaceChildren(status('조직도를 불러오는 중입니다.'));
       try{
         const result=await api({action:'platform_org_open',siteId,revision:version,includeTemplate:!template});
@@ -220,21 +222,23 @@
         }
       }catch(err){if(onScreen()&&token===sequence)failure(err,()=>folder(siteId,version),main)}
     }
-    function renderFolder({site,history,document:doc,period,confirmedPeriods=[]}){
+    function renderFolder({site,history,document:doc,period,state,confirmedPeriods=[]}){
       shownPeriod=period;shownSite=site.site_id;
       const latest=history[0],historic=!!doc&&doc.revision!==latest?.revision;
-      const editable=admin||u.role==='field'&&(site.active!==false||!!doc);
+      shownRevision=latest?.revision||0;
+      const writer=admin||u.role==='field'&&(site.active!==false||!!doc);
+      const locked=state==='approved';
+      const editable=writer&&!locked;
       const mayDelete=!!doc&&(admin||u.role==='field'&&!confirmedPeriods.includes(period)&&!confirmedPeriods.includes(doc.period));
-      const checked=latest?.confirmed&&latest.period===period;
       let chart=structuredClone(doc?.chart||defaults());
       const head=el('div',null,'org-head'),title=el('div'),tools=el('div',null,'org-actions'),note=status('');
-      title.append(el('h2',site.site_name+' 안전보건조직도'),el('span',periodName(period)+'　'+(site.active===false?'종료 사업장':checked?'최신화 확인':'최신화 미확인'),'org-state '+(!checked&&site.active!==false?'pending':'')));
+      title.append(el('h2',site.site_name+' 안전보건조직도'),el('span',periodName(period)+'　'+(site.active===false?'종료 사업장':stages[state]||'미작성'),'org-state '+(site.active===false?'':locked?'approved':'pending')));
 
       head.append(title,tools);main.replaceChildren(head);
       if(history.length){
         const label=el('label','저장 이력　','org-versions'),pick=el('select');label.append(pick);
         for(const v of history){
-          const text=periodName(v.period)+' / '+when(v.saved_at)+' / '+v.actor_name+' / '+(v.confirmed?'최신화 확인':'저장')+' (v'+v.revision+')';
+          const text=periodName(v.period)+' / '+when(v.saved_at)+' / '+v.actor_name+' / '+(v.review_event==='approve'?'최신화 승인':v.review_event==='reopen'?'최신화 수정':v.confirmed?'최신화 확인':'저장')+' (v'+v.revision+')';
           pick.add(new Option(text,v.revision,false,v.revision===doc.revision));
         }
         pick.onchange=()=>{const rev=Number(pick.value);pick.value=doc.revision;folder(site.site_id,rev)};
@@ -245,33 +249,49 @@
       const change=()=>{dirty=true;update();note.textContent='변경사항을 저장해 주세요.'};
       const printedSite=doc?.site_name||site.site_name;
       const reload=()=>folder(site.site_id);
-      let save,check,print,remove;
+      let save,check,approve,reopen,print,remove;
       function update(){
         if(save)save.disabled=busy||(!dirty&&!!doc);
-        if(check)check.disabled=busy||dirty||!doc||checked;
+        if(check)check.disabled=busy||state==='pending'&&!dirty;
+        if(approve)approve.disabled=busy||dirty;
+        if(reopen)reopen.disabled=busy;
         if(print)print.disabled=busy||dirty||!doc;
         if(remove)remove.disabled=busy||dirty;
       }
-      async function write(confirming){
-        if(busy||(confirming&&(dirty||!doc||checked)))return;
-        if(!confirming&&!form.reportValidity())return;
-        if(confirming&&!confirm(periodName(period)+' 조직도의 담당자와 인원 현황이 최신인지 확인했습니까?'))return;
-        busy=true;update();form.inert=true;note.textContent='저장 중입니다.';
+      async function write(op){
+        if(busy)return;
+        const withChart=op==='save'||op==='confirm'&&(dirty||!doc);
+        if(withChart&&!form?.reportValidity())return;
+        const prompts={
+          confirm:periodName(period)+' 조직도의 담당자와 인원 현황을 확인하고 승인을 요청할까요?',
+          approve:periodName(period)+' 조직도를 승인하고 입력을 잠글까요?',
+          reopen:'최신화 수정을 시작할까요? 사업장 표시가 빨간색으로 바뀌며 다시 확인과 승인을 받아야 합니다.'
+        };
+        if(prompts[op]&&!confirm(prompts[op]))return;
+        busy=true;update();if(form)form.inert=true;note.textContent='처리 중입니다.';
         try{
-          await api({action:confirming?'platform_org_confirm':'platform_org_save',siteId:site.site_id,folderRevision:site.folder_revision,period,revision:latest?.revision||0,...(confirming?{}:{chart})});
+          await api({action:'platform_org_'+op,siteId:site.site_id,folderRevision:site.folder_revision,period,
+            revision:latest?.revision||0,...(withChart?{chart}:{})});
           busy=false;dirty=false;
           if(!onScreen())return;
           await folder(site.site_id);refresh();
-          if(onScreen()&&panel.querySelector('.org-head'))panel.querySelector('.org-status').textContent=confirming?'이번 반기 최신화를 확인했습니다.':'조직도를 사업장 폴더에 저장했습니다.';
+          const message=panel.querySelector('.org-main .org-head')&&panel.querySelector('.org-main .org-status');
+          if(message)message.textContent={save:'조직도를 사업장 폴더에 저장했습니다.',confirm:'최신화를 확인했습니다. 안전관리자 승인 대기 중입니다.',
+            approve:'최신화를 승인했습니다. 조직도가 확정되었습니다.',reopen:'최신화 수정을 시작했습니다.'}[op];
         }catch(err){
           if(!onScreen())return;
-          note.replaceChildren(el('span',['chart_changed','folder_changed'].includes(err.message)?'다른 사용자가 수정했거나 반기가 바뀌었습니다. 최신본을 확인해 주세요.':'저장 결과를 확인하지 못했습니다. 입력값은 화면에 남아 있습니다.'),button('최신본 불러오기',reload));
-        }finally{busy=false;form.inert=false;update();}
+          note.replaceChildren(el('span',['chart_changed','folder_changed','chart_locked','review_state_changed'].includes(err.message)?
+            '조직도 상태가 변경되었습니다. 최신본을 확인해 주세요.':'처리 결과를 확인하지 못했습니다. 최신본을 확인해 주세요.'),button('최신본 불러오기',reload));
+        }finally{busy=false;if(form)form.inert=false;update();}
+      }
+      if(writer&&!historic){
+        if(locked){reopen=button('최신화 수정',()=>write('reopen'));tools.append(reopen)}
+        if(admin&&state==='pending'){approve=button('최신화 승인',()=>write('approve'),'org-primary');tools.append(approve)}
       }
       if(form){
         save=el('button',historic?'수정본을 최신본으로 저장':'조직도 저장','org-primary');save.type='submit';
-        if(u.role==='field'&&!historic&&site.active!==false)check=button('이번 반기 최신화 확인',()=>write(true));
-        form.onsubmit=e=>{e.preventDefault();write(false)};
+        if(!historic&&(admin||site.active!==false))check=button('최신화 확인',()=>write('confirm'));
+        form.onsubmit=e=>{e.preventDefault();write('save')};
         const actions=el('div',null,'org-actions');actions.append(save);if(check)actions.append(check);
         const zoom=button('양식 확대',()=>{
           const large=preview.classList.toggle('org-zoomed');zoom.textContent=large?'전체 보기':'양식 확대';zoom.setAttribute('aria-pressed',String(large));

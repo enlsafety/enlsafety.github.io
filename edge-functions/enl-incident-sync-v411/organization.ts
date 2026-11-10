@@ -19,6 +19,14 @@ export function halfYear(at = new Date()) {
   return kst.getUTCFullYear() + '-' + (kst.getUTCMonth() < 6 ? 1 : 2);
 }
 
+function reviewState(row:any, period:string, tip:number) {
+  if(!row?.revision)return 'empty';
+  // Deleting a newer version must not silently reapprove an earlier snapshot.
+  if(row.period!==period || row.revision!==tip)return 'draft';
+  if(row.review_event==='approve')return 'approved';
+  return row.confirmed?'pending':'draft';
+}
+
 async function changeFolder(sql:any,actor:any,body:any,reply:any) {
   if (actor.role !== 'safety') return reply({ok:false,message:'forbidden'},403);
   const action=body.action.slice('platform_org_folder_'.length);
@@ -51,12 +59,12 @@ export async function organizationRequest(sql:any, actor:any, body:any, reply:an
   const period = halfYear();
   const visible = field ? sql`s.site_id = ${actor.siteId}` : sql`true`;
   const recent = sql`left join lateral (
-    select revision, period, confirmed, saved_at, actor_name from private.enl_org_charts
+    select revision, period, confirmed, review_event, saved_at, actor_name from private.enl_org_charts
     where site_id=s.site_id and deleted_at is null order by revision desc limit 1
   ) v on true`;
   if (body.action === 'platform_org_list') {
     const sites = await sql`select s.site_id,s.site_name,coalesce(f.display_name,s.site_name) as folder_name,f.revision as folder_revision,s.active,v.revision,v.saved_at,
-        coalesce(v.confirmed and v.period=${period},false) as checked
+        v.period,v.confirmed,v.review_event,(select max(revision) from private.enl_org_charts where site_id=s.site_id) as tip
       from public.enl_site_master s join private.enl_org_folders f using(site_id) ${recent}
       where ${visible} and s.site_id <> 'site-hq' and not f.deleted
       order by (s.active is false),s.site_name,s.site_id`;
@@ -66,7 +74,11 @@ export async function organizationRequest(sql:any, actor:any, body:any, reply:an
     const sortKo=(a:string,b:string)=>a.trim().localeCompare(b.trim(),'ko',{numeric:true});
     sites.sort((a:any,b:any)=>sortKo(a.folder_name,b.folder_name)||sortKo(a.site_name,b.site_name));
     candidates.sort((a:any,b:any)=>sortKo(a.site_name,b.site_name));
-    return reply({ok:true, period, sites,candidates});
+    return reply({ok:true,period,candidates,sites:sites.map((s:any)=>{
+      const state=reviewState(s,period,s.tip);
+      const {tip,confirmed,review_event,...summary}=s;
+      return {...summary,state,checked:state==='approved'};
+    })});
   }
   const siteId = body.siteId;
   if (!validText(siteId,128) || (field && siteId !== actor.siteId))
@@ -79,10 +91,11 @@ export async function organizationRequest(sql:any, actor:any, body:any, reply:an
       return reply({ok:false,message:'invalid_revision'},400);
     // One snapshot for both the history index and the selected document.
     const [result] = await sql`with versions as (
-        select revision,period,confirmed,saved_at,actor_name,chart,site_name from private.enl_org_charts where site_id=${siteId} and deleted_at is null
+        select revision,period,confirmed,review_event,saved_at,actor_name,chart,site_name from private.enl_org_charts where site_id=${siteId} and deleted_at is null
       ) select (select jsonb_agg(to_jsonb(v)-'chart'-'site_name' order by revision desc) from versions v) as history,
         (select to_jsonb(v) from versions v where ${body.revision ?? null}::integer is null or revision=${body.revision ?? null}::integer order by revision desc limit 1) as document,
-        (select coalesce(jsonb_agg(distinct period),'[]'::jsonb) from private.enl_org_charts where site_id=${siteId} and confirmed) as confirmed_periods`;
+        (select coalesce(jsonb_agg(distinct period),'[]'::jsonb) from private.enl_org_charts where site_id=${siteId} and confirmed) as confirmed_periods,
+        (select max(revision) from private.enl_org_charts where site_id=${siteId}) as tip`;
     if (body.revision != null && !result.document) return reply({ok:false,message:'unavailable'},404);
     let template;
     if (body.includeTemplate === true) {
@@ -90,14 +103,17 @@ export async function organizationRequest(sql:any, actor:any, body:any, reply:an
       if (!row) return reply({ok:false,message:'template_unavailable'},503);
       template = 'data:image/webp;base64,' + row.image.replace(/\s/g,'');
     }
-    return reply({ok:true,period,site,history:result.history||[],document:result.document,confirmedPeriods:result.confirmed_periods,template});
+    return reply({ok:true,period,site,state:reviewState(result.history?.[0],period,result.tip),history:result.history||[],document:result.document,confirmedPeriods:result.confirmed_periods,template});
   }
-  const confirm = body.action === 'platform_org_confirm';
-  const deleting = body.action === 'platform_org_delete';
-  if (field ? confirm && site.active === false : actor.role !== 'safety' || confirm) return reply({ok:false,message:'forbidden'},403);
-  if (!confirm && !deleting && body.action !== 'platform_org_save') return reply({ok:false,message:'unknown_action'},400);
-  const chart = body.action==='platform_org_save' ? chartData(body.chart) : null;
-  if ((body.action==='platform_org_save' && !chart) || (deleting && (!Number.isInteger(body.targetRevision) || body.targetRevision < 1 || !Number.isInteger(body.folderRevision))) || !Number.isInteger(body.revision) || body.revision < 0)
+  const op=body.action.slice('platform_org_'.length);
+  if(!['save','confirm','approve','reopen','delete'].includes(op))return reply({ok:false,message:'unknown_action'},400);
+  if(!field && actor.role!=='safety' || op==='approve' && actor.role!=='safety')
+    return reply({ok:false,message:'forbidden'},403);
+  const suppliesChart=op==='save' || op==='confirm' && body.chart!==undefined;
+  const chart=suppliesChart?chartData(body.chart):null;
+  if(suppliesChart && !chart || !Number.isInteger(body.revision) || body.revision<0 ||
+     op==='delete' && (!Number.isInteger(body.targetRevision) || body.targetRevision<1) ||
+     ['approve','reopen','delete'].includes(op) && !Number.isInteger(body.folderRevision))
     return reply({ok:false,message:'invalid_chart'},400);
   return sql.begin(async (tx:any) => {
     // Serialize first insert as well as later revisions. Reject stale edits and checks.
@@ -105,11 +121,11 @@ export async function organizationRequest(sql:any, actor:any, body:any, reply:an
     const [currentSite] = await tx`select s.site_name,s.active,f.revision from public.enl_site_master s join private.enl_org_folders f using(site_id) where s.site_id=${siteId} and not f.deleted for share`;
     if (!currentSite) return reply({ok:false,message:'site_unavailable'},409);
     if(body.folderRevision!=null && currentSite.revision!==body.folderRevision)return reply({ok:false,message:'folder_changed'},409);
-    const [last] = await tx`select revision, chart, period, confirmed from private.enl_org_charts where site_id=${siteId} and deleted_at is null order by revision desc limit 1`;
+    const [last] = await tx`select revision, chart, period, confirmed, review_event from private.enl_org_charts where site_id=${siteId} and deleted_at is null order by revision desc limit 1`;
     if ((last?.revision ?? 0) !== body.revision || body.period !== halfYear() || body.period !== period)
       return reply({ok:false,message:'chart_changed'},409);
-    if(field && currentSite.active===false && (!last || confirm))return reply({ok:false,message:'forbidden'},403);
-    if(deleting){
+    if(field && currentSite.active===false && (!last || op==='confirm'))return reply({ok:false,message:'forbidden'},403);
+    if(op==='delete'){
       const [target]=await tx`select period from private.enl_org_charts where site_id=${siteId} and revision=${body.targetRevision} and deleted_at is null`;
       if(!target)return reply({ok:false,message:'chart_changed'},409);
       if(field){
@@ -123,11 +139,17 @@ export async function organizationRequest(sql:any, actor:any, body:any, reply:an
       await tx`update private.enl_org_folders set revision=revision+1 where site_id=${siteId}`;
       return reply({ok:true});
     }
-    if (confirm && !last) return reply({ok:false,message:'chart_required'},400);
-    if (confirm && last.confirmed && last.period === period) return reply({ok:true,revision:last.revision});
-    const [{revision}]=await tx`select coalesce(max(revision),0)+1 as revision from private.enl_org_charts where site_id=${siteId}`;
-    await tx`insert into private.enl_org_charts (site_id,revision,site_name,chart,period,confirmed,actor_id,actor_name)
-      values (${siteId},${revision},${currentSite.site_name},${tx.json(confirm ? last.chart : chart)},${period},${confirm},${actor.id},${actor.name})`;
+    const [{tip}]=await tx`select coalesce(max(revision),0) as tip from private.enl_org_charts where site_id=${siteId}`;
+    const state=reviewState(last,period,tip);
+    if(state==='approved' && op!=='reopen')return reply({ok:false,message:'chart_locked'},409);
+    if(op==='approve' && state!=='pending' || op==='reopen' && state!=='approved')
+      return reply({ok:false,message:'review_state_changed'},409);
+    if(!chart && !last)return reply({ok:false,message:'chart_required'},400);
+    if(op==='confirm' && state==='pending' && !chart)return reply({ok:true,revision:last.revision});
+    const revision=tip+1;
+    const event=op==='approve'||op==='reopen'?op:null;
+    await tx`insert into private.enl_org_charts (site_id,revision,site_name,chart,period,confirmed,review_event,actor_id,actor_name)
+      values (${siteId},${revision},${currentSite.site_name},${tx.json(chart??last.chart)},${period},${op==='confirm'||op==='approve'},${event},${actor.id},${actor.name})`;
     return reply({ok:true,revision});
   });
 }

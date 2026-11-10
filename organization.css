@@ -10,8 +10,8 @@
 .org-panel .org-head h2{margin:0 0 6px}
 .org-summary,.org-state,.org-status,.org-folder small{font-size:13px;color:#537086}
 .org-status:empty{display:none}.org-status button{margin-left:8px}
-.org-state.pending::before,.org-dot{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:#d73740;box-shadow:0 0 0 2px #fff}
-.org-state.pending::before{margin-right:7px}
+.org-state.pending::before,.org-state.approved::before,.org-dot{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:#d73740;box-shadow:0 0 0 2px #fff}
+.org-state.pending::before,.org-state.approved::before{margin-right:7px}.org-state.approved::before{background:#19854b}
 [data-module="organization"],[data-hub="feature:organization"]{position:relative}
 .platform-hub .org-dot{position:absolute;right:10px;top:9px;pointer-events:none}
 .org-workspace{display:grid;grid-template-columns:clamp(170px,16vw,240px) minmax(0,1fr);align-items:start;border:1px solid #d8e4ed;border-radius:10px;overflow:hidden}
@@ -21,7 +21,7 @@
 .org-rail-list{display:grid;gap:2px;max-height:72vh;overflow-y:auto}
 .org-panel .org-folder{display:flex;justify-content:space-between;align-items:center;gap:6px;width:100%;border:0;border-radius:5px;padding:9px 6px;background:transparent;text-align:left;font-size:13px}
 .org-panel .org-folder[aria-current=page]{background:#dae9f6;color:#103c60;font-weight:700}
-.org-folder small{font-size:11px;white-space:nowrap}.org-folder .pending::before{width:6px;height:6px;margin-right:4px}
+.org-folder small{font-size:11px;white-space:nowrap}.org-folder :is(.pending,.approved)::before{width:6px;height:6px;margin-right:4px}
 .org-manage-tools{display:flex;gap:4px;margin:8px 3px}.org-manage-tools button,.org-manage button{font-size:12px;padding:5px 8px}
 .org-manage{background:white;border:1px solid #c5d7e5;padding:8px;border-radius:6px;margin:5px 0;font-size:13px}
 .org-manage label{display:grid;gap:4px;margin:6px 0}.org-manage :is(input,select){width:100%;min-width:0;padding:5px;border:1px solid #abc4d8;border-radius:4px}
