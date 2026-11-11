@@ -29,6 +29,13 @@ const assert=require('node:assert/strict'),crypto=require('node:crypto'),{fixtur
   assert.equal((await call({...otherBrowser,passwordHash:'incorrect'})).status,401);
   assert.ok((await call(otherBrowser)).body.deviceSession);assert.equal(mailbox.length,1);
   const again=(await call(login)).body;assert.ok(again.deviceSession);assert.equal(mailbox.length,1);
+  const claim={action:'claim_password_reminder',actor,deviceSession:again.deviceSession};
+  const simultaneous=await Promise.all([call(claim),call(claim)]);
+  assert.deepEqual(simultaneous.map(r=>r.body.reminder).sort(),['initial',null]);
+  const cooling=await call(claim);
+  assert.equal(cooling.body.reminder,null);
+  const interval=await db.query("select reminder_after between now()+interval '1 month'-interval '1 minute' and now()+interval '1 month' as valid from private.enl_password_schedule where account_key=$1",[key]);
+  assert.equal(interval.rows[0].valid,true);
   const change={action:'password_change_self',actor,currentPasswordHash:proof,newPasswordHash:next,deviceSession:again.deviceSession};
   const updated=await call(change,'account');assert.equal(updated.status,200,JSON.stringify(updated.body));
   assert.ok(updated.body.deviceSession);assert.equal(updated.body.passwordPolicy.initial,false);

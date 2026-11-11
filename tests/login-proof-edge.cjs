@@ -14,6 +14,7 @@ async function fixture(guarded=false){
  await db.exec(fs.readFileSync('supabase/migrations/20261110040000_verified_login_devices.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/migrations/20261110073000_account_email_verification.sql','utf8'));
  await db.exec(fs.readFileSync('supabase/migrations/20261110083000_demo_password_login.sql','utf8'));
+ await db.exec(fs.readFileSync('supabase/migrations/20261111035529_monthly_password_reminder.sql','utf8'));
  const tag=conn=>async(parts,...args)=>(await conn.query(parts.reduce((s,p,i)=>s+(i?'$'+i:'')+p,''),args)).rows;function postgres(){
    let closed=false;
    const sql=(...args)=>{if(closed)throw Error('CONNECTION_ENDED');return tag(db)(...args)};

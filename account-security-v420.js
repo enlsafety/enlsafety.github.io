@@ -40,12 +40,12 @@
   }
 
   const accountKey=u=>window.enlDeviceAuth.keyOf(u);
-  let lastNavigation='',navigationVersion=0;
+  let checkedSession='',checkAfter=0;
   function openSelfChange(reason='manual'){
     const u=currentUser?.();if(!eligibleSelf(u))return;
     const initial=reason==='initial',annual=reason==='annual',automatic=initial||annual,key=accountKey(u);
     const title=initial?'초기 비밀번호 변경':annual?'정기 비밀번호 변경':'비밀번호 변경';
-    const description=initial?'초기 비밀번호를 바꿀 때까지 메뉴 이동 시 다시 안내합니다.':annual?'비밀번호를 변경하거나 다음 안내를 1년 뒤로 미룰 수 있습니다.':escx(u.name||'사용자');
+    const description=initial?'초기 비밀번호를 변경해 주세요. 지금 닫으면 한 달 뒤에 다시 안내합니다.':annual?'비밀번호를 확인해 주세요. 지금 닫으면 한 달 뒤에 다시 안내합니다.':escx(u.name||'사용자');
     const html=`<div class="modal-head"><div><h2 id="enl420PwTitle" tabindex="-1">${title}</h2><p>${description}</p></div><button type="button" aria-label="닫기" data-close>×</button></div>
     <form id="enl420SelfForm" class="enl420-pwform">
       <label><span>${initial?'초기 비밀번호 (변경한 경우 현재 비밀번호)':'현재 비밀번호'}</span><input name="currentPw" id="enl420Current" type="password" autocomplete="current-password" required></label>
@@ -58,17 +58,6 @@
       dialog=document.createElement('dialog');dialog.className='enl420-device-dialog';dialog.setAttribute('aria-labelledby','enl420PwTitle');dialog.innerHTML=html;
       document.body.append(dialog);dialog.onclose=()=>dialog.remove();
       dialog.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>dialog.close());
-      if(annual){
-        const later=dialog.querySelector('.enl420-actions [data-close]');
-        later.onclick=async()=>{
-          if(later.disabled)return;later.disabled=true;
-          try{
-            const r=await window.enlAuthApi({action:'defer_password_year',actor:actor(u)});
-            window.enlDeviceAuth.savePolicy(key,r.passwordPolicy);dialog.close();
-          }catch{dialog.querySelector('[role=status]').textContent='연기 일정을 저장하지 못했습니다. 다시 시도해 주세요.'}
-          finally{later.disabled=false}
-        };
-      }
       dialog.showModal();dialog.querySelector('h2').focus();
     }else openModal(html);
     const form=(dialog||document).querySelector('#enl420SelfForm');
@@ -96,18 +85,19 @@
   window.enlOpenSelfPasswordChange420=openSelfChange;
   function navigation(){
     const u=currentUser?.();if(!eligibleSelf(u)||!window.enlDeviceAuth.validFor(u))return;
-    const key=accountKey(u),host=document.querySelector('.platform-hub');
-    const stamp=[key,window.enlDeviceAuth.active()?.token,currentView,host?.dataset.workspace,host?.querySelector('.org-submenu [aria-current=page]')?.dataset.owner,host?.querySelector('.org-submenu [aria-current=page]')?.dataset.doc].join('|');
-    if(lastNavigation===stamp)return;lastNavigation=stamp;const version=++navigationVersion;
-    const show=p=>{
-      if(version!==navigationVersion||!currentUser?.()||accountKey(currentUser())!==key||document.querySelector('.enl420-device-dialog[open],#enl420SelfForm'))return;
-      if(p?.initial)openSelfChange('initial');
-      else if(p?.nextPrompt&&Date.parse(p.nextPrompt)<=(Date.parse(p.serverNow)||Date.now()))openSelfChange('annual');
-    };
-    window.enlAuthApi({action:'password_schedule',actor:actor(u)}).then(r=>{
-      if(version===navigationVersion&&r.passwordPolicy){window.enlDeviceAuth.savePolicy(key,r.passwordPolicy);show(r.passwordPolicy)}
-    }).catch(()=>show(window.enlDeviceAuth.active()?.policy));
+    if(document.hidden||document.querySelector('.enl420-device-dialog[open],#enl420SelfForm'))return;
+    const token=window.enlDeviceAuth.active()?.token;
+    if(checkedSession===token&&Date.now()<checkAfter)return;
+    checkedSession=token;checkAfter=Infinity;
+    window.enlAuthApi({action:'claim_password_reminder',actor:actor(u)}).then(r=>{
+      if(checkedSession!==token||window.enlDeviceAuth.active()?.token!==token)return;
+      checkAfter=Date.parse(r.retryAt)||Date.now()+60000;
+      if((r.reminder==='initial'||r.reminder==='annual')&&currentUser?.()&&accountKey(currentUser())===accountKey(u)
+        &&!document.querySelector('#enl420SelfForm'))openSelfChange(r.reminder);
+    }).catch(()=>{if(checkedSession===token)checkAfter=Date.now()+60000});
   }
+  document.addEventListener('visibilitychange',navigation);
+  window.addEventListener('online',navigation);
   window.enlOfferDevicePasswordChange=()=>requestAnimationFrame(navigation);
   function safetyResetTarget(target){
     const u=currentUser?.();if(roleNorm(u?.role)!=='safety'||!target?.id)return;

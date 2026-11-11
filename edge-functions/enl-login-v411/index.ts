@@ -210,11 +210,22 @@ Deno.serve(async(req:Request)=>{
       if(clean(hq.email)&&clean(body.companyLocal)&&clean(body.companyLocal).toLowerCase()!==localPart(hq.email))return json({ok:false,message:'use_email_registration'},409);
       return await finishLogin(sql,'hq:'+hq.user_id,body,{ok:true,user:publicHq(hq)},sendEnrollmentCode,verifier,json);
     }
-    if(['password_schedule','defer_password_year','device_logout'].includes(action)){
+    if(['password_schedule','claim_password_reminder','defer_password_year','device_logout'].includes(action)){
       const key=(['field','worker'].includes(actor.role)?'site:':'hq:')+actor.id;
       if(action==='device_logout'){
         await sql`delete from private.enl_device_sessions where account_key=${key} and token_hash=${await sha256(body.deviceSession)}`;
         return json({ok:true});
+      }
+      if(action==='claim_password_reminder'){
+        const [claimed]=await sql`update private.enl_password_schedule
+          set reminder_after=now()+interval '1 month'
+          where account_key=${key} and (initial or next_prompt<=now())
+            and (reminder_after is null or reminder_after<=now())
+          returning initial,reminder_after`;
+        if(claimed)return json({ok:true,reminder:claimed.initial?'initial':'annual',retryAt:claimed.reminder_after});
+        const [pending]=await sql`select greatest(reminder_after,case when not initial then next_prompt end) as retry_at
+          from private.enl_password_schedule where account_key=${key}`;
+        return json({ok:true,reminder:null,retryAt:pending?.retry_at});
       }
       if(action==='defer_password_year')await sql`update private.enl_password_schedule set next_prompt=now()+interval '1 year'
         where account_key=${key} and not initial and next_prompt<=now()`;
