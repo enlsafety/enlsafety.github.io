@@ -17,7 +17,7 @@
   function button(label, run, cls) {
     const b = el('button',label,cls); b.type='button'; b.onclick=run; return b;
   }
-  function paper(chart, site, edit, template) {
+  function paper(chart, site, edit, template, unsaved=false) {
     const box=el('div',null,'org-paper'), img=new Image();
     img.src=template; img.alt='이앤엘 본사 및 사업장 안전보건 조직도 양식';
     const svg=document.createElementNS(ns,'svg');
@@ -37,12 +37,12 @@
     line(297.36,440,site.endsWith('사업장')?site:site+' 사업장',11.8,true,390);
     for(const [y,title,key] of [[497,'현장 책임자','lead'],[570,'관리감독자','supervisor']]){
       line(297.36,y,title,key==='lead'?11.5:12,true,244);
-      line(297.36,y+16,chart[key]||'소장 OOO',12,false,251,key);
+      line(297.36,y+16,chart[key]||'직책과 성명',12,false,251,key);
     }
     chart.teams.forEach((team,i)=>{
       const x=i%2?429.52:165.35, y=i<2?674:729.12;
       line(x,y,team.name||'업무명',14,true,210,'team'+i);
-      line(x,y+18,'상용 '+(team.regular??'')+'명　　　 일용 '+(team.daily??'')+'명',14,false,215,'regular'+i);
+      line(x,y+18,'상용 '+(unsaved?'—':team.regular??'')+'명　　　 일용 '+(unsaved?'—':team.daily??'')+'명',14,false,215,'regular'+i);
     });
     if(edit){
       const field=(key,caption,x,y,width,height,value,limit,change,num=false)=>{
@@ -288,7 +288,7 @@
         pick.onchange=()=>{const rev=Number(pick.value);pick.value=doc.revision;folder(site.site_id,rev)};
         main.append(label);
       }
-      if(!doc&&!editable){main.append(status('저장된 조직도가 없습니다.'));return}
+      if(!doc)note.textContent='미작성 기본 양식입니다.';
       const form=editable?el('form',null,'org-form'):null, preview=el('div',null,'org-preview');
       const change=()=>{dirty=true;update();note.textContent='변경사항을 저장해 주세요.'};
       const printedSite=doc?.site_name||site.site_name;
@@ -332,16 +332,19 @@
         if(locked){reopen=button('최신화 수정',()=>write('reopen'));tools.append(reopen)}
         if(admin&&state==='pending'){approve=button('최신화 승인',()=>write('approve'),'org-primary');tools.append(approve)}
       }
+      const zoom=button('양식 확대',()=>{
+        const large=preview.classList.toggle('org-zoomed');
+        zoom.textContent=large?'전체 보기':'양식 확대';zoom.setAttribute('aria-pressed',String(large));
+      },'org-zoom');
+      zoom.setAttribute('aria-pressed','false');
       if(form){
         save=el('button',historic?'수정본을 최신본으로 저장':'조직도 저장','org-primary');save.type='submit';
         if(!historic&&(admin||site.active!==false))check=button('최신화 확인',()=>write('confirm'));
         form.onsubmit=e=>{e.preventDefault();write('save')};
         const actions=el('div',null,'org-actions');actions.append(save);if(check)actions.append(check);
-        const zoom=button('양식 확대',()=>{
-          const large=preview.classList.toggle('org-zoomed');zoom.textContent=large?'전체 보기':'양식 확대';zoom.setAttribute('aria-pressed',String(large));
-        },'org-zoom');zoom.setAttribute('aria-pressed','false');actions.append(zoom);
+        actions.append(zoom);
         form.append(actions,note,preview);main.append(form);
-      }else{main.append(note,preview)}
+      }else{tools.append(zoom);main.append(note,preview)}
       if(mayDelete){
         remove=button('저장본 삭제',async()=>{
           if(busy||dirty||!confirm(site.site_name+'의 '+periodName(doc.period)+' 저장본 v'+doc.revision+'을 삭제할까요?'))return;
@@ -365,7 +368,7 @@
         });
         tools.append(print);
       }
-      preview.append(paper(chart,printedSite,form?change:null,template));update();
+      preview.append(paper(chart,printedSite,form?change:null,template,!doc));update();
     }
     const focus=()=>{if(sameUser()){refresh();schedule()}else{clearTimeout(refreshTimer);window.removeEventListener('focus',focus);document.removeEventListener('visibilitychange',focus)}};
     window.addEventListener('focus',focus);document.addEventListener('visibilitychange',focus);

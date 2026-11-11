@@ -348,7 +348,13 @@
   bindHeader();
   function items(){return catalog?[...catalog.modules,...catalog.services]:[];}
   const entry=key=>items().find(x=>x.key===key);
-  async function allowed(key){const m=entry(key);if(!m||m.enabled===false||m.state==='hidden'||m.canEnter===false||m.state!=='live'&&!m.preview){status.textContent='현재 접근할 수 없는 업무입니다.';return false}try{await api({action:'platform_enter',key});return sameUser()}catch{status.textContent='접근 권한 또는 연결 상태를 확인해 주세요.';return false}}
+  const canBrowseDocuments=['field','safety','manager','executive'].includes(u.role);
+  function documentInfo(key){
+    if(!canBrowseDocuments||!key.startsWith('document:'))return null;
+    return catalog?.documentMenus?.find(item=>item.key===key.slice('document:'.length));
+  }
+  const moduleAvailable=m=>!!m&&m.enabled!==false&&m.canEnter!==false&&m.state!=='hidden'&&(m.state==='live'||m.preview);
+  async function allowed(key){const m=entry(key);if(!moduleAvailable(m)){status.textContent='현재 접근할 수 없는 업무입니다.';return false}try{await api({action:'platform_enter',key});return sameUser()}catch{status.textContent='접근 권한 또는 연결 상태를 확인해 주세요.';return false}}
   function clickFeature(key){return selectTab(key);}
   function support(){return selectTab('support');}
   function addSupportCard(grid){const r=document.createElement('article');r.className='hub-support-card feature-card-wrap';r.dataset.key='support';r.dataset.state='live';r.dataset.on='true';r.innerHTML=action('support','<span class="hub-art hub-art-support" aria-hidden="true"></span><strong class="hub-card-title">공통업무지원<wbr>서비스</strong><span class="hub-card-description">'+descriptions.support+'</span><small>운영중</small><span class="hub-card-arrow" aria-hidden="true">'+svg('arrow')+'</span>','platform-card');r.firstElementChild.onclick=support;grid.append(r);return r}
@@ -369,14 +375,17 @@
   strip.className='hub-worktabs';strip.setAttribute('aria-label','열린 업무');
   function tabTitle(key){
     if(Object.hasOwn(builtins,key))return builtins[key];
+    const info=documentInfo(key);if(info)return info.displayName;
     const m=entry(key);return m?featureName(m):(names[key]||key);
   }
   function paintTabs(){
     const header=host.closest('.app-shell')?.querySelector('.topbar');
     if(!header)return;
     if(header.nextElementSibling!==strip)header.after(strip);
+    const selectedFeature=documentInfo(active)?.key||active;
+    const selectedMenu=boards[active]?'boards':['home','support'].includes(active)?active:'feature:'+selectedFeature;
     host.querySelectorAll('.hub-sidebar nav [data-hub]').forEach(b=>{
-      b.classList.toggle('on',b.dataset.hub===(boards[active]?'boards':['home','support'].includes(active)?active:'feature:'+active));
+      b.classList.toggle('on',b.dataset.hub===selectedMenu);
     });
     const signature=JSON.stringify([active,opened.map(k=>[k,tabTitle(k)])]);
     if(signature===stripSignature)return;
@@ -449,7 +458,7 @@
     if(key==='recent'&&!window.enlHistoryAvailable?.(u))return false;
     const token=++request;
     if(key===active){host.classList.remove('hub-menu-open');return true;}
-    if(!Object.hasOwn(builtins,key)&&!(await allowed(key))){
+    if(!Object.hasOwn(builtins,key)&&!documentInfo(key)&&!(await allowed(key))){
       if(!closing)return false;
       key='home';
     }
@@ -578,8 +587,12 @@
         row.className='hub-sidebar-row';
         row.innerHTML=action('feature:'+item.key,menuPictogram(item.key)+'<span>'+safe(item.displayName)+'</span>',active===item.key?'on':'');
         const b=row.firstElementChild;
-        b.disabled=!!sidebarDraft||!module||module.enabled===false||module.canEnter===false||module.state==='hidden'||module.state!=='live'&&!module.preview;
-        if(!b.disabled)b.onclick=()=>selectTab(item.key);
+        // The catalog publishes these section titles even before their modules launch.
+        // Their information tabs only render the published title and readiness message.
+        const available=moduleAvailable(module);
+        const destination=available?item.key:'document:'+item.key;
+        b.disabled=!!sidebarDraft||(!available&&!documentInfo(destination));
+        if(!b.disabled)b.onclick=()=>selectTab(destination);
         group.append(row);
       }
       nav.append(group);
