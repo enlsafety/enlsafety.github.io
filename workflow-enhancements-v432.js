@@ -50,10 +50,6 @@
     try{if(typeof actionPhotos!=='undefined'&&Array.isArray(actionPhotos))return actionPhotos}catch(e){}
     return getIncident(activeIncidentId)?.corrective?.afterPhotos||[];
   }
-  function incidentAttachments(){
-    try{if(typeof incidentPhotos!=='undefined'&&Array.isArray(incidentPhotos))return incidentPhotos}catch(e){}
-    return [];
-  }
 
   function setRequiredState(control){
     if(!control||control.disabled||control.type==='hidden')return;
@@ -255,7 +251,7 @@
   },true);
 
   document.addEventListener('change',e=>{
-    if(e.target?.id==='incidentPhotoInput'||e.target?.id==='actionPhotoInput')setTimeout(()=>{updateEvidenceState();patchAll()},60)
+    if(e.target?.id==='incidentPhotoInput'||e.target?.id==='actionPhotoInput')setTimeout(queuePatch,60)
   },true);
   document.addEventListener('input',e=>{if(e.target?.matches?.('input[required],textarea[required],select[required]'))setRequiredState(e.target)},true);
 
