@@ -145,6 +145,9 @@
     if(currentView==='platform-tool'&&!root.closest('.app-shell').enlWorkspaceFrame)currentView='platform';
     window.enlEnsureWorkspace?.(root,u)?.syncWorkView(root,u);
     if(currentView==='platform-tool'){root.replaceChildren();return root;}
+    if(currentView==='stats'&&['safety','manager','executive'].includes(roleNorm(u.role))&&window.enlRenderIncidentStats){
+      window.enlRenderIncidentStats(root,u);return root;
+    }
     const role=roleNorm(u.role);if(currentView==='system-admin'||currentView==='more'){if(role==='safety'){currentView='system-admin';window.enlRenderSystemAdmin?.(root,u)}else{currentView='platform';window.enlPlatformHome?.(root,u)}return root}if(currentView==='platform'&&window.enlPlatformHome){window.enlPlatformHome(root,u);return root}if(currentView==='notice-center'&&window.enlNoticeCenter){window.enlNoticeCenter(root);return root}if(['history','common-history'].includes(currentView)&&window.enlHistoryAvailable?.(u)){window.enlRenderHistory(root,currentView==='common-history'?'common':'incident');return}if(currentView==='closed'&&!isField(u)&&window.enlRenderClosedView)return window.enlRenderClosedView(u);if(currentView==='inquiry'&&!isField(u)&&window.enlRenderSafetyInquiry)return window.enlRenderSafetyInquiry('');if(currentView==='followups'&&window.enlFollowupPermitted?.(u))return window.enlRenderHistoricalFollowups(root,u);if(isField(u)){if(currentView==='home'||!currentView)return window.enlRenderFieldHome?.(root,u);if(currentView==='report'){const r=window.renderUnifiedReport?.(root,u);window.enlAddFieldBack?.(root,u);return r}if(currentView==='incidents')return window.enlRenderFieldRecords?window.enlRenderFieldRecords(root,u):window.renderUnifiedIncidents?.(root,u);if(currentView==='actions')return window.enlRenderFieldActions?window.enlRenderFieldActions(root,u):window.renderUnifiedActions?.(root,u);if(currentView==='field-inquiry')return window.enlRenderFieldInquiry?.(root,u);if(currentView==='personnel')return window.enlRenderPersonnelPage?.(u);currentView='home';return window.enlRenderFieldHome?.(root,u)}if(role==='safety'){if(currentView==='home'||currentView==='dashboard'||!currentView)return renderSafetyHome(root,u);if(currentView==='report')return window.renderUnifiedReport?.(root,u);if(currentView==='incidents')return renderSafetyList(root,u,safetyListFilter);if(currentView==='actions')return window.renderUnifiedActions?.(root,u);currentView='home';return renderSafetyHome(root,u)}if(currentView==='incidents')return renderSafetyList(root,u,safetyListFilter);if(currentView==='actions')return window.renderUnifiedActions?.(root,u);return renderReaderHome(root,u)}
 
   window.enlOpenSafetySiteIncidents=openSafetySiteIncidents;
@@ -162,5 +165,15 @@
   window.ENL_SHELL_VERSION=VERSION;
   window.addEventListener('enl-contracts-ready',()=>{const u=currentUser?.(),root=document.getElementById('view');if(currentView==='home'&&['safety','manager','executive'].includes(roleNorm(u?.role))&&root)renderSafetyHome(root,u)});
 
-  const u=currentUser?.();if(u){currentView=currentView||'home';renderShell(u);if(roleNorm(u.role)==='safety')setTimeout(()=>window.enlSyncHqUsers?.(u),250)}else renderLogin();
+  function mountInitialView(){
+    const u=currentUser?.();
+    if(!u)return renderLogin();
+    const hq=['safety','manager','executive'].includes(roleNorm(u.role));
+    if(!currentView||currentView==='dashboard')currentView=hq&&window.enlRenderIncidentStats?'stats':'home';
+    window.renderShell(u);
+    if(roleNorm(u.role)==='safety')setTimeout(()=>window.enlSyncHqUsers?.(u),250);
+  }
+  // A restored route may depend on a renderer registered later in this document.
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mountInitialView,{once:true});
+  else mountInitialView();
 })();

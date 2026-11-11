@@ -157,6 +157,8 @@
   }
   markApprovalRows(root,kinds);
   let box=root.querySelector('[data-executive-queue]');
+  const workspace=root.closest('.app-shell')?.enlWorkspaceFrame;
+  if(workspace&&workspace.dataset.workspace!=='incident'){box?.remove();return;}
   if(!executive&&!(safety&&list.length&&['incidents','stats','home','dashboard'].includes(currentView))){box?.remove();return;}
   if(!box){
    box=document.createElement('section');box.dataset.executiveQueue='';box.className='panel';root.prepend(box);

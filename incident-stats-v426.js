@@ -104,9 +104,6 @@
   const baseRenderCurrentView=typeof window.renderCurrentView==='function'?window.renderCurrentView:null;
   if(baseRenderShell){
     window.renderShell=function(u){
-      if(currentView==='stats'&&canUseStats(u)){
-        currentView='home';const root=baseRenderShell(u);currentView='stats';enhanceNav(u);renderStats(root,u);return root;
-      }
       const root=baseRenderShell(u);enhanceNav(u);return root;
     };
   }

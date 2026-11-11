@@ -20,7 +20,6 @@
   let syncBusy=false;
   let lastSmartPull=0;
   let patchQueued=false;
-  let dashboardBooted=false;
 
   function ensureActionLayoutCss(){
     if(document.getElementById('prev432ActionLayoutCss'))return;
@@ -273,20 +272,6 @@
   if(typeof baseClose==='function'){
     const wrapped=function(){const out=baseClose.apply(this,arguments);setTimeout(smartPull,120);return out};
     window.closeModal=wrapped;try{closeModal=wrapped}catch(e){}
-  }
-
-  /* Dashboard is the initial landing only for HQ/admin readers; field users keep the field home. */
-  const baseRenderApp=window.enlRenderApp;
-  if(typeof baseRenderApp==='function'){
-    window.enlRenderApp=function(u){if(canDashboard(u)&&currentView!=='platform')currentView='stats';dashboardBooted=true;const out=baseRenderApp.apply(this,arguments);queuePatch();return out};
-  }
-  const initial=currentUser?.();
-  if(initial&&canDashboard(initial)&&!dashboardBooted){
-    dashboardBooted=true;
-    setTimeout(()=>{
-      if(currentUser?.()?.id!==initial.id||!['','home','dashboard'].includes(currentView))return;
-      currentView='stats';window.renderShell?.(initial);queuePatch();
-    },320);
   }
 
   const observer=new MutationObserver(queuePatch);observer.observe(document.body,{childList:true,subtree:true});
