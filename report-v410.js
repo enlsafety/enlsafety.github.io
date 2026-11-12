@@ -436,7 +436,15 @@
   window.renderUnifiedReport=renderReport;window.submitUnifiedIncident=submitIncident410;
   window.enlResetIncidentReport=()=>{activeType=null;activeEditId=null};
   window.enlShowIncidentTypePicker=(u=currentUser?.())=>{activeType=null;activeEditId=null;currentView='report';const root=document.getElementById('view');if(root)return renderTypePicker(root,u)};
-  window.enlOpenIncidentReport=(type,u=currentUser?.())=>{const root=document.getElementById('view');if(!root)return;activeEditId=null;activeType=type;return renderTypeForm(root,u,type,null)};
+  window.enlOpenIncidentReport=(type,u=currentUser?.())=>{
+    const root=document.getElementById('view');
+    if(!root)return;
+    activeEditId=null;
+    activeType=type;
+    currentView='report';
+    if(root.closest('.app-shell'))return window.renderShell(u);
+    return renderReport(root,u);
+  };
   window.enlEditIncidentInReportForm=(incidentOrId,u=currentUser?.(),options={})=>{
     const i=typeof incidentOrId==='object'?incidentOrId:(data.incidents||[]).find(x=>String(x.id)===String(incidentOrId));
     if(!i)return alert('사고기록을 찾지 못했습니다.');

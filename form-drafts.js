@@ -177,7 +177,10 @@
     selectedKey=key;
     if(d.kind==='plan'||d.kind==='action')window.enlPreventionFlowV429.open(i.id,u);
     else if(d.id)window.enlEditIncidentInReportForm(i,u);
-    else{currentView='report';window.enlOpenIncidentReport(d.kind,u);}
+    else{
+      try{window.enlOpenIncidentReport(d.kind,u);}
+      finally{selectedKey=null;}
+    }
   }
   function menu(){
     const account=current(),view=document.getElementById('view'),previous=document.getElementById('localDraftList');

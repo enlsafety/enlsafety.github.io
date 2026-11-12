@@ -58,7 +58,17 @@ async function run(engine,width){
       await prompt.getByRole('button',{name:'예',exact:true}).click();
       assert.equal(await p.locator(field).inputValue(),typed);
       if(report)await p.locator('[data-change-type]').click();else await p.evaluate(()=>closeModal());
+      if(report){
+        await p.locator('[data-worktab="home"]').click();
+        await p.locator('#view .platform-hub').waitFor();
+      }
       await p.locator('#localDraftList button').filter({hasText:'이어서 작성'}).click();
+      if(report){
+        assert.equal(await p.locator('[data-worktab][aria-current]').getAttribute('data-worktab'),'incident');
+        assert.equal(await p.locator('.app-shell .hub-sidebar').count(),1);
+        assert.equal(await p.locator('.shell411-nav [data-shell-view="report"]').evaluate(button=>button.classList.contains('on')),true);
+        assert.equal(await p.locator('.draft-resume-dialog').count(),0);
+      }
       assert.equal(await p.locator(field).inputValue(),typed);
       if(report){
         assert.equal(await p.locator('#pastReportMode').isChecked(),true);
