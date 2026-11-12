@@ -156,19 +156,20 @@ async function viewList(sql:any,body:any){
   if(u.role==="field"&&clean(row.site_id)!==u.siteId)return json({ok:false,message:"forbidden"},403);
   if(body.includeHqReaders===true){
     if(["manager","executive"].includes(u.role)&&(!["reported","supplement","supplement_submitted","approved","closed"].includes(row.status)||row.invalidated==="true"))return json({ok:false,message:"forbidden"},403);
-    const readers=await sql`with staff as (
-        select user_id,name,position from public.enl_hq_users where active=true and role in ('manager','final')
-      ), receipts as (
-        select viewer_id,viewer_name,first_viewed_at from public.enl_document_views
-        where incident_id=${incidentId} and document_type='incident_report' and viewer_role in ('manager','final')
-      )
-      select coalesce(staff.user_id,receipts.viewer_id) as id,coalesce(nullif(receipts.viewer_name,''),staff.name) as name,
-        staff.position,receipts.first_viewed_at
-      from staff full join receipts on staff.user_id=receipts.viewer_id order by name,id`;
+    const readers=await sql`select t.user_id as id,coalesce(nullif(v.viewer_name,''),u.name) as name,
+        u.position,v.first_viewed_at
+      from private.enl_incident_report_reader_targets t
+      left join public.enl_hq_users u on u.user_id=t.user_id
+      left join public.enl_document_views v on v.viewer_id=t.user_id and v.incident_id=${incidentId}
+        and v.document_type='incident_report'
+      where u.active or v.first_viewed_at is not null order by name,t.user_id`;
     return json({ok:true,readers});
   }
   const rows=await sql`select document_type,viewer_id,viewer_name,viewer_role,first_viewed_at
-    from public.enl_document_views where incident_id=${incidentId} order by first_viewed_at asc`;
+    from public.enl_document_views v where v.incident_id=${incidentId}
+      and (v.document_type is distinct from 'incident_report' or coalesce(v.viewer_role,'') not in ('manager','final')
+        or exists (select 1 from private.enl_incident_report_reader_targets t where t.user_id=v.viewer_id))
+    order by first_viewed_at asc`;
   return json({ok:true,views:rows||[]});
 }
 async function dispatchCore(sql:any,c:any){
