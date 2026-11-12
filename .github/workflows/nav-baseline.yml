@@ -1,0 +1,19 @@
+name: Isolated navigation baseline
+on:
+  push:
+    branches: [qa/navigation-r124-comparison]
+permissions:
+  contents: read
+jobs:
+  baseline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-save --package-lock=false @electric-sql/pglite@0.3.10 playwright@1.51.1 pdfjs-dist@3.11.174 sharp@0.35.5
+      - run: npx playwright install --with-deps chromium webkit
+      - run: pip install openpyxl==3.1.5 pillow==11.1.0
+      - run: node tests/final-cloud-run.cjs
