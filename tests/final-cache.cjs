@@ -110,7 +110,7 @@ for(const file of ["golf-fire-r84.webp","health-check-2026-r84.webp"]){assert.ok
 
 /* Accident event-type regression: preserve legacy labels and the new flying-object category. */
 {
-  const fn=fs.readFileSync('core.js','utf8').split('\\n').find(line=>line.startsWith('function eventTypeOptions('));
+  const fn=fs.readFileSync('core.js','utf8').split(String.fromCharCode(10)).find(line=>line.startsWith('function eventTypeOptions('));
   assert.ok(fn,'eventTypeOptions source exists');
   const options=require('node:vm').runInNewContext(fn+"; eventTypeOptions('맞음(날아옴)')");
   for(const label of ['넘어짐','부딪힘','맞음(날아옴)','베임/찔림','끼임','추락','차량/중장비','감전','화재/폭발','붕괴/전도','질식/중독','근골격','설비/시설 파손','기타']){
