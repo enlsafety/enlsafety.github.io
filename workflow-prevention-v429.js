@@ -243,7 +243,6 @@
     ensureCss();const arr=eligibleForAction(u);root.innerHTML=`<section class="field411-screen"><section class="panel"><div class="field411-head"><div><div class="ey">RECURRENCE PREVENTION</div><h2>재발방지조치</h2><p>안전관리자가 수립한 재발방지계획을 확인하고 실제 실시한 조치와 증빙을 등록합니다.</p></div></div><div class="prev429-note">사고 최초보고 단계에서는 사고 직후 조치까지만 작성합니다. 재발방지계획은 사고 접수완료 후 안전관리자가 별도로 수립합니다.</div></section><div class="prev429-list">${arr.map(i=>cardHtml(i,u)).join('')||'<div class="field411-empty">사고가 접수완료된 뒤 안전관리자가 재발방지계획을 등록하면 이 화면에 표시됩니다.</div>'}</div></section>`;window.enlAddFieldBack?.(root,u);root.querySelectorAll('[data-prev-open]').forEach(b=>{if(!b.disabled)b.onclick=()=>openCorrectiveModal429(b.dataset.prevOpen,u)});reportUiRewrite(root);
   }
 
-  function historyPush(c,entry){c.reviewHistory=Array.isArray(c.reviewHistory)?c.reviewHistory:[];c.reviewHistory.push(entry)}
   function cumulative(i,options){return window.enlCumulativeReportHtml?.(i,{...options,presentation:'screen',includeOriginal:isSafety(currentUser())||isField(currentUser())})||overview(i);}
   const modalHead=(i,title)=>`<div class="modal-head"><div><h2>${ex(siteName(i.siteId))} · ${title}</h2><div style="margin-top:7px">${preventionBadge(i)}</div></div><button class="x" data-close>×</button></div>`;
   function historyHtml(c){
@@ -343,7 +342,16 @@
   function installRoutes(){
     window.renderUnifiedActions=renderUnifiedActions429;window.enlRenderFieldActions=renderFieldActions429;window.openUnifiedCorrectiveModal=openCorrectiveModal429;window.enlResetActionFilter=()=>{actionFilter={status:'',siteId:'',title:''}};window.enlSetActionFilter=filter=>{actionFilter={status:filter?.status||'',siteId:filter?.siteId||'',title:filter?.title||''}};window.enlOpenActionQueue=(u,filter={})=>{const mapped=filter?.status==='submitted'?'submitted':filter?.status||'';window.enlSetActionFilter({...filter,status:mapped,title:filter?.title==='사고조치 검토대기'?'재발방지조치 확인대기':filter?.title||''});currentView='actions';renderShell(u||currentUser())};
   }
-  function wrapShell(){const base=window.renderShell;if(typeof base!=='function'||base.__prevention429)return;const wrapped=function(u){const out=base.call(this,u);installRoutes();setTimeout(()=>reportUiRewrite(document),0);return out};wrapped.__prevention429=true;window.renderShell=wrapped;try{renderShell=wrapped}catch(e){}}
+  let rewriteQueued=false;
+  function scheduleRewrite(){
+    if(rewriteQueued)return;
+    rewriteQueued=true;
+    requestAnimationFrame(()=>{
+      rewriteQueued=false;
+      reportUiRewrite(document);
+    });
+  }
+  function wrapShell(){const base=window.renderShell;if(typeof base!=='function'||base.__prevention429)return;const wrapped=function(u){const out=base.call(this,u);installRoutes();scheduleRewrite();return out};wrapped.__prevention429=true;window.renderShell=wrapped;try{renderShell=wrapped}catch(e){}}
 
-  ensureCss();installGlobalLabels();installRoutes();wrapShell();const observer=new MutationObserver(()=>reportUiRewrite(document));observer.observe(document.body,{childList:true,subtree:true});reportUiRewrite(document);window.enlPreventionPlanMissingCount=preventionPlanMissing;window.enlPreventionFlowV429={version:VERSION,hasPlan,statusText,open:openCorrectiveModal429};window.ENL_PREVENTION_FLOW_VERSION=VERSION;
+  ensureCss();installGlobalLabels();installRoutes();wrapShell();const observer=new MutationObserver(scheduleRewrite);observer.observe(document.body,{childList:true,subtree:true});reportUiRewrite(document);window.enlPreventionPlanMissingCount=preventionPlanMissing;window.enlPreventionFlowV429={version:VERSION,hasPlan,statusText,open:openCorrectiveModal429};window.ENL_PREVENTION_FLOW_VERSION=VERSION;
 })();

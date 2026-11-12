@@ -13,7 +13,7 @@ concurrency:
 jobs:
   isolated:
     if: github.event_name != 'push'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
@@ -29,6 +29,10 @@ jobs:
           done
       - run: npx playwright install --with-deps chromium webkit
       - run: pip install openpyxl==3.1.5 pillow==11.1.0
+      - name: Navigation and delayed notification responses
+        run: |
+          node tests/profile-reopen-browser.cjs
+          node tests/document-role-views.cjs
       - name: Actual Edge, isolated database, role and browser regressions
         run: node tests/final-cloud-run.cjs
       - name: Actual downloaded XLSX OOXML and formatting validation
@@ -51,7 +55,7 @@ jobs:
           path: qa-output/
   staging:
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4

@@ -176,8 +176,10 @@
  const descriptions={incident:'사고 발생 시<br>신속한 보고 및 관리',risk:'작업 공정별 위험요인<br>발굴 및 개선관리',tbm:'작업 전 안전회의<br><span>(Tool Box Meeting) 관리</span>',organization:'안전보건 조직 및<br>역할 책임 관리',training:'법정 직무 특별교육의<br>계획, 운영, 이력관리',msds:'화학물질정보<br>(MSDS) 등록 관리',support:'전자결재, 문서관리,<br>기준정보 등 공통업무 지원',system:'사용자, 권한, 코드,<br>환경설정 등 시스템 운영'};
  const safetyIcons={policy:'방침과 목표',law:'법령 요지',voice:'의견 청취',emergency:'비상 대응',ppe:'보호구',ergonomics:'근골격계 조사',rules:'관리규정'};
  Object.assign(descriptions,{policy:'방침 및 추진 목표',law:'주요 법령 확인',voice:'의견 접수 및 조치',emergency:'비상계획 및 훈련',ppe:'지급 내역 및 점검',ergonomics:'부담작업 조사',rules:'규정 및 개정 이력'});
- const day=d=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul'}).format(d||new Date());
- const time=v=>v?new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(v)):'';
+ const seoulDay=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul'});
+ const seoulTime=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+ const day=d=>seoulDay.format(d||new Date());
+ const time=v=>v?seoulTime.format(new Date(v)):'';
  const date=v=>v?day(new Date(v)).replaceAll('-','.'):'';
  function relative(v){const t=Date.parse(v);if(!Number.isFinite(t))return '';const m=Math.max(0,Math.floor((Date.now()-t)/60000));return m<1?'방금 전':m<60?m+'분 전':m<1440?Math.floor(m/60)+'시간 전':date(v)}
  function dialog(host,title){const d=document.createElement('dialog');d.className='hub-dialog';d.innerHTML='<header><h2>'+safe(title)+'</h2><button type="button" aria-label="닫기">×</button></header><div class="hub-dialog-body"></div>';host.append(d);d.querySelector('header button').onclick=()=>d.close();d.onclose=()=>d.remove();d.showModal();return d;}
@@ -603,21 +605,23 @@
   function paintFavorites(){const box=host.querySelector('.hub-favorites>div'),choices=favoriteChoices();box.replaceChildren();for(const key of content.favorites){const x=choices.find(v=>v.key===key);if(!x)continue;const b=document.createElement('button');b.type='button';b.innerHTML=menuPictogram(key)+'<span>'+safe(x.title)+'</span>';b.onclick=()=>dispatch(['bulletins','schedule'].includes(key)?key:'feature:'+key);box.append(b)}if(!box.children.length)box.innerHTML='<p>자주 쓰는 메뉴를 추가하세요.</p>'}
   function favorites(){const d=dialog(host,'즐겨찾기 설정'),box=d.querySelector('.hub-dialog-body');box.innerHTML='<form class="hub-form">'+favoriteChoices().map(x=>'<label class="hub-check"><input type="checkbox" name="favorite" value="'+x.key+'" '+(content.favorites.includes(x.key)?'checked':'')+'>'+safe(x.title)+'</label>').join('')+'<button type="submit">저장</button><p role="status"></p></form>';box.querySelector('form').onsubmit=async ev=>{ev.preventDefault();const form=ev.currentTarget,b=form.querySelector('button');b.disabled=true;try{const favorites=Array.from(form.querySelectorAll(':checked'),x=>x.value);await api({action:'platform_hub_favorites',favorites});if(!sameUser())return;content.favorites=favorites;paintFavorites();d.close()}catch{form.querySelector('[role=status]').textContent='저장하지 못했습니다. 다시 시도해 주세요.'}finally{b.disabled=false}}}
   function scopedIncidents(){return (data.incidents||[]).filter(i=>!i.bulkInvalidation?.active&&(!['field','worker'].includes(u.role)||String(i.siteId)===String(u.siteId)))}
-  function approvals(){const m=entry('incident');if(!m||m.enabled===false||m.state!=='live'||m.canEnter===false)return [];return scopedIncidents().filter(i=>i.status!=='closed'&&(u.role==='safety'?!!window.enlSafetyWork?.(i)?.report||i.corrective?.status==='submitted':u.role==='executive'?window.ENLExecutiveApproval?.canDecide(i.executiveApproval,u.id):false))}
+  function approvals(){const m=entry('incident');if(!m||m.enabled===false||m.state!=='live'||m.canEnter===false)return [];return scopedIncidents().filter(i=>i.status!=='closed'&&(u.role==='safety'?!!window.enlSafetyWork?.(i)?.report||i.corrective?.status==='submitted':u.role==='executive'?window.ENLExecutiveApproval?.canDecide(i.executiveApproval,u.id):false)).sort((a,b)=>(Date.parse(b.updatedAt)||0)-(Date.parse(a.updatedAt)||0))}
   async function openIncident(id){if(!await allowed('incident'))return;const i=scopedIncidents().find(x=>x.id===id);if(!i){status.textContent='현재 조회할 수 없는 사고입니다.';return}host.querySelectorAll('dialog[open]').forEach(d=>d.close());if(window.enlOpenIncidentReview)window.enlOpenIncidentReview(id,u.role==='safety',u);else if(typeof openIncidentModal==='function')openIncidentModal(id,u.role==='safety',u);else go('incidents');}
   function rowButton(box,title,detail,callback,icon='file'){const b=document.createElement('button');b.type='button';b.className='hub-data-row';b.innerHTML=svg(icon)+'<strong>'+safe(title)+'</strong><time>'+safe(detail)+'</time>';b.onclick=callback;box.append(b);return b}
   const approvalCategories={all:'전체',incident:'사고보고',risk:'위험성평가',tbm:'TBM',organization:'안전보건조직',training:'안전보건교육'};
-  function approvalBody(box,compact=false){
+  function approvalBody(box,compact=false,pending=approvals()){
     const selected=compact?'all':box.dataset.category||'all';box.replaceChildren();
-    const tabs=document.createElement('nav');tabs.className='hub-category-tabs';tabs.setAttribute('aria-label','결재 업무 분류');
-    for(const [key,label] of Object.entries(approvalCategories)){
-      const b=document.createElement('button');b.type='button';b.dataset.approvalCategory=key;
-      b.textContent=label+(['all','incident'].includes(key)?' '+approvals().length:' / 준비 중');b.setAttribute('aria-pressed',String(key===selected));
-      b.onclick=()=>{box.dataset.category=key;approvalBody(box,compact)};tabs.append(b);
+    if(!compact){
+      const tabs=document.createElement('nav');tabs.className='hub-category-tabs';tabs.setAttribute('aria-label','결재 업무 분류');
+      for(const [key,label] of Object.entries(approvalCategories)){
+        const b=document.createElement('button');b.type='button';b.dataset.approvalCategory=key;
+        b.textContent=label+(['all','incident'].includes(key)?' '+pending.length:' / 준비 중');b.setAttribute('aria-pressed',String(key===selected));
+        b.onclick=()=>{box.dataset.category=key;approvalBody(box,compact)};tabs.append(b);
+      }
+      box.append(tabs);
     }
-    if(!compact)box.append(tabs);const rows=document.createElement('div');box.append(rows);
+    const rows=document.createElement('div');box.append(rows);
     if(!['all','incident'].includes(selected)){rows.innerHTML='<p class="hub-empty">'+safe(approvalCategories[selected])+' 결재 기능은 준비 중입니다.</p>';return;}
-    const pending=approvals().sort((a,b)=>(Date.parse(b.updatedAt)||0)-(Date.parse(a.updatedAt)||0));
     for(const i of (compact?pending.slice(0,5):pending)){
       const documentName=(siteById(i.siteId)?.name||'')+' '+(i.eventType||'사고')+' '+(i.corrective?.status==='submitted'?'재발방지조치 보고서':'사고보고서');
       const row=rowButton(rows,documentName.trim(),relative(i.updatedAt),()=>openIncident(i.id));row.classList.add('hub-approval-row');row.title=documentName.trim();
@@ -625,7 +629,13 @@
     }
     if(!pending.length)rows.innerHTML='<p class="hub-empty">본인에게 배정된 결재 대기 업무가 없습니다.</p>';
   }
-  function paintApprovals(){host.querySelector('[data-approval-count]').textContent=approvals().length+'건';approvalBody(host.querySelector('[data-list=approvals]'),true);const box=host.querySelector('[data-list-workspace=approvals] [data-approval-list]');if(box)approvalBody(box)}
+  function paintApprovals(){
+    const pending=approvals();
+    host.querySelector('[data-approval-count]').textContent=pending.length+'건';
+    approvalBody(host.querySelector('[data-list=approvals]'),true,pending);
+    const box=host.querySelector('[data-list-workspace=approvals] [data-approval-list]');
+    if(box)approvalBody(box,false,pending);
+  }
   function approvalWorkspace(){let panel=host.querySelector('[data-list-workspace=approvals]');if(!panel){panel=document.createElement('section');panel.className='hub-tool-panel';panel.dataset.listWorkspace='approvals';panel.innerHTML='<div class="section-head"><h2>통합결재 대기</h2><button type="button">새로고침</button></div><p>본인에게 배정된 결재를 업무별로 확인합니다.</p><div data-approval-list></div>';host.append(panel);panel.querySelector('button').onclick=async()=>{const b=panel.querySelector('button');b.disabled=true;try{await window.enlIncidentPullNow?.(false);if(sameUser())paintApprovals()}finally{b.disabled=false}}}panel.hidden=false;approvalBody(panel.querySelector('[data-approval-list]'))}
   function openApprovalList(){return selectTab('approvals')}
   function paintRecent(){const box=host.querySelector('[data-list=recent]');box.replaceChildren();for(const r of recent.slice(0,5))rowButton(box,r.sentence||r.incident_title,relative(r.happened_at),()=>openActivity(r));if(!recent.length)box.innerHTML='<p class="hub-empty">'+safe(recentError||'최근 업무 기록이 없습니다.')+'</p>'}

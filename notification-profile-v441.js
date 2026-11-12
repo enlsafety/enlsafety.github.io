@@ -33,17 +33,19 @@
     const box=document.createElement('section');box.className='enl441-profile';
     box.innerHTML=`<h3>사고보고 알림 설정</h3><div class="enl441-grid"><label class="enl441-field"><span>이메일</span><input id="enl441Email" type="email" placeholder="name@company.com"></label><label class="enl441-field"><span>앱 푸시</span><select id="enl441Push"><option value="1">ON</option><option value="0">OFF</option></select></label><label class="enl441-field"><span>이메일 알림</span><select id="enl441Mail"><option value="1">ON</option><option value="0">OFF</option></select></label></div><div id="enl441Force" class="enl441-note"></div><button type="button" id="enl441Save" class="enl441-save">이메일·알림 설정 저장</button><div id="enl441Msg" class="enl441-note">기본값은 앱 푸시 ON · 이메일 알림 ON입니다.</div>`;
     anchor.parentElement.insertBefore(box,anchor);
-    const msg=t=>{const x=document.getElementById('enl441Msg');if(x)x.textContent=t};
+    const msg=t=>{const x=box.querySelector('#enl441Msg');if(x)x.textContent=t};
     try{
       const r=await call(PUSH_API,'profile_get'),p=r.profile||{};
-      document.getElementById('enl441Email').value=p.email||'';
-      document.getElementById('enl441Push').value=p.pushEnabled===false?'0':'1';
-      document.getElementById('enl441Mail').value=p.emailEnabled===false?'0':'1';
-      const force=document.getElementById('enl441Force');
+      if(!box.isConnected)return;
+      box.querySelector('#enl441Email').value=p.email||'';
+      box.querySelector('#enl441Push').value=p.pushEnabled===false?'0':'1';
+      box.querySelector('#enl441Mail').value=p.emailEnabled===false?'0':'1';
+      const force=box.querySelector('#enl441Force');
       if(force&&p.urgentForced){force.classList.add('force');force.textContent='긴급사고는 앱 푸시·이메일 OFF 설정과 관계없이 강제 수신됩니다.'}
     }catch(e){msg('사용자 알림정보를 불러오지 못했습니다.')}
-    document.getElementById('enl441Save').onclick=async()=>{
-      const btn=document.getElementById('enl441Save'),email=document.getElementById('enl441Email').value.trim(),pushEnabled=document.getElementById('enl441Push').value!=='0',emailEnabled=document.getElementById('enl441Mail').value!=='0';
+    if(!box.isConnected)return;
+    box.querySelector('#enl441Save').onclick=async()=>{
+      const btn=box.querySelector('#enl441Save'),email=box.querySelector('#enl441Email').value.trim(),pushEnabled=box.querySelector('#enl441Push').value!=='0',emailEnabled=box.querySelector('#enl441Mail').value!=='0';
       btn.disabled=true;msg('저장 중…');
       try{await call(PUSH_API,'profile_update',{email,pushEnabled,emailEnabled});msg('이메일과 알림 설정을 저장했습니다.')}
       catch(e){msg(String(e?.message||'')==='invalid_email'?'이메일 주소 형식을 확인해 주세요.':'설정을 저장하지 못했습니다.')}
