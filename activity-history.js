@@ -72,7 +72,8 @@
       host.append(dialog);dialog.showModal();
     });
   }
-  const categories={all:'통합기록',incident:'사고보고기록',organization:'안전보건조직기록',tbm:'TBM기록',risk:'위험성평가기록',training:'교육기록',msds:'MSDS기록',common:'공통업무기록'};
+  const categories={all:'통합기록',incident:'사고보고기록',organization:'안전보건조직기록',tbm:'TBM기록',risk:'위험성평가기록',training:'교육기록',msds:'MSDS기록',common:'공통업무기록',login:'사용자 로그인 기록'};
+  const visibleCategories=()=>Object.fromEntries(Object.entries(categories).filter(([key])=>key!=='login'||actor()?.role==='safety'));
   let requestedFeed='';
   function render(root,feed='incident'){
     const id=owner();if(!id)return;
@@ -81,11 +82,13 @@
     if(!mark&&activeHistory)feed=activeHistory.dataset.feed;
     // Background sync may rebuild the shell while the user is editing search or removal dates.
     if(!mark&&activeHistory?.dataset.feed===feed){if(activeHistory.parentElement!==root)root.replaceChildren(activeHistory);return;}
+    if(feed==='login'&&actor()?.role!=='safety')feed='all';
+    if(feed==='login'){renderLoginHistory(root,id);return;}
     const host=document.createElement('section');host.className='panel activity-history';host.dataset.feed=feed;root.replaceChildren(host);activeHistory=host;
     host.innerHTML='<div class="section-head"><h2>통합 히스토리</h2><button type="button" class="secondary" data-refresh>새로고침</button></div><form class="activity-filters"><label>기간<select name="range"><option value="recent">최근 30일</option><option value="month">월별 조회</option><option value="custom">기간 지정</option><option value="all">전체 기간</option></select></label><label hidden data-month>조회 월<input type="month" name="month"></label><label hidden data-custom>시작일<input type="date" name="start"></label><label hidden data-custom>종료일<input type="date" name="end"></label><label>검색어<input type="search" name="q" maxlength="120" placeholder="이름, 사업장, 사고, 처리 내용"></label><button class="secondary" type="submit">검색</button></form><p role="status"></p><ol></ol><button type="button" class="secondary" data-more hidden>이전 기록 더 보기</button>';
     host.querySelector('h2').textContent=categories[feed]||'통합기록';
     const tabs=document.createElement('nav');tabs.className='hub-category-tabs';tabs.setAttribute('aria-label','업무 기록 분류');
-    for(const [key,title] of Object.entries(categories)){const button=document.createElement('button');button.type='button';button.textContent=title;button.setAttribute('aria-pressed',String(key===feed));button.onclick=()=>{requested=true;requestedFeed=key;render(root,key)};tabs.append(button)}
+    for(const [key,title] of Object.entries(visibleCategories())){const button=document.createElement('button');button.type='button';button.textContent=title;button.setAttribute('aria-pressed',String(key===feed));button.onclick=()=>{requested=true;requestedFeed=key;render(root,key)};tabs.append(button)}
     host.querySelector('.section-head').after(tabs);
     tabs.insertAdjacentHTML('afterend','<p class="activity-scope">'+(actor().role==='field'?'소속 현장 전체 기록과 본사 담당자의 전사 공통업무 기록입니다.':'전체 사업장과 전체 사용자의 업무 기록입니다.')+' 활동일로부터 30일간 표시됩니다.</p>');
     const list=host.querySelector('ol'),status=host.querySelector('[role=status]'),more=host.querySelector('[data-more]');
@@ -192,6 +195,55 @@
       finally{if(opening===token)opening=0;if(seq===request){busy=false;more.disabled=false;}}
     }
     host.querySelector('[data-refresh]').onclick=()=>load(true,true);more.onclick=()=>load(false,false);load(true,mark);
+  }
+  // Login records are separate from editable work history, and are never marked read or deleted here.
+  function renderLoginHistory(root,id){
+    if(actor()?.role!=='safety')return;
+    const host=document.createElement('section');host.className='panel activity-history login-history';
+    host.dataset.feed='login';root.replaceChildren(host);activeHistory=host;
+    host.innerHTML='<div class="section-head"><h2>사용자 로그인 기록</h2><button type="button" class="secondary" data-refresh>새로고침</button></div><form class="activity-filters"><label>시작일<input type="date" name="start"></label><label>종료일<input type="date" name="end"></label><label>이름, 소속, 역할<input type="search" name="q" maxlength="120" placeholder="검색어 입력"></label><button class="secondary" type="submit">조회</button></form><p class="activity-scope">안전관리자만 조회할 수 있습니다. 인증에 성공하여 로그인 세션이 발급된 기록을 최대 90일간 보관합니다. 화면 열람과 로그인 실패는 포함되지 않습니다.</p><p role="status"></p><ol></ol><button type="button" class="secondary" data-more hidden>이전 기록 더 보기</button>';
+    const tabs=document.createElement('nav');tabs.className='hub-category-tabs';tabs.setAttribute('aria-label','업무 기록 분류');
+    for(const [key,title] of Object.entries(visibleCategories())){
+      const b=document.createElement('button');b.type='button';b.textContent=title;b.setAttribute('aria-pressed',String(key==='login'));
+      b.onclick=()=>{requested=true;requestedFeed=key;render(root,key)};tabs.append(b);
+    }
+    host.querySelector('.section-head').after(tabs);
+    const form=host.querySelector('form'),controls=form.elements,list=host.querySelector('ol');
+    const status=host.querySelector('[role=status]'),more=host.querySelector('[data-more]');
+    const today=day.format(new Date());
+    controls.start.value=day.format(new Date(Date.parse(today+'T00:00:00+09:00')-29*86400000));
+    controls.end.value=today;
+    let filters={fromDate:controls.start.value,toDate:today,search:''},cursor='',busy=false,seq=0;
+    async function load(first=false){
+      if(busy||!host.isConnected||userId()!==id)return;
+      busy=true;const call=++seq;more.disabled=true;
+      if(first){cursor='';list.replaceChildren();more.hidden=true;}
+      status.textContent='로그인 기록을 조회하는 중입니다.';
+      try{
+        const r=await api({action:'activity_login_list',before:cursor,...filters});
+        if(!host.isConnected||userId()!==id||call!==seq)return;
+        for(const row of r.rows||[]){
+          const item=document.createElement('li'),details=document.createElement('div');
+          details.className='login-event';
+          const title=document.createElement('strong'),meta=document.createElement('small');
+          title.textContent=row.display_name||'사용자 정보 없음';
+          meta.textContent=[row.role_label,row.affiliation,stamp.format(new Date(row.logged_at))].filter(Boolean).join(' / ');
+          details.append(title,meta);item.append(details);list.append(item);cursor=row.id;
+        }
+        more.hidden=!r.more;
+        status.textContent=list.children.length?'최신 로그인 순서로 표시합니다.':'해당 조건의 로그인 기록이 없습니다.';
+      }catch(err){
+        if(host.isConnected&&call===seq)status.textContent=err?.message==='forbidden'?'로그인 기록 조회 권한이 없습니다.':'조회하지 못했습니다. 연결 상태를 확인하고 다시 시도해 주세요.';
+      }finally{busy=false;more.disabled=false;}
+    }
+    form.onsubmit=e=>{e.preventDefault();
+      const fromDate=controls.start.value,toDate=controls.end.value;
+      if(fromDate&&toDate&&fromDate>toDate){status.textContent='종료일은 시작일 이후여야 합니다.';return}
+      filters={fromDate,toDate,search:controls.q.value.trim()};load(true);
+    };
+    host.querySelector('[data-refresh]').onclick=()=>load(true);
+    more.onclick=()=>load(false);
+    load(true);
   }
   window.enlRequestHistory=(feed)=>{owner();requested=true;requestedFeed=Object.hasOwn(categories,feed)?feed:'';};
   window.enlRenderHistory=render;window.enlRefreshHistoryCount=refresh;
