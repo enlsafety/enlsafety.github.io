@@ -218,6 +218,7 @@ Deno.serve(async(req:Request)=>{
       const rows=await sql`select id::text,logged_at,display_name,role_label,affiliation
         from private.enl_login_history
         where id<coalesce(nullif(${cursor},'')::bigint,9223372036854775807)
+          and logged_at >= now()-interval '90 days'
           and (${from}='' or logged_at >= (nullif(${from},'')::timestamp at time zone 'Asia/Seoul'))
           and (${to}='' or logged_at < ((nullif(${to},'')::timestamp+interval '1 day') at time zone 'Asia/Seoul'))
           and (${term}='' or display_name ilike '%'||${term}||'%'
