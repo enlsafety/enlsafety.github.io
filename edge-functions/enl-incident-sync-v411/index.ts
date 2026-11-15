@@ -208,6 +208,24 @@ Deno.serve(async(req:Request)=>{
   try{
     let actor=await verifyActor(sql,body,true);if(!actor)return json({ok:false,message:"auth_proof_required"},403);
 
+    // Only the verified safety administrator may read the separate login audit.
+    if(action==="activity_login_list"){
+      if(actor.role!=="safety")return json({ok:false,message:"forbidden"},403);
+      const cursor=clean(body.before),from=clean(body.fromDate),to=clean(body.toDate),term=clean(body.search).slice(0,120);
+      const validDay=(v:string)=>!v||(/^\\d{4}-\\d{2}-\\d{2}$/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v);
+      if(cursor&&!/^\\d{1,18}$/.test(cursor)||!validDay(from)||!validDay(to)||(from&&to&&from>to))
+        return json({ok:false,message:"invalid_login_history_filter"},400);
+      const rows=await sql`select id::text,logged_at,display_name,role_label,affiliation
+        from private.enl_login_history
+        where id<coalesce(nullif(${cursor},'')::bigint,9223372036854775807)
+          and (${from}='' or logged_at >= (nullif(${from},'')::timestamp at time zone 'Asia/Seoul'))
+          and (${to}='' or logged_at < ((nullif(${to},'')::timestamp+interval '1 day') at time zone 'Asia/Seoul'))
+          and (${term}='' or display_name ilike '%'||${term}||'%'
+            or affiliation ilike '%'||${term}||'%' or role_label ilike '%'||${term}||'%')
+        order by id desc limit 51`;
+      return json({ok:true,rows:rows.slice(0,50),more:rows.length>50});
+    }
+
     if(action.startsWith("platform_"))return await platformRequest(sql,actor,body,json);
     let feed=clean(body.feed);
     if(action.startsWith("activity_")&&feed!=="incident"&&!await serviceAllowed(sql,actor,"history")){
