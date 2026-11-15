@@ -57,6 +57,21 @@
  .org-main{padding:10px 5px}.org-preview{padding:2px;overflow-x:auto}.org-panel .org-zoom{display:inline-block}.org-zoomed .org-paper{min-width:650px}
  .org-panel .org-folder{min-height:36px}.org-manage input{font-size:16px}
 }
+
+/* Main-panel site directory and document shortcuts. The sidebar remains unchanged. */
+.org-page-title{margin:0 0 16px}
+.org-page-title h3{margin:0 0 5px;font-size:20px;color:#183f64}
+.org-page-title p{margin:0}
+.org-site-grid,.org-document-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,235px),1fr));gap:12px}
+#app .org-panel button.org-site-card,#app .org-panel button.org-document-card{display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;gap:12px;min-height:102px;min-width:0;padding:17px;text-align:left;border:1px solid #c8dceb;border-radius:12px;background:linear-gradient(180deg,#fff,#f7fbfe);box-shadow:0 2px 7px rgba(28,71,103,.05);white-space:normal;overflow-wrap:anywhere}
+#app .org-panel button.org-document-card{min-height:130px}
+#app .org-panel :is(button.org-site-card,button.org-document-card):hover{border-color:#5197bf;background:#ebf6fd;box-shadow:0 4px 12px rgba(28,71,103,.09)}
+#app .org-panel :is(button.org-site-card,button.org-document-card):focus-visible{outline:3px solid #3b91cb;outline-offset:2px}
+.org-site-card strong,.org-document-card strong{font-size:16px;line-height:1.4;color:#193f62}
+.org-site-card .org-state,.org-document-card .org-status{font-size:12px;line-height:1.4}
+#app .org-panel button.org-back{margin-bottom:16px;padding:8px 12px;border:0;background:#eaf4fc;color:#265f87}
+@media(max-width:750px){.org-site-grid,.org-document-grid{grid-template-columns:minmax(0,1fr);gap:9px}.org-page-title h3{font-size:18px}#app .org-panel button.org-site-card{min-height:77px;padding:13px}#app .org-panel button.org-document-card{min-height:100px;padding:14px}}
+
 @media print{
  html:has(#org-print-page),body:has(>#org-print-page){margin:0!important;padding:0!important;display:block!important;width:210mm!important;height:297mm!important;min-height:0!important;overflow:visible!important;background:white!important}
  body:has(>#org-print-page)>:not(#org-print-page){display:none!important}
