@@ -380,6 +380,10 @@ dialog.draft-resume-dialog{position:fixed;inset:0;box-sizing:border-box;width:mi
 .activity-filters label:has([type=search]){flex:1 1 190px}
 
 .activity-history li{display:flex;align-items:center;gap:6px}
+.activity-history.login-history li .login-event{display:grid;gap:5px;width:100%;padding:12px 6px;min-width:0;overflow-wrap:anywhere}
+.activity-history.login-history li strong{color:#183e5c;font-size:15px}
+.activity-history.login-history li small{line-height:1.5;font-size:12px}
+.activity-history.login-history .activity-scope{line-height:1.6}
 .activity-history li button:first-child{flex:1;min-width:0}
 .activity-history li .history-remove{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;padding:0;border-radius:8px;color:#98404d;font-size:22px}
 .activity-history li .history-remove:hover{background:#ffedf0}
