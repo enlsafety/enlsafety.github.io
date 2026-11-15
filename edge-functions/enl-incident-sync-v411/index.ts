@@ -212,8 +212,8 @@ Deno.serve(async(req:Request)=>{
     if(action==="activity_login_list"){
       if(actor.role!=="safety")return json({ok:false,message:"forbidden"},403);
       const cursor=clean(body.before),from=clean(body.fromDate),to=clean(body.toDate),term=clean(body.search).slice(0,120);
-      const validDay=(v:string)=>!v||(/^\\d{4}-\\d{2}-\\d{2}$/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v);
-      if(cursor&&!/^\\d{1,18}$/.test(cursor)||!validDay(from)||!validDay(to)||(from&&to&&from>to))
+      const validDay=(v:string)=>!v||(/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v);
+      if(cursor&&!/^\d{1,18}$/.test(cursor)||!validDay(from)||!validDay(to)||(from&&to&&from>to))
         return json({ok:false,message:"invalid_login_history_filter"},400);
       const rows=await sql`select id::text,logged_at,display_name,role_label,affiliation
         from private.enl_login_history
