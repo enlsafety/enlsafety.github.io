@@ -875,7 +875,7 @@
   function historyShortcuts(){
     let nav=host.querySelector('.hub-history-shortcuts');if(!nav){nav=document.createElement('nav');nav.className='hub-history-shortcuts hub-category-tabs';nav.setAttribute('aria-label','업무 기록 바로가기');host.querySelector('.hub-support>h2').after(nav)}
     const m=entry('history');nav.hidden=!window.enlHistoryAvailable?.(u)||!m||m.canEnter===false||m.enabled===false||m.state!=='live';nav.replaceChildren();
-    for(const [key,label] of Object.entries({all:'통합기록',incident:'사고보고기록',organization:'안전보건조직기록',tbm:'TBM기록',risk:'위험성평가기록',training:'교육기록',common:'공통업무기록'})){
+    for(const [key,label] of Object.entries({all:'통합기록',incident:'사고보고기록',organization:'안전보건조직기록',tbm:'TBM기록',risk:'위험성평가기록',training:'교육기록',common:'공통업무기록',...(u.role==='safety'?{login:'사용자 로그인 기록'}:{})})){
       const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=async()=>{const already=active==='history';if(!await selectTab('history',false,key))return;if(already){window.enlRequestHistory?.(key);window.enlRenderHistory?.(host.closest('.app-shell').querySelector('#view'),key)}};nav.append(b);
     }
   }
