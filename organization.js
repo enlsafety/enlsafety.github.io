@@ -4,7 +4,7 @@
   const ns = 'http://www.w3.org/2000/svg';
   const defaults = () => ({lead:'',supervisor:'',teams:['코스관리','스프링쿨러','서무','기타'].map(name => ({name,regular:0,daily:0}))});
   const documents={chart:'01. 조직도',appointment:'02. 임명장',evaluation:'03. 업무수행평가표'};
-  const selectPrompt='좌측 사이드바에서 조회 할 내용을 선택하세요.';
+  const selectPrompt='사업장 목록이나 좌측 폴더에서 조회할 내용을 선택하세요.';
   const stages={empty:'미작성',draft:'최신화 미확인',pending:'승인 대기',approved:'승인 완료'};
   const periodName = p => p.slice(0,4)+'년 '+(p.endsWith('1')?'상반기':'하반기');
   const when = d => new Date(d).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
@@ -107,6 +107,10 @@
       readList().then(result=>{
         if(onScreen()&&shownPeriod&&railBody&&!managerForm&&!busy){
           folders=result.sites;listingPeriod=result.period;paintRail();
+          if(!shownDoc){
+            const selected=folders.find(s=>s.site_id===shownSite);
+            if(selected)paintDocuments(selected);else{shownSite=null;paintSites();}
+          }
         }
         const current=result.sites.find(s=>s.site_id===shownSite);
         if(onScreen()&&shownSite&&!current&&!busy&&!dirty){open();return;}
@@ -134,11 +138,45 @@
     function failure(err,retry,target=panel){
       target.replaceChildren(status('자료를 불러오지 못했습니다. 연결 상태를 확인해 주세요.'),button('다시 불러오기',retry));
     }
-    function selectFolder(siteId){
+    function paintSites(){
+      if(!main)return;
+      const heading=el('div',null,'org-page-title');
+      heading.append(el('h3','사업장 목록'),el('p','사업장을 선택하면 조직도, 임명장, 업무수행평가표 메뉴로 이동합니다.','org-status'));
+      const grid=el('div',null,'org-site-grid');
+      const collator=new Intl.Collator('ko-KR',{numeric:true,sensitivity:'base'});
+      for(const site of [...folders].sort((a,b)=>collator.compare(a.folder_name||a.site_name,b.folder_name||b.site_name))){
+        const card=button('',()=>selectFolder(site.site_id,true),'org-site-card');
+        const name=el('strong',site.folder_name||site.site_name);
+        const condition=site.active===false?'종료':stages[site.state]||'미작성';
+        const small=el('span',condition,'org-state '+(site.active===false?'':site.checked?'approved':'pending'));
+        card.append(name,small);card.setAttribute('aria-label',(site.folder_name||site.site_name)+' 서류 메뉴 열기');
+        grid.append(card);
+      }
+      main.replaceChildren(heading,grid);
+      if(!folders.length)main.append(status('조회 가능한 사업장 폴더가 없습니다.'));
+    }
+    function paintDocuments(site){
+      if(!main)return;
+      const back=button('← 사업장 목록',()=>selectFolder(null,true),'org-back');
+      const head=el('div',null,'org-page-title');
+      head.append(el('h3',site.folder_name||site.site_name),
+        el('p','조회할 서류를 선택하세요.','org-status'));
+      const grid=el('div',null,'org-document-grid');
+      const subtitles={chart:'안전보건 조직 및 인원 현황',appointment:'임명장 메뉴 (작성 기능 준비 중)',evaluation:'업무수행평가표 메뉴 (작성 기능 준비 중)'};
+      for(const [key,label] of Object.entries(documents)){
+        const card=button('',()=>selectDocument(site,key),'org-document-card');
+        card.append(el('strong',label),el('span',subtitles[key],'org-status'));
+        grid.append(card);
+      }
+      main.replaceChildren(back,head,grid);
+    }
+    function selectFolder(siteId,force=false){
       if(!canLeave())return;
       ++sequence;dirty=false;closeManager();
-      shownSite=shownSite===siteId?null:siteId;shownDoc=null;shownRevision=undefined;
-      paintRail();main.replaceChildren(status(selectPrompt));
+      shownSite=force?siteId:(shownSite===siteId?null:siteId);shownDoc=null;shownRevision=undefined;
+      paintRail();
+      const site=folders.find(s=>s.site_id===shownSite);
+      if(site)paintDocuments(site);else paintSites();
     }
     function selectDocument(site,key){
       if(key==='chart'){folder(site.site_id);return;}
@@ -146,7 +184,8 @@
       ++sequence;dirty=false;closeManager();
       shownSite=site.site_id;shownDoc=key;shownRevision=undefined;
       paintRail();if(innerWidth<=750)rail.open=false;
-      main.replaceChildren(el('h2',site.site_name+' / '+documents[key]),status('준비 중입니다.'));
+      const back=button('← '+(site.folder_name||site.site_name)+' 서류 목록',()=>selectFolder(site.site_id,true),'org-back');
+      main.replaceChildren(back,el('h2',site.site_name+' / '+documents[key]),status('해당 서류의 작성 기능은 준비 중입니다.'));
     }
     function paintRail(){
       if(!railBody)return;
@@ -251,7 +290,8 @@
         }
         shownSite=folders.find(s=>s.site_id===preferred)?.site_id||null;
         paintRail();
-        if(!folders.length)main.replaceChildren(status('조회 가능한 사업장 폴더가 없습니다.'));
+        if(shownSite){const selected=folders.find(s=>s.site_id===shownSite);if(selected)paintDocuments(selected);else paintSites();}
+        else paintSites();
       }catch(err){if(onScreen()&&token===sequence)failure(err,()=>open(),railBody)}
     }
     async function folder(siteId,version){
@@ -278,7 +318,9 @@
       const head=el('div',null,'org-head'),title=el('div'),tools=el('div',null,'org-actions'),note=status('');
       title.append(el('h2',site.site_name+' 안전보건조직도'),el('span',periodName(period)+'　'+(site.active===false?'종료 사업장':stages[state]||'미작성'),'org-state '+(site.active===false?'':locked?'approved':'pending')));
 
-      head.append(title,tools);main.replaceChildren(head);
+      head.append(title,tools);
+      const back=button('← '+(site.folder_name||site.site_name)+' 서류 목록',()=>selectFolder(site.site_id,true),'org-back');
+      main.replaceChildren(back,head);
       if(history.length){
         const label=el('label','저장 이력　','org-versions'),pick=el('select');label.append(pick);
         for(const v of history){
