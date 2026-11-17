@@ -1,3 +1,4 @@
+import { analysisTargetRequest } from "./analysis-targets.ts";
 import { organizationRequest } from "./organization.ts";
 import { riskRequest } from "./risk-assessment.ts";
 const moduleKeys=['incident','risk','tbm','organization','training','msds'];
@@ -120,6 +121,7 @@ function boardAttachment(f:any){
 }
 export async function platformRequest(sql:any,actor:any,body:any,reply:any){
   const admin=actor.role==='safety',action=body.action;
+  if(action.startsWith('platform_analysis_target_'))return analysisTargetRequest(sql,actor,body,reply);
   if(action.startsWith('platform_risk_')){
     const [config]=await sql`select item from private.enl_platform_catalog cross join lateral jsonb_array_elements(modules) item where singleton and item->>'key'='risk'`;
     if(!canEnter(config?.item,actor))return reply({ok:false,message:'module_unavailable'},403);

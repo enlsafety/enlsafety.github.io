@@ -114,7 +114,7 @@ function loadScript(file){
 
  assert.ok(nav,'analysis tab '+role);assert.equal(nav.previousElementSibling?.dataset.lifecycleClosed,'1','analysis immediately after closed');const before=w.__fixtureCalls.length;nav.click();
  assert.ok(d.querySelector('.incident-analysis'),'analysis opens '+role);assert.equal(d.querySelectorAll('.analysis-kpis article').length,4);
- assert.equal(w.__fixtureCalls.length,before,'opening analysis does not add network calls');
+ assert.ok(w.__fixtureCalls.slice(before).every(x=>x==='platform_analysis_target_get'),'analysis only reads shared goals once');assert.ok(w.__fixtureCalls.length-before<=1);
  assert.match(d.querySelector('.analysis-kpis').textContent,/전체 사고1건 등록/);
  const select=d.querySelector('[data-analysis-year]');select.value='2026';select.dispatchEvent(new w.Event('change',{bubbles:true}));
  assert.equal(d.querySelectorAll('.strategy-month').length,12);
