@@ -34,7 +34,7 @@ function loadScript(file){
  assert.equal(d.querySelectorAll('[data-sd450-map]').length,1);
  assert.ok(d.querySelector('.incident-overview > .stats426-cards'));
  assert.equal(d.querySelectorAll('.management-points').length,1);
- assert.match(d.querySelector('.management-points').textContent,/핵심 관리 포인트.*사고 핵심 요약.*산재 검토 필요.*재발사고.*확인 필요.*우선 관리 사업장 TOP 3/s);
+ assert.match(d.querySelector('.management-points').textContent,/핵심 관리 포인트.*전년 동기 대비.*미종결 사고.*법정 보고 검토.*우선 관리 사업장/s);
  assert.ok(d.querySelector('.incident-overview > [data-sd450-map]'));
  for(const title of ['월별 사고 발생','사고유형별 분포','사업장별 사고 건수','우선 확인할 작업','업무별 발생 현황','추가 확인이 필요한 정보'])assert.equal([...d.querySelectorAll('.stats426 h3')].filter(h=>h.textContent===title).length,1,title+' appears once');
  assert.equal(d.querySelector('.stats426-donut'),null);
@@ -68,7 +68,7 @@ function loadScript(file){
  w.enlRenderIncidentStats(d.getElementById('view'),w.currentUser(),{year:'2026'});
  assert.equal(w.__fixtureCalls.length,pointsCalls,'summary makes no additional requests');
  assert.match(d.querySelector('.management-points').textContent,/미종결 사고4건/);
- assert.equal(d.querySelectorAll('.management-points ol li').length,2);
+ assert.equal(d.querySelectorAll('.management-points-focus').length,1);
  assert.ok(d.querySelector('.analysis-cost-layout > .analysis-cost-heading'));
  assert.ok(d.querySelector('.analysis-cost-layout > .analysis-ratios'));
  assert.equal(d.querySelector('.analysis-cost-heading [data-cost-unknown]')!==null,true);

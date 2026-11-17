@@ -10,7 +10,8 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),{JSDOM}=require
  let bottom=720;overview.getBoundingClientRect=()=>({top:20,left:10});cards.getBoundingClientRect=()=>({bottom:450,left:10,width:195});map.getBoundingClientRect=()=>({bottom});
  const settle=()=>new Promise(r=>w.requestAnimationFrame(()=>w.requestAnimationFrame(r)));
  w.innerWidth=1366;w.ENLManagementPoints.mount(root);await settle();
- assert.equal(points.parentElement,overview);assert.equal(points.style.getPropertyValue('--points-height'),'258px');assert.equal(points.style.getPropertyValue('--points-top'),'442px');assert.equal(map.getAttribute('style'),null);
+ assert.equal(points.parentElement,overview);assert.equal(points.style.getPropertyValue('--points-height'),'');assert.equal(points.style.getPropertyValue('--points-top'),'442px');assert.equal(map.getAttribute('style'),null);
+ points.getBoundingClientRect=()=>({height:300});callback();await settle();assert.equal(points.parentElement,d.querySelector('.stats426'),'long content falls back rather than clipping');points.getBoundingClientRect=()=>({height:180});
  bottom=550;callback();await settle();assert.equal(points.parentElement,d.querySelector('.stats426'));assert.ok(!points.classList.contains('management-points-rail'));
  bottom=720;w.innerWidth=390;w.dispatchEvent(new w.Event('resize'));await settle();assert.equal(points.parentElement,d.querySelector('.stats426'));
  w.innerWidth=1366;w.dispatchEvent(new w.Event('resize'));await settle();assert.equal(points.parentElement,overview);

@@ -1,24 +1,14 @@
-/* Scoped addition: existing map, KPI cards and dashboard dimensions are unchanged. */
+/* A short summary with natural height: never an inner scrolling region. */
 .incident-overview{position:relative}
-.stats426 .management-points{box-sizing:border-box;min-width:0;border:1px solid #cbdfea;border-top:3px solid #2e658f;border-radius:14px;background:linear-gradient(120deg,#f0f6fc,#fff 80%);box-shadow:0 3px 10px #183e5a10;color:#35516b;font:inherit;overflow:hidden}
-.management-points>header{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:10px 12px 8px;border-bottom:1px solid #dce7ef}
-.management-points>header h3{margin:0;font-size:14px;line-height:1.4;color:#173b66;word-break:keep-all}
-.management-points>header>span{font-size:11px;white-space:nowrap;color:#627a8e}
-.management-points-body{min-width:0;padding:9px 12px;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
-.management-points-body:focus-visible{outline:2px solid #2375a7;outline-offset:-3px}
-.management-points h4{margin:0 0 6px;font-size:12px;color:#244d6c}
-.management-points dl{margin:0;display:grid;gap:0}
-.management-points dl>div{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid #e3ebf1;flex-wrap:wrap}
-.management-points dt{color:#526d82}.management-points dt small{display:block;font-size:10px;color:#657d91}.management-points dd{margin:0;color:#173b66;font-weight:700;max-width:100%}
-.management-points .management-points-note{margin:7px 0 10px;font-size:11px;color:#657d91}
-.management-points ol{list-style:none;margin:0;padding:0;display:grid;gap:6px}
-.management-points li{display:flex;align-items:flex-start;gap:6px;padding:7px;border-left:3px solid var(--rank-color,#cbdfea);border-radius:6px;background:var(--rank-tint,#f4f8fb);min-width:0}
-.management-points li>div{min-width:0}.management-points li strong{display:block;font-size:12px;color:var(--rank-ink,#173b66)}
-.management-points li small{display:block;font-size:11px;color:#526d82;margin-top:2px}
-.management-points-rank{font-size:10px;flex:none;color:var(--rank-ink,#526d82);font-weight:700}
-.management-points details{margin-top:8px;font-size:11px;color:#627a8e}.management-points summary{cursor:pointer;min-height:32px;display:list-item;align-content:center}.management-points details p{margin:6px 0}
-.stats426 .management-points-rail{position:absolute;top:var(--points-top);left:var(--points-left);width:var(--points-width);height:var(--points-height);display:flex;flex-direction:column}
-.management-points-rail>header{flex:none}.management-points-rail .management-points-body{overflow-y:auto;min-height:0;overscroll-behavior-y:contain;scrollbar-width:thin;scrollbar-gutter:stable}
-@media(min-width:901px){.management-points:not(.management-points-rail) .management-points-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 18px}.management-points:not(.management-points-rail) h4:first-child{grid-column:1;grid-row:1}.management-points:not(.management-points-rail) dl{grid-column:1;grid-row:2}.management-points:not(.management-points-rail) .management-points-note{grid-column:1}.management-points:not(.management-points-rail) h4:nth-of-type(2){grid-column:2;grid-row:1}.management-points:not(.management-points-rail) ol{grid-column:2;grid-row:2/4}.management-points:not(.management-points-rail) details{grid-column:1/-1}}
-@media(max-width:900px){.management-points-body{font-size:14px;padding:12px}.management-points>header h3{font-size:16px}.management-points h4,.management-points li strong{font-size:14px}.management-points li small,.management-points .management-points-note,.management-points details{font-size:12px}.management-points summary{min-height:44px}.management-points dl>div{padding:7px 0}}
-@media print{.stats426 .management-points-rail{position:static;width:auto;height:auto}.management-points-rail .management-points-body{overflow:visible}}
+.stats426 .management-points{box-sizing:border-box;min-width:0;border:1px solid #cbdfea;border-top:3px solid #2e658f;border-radius:14px;background:linear-gradient(120deg,#f0f6fc,#fff 80%);box-shadow:0 3px 10px #183e5a10;color:#35516b;font:inherit}
+.management-points>header{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:9px 12px 7px;border-bottom:1px solid #dce7ef}
+.management-points>header h3{margin:0;font-size:14px;line-height:1.4;color:#173b66;word-break:keep-all}.management-points>header>span{font-size:11px;white-space:nowrap;color:#627a8e}
+.management-points-body{padding:7px 12px 10px;font-size:12px;line-height:1.45;overflow-wrap:anywhere}
+.management-points dl{margin:0;display:grid;gap:4px}.management-points dl>div{display:flex;justify-content:space-between;align-items:baseline;gap:4px 8px;flex-wrap:wrap}.management-points dt{color:#526d82}.management-points dd{margin:0;color:#173b66;font-weight:700;max-width:100%}
+.management-points-focus{margin-top:8px;padding:6px 8px;border-left:3px solid var(--rank-color,#cbdfea);border-radius:5px;background:var(--rank-tint,#f4f8fb);min-width:0}
+.management-points-focus span,.management-points-focus small{display:block;font-size:11px;color:#526d82}.management-points-focus strong{display:block;font-size:13px;line-height:1.4;color:var(--rank-ink,#173b66);margin:2px 0}
+.management-points-note{display:block;font-size:11px;color:#657d91;margin-top:6px}
+.stats426 .management-points-rail{position:absolute;top:var(--points-top);left:var(--points-left);width:var(--points-width);height:auto}
+@media(min-width:901px){.management-points:not(.management-points-rail) .management-points-body{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}.management-points:not(.management-points-rail) .management-points-focus{margin-top:0}}
+@media(max-width:900px){.management-points-body{font-size:14px;padding:10px 12px}.management-points>header h3{font-size:16px}.management-points dl{gap:7px}.management-points-focus strong{font-size:14px}.management-points-focus span,.management-points-focus small{font-size:12px}}
+@media print{.stats426 .management-points-rail{position:static;width:auto}}

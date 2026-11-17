@@ -1,0 +1,9 @@
+.platform-hub .hub-storage-usage{flex:none;position:relative;z-index:2;margin:7px 7px 0;padding:9px 10px;border:1px solid #6c9ab33d;border-radius:9px;background:#ffffff09;color:#dcebf7;min-width:0;box-sizing:border-box}
+.hub-storage-usage header{display:flex;gap:5px;align-items:center;justify-content:space-between}.hub-storage-usage header strong{font-size:12px;line-height:1.4}
+.platform-hub .hub-storage-usage header button{width:auto;min-height:28px;padding:3px 5px;font-size:11px;border-color:#8cb6cf38;flex:none}
+.hub-storage-total{font-size:19px;font-weight:750;line-height:1.4;color:#fff;margin:4px 0;overflow-wrap:anywhere}
+.hub-storage-bar{height:7px;display:flex;overflow:hidden;border-radius:6px;background:#57718a55;margin:5px 0 8px}.hub-storage-bar i{height:100%;display:block;background:#70c7f5}.hub-storage-bar i+i{background:#a8c1d8}
+.hub-storage-usage dl{margin:0;display:grid;gap:3px;font-size:11px}.hub-storage-usage dl>div{display:flex;justify-content:space-between;gap:6px;flex-wrap:wrap}.hub-storage-usage dd{margin:0;color:#fff;font-variant-numeric:tabular-nums}.hub-storage-usage dt:before{content:'';display:inline-block;width:6px;height:6px;margin-right:5px;border-radius:2px;background:#70c7f5}.hub-storage-usage dl>div+div dt:before{background:#a8c1d8}
+.hub-storage-usage small{display:block;font-size:10px;line-height:1.5;color:#b4cbdf;margin-top:6px;overflow-wrap:anywhere}
+.platform-hub .hub-storage-usage+.hub-sidebar-editor{margin-top:8px}
+@media(pointer:coarse){.platform-hub .hub-storage-usage header button{min-height:44px;min-width:44px}}

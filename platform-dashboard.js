@@ -547,6 +547,7 @@
   const inquiry=document.createElement('button');
   inquiry.type='button';inquiry.className='hub-inquiry';inquiry.dataset.wfInquirySidebar='';
   inquiry.textContent=builtins.inquiry;inquiry.onclick=()=>selectTab('inquiry');sidebar.append(inquiry);
+  if(admin){window.ENLStorageUsage?.mount(sidebar,u,api,sameUser);sidebar.append(editPanel);}
   function moveSidebar(key,target){
     if(!sidebarDraft||savingSidebar)return;
     const from=sidebarDraft.indexOf(key),to=sidebarDraft.indexOf(target);

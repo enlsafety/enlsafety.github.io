@@ -18,6 +18,11 @@ for(const m of config.modules)if(documentNames[m.key])m.displayName=documentName
   assert.equal(d.querySelectorAll('.hub-document-menus [data-hub]').length,10);
   assert.ok([...nav.querySelectorAll('use')].every(n=>n.getAttribute('href').startsWith('assets/sidebar-outline-r135.svg#')));
   assert.equal(!!nav.querySelector('[data-hub="feature:system"]'),role==='safety');assert.equal(!!d.querySelector('.hub-sidebar-editor [data-edit]'),role==='safety');
+  if(role==='safety'){
+   await until(()=>d.querySelector('.hub-storage-total')?.textContent.includes('MB'),'storage readout');
+   const usage=d.querySelector('.hub-storage-usage');assert.ok(usage);assert.ok(usage.previousElementSibling.classList.contains('hub-inquiry'));assert.ok(usage.nextElementSibling.classList.contains('hub-sidebar-editor'));
+   assert.equal(w.__fixtureCalls.filter(x=>x==='platform_storage_usage').length,1);
+  }else{assert.equal(d.querySelector('.hub-storage-usage'),null);assert.equal(w.__fixtureCalls.filter(x=>x==='platform_storage_usage').length,0);}
   const keys=[...nav.querySelectorAll('[data-hub]')].map(n=>n.dataset.hub);
   let group=d.querySelector('.hub-document-menus');assert.equal(group.open,true);group.querySelector('summary').click();await until(()=>!group.open,'collapse');
   await hub.reloadCatalog();group=d.querySelector('.hub-document-menus');assert.equal(group.open,false,'collapse retained on catalog refresh');group.querySelector('summary').click();await until(()=>group.open,'expand');
