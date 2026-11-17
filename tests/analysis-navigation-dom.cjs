@@ -6,6 +6,7 @@ const base=process.cwd();
 const until=async(test,note)=>{for(let n=0;n<500;n++){if(test())return;await new Promise(r=>setTimeout(r,20));}throw Error('Timed out: '+note)};
 function loadScript(file){
  let source=fs.readFileSync(file,'utf8');if(file!=='tests/integrated-home-fixture.js')return source;
+ source=source.replace("if(b.action==='dashboard_read')out.sites=","if(b.action==='dashboard_read')out.metrics=[...Array.from({length:2},()=>({siteId:'s01',category:'person',status:'reported',occurredAt:new Date().getFullYear()+'-01-01'})),...Array.from({length:3},()=>({siteId:'s02',category:'property',status:'closed',occurredAt:new Date().getFullYear()+'-02-01'}))];if(b.action==='dashboard_read')out.sites=");
  source=source.replaceAll("['incident','history','notices','system'].includes(key)","['incident','organization','risk','history','notices','system'].includes(key)");
  return source.replace("if(b.action==='platform_catalog')", "if(b.action==='platform_org_list'||b.action==='platform_risk_list'){await new Promise(r=>setTimeout(r,60));out={ok:true,period:'2026-2',sites:[{site_id:'qa-site',site_name:'검수 골프장',folder_name:'검수 골프장',folder_revision:1,state:'draft',active:true}],candidates:[]};}\n  if(b.action==='platform_catalog')");
 }
@@ -15,7 +16,7 @@ function loadScript(file){
  let source=fs.readFileSync('stable412.html','utf8').replace('<head>','<head><script src="tests/integrated-home-fixture.js"></script>');
  source=source.replace(/<script src="([^"]+)"><\/script>/g,(_,url)=>'<script>'+loadScript(url.split('?')[0]).replace(/<\/script/gi,'<\\/script')+'</script>').replace(/<link[^>]*>/g,'');
  const dom=new JSDOM(source,{url:'https://isolated.test/stable412.html?role='+role,runScripts:'dangerously',pretendToBeVisual:true,virtualConsole:vc,
- beforeParse(w){w.TextEncoder=TextEncoder;w.TextDecoder=TextDecoder;w.structuredClone=structuredClone;w.Response=Response;w.Request=Request;w.Headers=Headers;w.AbortController=AbortController;w.fetch=async()=>new Response('{}');w.scrollTo=()=>{};w.matchMedia=()=>({matches:false,addListener(){},removeListener(){},addEventListener(){},removeEventListener(){}});w.confirm=()=>true;w.alert=()=>{};w.URL.createObjectURL=()=>'';w.URL.revokeObjectURL=()=>{};}});
+ beforeParse(w){w.TextEncoder=TextEncoder;w.TextDecoder=TextDecoder;w.structuredClone=structuredClone;w.Response=Response;w.Request=Request;w.Headers=Headers;w.AbortController=AbortController;w.fetch=async()=>new Response('{}');w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=()=>{};w.matchMedia=()=>({matches:false,addListener(){},removeListener(){},addEventListener(){},removeEventListener(){}});w.confirm=()=>true;w.alert=()=>{};w.URL.createObjectURL=()=>'';w.URL.revokeObjectURL=()=>{};}});
  const w=dom.window,d=w.document;
  try{
  await until(()=>w.ENLIncidentAnalysis&&d.querySelector('.app-shell'),'shell '+role);
@@ -39,15 +40,64 @@ function loadScript(file){
  d.querySelector('[data-stats-filter="all"]').click();assert.match(d.querySelector('#stats426Drill').textContent,/1건/);
  d.querySelector('[data-stats-close]').click();assert.equal(d.querySelector('#stats426Drill').textContent,'');
  const occurred=w.ENLIncidentAnalysis.dateKey(w.enlIncidentAnalysisRecords()[0]).slice(0,7);
- d.querySelector('[data-stats-month="'+occurred+'"]').click();assert.match(d.querySelector('#stats426Drill').textContent,/1건/);
+ d.querySelector('[data-stats-month="'+occurred+'"]').click();assert.match(d.querySelector('[data-month-drill]').textContent,/1건/);assert.equal(d.querySelector('#stats426Drill').textContent,'');assert.ok(d.querySelector('[data-analysis-month-card] [data-month-drill].show'));
  w.eval('renderShell(currentUser())');assert.equal(d.querySelector('#stats426Year').value,selected);
+ // Unknown-cost links open inline lists, then the existing report review with role permissions.
+ d.querySelector('.analysis-dashboard-cost [data-cost-unknown]').click();
+ assert.equal(d.querySelectorAll('[data-cost-drill] [data-inc-id]').length,1);
+ d.querySelector('[data-cost-drill] [data-inc-id]').click();
+ await until(()=>d.querySelector('#modalRoot [data-incident-view]'),'report review');
+ assert.equal(!!d.querySelector('#modalRoot #editInc'),role==='safety','existing report editing is safety-only');
+ w.closeModal();
+ d.querySelector('.analysis-card table [data-cost-unknown]').click();
+ assert.equal(d.querySelectorAll('[data-missing-drill] [data-inc-id]').length,1);
+ assert.equal(d.querySelectorAll('.analysis-donut').length,2);
+ assert.doesNotMatch(d.querySelector('.analysis-dashboard-cost').textContent,/입력된 피해비용/);
  const savedSource=w.enlIncidentAnalysisRecords;
+ const costSource=[
+ {id:'high',status:'reported',category:'person',siteId:'s01',occurredAt:'2026-02-02',eventType:'넘어짐',reportDetails:{medicalCost:8000}},
+ {id:'low',status:'reported',category:'person',siteId:'s01',occurredAt:'2026-03-02',reportDetails:{medicalCost:1000}},
+ {id:'zero',status:'reported',category:'person',siteId:'s01',occurredAt:'2026-04-02',reportDetails:{medicalCost:0,medicalCostKnown:true}},
+ {id:'unknown',status:'reported',category:'person',siteId:'s01',occurredAt:'2026-05-02',reportDetails:{}},
+ {id:'property-low',status:'closed',category:'property',siteId:'s02',occurredAt:'2026-03-02',reportDetails:{repairCost:3000}},
+ {id:'property-high',status:'closed',category:'property',siteId:'s02',occurredAt:'2026-02-02',reportDetails:{repairCost:9000}}];
+ w.enlIncidentAnalysisRecords=()=>costSource;
+ w.enlRenderIncidentStats(d.getElementById('view'),w.currentUser(),{year:'2026'});
+ assert.match(d.querySelectorAll('.analysis-ratio')[0].textContent,/대인4건67%/);
+ assert.match(d.querySelectorAll('.analysis-ratio')[1].textContent,/대인9,000원43%/);
+ for(const svg of d.querySelectorAll('.analysis-donut')){const segments=[...svg.querySelectorAll('.analysis-donut-segment')];const length=segments.reduce((sum,c)=>sum+Number(c.getAttribute('stroke-dasharray').split(' ')[0]),0);assert.ok(Math.abs(length-2*Math.PI*42)<1e-7,'chart arcs represent the complete denominator');}
+ d.querySelector('.analysis-cost-breakdown [data-cost-category="person"]').click();
+ assert.deepEqual([...d.querySelectorAll('[data-cost-drill] [data-inc-id]')].map(b=>b.dataset.incId),['high','low','zero','unknown']);
+ assert.match(d.querySelector('[data-cost-drill]').textContent,/8,000원/);
+ d.querySelector('.analysis-ratio-legend [data-cost-category="property"]').click();
+ assert.deepEqual([...d.querySelectorAll('[data-cost-drill] [data-inc-id]')].map(b=>b.dataset.incId),['property-high','property-low']);
+ d.querySelector('.analysis-donut-segment[data-cost-category="person"]').dispatchEvent(new w.KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
+ assert.equal(d.querySelectorAll('[data-cost-drill] [data-inc-id]').length,4);
+ d.querySelector('.analysis-dashboard-cost [data-cost-unknown]').click();
+ assert.deepEqual([...d.querySelectorAll('[data-cost-drill] [data-inc-id]')].map(b=>b.dataset.incId),['unknown']);
+ // Default map ranking, in-panel navigation, report open and outside reset.
+ await until(()=>d.querySelector('[data-sd450-select="s02"]')&&d.querySelector('[data-sd450-select="s02"]').textContent.includes('3건'),'loaded map ranking');
+ assert.equal(d.querySelector('[data-sd450-select]').dataset.sd450Select,'s02');
+ assert.match(d.querySelector('[data-sd450-select="s01"]').textContent,/대인 2건 \/ 대물 0건/);
+ d.querySelector('[data-sd450-select="s01"]').click();
+ assert.equal(d.querySelector('#sd450Site').value,'s01');
+ assert.equal(d.querySelectorAll('[data-sd450-incident]').length,4);
+ d.querySelector('.sd450-map-head').click();assert.equal(d.querySelector('#sd450Site').value,'s01','inside white panel preserves selection');
+ const savedOpen=w.enlOpenIncidentReview;let opened;
+ w.enlOpenIncidentReview=(...args)=>{opened=args};
+ d.querySelector('[data-sd450-incident]').click();assert.equal(opened[0],'unknown');assert.equal(opened[1],role==='safety');w.enlOpenIncidentReview=savedOpen;
+ d.querySelector('.analysis-cost-heading').click();
+ assert.equal(d.querySelector('#sd450Site').value,'');assert.ok(d.querySelector('.sd450-ranking'));
+ assert.equal(d.querySelectorAll('.sd450-marker.selected,.sd450-marker.label-open').length,0);
+ d.querySelector('[data-sd450-map-site="s01"]').click();assert.equal(d.querySelector('#sd450Site').value,'s01');
+ d.body.click();assert.equal(d.querySelector('#sd450Site').value,'');
+
  const fixtureSource=[{id:'compare-26',status:'reported',category:'person',siteId:'qa-site',occurredAt:'2026-12-31',reportDetails:{medicalCost:1234}},{id:'compare-27',status:'closed',category:'property',siteId:'qa-site',occurredAt:'2026-12-31T16:00:00Z',reportDetails:{repairCost:5000}}];
  w.enlIncidentAnalysisRecords=()=>fixtureSource;
  w.enlRenderIncidentStats(d.getElementById('view'),w.currentUser(),{year:'2027'});
  assert.match(d.querySelector('.analysis-dashboard-cost').textContent,/5,000원.*대인미확인.*대물5,000원/s);
  assert.equal(d.querySelector('#stats426Year').value,'2027');
- d.querySelector('[data-stats-month="2027-01"]').click();assert.match(d.querySelector('#stats426Drill').textContent,/1건/);
+ d.querySelector('[data-stats-month="2027-01"]').click();assert.match(d.querySelector('[data-month-drill]').textContent,/1건/);
  const yearControl=d.querySelector('#stats426Year');yearControl.value='2026';yearControl.dispatchEvent(new w.Event('change',{bubbles:true}));
  assert.match(d.querySelector('.analysis-dashboard-cost').textContent,/1,234원.*대인1,234원.*대물미확인/s);
  w.enlIncidentAnalysisRecords=savedSource;w.eval('renderShell(currentUser())');
@@ -93,7 +143,7 @@ function loadScript(file){
  assert.equal(d.querySelectorAll('.risk-panel [data-folder-action]').length,role==='safety'?3:0,'folder edit permission');
  await frame.activateWorkTab('organization');await until(()=>d.querySelector('.org-panel:not(.risk-panel) .org-site-card'),'return to organization');
  assert.equal(d.querySelectorAll('.org-panel:not(.risk-panel) [data-folder-action]').length,role==='safety'?3:0);
- assert.deepEqual(errors,[],'no script errors '+role);console.log('PASS DOM '+role+': route, role gate, filters, refresh, immutable source, document navigation and reduced requests');
+ assert.deepEqual(errors,[],'no script errors '+role);console.log('PASS DOM '+role+': cost ratios/sorting/unknowns, inline month and report links, map ranking/select/outside-reset, roles and existing navigation');
  }finally{w.close();}
  }
 })().catch(e=>{console.error(e);process.exitCode=1});

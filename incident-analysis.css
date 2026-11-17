@@ -23,8 +23,42 @@
 .analysis-dashboard-context p{font-size:15px}
 .analysis-dashboard-context>button{flex-shrink:0;min-height:44px;padding:8px 14px;border:1px solid #b6cede;border-radius:9px;background:#fff;color:#234e6f;font:inherit;font-weight:700;cursor:pointer}
 @media(max-width:1100px){.analysis-dashboard-details .analysis-grid{grid-template-columns:minmax(0,1fr)}}
-.analysis-dashboard-cost{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:center;gap:24px}.analysis-cost-total{font-size:28px;color:#164d76;overflow-wrap:anywhere}.analysis-dashboard-cost .analysis-cost-breakdown{font-size:19px;gap:12px;margin:0}.analysis-dashboard-cost p{font-size:15px}
+.analysis-dashboard-cost{display:block}.analysis-cost-total{font-size:28px;color:#164d76;overflow-wrap:anywhere}.analysis-dashboard-cost .analysis-cost-breakdown{font-size:19px;gap:12px;margin:0}.analysis-dashboard-cost p{font-size:15px}
 @media(max-width:900px){.stats426 .stats426-cost>b{font-size:16px!important;line-height:inherit}.analysis-dashboard-context{align-items:flex-start;flex-direction:column}}
 @media(max-width:600px){.analysis-dashboard-details .analysis-card{padding:16px}.analysis-dashboard-details .analysis-months{gap:6px}.analysis-dashboard-details .analysis-priorities{grid-template-columns:minmax(0,1fr)}}
 
 @media(max-width:600px){.analysis-dashboard-cost{grid-template-columns:minmax(0,1fr);gap:12px}.analysis-dashboard-cost .analysis-cost-breakdown{font-size:17px}}
+
+/* Cost summary and contextual drill-downs. Keep the map frame dimensions intact. */
+.analysis-cost-heading{display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:16px 32px}
+.analysis-dashboard-cost .analysis-cost-breakdown{width:min(100%,300px);display:grid;gap:6px;margin:0}
+.analysis-dashboard-cost .analysis-cost-breakdown button{display:flex;align-items:baseline;gap:18px;justify-content:flex-start;border:1px solid #d3e3ee;border-radius:8px;background:#f6fafc;padding:8px 12px;font:inherit;color:#224c68;min-height:44px;cursor:pointer}
+.analysis-cost-breakdown button strong{overflow-wrap:anywhere;min-width:0}.analysis-cost-heading p{font-size:15px}
+.incident-analysis [data-cost-unknown]{font:inherit;font-weight:700;color:#185e8b;border:1px solid #b5cfdf;border-radius:7px;background:#f2f8fc;padding:5px 9px;min-height:40px;cursor:pointer}
+.analysis-ratios{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:18px}
+.analysis-ratio{border-top:1px solid #d6e4ed;padding-top:12px;min-width:0}
+.analysis-ratio h4{margin:0 0 8px;font-size:18px;color:#224b68}
+.analysis-ratio-body{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.analysis-donut{width:130px;height:130px;flex:0 0 130px;overflow:visible}
+.analysis-donut text{fill:#32556f;font-size:12px;font-weight:700;pointer-events:none}
+.analysis-donut-segment{cursor:pointer;pointer-events:stroke}.analysis-donut-segment:hover{opacity:.75}.analysis-donut-segment:focus-visible{outline:2px solid #173b66;outline-offset:3px}
+.analysis-ratio-legend{display:grid;gap:6px;min-width:0;flex:1 1 150px}
+.analysis-ratio-legend button{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:44px;border:1px solid #d6e3ed;border-radius:8px;padding:8px 10px;background:white;color:#244c68;font:inherit;text-align:left;cursor:pointer}
+.analysis-ratio-legend button strong{overflow-wrap:anywhere}.analysis-ratio-legend button small{font-size:14px}.analysis-ratio-legend button span{white-space:nowrap}
+.analysis-ratio-legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px}
+.analysis-ratio-note{font-size:14px!important;margin-top:12px!important}
+.incident-analysis .stats426-drill{margin-top:14px;min-width:0}.incident-analysis .stats426-drill h3{font-size:18px}
+.analysis-cost-list{display:grid;gap:7px}.analysis-cost-list>button{display:flex;align-items:center;justify-content:space-between;gap:16px;border:1px solid #cddfea;border-radius:9px;background:#fff;color:#234a65;padding:12px;text-align:left;font:inherit;cursor:pointer;width:100%}
+.analysis-cost-list>button>span{display:grid;gap:3px;min-width:0}.analysis-cost-list small{font-size:14px}.analysis-cost-list strong{font-size:17px}.analysis-cost-list b{font-size:18px;overflow-wrap:anywhere}
+@media(max-width:760px){.analysis-ratios{grid-template-columns:minmax(0,1fr)}.analysis-cost-list>button{align-items:flex-start;flex-direction:column;gap:8px}.analysis-cost-heading{gap:14px}.analysis-cost-heading>div{max-width:100%}}
+/* Only the map's information column is compacted; outer map geometry is retained. */
+.sd450-ranking h3,.sd450-compact-info h3,.sd450-inline-incidents h3{margin:0 0 5px;color:#204b6c;font-size:17px;line-height:1.35}
+.sd450-ranking p,.sd450-compact-info p,.sd450-inline-incidents p{margin:3px 0 8px;color:#526a7e;font-size:13px;line-height:1.5}
+.sd450-ranked-list{display:grid;gap:5px}.sd450-ranked-list>button{display:grid;grid-template-columns:22px minmax(0,1fr) auto;align-items:center;gap:7px;border:1px solid #d5e3ed;border-radius:8px;background:#fff;color:#264c67;padding:9px 8px;min-height:52px;text-align:left;font:inherit;cursor:pointer}
+.sd450-ranked-list strong{display:block;font-size:14px;overflow-wrap:anywhere}.sd450-ranked-list small{display:block;font-size:12px;margin-top:3px}.sd450-ranked-list b{font-size:15px;white-space:nowrap}.sd450-rank-number{font-size:12px;color:#52738d}
+.sd450-compact-info{padding:9px;border:1px solid #d4e3ed;border-radius:8px;background:#f6fafc}.sd450-compact-info dl{margin:6px 0;font-size:13px;display:grid;gap:5px}.sd450-compact-info dl>div{display:flex;gap:8px;flex-wrap:wrap}.sd450-compact-info dt{color:#637b8e}.sd450-compact-info dd{margin:0;color:#24475f;overflow-wrap:anywhere}.sd450-compact-info details>summary{cursor:pointer;font-size:13px;min-height:30px;line-height:30px}
+.sd450-inline-incidents{margin-top:10px}.sd450-inline-incidents>div{display:grid;gap:5px}.sd450-inline-incidents button{display:grid;gap:4px;text-align:left;border:1px solid #d3e3ee;border-radius:8px;background:#fff;color:#254d6a;padding:8px;min-height:48px;cursor:pointer;min-width:0}.sd450-inline-incidents button span{font-size:12px}.sd450-inline-incidents button strong{font-size:14px;overflow-wrap:anywhere}
+.sd450-map-side [data-sd450-summary]{min-width:0}.sd450-map-side .sd450-summary-stats{gap:5px 8px;margin:8px 0;font-size:12px}
+.sd450-map-side [data-sd450-open]{font-size:13px}
+@media(min-width:901px){.incident-overview .sd450-map-side{gap:6px;grid-template-rows:auto auto minmax(0,1fr);overflow:hidden}.sd450-map-side [data-sd450-summary]{overflow-y:auto;min-height:0;padding-right:3px;overscroll-behavior-y:contain}}
+@media(max-width:900px){.sd450-map-side [data-sd450-summary]{max-height:440px;overflow-y:auto;overscroll-behavior-y:contain}}

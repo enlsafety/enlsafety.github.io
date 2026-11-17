@@ -2,7 +2,8 @@
 /* E&L Accident Report App v4.4.23 - site profile + Korea distribution */
 (function(){
 'use strict';
-const VERSION='4.4.33-map-lock1';
+const VERSION='4.8.13-map-detail-r132';
+let resetMapSelection=null;
 const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
 const canDashboard=u=>!!u&&u.active!==false&&['safety','manager','executive'].includes(roleNorm(u.role));
 const E=v=>typeof esc==='function'?esc(v):String(v==null?'':v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -69,14 +70,14 @@ function marker(s){
 }
 function mapHtml(){
  const a=dashboardRows(),mapped=a.filter(pos),high=a.filter(s=>risk(s.site_id).high);
- const highList=high.length?high.map(s=>'<div class="sd450-risk-item"><span>'+E(s.site_name||s.site_id)+'</span><b>'+risk(s.site_id).count+'건</b></div>').join(''):'<div class="sd450-legend">현재 기준 고위험 사업장이 없습니다.</div>';
+
  const legend=`<div class="sd450-primary-legend" role="group" aria-label="지도 색상 표시 기준">
   <span><i class="sd450-dot safe"></i>안전: 올해 사고 0건</span>
   <span><i class="sd450-dot normal"></i>일반: 올해 사고 1~2건</span>
   <span><i class="sd450-dot warning"></i>주의: 올해 사고 3~4건</span>
   <span><i class="sd450-dot high"></i>고위험: 올해 사고 5건 이상</span>
  </div>`;
- return '<section class="panel sd450-map-panel" data-sd450-map><div class="sd450-map-head"><div><div class="ey">SITE DISTRIBUTION</div><h2>전국 사업장 분포</h2>'+(loadError?'<small role="status">최신 정보 불러오기 실패</small>':'')+'</div><div class="sd450-map-badges"><span class="sd450-map-badge">사업장 '+a.length+'개</span><span class="sd450-map-badge risk">고위험 '+high.length+'개</span></div></div><div class="sd450-map-layout"><div class="sd450-map-wrap"><div class="sd450-map-frame"><div class="sd450-map-viewport" tabindex="0" aria-label="사업장 지도. 클릭 또는 탭한 뒤 확대·축소와 이동을 사용할 수 있습니다"><div class="sd450-map-canvas"><img class="sd450-map-img" src="korea-map-natural-earth-10m.svg?v=4.4.19-r1" alt="대한민국 지도"></div><div class="sd450-annotations">'+'<svg class="sd450-marker-links" aria-hidden="true"></svg>'+mapped.map(marker).join('')+'</div><button type="button" class="sd450-map-lock" data-map-lock aria-pressed="false">지도 조작하려면 클릭/탭</button></div>'+legend+'</div><div class="sd450-map-tools" role="group" aria-label="지도 확대 축소"><button type="button" data-map-zoom="out" aria-label="지도 축소">−</button><output data-map-scale aria-live="polite">100%</output><button type="button" data-map-zoom="in" aria-label="지도 확대">+</button><button type="button" data-map-zoom="reset">전체 보기</button></div><p class="sd450-map-help">기본 잠금 · 지도 클릭/탭 후 드래그 이동 · 마우스 휠/두 손가락으로 확대·축소</p><div class="sd450-map-source">지도 윤곽: Natural Earth 1:10m 공개 데이터 · 소피아그린 위치: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap 기여자</a></div></div><aside class="sd450-map-side"><div class="sd450-risk-list">'+highList+'</div></aside></div></section>';
+ return '<section class="panel sd450-map-panel" data-sd450-map><div class="sd450-map-head"><div><div class="ey">SITE DISTRIBUTION</div><h2>전국 사업장 분포</h2>'+(loadError?'<small role="status">최신 정보 불러오기 실패</small>':'')+'</div><div class="sd450-map-badges"><span class="sd450-map-badge">사업장 '+a.length+'개</span><span class="sd450-map-badge risk">고위험 '+high.length+'개</span></div></div><div class="sd450-map-layout"><div class="sd450-map-wrap"><div class="sd450-map-frame"><div class="sd450-map-viewport" tabindex="0" aria-label="사업장 지도. 클릭 또는 탭한 뒤 확대·축소와 이동을 사용할 수 있습니다"><div class="sd450-map-canvas"><img class="sd450-map-img" src="korea-map-natural-earth-10m.svg?v=4.4.19-r1" alt="대한민국 지도"></div><div class="sd450-annotations">'+'<svg class="sd450-marker-links" aria-hidden="true"></svg>'+mapped.map(marker).join('')+'</div><button type="button" class="sd450-map-lock" data-map-lock aria-pressed="false">지도 조작하려면 클릭/탭</button></div>'+legend+'</div><div class="sd450-map-tools" role="group" aria-label="지도 확대 축소"><button type="button" data-map-zoom="out" aria-label="지도 축소">−</button><output data-map-scale aria-live="polite">100%</output><button type="button" data-map-zoom="in" aria-label="지도 확대">+</button><button type="button" data-map-zoom="reset">전체 보기</button></div><p class="sd450-map-help">기본 잠금 · 지도 클릭/탭 후 드래그 이동 · 마우스 휠/두 손가락으로 확대·축소</p><div class="sd450-map-source">지도 윤곽: Natural Earth 1:10m 공개 데이터 · 소피아그린 위치: <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap 기여자</a></div></div><aside class="sd450-map-side"></aside></div></section>';
 }
 // Displace display points only, in screen pixels; stored address coordinates stay unchanged.
 function spreadPoints(points,gap=9){
@@ -163,12 +164,20 @@ function bindMap(root,a){
  viewport.addEventListener('dragstart',e=>e.preventDefault());
  viewport.addEventListener('wheel',e=>{if(!interactive)return;e.preventDefault();const p=local(e),delta=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?viewport.clientHeight:1);zoom(mapState.zoom*Math.exp(-Math.max(-100,Math.min(100,delta))*.0025),p.x,p.y)},{passive:false});
  setInteractive(false);draw();if(typeof ResizeObserver!=='undefined'){mapResize=new ResizeObserver(draw);mapResize.observe(viewport)}
+ return {reset(){mapState={zoom:1,x:0,y:0};setInteractive(false);draw()}};
+}
+function ranking(){
+ const ranked=dashboardRows().map(s=>{const items=yearInc(s.site_id);return {s,total:items.length,person:items.filter(i=>i.category==='person').length,property:items.filter(i=>i.category==='property').length}}).sort((a,b)=>b.total-a.total||T(a.s.site_name).localeCompare(T(b.s.site_name),'ko'));
+ return '<section class="sd450-ranking"><h3>올해 사고 발생 순위</h3><p>사업장을 누르면 정보와 사고를 확인할 수 있습니다.</p><div class="sd450-ranked-list">'+ranked.map((r,idx)=>'<button type="button" data-sd450-select="'+E(r.s.site_id)+'"><span class="sd450-rank-number">'+(idx+1)+'</span><span><strong>'+E(r.s.site_name||r.s.site_id)+'</strong><small>대인 '+r.person+'건 / 대물 '+r.property+'건'+(r.total-r.person-r.property?' / 기타 '+(r.total-r.person-r.property)+'건':'')+'</small></span><b>'+r.total+'건</b></button>').join('')+'</div></section>';
 }
 function summary(id){
- const s=master(id),r=risk(id);
+ const s=master(id),r=risk(id),c=cnt(s),a=window.ENLIncidentAnalysis;
  const open=siteInc(id).filter(i=>String(i.status||'')!=='closed');
  const hasOpenUrgent=open.some(i=>!isHistorical(i)&&String(i.priority||'')==='urgent');
- return info(id)+'<div class="sd450-summary-stats"><b>올해 사고 '+r.count+'건</b><b>현재 미종결 '+open.length+'건</b><b class="'+(r.high?'sd450-high':r.warning?'sd450-warning':'')+'">위험도: '+r.level+'</b>'+(hasOpenUrgent?'<span class="sd450-high">미종결 긴급 관리등급 사고 있음</span>':'')+'</div>'+(!pos(s)?'<small>좌표 확인 필요</small>':'')+'<button type="button" class="primary" data-sd450-open="'+E(id)+'">사업장 사고목록 보기</button>';
+ const items=a?a.records(window.enlIncidentAnalysisRecords?.()||[]).filter(i=>String(i.siteId)===String(id)&&a.dateKey(i).slice(0,4)===String(new Date().getFullYear())).sort((x,y)=>a.dateKey(y).localeCompare(a.dateKey(x))):[];
+ const profile='<section class="sd450-compact-info"><h3>'+E(s.site_name||id)+'</h3><p>'+E(addr(s))+'</p><dl><div><dt>인원</dt><dd>'+c.total+'명 (상용 '+c.regular+' / 일용 '+c.daily+')</dd></div><div><dt>현장소장</dt><dd>'+E(T(s.manager_name)||'미등록')+'</dd></div></dl><details><summary>사업장 정보 더 보기</summary><dl><div><dt>사업장 구분</dt><dd>'+E(T(s.site_type)||'미등록')+'</dd></div><div><dt>반장 / 파트장</dt><dd>'+E(T(s.part_name)||'미등록')+'</dd></div><div><dt>서무</dt><dd>'+E(T(s.clerk_name)||'미등록')+'</dd></div></dl></details></section>';
+ const list='<section class="sd450-inline-incidents"><h3>올해 사고목록</h3><p>조회 가능한 사고 '+items.length+'건</p><div>'+items.map(i=>'<button type="button" data-sd450-incident="'+E(i.id)+'"><span>'+E(a.dateKey(i))+' / '+(i.category==='person'?'대인':i.category==='property'?'대물':'기타')+'</span><strong>'+E(i.eventType||'사고유형 미입력')+'</strong></button>').join('')+(items.length?'':'<p>조회 가능한 올해 사고가 없습니다.</p>')+'</div></section>';
+ return profile+'<div class="sd450-summary-stats"><b>올해 사고 '+r.count+'건</b><b>현재 미종결 '+open.length+'건</b><b class="'+(r.high?'sd450-high':r.warning?'sd450-warning':'')+'">위험도: '+r.level+'</b>'+(hasOpenUrgent?'<span class="sd450-high">미종결 긴급 관리등급 사고 있음</span>':'')+'</div>'+(!pos(s)?'<small>좌표 확인 필요</small>':'')+list+'<button type="button" class="primary" data-sd450-open="'+E(id)+'">이전 연도 포함 전체 사고목록</button>';
 }
 function injectInfo(){
  if(view()!=='incidents')return;
@@ -189,9 +198,12 @@ function injectMap(u){
  overview.insertAdjacentHTML('beforeend',mapHtml());
  const side=root.querySelector('.sd450-map-side'),a=dashboardRows();
  side.insertAdjacentHTML('afterbegin','<label class="sd450-select-label" for="sd450Site">사업장 선택</label><div class="sd450-site-picker"><span class="sd450-site-value" aria-hidden="true">사업장을 선택하세요</span><select id="sd450Site"><option value="">사업장을 선택하세요</option>'+a.map(s=>'<option value="'+E(s.site_id)+'">'+E(s.site_name)+(pos(s)?'':' (좌표 확인 필요)')+'</option>').join('')+'</select></div><div data-sd450-summary role="region" aria-label="사업장 요약" aria-live="polite"></div>');
- bindMap(root,a);
+ const controls=bindMap(root,a);
  const select=root.querySelector('#sd450Site'),card=root.querySelector('[data-sd450-summary]');
- const show=id=>{preview=id;select.value=id;select.previousElementSibling.textContent=select.selectedOptions[0]?.textContent||'사업장을 선택하세요';root.querySelectorAll('[data-sd450-map-site]').forEach(b=>{const selected=b.dataset.sd450MapSite===id;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',String(selected))});card.innerHTML=id?summary(id):'';const b=card.querySelector('[data-sd450-open]');if(b)b.onclick=()=>window.enlOpenSafetySiteIncidents(id)};
+ const show=id=>{id=a.some(s=>s.site_id===id)?id:'';preview=id;select.value=id;select.previousElementSibling.textContent=select.selectedOptions[0]?.textContent||'사업장을 선택하세요';root.querySelectorAll('[data-sd450-map-site]').forEach(b=>{const selected=b.dataset.sd450MapSite===id;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',String(selected))});card.innerHTML=id?summary(id):ranking();card.scrollTop=0;const b=card.querySelector('[data-sd450-open]');if(b)b.onclick=()=>window.enlOpenSafetySiteIncidents(id);
+  card.querySelectorAll('[data-sd450-select]').forEach(b=>b.onclick=()=>{markDashboardInteraction();show(b.dataset.sd450Select)});
+  card.querySelectorAll('[data-sd450-incident]').forEach(b=>b.onclick=()=>window.enlOpenIncidentReview?.(b.dataset.sd450Incident,roleNorm(u.role)==='safety',u));
+ };
  select.onchange=()=>{markDashboardInteraction();show(select.value)};
  const viewport=root.querySelector('.sd450-map-viewport'),buttons=Array.from(root.querySelectorAll('[data-sd450-map-site]'));
  const reveal=button=>{buttons.forEach(b=>{const open=b===button;b.classList.toggle('label-open',open);b.setAttribute('aria-expanded',String(open))});if(button)anchorLabel(button,viewport)};
@@ -204,11 +216,12 @@ function injectMap(u){
   show(b.dataset.sd450MapSite);card.scrollIntoView({block:'nearest',behavior:'auto'});
  }});
  viewport.addEventListener('click',e=>{if(!e.target.closest('[data-sd450-map-site]'))reveal(null)});
- if(a.some(s=>s.site_id===preview))show(preview);
+ resetMapSelection=()=>{if(!root.querySelector('[data-sd450-map]'))return;show('');reveal(null);controls?.reset();};
+ show(preview);
 }
 function enhance(u=currentUser&&currentUser()){if(!canDashboard(u)||!canDashboard(currentUser&&currentUser()))return;css();injectMap(u);injectInfo()}
 async function load(u=currentUser&&currentUser()){
- const key=JSON.stringify(actor(u));if(loadedFor!==key){loadedFor=key;loaded=false;loading=false;masters=[];metrics=null;requestVersion++;}
+ const key=JSON.stringify(actor(u));if(loadedFor!==key){loadedFor=key;loaded=false;loading=false;masters=[];metrics=null;preview='';requestVersion++;}
  const request=requestVersion,signature=JSON.stringify(data&&data.incidents||[]);
  if((loaded&&Date.now()-loadedAt<60000&&metricKey===signature)||loading||!canDashboard(u)||typeof window.enlIncidentApi!=='function')return;loading=true;
  try{const r=await window.enlIncidentApi({action:'dashboard_read',actor:actor(u)},15000);if(request!==requestVersion||JSON.stringify(actor(currentUser&&currentUser()))!==key)return;if(!Array.isArray(r&&r.sites)||!Array.isArray(r&&r.metrics))throw new Error('Invalid site list');masters=r.sites.filter(Boolean);window.ENLContracts.setSites(masters);metrics=r.metrics;loaded=true;loadedAt=Date.now();metricKey=signature;loadError=false;
@@ -239,7 +252,8 @@ let queued=false;
 const mo=new MutationObserver(()=>{if(queued)return;queued=true;queueMicrotask(()=>{queued=false;const u=currentUser&&currentUser();if(!canDashboard(u))return;const root=document.getElementById('view');if(!root)return;if(view()==='stats'&&root.querySelector('.stats426-cards')&&!root.querySelector('[data-sd450-map]'))enhance(u);if(view()==='incidents'&&window.enlSafetySiteFilter&&window.enlSafetySiteFilter()&&!root.querySelector('[data-sd450-info]'))enhance(u)})});
 try{mo.observe(document.getElementById('app')||document.body,{childList:true,subtree:true})}catch(e){}
 css();const u=currentUser&&currentUser();if(u){enhance(u);scheduleEnhanceLoad(u,1100)}
+document.addEventListener('click',e=>{if(view()!=='stats')return;const panel=document.querySelector('[data-sd450-map]');if(panel&&!panel.contains(e.target)&&(preview||mapState.zoom!==1||mapState.x||mapState.y||panel.querySelector('.label-open,[data-map-lock][aria-pressed="true"]')))resetMapSelection?.();},true);
 window.enlRefreshSiteDashboard450=()=>{loaded=false;load(currentUser&&currentUser())};
 window.enlDashboardMetrics=()=>canDashboard(currentUser&&currentUser())&&loadedFor===JSON.stringify(actor(currentUser&&currentUser()))?metrics:null;
-window.ENL_SITE_DASHBOARD_VERSION='4.4.33-map-lock1';
+window.ENL_SITE_DASHBOARD_VERSION=VERSION;
 })();
