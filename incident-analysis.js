@@ -57,9 +57,17 @@
       missingCause:rows.filter(i=>!text(i.reportDetails?.environmentCause)&&!text(i.reportDetails?.behaviorCause)&&!text(i.reportDetails?.causeAnalysisNote)).length};
   }
   const siteName=id=>window.ENLContracts?.site(id)?.site_name||((typeof siteById==='function'?siteById(id):null)?.name)||id||'미입력';
-  function bars(items,total,resolve=v=>v){
+  function rankMeta(values,value){
+    if(value===null||!Number.isFinite(value)||value<=0)return {rank:0,tied:false};
+    const valid=values.filter(v=>v!==null&&Number.isFinite(v)&&v>0);
+    return {rank:1+valid.filter(v=>v>value).length,tied:valid.filter(v=>v===value).length>1};
+  }
+  function rankBadge(values,value){const r=rankMeta(values,value);return r.rank>0&&r.rank<=3?'<em class="analysis-rank-badge">'+(r.tied?'공동 ':'')+r.rank+'위</em>':'';}
+  const rankAttr=(values,value)=>' data-analysis-rank="'+rankMeta(values,value).rank+'"';
+  function bars(items,total,resolve=v=>v,population=items){
+    const values=population.map(x=>x.count);
     const max=Math.max(1,...items.map(x=>x.count));
-    return '<div class="analysis-bars">'+items.map(x=>'<div class="analysis-bar-row"><div><span>'+escape(resolve(x.label))+'</span><strong>'+number(x.count)+'건 <small>'+percent(x.count,total)+'%</small></strong></div><div class="analysis-track" aria-hidden="true"><i style="width:'+x.count/max*100+'%"></i></div></div>').join('')+'</div>';
+    return '<div class="analysis-bars">'+items.map(x=>'<div class="analysis-bar-row"'+rankAttr(values,x.count)+'><div><span>'+rankBadge(values,x.count)+escape(resolve(x.label))+'</span><strong>'+number(x.count)+'건 <small>'+percent(x.count,total)+'%</small></strong></div><div class="analysis-track" aria-hidden="true"><i style="width:'+x.count/max*100+'%"></i></div></div>').join('')+'</div>';
   }
   function priorities(s){
     const recommendations=[
@@ -69,19 +77,24 @@
       [/베임|찔림|끼임/,'공구와 회전체','정비 전 동력 차단과 방호장치 상태, 손이 들어가는 작업을 점검합니다.']
     ];
     const top=s.types.filter(x=>x.label!=='미입력').slice(0,3);
-    return top.map(x=>{const guide=recommendations.find(([re])=>re.test(x.label));return '<article><span>'+escape(x.label)+' '+number(x.count)+'건</span><h3>'+escape(guide?.[1]||'해당 작업의 위험요인')+'</h3><p>'+escape(guide?.[2]||'발생 경위와 현장 상태를 함께 확인해 같은 작업의 예방조치를 정합니다.')+'</p></article>';}).join('');
+    return top.map(x=>{const guide=recommendations.find(([re])=>re.test(x.label));return '<article'+rankAttr(s.types.map(t=>t.count),x.count)+'>'+rankBadge(s.types.map(t=>t.count),x.count)+'<span>'+escape(x.label)+' '+number(x.count)+'건</span><h3>'+escape(guide?.[1]||'해당 작업의 위험요인')+'</h3><p>'+escape(guide?.[2]||'발생 경위와 현장 상태를 함께 확인해 같은 작업의 예방조치를 정합니다.')+'</p></article>';}).join('');
   }
   function costBreakdown(s){
     const amount=(value,known)=>known?number(value)+'원':'미확인';
     return '<dl class="analysis-cost-breakdown"><div><dt>대인</dt><dd>'+amount(s.personCost,s.knownPersonCost)+'</dd></div><div><dt>대물</dt><dd>'+amount(s.propertyCost,s.knownPropertyCost)+'</dd></div></dl>';
   }
+  function missingRows(s,interactive){
+    const items=[['cost','피해비용 미확인',s.total-s.knownCost],['date','발생일 미입력',s.missingDate],['type','사고유형 미입력',s.missingType],['cause','원인분석 내용 미입력',s.missingCause]].sort((a,b)=>b[2]-a[2]);
+    const values=items.map(x=>x[2]);
+    return items.map(([key,label,count])=>'<tr'+rankAttr(values,count)+'><th scope="row">'+rankBadge(values,count)+label+'</th><td>'+(key==='cost'&&interactive?'<button type="button" data-cost-unknown>'+count+'건 보기</button>':count+'건')+'</td></tr>').join('');
+  }
   function detailHtml(s,interactive=false){
     const maxMonth=Math.max(1,...s.months.map(x=>x.count));
-    return `      <section class="analysis-card" data-analysis-month-card><h3>월별 사고 발생</h3><p>사고 발생일 기준입니다. 미입력 ${s.missingDate}건은 그래프에서 제외합니다.</p><div class="analysis-month-scroll"><div class="analysis-months" style="grid-template-columns:repeat(${Math.max(s.months.length,1)},minmax(58px,1fr))">${s.months.map(x=>'<'+(interactive?'button type="button" data-stats-month="'+x.label+'" aria-label="'+x.label+' 사고 '+x.count+'건 보기"':'div')+' class="analysis-month"><strong>'+x.count+'건</strong><div><i style="height:'+x.count/maxMonth*140+'px"></i></div><span>'+escape(x.label.replace('-','.'))+'</span></'+(interactive?'button':'div')+'>').join('')}</div></div><p>보고되지 않은 사고와 사업장별 근무 인원은 반영되지 않아, 건수만으로 사고율이나 안전 수준을 판단할 수 없습니다.</p>${interactive?'<section class="stats426-drill" data-month-drill aria-live="polite"></section>':''}</section>
-      <div class="analysis-grid"><section class="analysis-card"><h3>사고유형별 분포</h3><p>최초사고보고에 선택된 유형 그대로 집계합니다.</p>${bars(s.types,s.total)}</section><section class="analysis-card"><h3>사업장별 사고 건수</h3><p>상위 5개 사업장 / 전체 ${s.sites.length}개 사업장에서 보고</p>${bars(s.sites.slice(0,5),s.total,siteName)}${s.sites.length>5?'<details><summary>나머지 '+(s.sites.length-5)+'개 사업장 보기</summary>'+bars(s.sites.slice(5),s.total,siteName)+'</details>':''}</section></div>
-      <section class="analysis-card"><h3>우선 확인할 작업</h3><p>발생 건수가 많은 유형에 맞춘 점검 제안입니다. 개별 사고의 확정 원인을 뜻하지 않습니다.</p><div class="analysis-priorities">${priorities(s)}</div></section>
-      <div class="analysis-grid"><section class="analysis-card"><h3>업무별 발생 현황</h3><p>사고보고에 입력된 담당 업무 기준</p>${bars(s.jobs,s.total)}</section><section class="analysis-card"><h3>추가 확인이 필요한 정보</h3><table><thead><tr><th scope="col">항목</th><th scope="col">건수</th></tr></thead><tbody><tr><th scope="row">피해비용 미확인</th><td>${interactive?'<button type="button" data-cost-unknown>'+(s.total-s.knownCost)+'건 보기</button>':(s.total-s.knownCost)+'건'}</td></tr><tr><th scope="row">발생일 미입력</th><td>${s.missingDate}건</td></tr><tr><th scope="row">사고유형 미입력</th><td>${s.missingType}건</td></tr><tr><th scope="row">원인분석 내용 미입력</th><td>${s.missingCause}건</td></tr></tbody></table>${interactive?'<section class="stats426-drill" data-missing-drill aria-live="polite"></section>':''}<p>각 항목은 중복될 수 있습니다. 원인분석이 입력됐더라도 조사 결과 확정 여부는 개별 보고서에서 확인해야 합니다.</p></section></div>
-      <p class="analysis-footnote">임시저장, 무효 처리와 삭제된 사고는 제외합니다. 종결 및 재발방지 기록은 별도 사고로 더하지 않습니다. 사업장별 건수는 인원과 작업량 차이를 보정하지 않은 수치입니다.</p>`;
+    return `      <section class="analysis-card" data-analysis-month-card><h3>월별 사고 발생</h3><p>사고 발생일 기준입니다. 미입력 ${s.missingDate}건은 그래프에서 제외합니다.</p><div class="analysis-month-scroll"><div class="analysis-months" style="grid-template-columns:repeat(${Math.max(s.months.length,1)},minmax(58px,1fr))">${s.months.map(x=>'<'+(interactive?'button type="button" data-stats-month="'+x.label+'" aria-label="'+x.label+' 사고 '+x.count+'건 보기"':'div')+' class="analysis-month"'+rankAttr(s.months.map(m=>m.count),x.count)+'><span class="analysis-rank-slot">'+rankBadge(s.months.map(m=>m.count),x.count)+'</span><strong>'+x.count+'건</strong><div><i style="height:'+x.count/maxMonth*140+'px"></i></div><span>'+escape(x.label.replace('-','.'))+'</span></'+(interactive?'button':'div')+'>').join('')}</div></div><p>보고되지 않은 사고와 사업장별 근무 인원은 반영되지 않아, 건수만으로 사고율이나 안전 수준을 판단할 수 없습니다.</p>${interactive?'<section class="stats426-drill" data-month-drill aria-live="polite"></section>':''}</section>
+      <div class="analysis-grid"><section class="analysis-card" data-analysis-section="types"><h3>사고유형별 분포</h3><p>최초사고보고에 선택된 유형 그대로 집계합니다.</p>${bars(s.types,s.total)}</section><section class="analysis-card" data-analysis-section="sites"><h3>사업장별 사고 건수</h3><p>상위 5개 사업장 / 전체 ${s.sites.length}개 사업장에서 보고</p>${bars(s.sites.slice(0,5),s.total,siteName,s.sites)}${s.sites.length>5?'<details><summary>나머지 '+(s.sites.length-5)+'개 사업장 보기</summary>'+bars(s.sites.slice(5),s.total,siteName,s.sites)+'</details>':''}</section></div>
+      <section class="analysis-card" data-analysis-section="priorities"><h3>우선 확인할 작업</h3><p>발생 건수가 많은 유형에 맞춘 점검 제안입니다. 개별 사고의 확정 원인을 뜻하지 않습니다.</p><div class="analysis-priorities">${priorities(s)}</div></section>
+      <div class="analysis-grid"><section class="analysis-card" data-analysis-section="jobs"><h3>업무별 발생 현황</h3><p>사고보고에 입력된 담당 업무 기준</p>${bars(s.jobs,s.total)}</section><section class="analysis-card" data-analysis-section="missing"><h3>추가 확인이 필요한 정보</h3><table><thead><tr><th scope="col">항목</th><th scope="col">건수</th></tr></thead><tbody>${missingRows(s,interactive)}</tbody></table>${interactive?'<section class="stats426-drill" data-missing-drill aria-live="polite"></section>':''}<p>각 항목은 중복될 수 있습니다. 원인분석이 입력됐더라도 조사 결과 확정 여부는 개별 보고서에서 확인해야 합니다.</p></section></div>
+      <p class="analysis-footnote">순위 색상은 발생 건수 또는 금액 기준입니다. 같은 값은 공동 순위이며, 0건, 0원과 미확인 금액은 순위에서 제외합니다. 임시저장, 무효 처리와 삭제된 사고는 제외합니다. 종결 및 재발방지 기록은 별도 사고로 더하지 않습니다. 사업장별 건수는 인원과 작업량 차이를 보정하지 않은 수치입니다.</p>`;
   }
   function render(root,u,state){
     if(!canRead(u)){root.replaceChildren();return;}
@@ -109,6 +122,6 @@
       finally{b.disabled=false;}
     };
   }
-  window.ENLIncidentAnalysis={render,summarize,records,dateKey,cost,canRead,detailHtml,costBreakdown};
+  window.ENLIncidentAnalysis={render,summarize,records,dateKey,cost,canRead,detailHtml,costBreakdown,rankMeta,rankBadge,rankAttr};
   window.addEventListener('enl-incidents-pulled',()=>{const root=document.getElementById('view');if(currentView==='analysis'&&root&&canRead(currentUser()))render(root,currentUser());});
 })();

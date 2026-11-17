@@ -33,7 +33,7 @@
       const oldScroll=railBody.scrollTop;
       rail.querySelector('summary').textContent='사업장 폴더 ('+sites.length+')';
       rail.querySelector('.org-summary').textContent='위험성평가 사업장별 관리';
-      rail.querySelectorAll('[data-needs-site]').forEach(b=>b.disabled=!selected);
+      panel.querySelectorAll('[data-needs-site]').forEach(b=>b.disabled=!selected);
       railBody.replaceChildren();
       for(const site of sites){
         const expanded=site.site_id===selected;
@@ -92,7 +92,7 @@
       heading.append($('h3',(site.folder_name||site.site_name)+' / 01. 위험성평가'));
       main.replaceChildren(back,heading,message('위험성평가의 세부 입력 화면은 아직 준비 중입니다. 이 화면에서는 평가서나 승인 기록을 생성하지 않습니다.'));
     }
-    async function manage(action){
+    async function manage(action,mobile=false){
       if(!admin||busy||!rail)return;
       closeManager();
       const site=selectedSite();
@@ -113,7 +113,7 @@
       }else form.append(message('「'+(site.folder_name||site.site_name)+'」 폴더를 목록에서 숨길까요? 위험성평가 폴더에만 적용되며 안전보건조직에는 영향을 주지 않습니다.'));
       if(action==='create'&&!candidates.length){submit.disabled=true;note.textContent='등록된 모든 사업장에 폴더가 있습니다.';}
       form.append(submit,button('취소',closeManager),note);
-      rail.querySelector('.org-manage-tools').after(form);
+      (mobile?panel.querySelector('.org-mobile-management .org-manage-tools'):rail.querySelector('.org-manage-tools')).after(form);
       form.onsubmit=async ev=>{
         ev.preventDefault();
         if(busy||!canLeave())return;
@@ -148,6 +148,9 @@
         candidates=Array.isArray(result.candidates)?result.candidates:[];
         if(admin){
           const tools=$('div',null,'org-manage-tools');
+          const mobile=$('details',null,'org-mobile-management'), mobileTools=$('div',null,'org-manage-tools');
+          mobile.append($('summary','폴더 관리'),mobileTools);
+          layout.before(mobile);
           tools.setAttribute('role','group');tools.setAttribute('aria-label','위험성평가 폴더 관리');
           for(const [key,title,path] of [
             ['create','생성','M3 8h10M8 3v10'],
@@ -160,6 +163,10 @@
             svg.setAttribute('viewBox','0 0 16 16');svg.setAttribute('aria-hidden','true');
             stroke.setAttribute('d',path);svg.append(stroke);control.prepend(svg);
             if(key!=='create')control.dataset.needsSite='';
+            const mobileButton=button(title,()=>manage(key,true));
+            mobileButton.setAttribute('aria-label','폴더 '+title);mobileButton.dataset.mobileFolderAction=key;
+            if(key!=='create')mobileButton.dataset.needsSite='';
+            mobileTools.append(mobileButton);
             tools.append(control);
           }
           railBody.before(tools);
@@ -167,7 +174,7 @@
         selected=sites.find(s=>s.site_id===preferred)?.site_id||null;
         drawRail();if(selected)drawDocuments(selectedSite());else drawSites();
       }catch(err){
-        if(onScreen()&&token===sequence)railBody.replaceChildren(message('사업장 폴더를 불러오지 못했습니다. 연결을 확인해 주세요.'),button('다시 불러오기',()=>open(preferred)));
+        if(onScreen()&&token===sequence)main.replaceChildren(message('사업장 폴더를 불러오지 못했습니다. 연결을 확인해 주세요.'),button('다시 불러오기',()=>open(preferred)));
       }
     }
     const focus=()=>{

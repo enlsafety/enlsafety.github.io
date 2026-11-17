@@ -30,13 +30,13 @@
 @media(max-width:600px){.analysis-dashboard-cost{grid-template-columns:minmax(0,1fr);gap:12px}.analysis-dashboard-cost .analysis-cost-breakdown{font-size:17px}}
 
 /* Cost summary and contextual drill-downs. Keep the map frame dimensions intact. */
-.analysis-cost-heading{display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:16px 32px}
-.analysis-dashboard-cost .analysis-cost-breakdown{width:min(100%,300px);display:grid;gap:6px;margin:0}
+.analysis-cost-layout{display:grid;grid-template-columns:minmax(250px,.9fr) minmax(0,1.1fr);gap:24px;align-items:stretch}.analysis-cost-heading{display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:18px;padding:24px;border:1px solid #d9e4ec;border-radius:13px;background:linear-gradient(145deg,#edf5fb,#fff)}
+.analysis-dashboard-cost .analysis-cost-breakdown{width:100%;display:grid;gap:9px;margin:0}
 .analysis-dashboard-cost .analysis-cost-breakdown button{display:flex;align-items:baseline;gap:18px;justify-content:flex-start;border:1px solid #d3e3ee;border-radius:8px;background:#f6fafc;padding:8px 12px;font:inherit;color:#224c68;min-height:44px;cursor:pointer}
 .analysis-cost-breakdown button strong{overflow-wrap:anywhere;min-width:0}.analysis-cost-heading p{font-size:15px}
 .incident-analysis [data-cost-unknown]{font:inherit;font-weight:700;color:#185e8b;border:1px solid #b5cfdf;border-radius:7px;background:#f2f8fc;padding:5px 9px;min-height:40px;cursor:pointer}
-.analysis-ratios{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:18px}
-.analysis-ratio{border-top:1px solid #d6e4ed;padding-top:12px;min-width:0}
+.analysis-ratios{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;margin:0}
+.analysis-ratio{border:1px solid #d6e4ed;border-radius:12px;padding:16px;min-width:0;background:#fff}
 .analysis-ratio h4{margin:0 0 8px;font-size:18px;color:#224b68}
 .analysis-ratio-body{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .analysis-donut{width:130px;height:130px;flex:0 0 130px;overflow:visible}
@@ -44,13 +44,13 @@
 .analysis-donut-segment{cursor:pointer;pointer-events:stroke}.analysis-donut-segment:hover{opacity:.75}.analysis-donut-segment:focus-visible{outline:2px solid #173b66;outline-offset:3px}
 .analysis-ratio-legend{display:grid;gap:6px;min-width:0;flex:1 1 150px}
 .analysis-ratio-legend button{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:44px;border:1px solid #d6e3ed;border-radius:8px;padding:8px 10px;background:white;color:#244c68;font:inherit;text-align:left;cursor:pointer}
-.analysis-ratio-legend button strong{overflow-wrap:anywhere}.analysis-ratio-legend button small{font-size:14px}.analysis-ratio-legend button span{white-space:nowrap}
+.analysis-ratio-legend button strong{overflow-wrap:anywhere}.analysis-ratio-legend button small{font-size:14px;border-radius:6px;background:#edf3f8;padding:2px 6px;margin-left:auto}.analysis-ratio-legend button span{white-space:nowrap}
 .analysis-ratio-legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px}
 .analysis-ratio-note{font-size:14px!important;margin-top:12px!important}
 .incident-analysis .stats426-drill{margin-top:14px;min-width:0}.incident-analysis .stats426-drill h3{font-size:18px}
 .analysis-cost-list{display:grid;gap:7px}.analysis-cost-list>button{display:flex;align-items:center;justify-content:space-between;gap:16px;border:1px solid #cddfea;border-radius:9px;background:#fff;color:#234a65;padding:12px;text-align:left;font:inherit;cursor:pointer;width:100%}
 .analysis-cost-list>button>span{display:grid;gap:3px;min-width:0}.analysis-cost-list small{font-size:14px}.analysis-cost-list strong{font-size:17px}.analysis-cost-list b{font-size:18px;overflow-wrap:anywhere}
-@media(max-width:760px){.analysis-ratios{grid-template-columns:minmax(0,1fr)}.analysis-cost-list>button{align-items:flex-start;flex-direction:column;gap:8px}.analysis-cost-heading{gap:14px}.analysis-cost-heading>div{max-width:100%}}
+@media(max-width:760px){.analysis-cost-layout{grid-template-columns:minmax(0,1fr);gap:14px}.analysis-cost-heading{padding:18px}.analysis-ratios{grid-template-columns:minmax(0,1fr)}.analysis-cost-list>button{align-items:flex-start;flex-direction:column;gap:8px}.analysis-cost-heading{gap:14px}.analysis-cost-heading>div{max-width:100%}}
 /* Only the map's information column is compacted; outer map geometry is retained. */
 .sd450-ranking h3,.sd450-compact-info h3,.sd450-inline-incidents h3{margin:0 0 5px;color:#204b6c;font-size:17px;line-height:1.35}
 .sd450-ranking p,.sd450-compact-info p,.sd450-inline-incidents p{margin:3px 0 8px;color:#526a7e;font-size:13px;line-height:1.5}
@@ -62,3 +62,54 @@
 .sd450-map-side [data-sd450-open]{font-size:13px}
 @media(min-width:901px){.incident-overview .sd450-map-side{gap:6px;grid-template-rows:auto auto minmax(0,1fr);overflow:hidden}.sd450-map-side [data-sd450-summary]{overflow-y:auto;min-height:0;padding-right:3px;overscroll-behavior-y:contain}}
 @media(max-width:900px){.sd450-map-side [data-sd450-summary]{max-height:440px;overflow-y:auto;overscroll-behavior-y:contain}}
+
+/* Category colors stay distinct from occurrence/cost ranks. */
+.incident-analysis [data-cost-category="person"]{--category-ink:#a92e3d;--category-tint:#fff1f3;--category-color:#c84550}
+.incident-analysis [data-cost-category="property"]{--category-ink:#1f608b;--category-tint:#edf6fe;--category-color:#287caf}
+.analysis-cost-heading .analysis-cost-breakdown button{justify-content:space-between;border-left:4px solid var(--category-color);background:var(--category-tint);color:var(--category-ink);padding:13px 14px;gap:10px;flex-wrap:wrap}
+.analysis-cost-heading .analysis-cost-total{display:block;margin:8px 0 6px;letter-spacing:-.03em;color:#143e60;font-size:clamp(28px,3vw,38px)}
+.incident-analysis button.analysis-cost-followup{display:grid;gap:6px;text-align:left;padding:14px 16px;border:1px solid #e3bd78;border-left:4px solid #bc7a21;background:#fff7e8;color:#674516;border-radius:9px}
+.analysis-cost-followup>span{font-size:12px;letter-spacing:.08em}.analysis-cost-followup>strong{font-size:17px}.analysis-cost-followup>small{font-size:13px;font-weight:400}
+.analysis-ratio-legend button{border-left:3px solid var(--category-color);color:var(--category-ink)}
+.analysis-ratio-legend button:hover,.analysis-cost-breakdown button:hover{background:var(--category-tint);box-shadow:0 2px 8px #173b6610}
+/* The top three use labels as well as a warm color scale; zero and unknown are neutral. */
+[data-analysis-rank="1"]{--rank-color:#bf3544;--rank-tint:#fff0f2;--rank-ink:#962634}
+[data-analysis-rank="2"]{--rank-color:#d96945;--rank-tint:#fff4ed;--rank-ink:#a04527}
+[data-analysis-rank="3"]{--rank-color:#e8a477;--rank-tint:#fff8ef;--rank-ink:#835029}
+.analysis-rank-badge{display:inline-flex;align-items:center;justify-content:center;flex:none;font-style:normal;font-size:12px;line-height:1.6;font-weight:700;padding:1px 7px;border-radius:5px;background:var(--rank-tint);color:var(--rank-ink);border:1px solid var(--rank-color);margin-right:7px;white-space:nowrap}
+.analysis-bar-row{padding:10px 12px;background:#f8fafc;border-radius:9px;border-left:4px solid transparent}
+.analysis-bar-row[data-analysis-rank="1"],.analysis-bar-row[data-analysis-rank="2"],.analysis-bar-row[data-analysis-rank="3"]{border-left-color:var(--rank-color);background:var(--rank-tint)}
+.analysis-bar-row .analysis-track i,.analysis-month i{background:var(--rank-color,#3487bb)}
+.analysis-bar-row .analysis-track{height:10px;background:#dce6ec80}
+.analysis-bar-row .analysis-rank-badge{vertical-align:middle}
+.analysis-month .analysis-rank-slot{height:23px;display:flex;justify-content:center;align-items:center}
+.analysis-month .analysis-rank-badge{margin:0;padding:1px 4px;font-size:11px}
+.analysis-month[data-analysis-rank="1"]>strong,.analysis-month[data-analysis-rank="2"]>strong,.analysis-month[data-analysis-rank="3"]>strong{color:var(--rank-ink)}
+.analysis-priorities article[data-analysis-rank]{border-top:4px solid var(--rank-color,#cbdfea);background:var(--rank-tint,#f5f9fc)}
+.analysis-priorities .analysis-rank-badge{margin-bottom:10px}.analysis-priorities article>span{margin-bottom:7px}
+.analysis-cost-list>button[data-analysis-rank="1"],.analysis-cost-list>button[data-analysis-rank="2"],.analysis-cost-list>button[data-analysis-rank="3"],.sd450-ranked-list>button[data-analysis-rank="1"],.sd450-ranked-list>button[data-analysis-rank="2"],.sd450-ranked-list>button[data-analysis-rank="3"]{border-left:4px solid var(--rank-color);background:var(--rank-tint)}
+.analysis-cost-list .analysis-rank-badge{width:max-content}
+.sd450-ranked-list>button[data-analysis-rank] .sd450-rank-number{color:var(--rank-ink,#52738d);background:var(--rank-tint,#f2f6fa);border-radius:5px;text-align:center;font-weight:700;padding:3px 0}
+/* Section rhythm and grouped information lead the eye without enlarging every label. */
+.incident-analysis .analysis-card{box-shadow:0 3px 12px #163f6010;border-color:#cbdde9}
+.incident-analysis .analysis-card>h3{display:flex;align-items:center;gap:10px;padding-bottom:13px;margin-bottom:12px;border-bottom:1px solid #dce7ef}
+.incident-analysis .analysis-card>h3::before{display:inline-grid;place-items:center;flex:none;width:30px;height:30px;border-radius:8px;font-size:13px;font-weight:700;color:#245d85;background:#eaf3fa}
+[data-analysis-month-card]>h3::before{content:"01"}[data-analysis-section="types"]>h3::before{content:"02"}[data-analysis-section="sites"]>h3::before{content:"03"}[data-analysis-section="priorities"]>h3::before{content:"04"}[data-analysis-section="jobs"]>h3::before{content:"05"}[data-analysis-section="missing"]>h3::before{content:"06"}
+.incident-analysis [data-analysis-section="priorities"]{background:linear-gradient(#fffcf8,#fff);border-top:4px solid #d69a50}
+.incident-analysis [data-analysis-section="missing"]{border-top:4px solid #bf8a36}.incident-analysis [data-analysis-section="missing"] tbody tr:nth-child(odd){background:#f5f8fb}
+.incident-analysis [data-analysis-section="missing"] td{color:#885320}
+.incident-analysis .analysis-footnote{padding:12px 15px;border-radius:8px;background:#edf3f7;color:#526778}
+/* Existing map frame placement and sizing are not altered by the summary card treatment. */
+.safety-ui #app .incident-overview .stats426-card{--card-color:#2e658f;--card-tint:#f0f6fc;border-top:3px solid var(--card-color);border-left:1px solid #cbdfea;background:linear-gradient(120deg,var(--card-tint),#fff 80%);box-shadow:0 3px 10px #183e5a10}
+.safety-ui #app .incident-overview [data-stats-filter="person"]{--card-color:#c84550;--card-tint:#fff0f2;--tile:#fce2e7}
+.safety-ui #app .incident-overview [data-stats-filter="property"]{--card-color:#287caf;--card-tint:#edf6ff;--tile:#dfedf9}
+.safety-ui #app .incident-overview .stats426-cost{--card-color:#ac7b2c;--card-tint:#fff7e9;--tile:#f7ebcd;--glyph:var(--icon-stats)}
+.safety-ui #app .incident-overview .stats426-card>span{color:#35516b;font-size:13px}
+@media(min-width:901px){
+ .safety-ui #app .incident-overview .stats426-card{display:grid;grid-template-columns:minmax(0,1fr) 44px;grid-template-areas:"label icon" "value value" "meta meta";align-items:center;gap:4px;min-height:126px;padding:12px 14px!important}
+ .safety-ui #app .incident-overview .stats426-card::before{grid-area:icon;width:44px;height:44px;border-radius:12px;background-size:30px;margin:0}
+ .safety-ui #app .incident-overview .stats426-card>span{grid-area:label}.safety-ui #app .incident-overview .stats426-card>b{grid-area:value}.safety-ui #app .incident-overview .stats426-card>small{grid-area:meta}
+}
+@media(prefers-reduced-motion:no-preference){.analysis-cost-list>button,.sd450-ranked-list>button,.analysis-ratio-legend button{transition:border-color .15s,box-shadow .15s}.analysis-cost-list>button:hover,.sd450-ranked-list>button:hover{box-shadow:0 3px 10px #163d6018;border-color:#759dbb}}
+.incident-analysis [data-analysis-section="missing"] tr[data-analysis-rank="1"],.incident-analysis [data-analysis-section="missing"] tr[data-analysis-rank="2"],.incident-analysis [data-analysis-section="missing"] tr[data-analysis-rank="3"]{background:var(--rank-tint)}
+.incident-analysis [data-analysis-section="missing"] tr[data-analysis-rank="1"] th,.incident-analysis [data-analysis-section="missing"] tr[data-analysis-rank="2"] th,.incident-analysis [data-analysis-section="missing"] tr[data-analysis-rank="3"] th{border-left:4px solid var(--rank-color)}

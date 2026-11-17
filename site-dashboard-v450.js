@@ -2,7 +2,7 @@
 /* E&L Accident Report App v4.4.23 - site profile + Korea distribution */
 (function(){
 'use strict';
-const VERSION='4.8.13-map-detail-r132';
+const VERSION='4.8.13-map-detail-r133';
 let resetMapSelection=null;
 const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
 const canDashboard=u=>!!u&&u.active!==false&&['safety','manager','executive'].includes(roleNorm(u.role));
@@ -168,7 +168,7 @@ function bindMap(root,a){
 }
 function ranking(){
  const ranked=dashboardRows().map(s=>{const items=yearInc(s.site_id);return {s,total:items.length,person:items.filter(i=>i.category==='person').length,property:items.filter(i=>i.category==='property').length}}).sort((a,b)=>b.total-a.total||T(a.s.site_name).localeCompare(T(b.s.site_name),'ko'));
- return '<section class="sd450-ranking"><h3>올해 사고 발생 순위</h3><p>사업장을 누르면 정보와 사고를 확인할 수 있습니다.</p><div class="sd450-ranked-list">'+ranked.map((r,idx)=>'<button type="button" data-sd450-select="'+E(r.s.site_id)+'"><span class="sd450-rank-number">'+(idx+1)+'</span><span><strong>'+E(r.s.site_name||r.s.site_id)+'</strong><small>대인 '+r.person+'건 / 대물 '+r.property+'건'+(r.total-r.person-r.property?' / 기타 '+(r.total-r.person-r.property)+'건':'')+'</small></span><b>'+r.total+'건</b></button>').join('')+'</div></section>';
+ return '<section class="sd450-ranking"><h3>올해 사고 발생 순위</h3><p>사업장을 누르면 정보와 사고를 확인할 수 있습니다.</p><div class="sd450-ranked-list">'+ranked.map((r,idx)=>'<button type="button"'+(window.ENLIncidentAnalysis?.rankAttr(ranked.map(x=>x.total),r.total)||'')+' data-sd450-select="'+E(r.s.site_id)+'"><span class="sd450-rank-number">'+(window.ENLIncidentAnalysis?.rankMeta(ranked.map(x=>x.total),r.total).rank||'—')+'</span><span><strong>'+E(r.s.site_name||r.s.site_id)+'</strong><small>대인 '+r.person+'건 / 대물 '+r.property+'건'+(r.total-r.person-r.property?' / 기타 '+(r.total-r.person-r.property)+'건':'')+'</small></span><b>'+r.total+'건</b></button>').join('')+'</div></section>';
 }
 function summary(id){
  const s=master(id),r=risk(id),c=cnt(s),a=window.ENLIncidentAnalysis;

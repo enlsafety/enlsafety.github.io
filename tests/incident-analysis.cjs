@@ -29,3 +29,12 @@ assert.match(a.costBreakdown(a.summarize([])),/대인.*미확인.*대물.*미확
 assert.equal((a.detailHtml(split,true).match(/data-stats-month=/g)||[]).length,12);
 assert.equal((a.detailHtml(split,false).match(/data-stats-month=/g)||[]).length,0);
 console.log('PASS cost split, unknown and confirmed zero, shared month drill rendering');
+assert.equal(a.rankMeta([8,8,5,1,0,null],8).rank,1);
+assert.equal(a.rankMeta([8,8,5,1,0,null],8).tied,true);
+assert.equal(a.rankMeta([8,8,5,1,0,null],5).rank,3);
+assert.equal(a.rankMeta([8,8,5,1,0,null],1).rank,4);
+assert.equal(a.rankMeta([0,0,null],0).rank,0);
+assert.equal(a.rankMeta([9,2,null],null).rank,0);
+assert.match(a.rankBadge([8,8,5],8),/공동 1위/);
+assert.equal(a.rankBadge([8,7,6,5],5),'');
+console.log('PASS competition ranks, ties, zero/unknown exclusion and top-three labels');

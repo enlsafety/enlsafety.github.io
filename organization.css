@@ -58,7 +58,7 @@
  .org-panel .org-folder{min-height:36px}.org-manage input{font-size:16px}
 }
 
-/* Main-panel site directory and document shortcuts. The sidebar remains unchanged. */
+/* Main-panel site directory and document shortcuts. */
 .org-page-title{margin:0 0 16px}
 .org-page-title h3{margin:0 0 5px;font-size:20px;color:#183f64}
 .org-page-title p{margin:0}
@@ -77,4 +77,20 @@
  body:has(>#org-print-page)>:not(#org-print-page){display:none!important}
  #org-print-page{display:block!important;position:absolute;inset:0;margin:0;padding:0;width:210mm;height:297mm;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}
  #org-print-page .org-paper{width:210mm;height:297mm;max-width:none;margin:0;break-inside:avoid}
+}
+
+/* Phone document navigation uses the existing main-panel site and document cards. */
+@media screen and (max-width:750px), screen and (hover:none) and (pointer:coarse) and (max-height:600px){
+ .org-panel .org-workspace{grid-template-columns:minmax(0,1fr)}
+ .org-panel .org-workspace>.org-rail{display:none}
+ .org-panel .org-main{border:0;padding:12px;min-width:0}
+}
+
+.org-mobile-management{display:none;margin:0 0 12px;padding:10px 12px;border:1px solid #d8e4ed;border-radius:10px;background:#f7fbfe}
+.org-mobile-management>summary{cursor:pointer;color:#265f87;font-size:14px;min-height:24px}
+.org-mobile-management .org-manage-tools{margin-top:10px}
+@media screen{.org-mobile-management:has(.org-manage){display:block}}
+@media screen and (max-width:750px), screen and (hover:none) and (pointer:coarse) and (max-height:600px){
+ .org-mobile-management{display:block}
+ .org-mobile-management button{min-height:44px}
 }

@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.2.8 - interactive incident dashboard */
 (function(){
   'use strict';
-  const VERSION='4.8.13-dashboard-details-r132';
+  const VERSION='4.8.13-dashboard-visual-r133';
   let rememberedKey='',rememberedYear;
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   const escx=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -42,23 +42,23 @@
   }
 
   function costRows(rows){
-    const a=window.ENLIncidentAnalysis;
+    const a=window.ENLIncidentAnalysis,values=rows.map(window.ENLIncidentAnalysis.cost);
     if(!rows.length)return '<p class="analysis-empty">해당 사고가 없습니다.</p>';
     return '<div class="analysis-cost-list">'+rows.map(i=>{
       const amount=a.cost(i),site=window.ENLContracts?.site(i.siteId)?.site_name||(typeof siteById==='function'?siteById(i.siteId)?.name:'')||i.siteId||'사업장 미입력';
-      return '<button type="button" data-inc-id="'+escx(i.id)+'"><span><small>'+escx(a.dateKey(i)||'발생일 미입력')+' / '+escx(site)+'</small><strong>'+escx(i.eventType||'사고유형 미입력')+'</strong><small>사고보고서 열기</small></span><b>'+ (amount===null?'금액 미확인':amount.toLocaleString('ko-KR')+'원')+'</b></button>';
+      return '<button type="button"'+a.rankAttr(values,amount)+' data-inc-id="'+escx(i.id)+'"><span>'+a.rankBadge(values,amount)+'<small>'+escx(a.dateKey(i)||'발생일 미입력')+' / '+escx(site)+'</small><strong>'+escx(i.eventType||'사고유형 미입력')+'</strong><small>사고보고서 열기</small></span><b>'+ (amount===null?'금액 미확인':amount.toLocaleString('ko-KR')+'원')+'</b></button>';
     }).join('')+'</div>';
   }
   function ratioChart(title,person,property,unit){
     const total=person+property,circ=2*Math.PI*42;
     const percentage=key=>total?(key==='person'?Math.round(person/total*100):100-Math.round(person/total*100)):0;
-    const slices=[['person','대인',person,'#287caf'],['property','대물',property,'#dc8930']];let offset=0;
+    const slices=[['person','대인',person,'#c84550'],['property','대물',property,'#287caf']];let offset=0;
     const svg=slices.map(([key,label,value,color])=>{const length=total?value/total*circ:0,start=offset;offset+=length;if(!length)return '';return '<circle class="analysis-donut-segment" cx="60" cy="60" r="42" fill="none" stroke="'+color+'" stroke-width="16" stroke-dasharray="'+length+' '+(circ-length)+'" stroke-dashoffset="'+(-start)+'" transform="rotate(-90 60 60)" data-cost-category="'+key+'" role="button" tabindex="0" aria-label="'+label+' 사고 금액 큰 순서로 보기"><title>'+label+' '+percentage(key)+'%</title></circle>';}).join('');
     return '<section class="analysis-ratio"><h4>'+title+'</h4><div class="analysis-ratio-body"><svg viewBox="0 0 120 120" class="analysis-donut" aria-label="'+title+'"><circle cx="60" cy="60" r="42" fill="none" stroke="#e8eef3" stroke-width="16"/>'+svg+'<text x="60" y="58" text-anchor="middle">'+(total?'대인 / 대물':'자료 없음')+'</text><text x="60" y="75" text-anchor="middle">'+(total?'100%':'—')+'</text></svg><div class="analysis-ratio-legend">'+slices.map(([key,label,value,color])=>'<button type="button" data-cost-category="'+key+'"><span><i style="background:'+color+'"></i>'+label+'</span><strong>'+value.toLocaleString('ko-KR')+unit+'</strong><small>'+(total?percentage(key)+'%':'비율 없음')+'</small></button>').join('')+'</div></div></section>';
   }
   function costPanel(s){
     const n=v=>v.toLocaleString('ko-KR');
-    return '<section class="analysis-card analysis-dashboard-cost"><div class="analysis-cost-heading"><div><h3>발생된 피해비용</h3><strong class="analysis-cost-total">'+(s.knownCost?n(s.cost)+'원':'미확인')+'</strong><p>'+s.knownCost+'건 금액 확인 / <button type="button" data-cost-unknown>피해비용 미확인 '+(s.total-s.knownCost)+'건 보기</button></p></div><div class="analysis-cost-breakdown">'+[['person','대인',s.personCost,s.knownPersonCost],['property','대물',s.propertyCost,s.knownPropertyCost]].map(([key,label,amount,known])=>'<button type="button" data-cost-category="'+key+'"><span>'+label+'</span><strong>'+(known?n(amount)+'원':'미확인')+'</strong></button>').join('')+'</div></div><div class="analysis-ratios">'+ratioChart('대인 / 대물 사고 비율',s.person,s.property,'건')+ratioChart('대인 / 대물 사고금액 비율',s.personCost,s.propertyCost,'원')+'</div><p class="analysis-ratio-note">사고 비율은 대인과 대물 사고 기준입니다. 금액 비율은 확인된 금액만 반영합니다. 대인이나 대물을 누르면 금액이 큰 순서로 볼 수 있습니다.</p><section class="stats426-drill" data-cost-drill aria-live="polite"></section></section>';
+    return '<section class="analysis-card analysis-dashboard-cost"><div class="analysis-cost-layout"><div class="analysis-cost-heading"><div><h3>발생된 피해비용</h3><strong class="analysis-cost-total">'+(s.knownCost?n(s.cost)+'원':'미확인')+'</strong><p>'+s.knownCost+'건 금액 확인</p></div><div class="analysis-cost-breakdown">'+[['person','대인',s.personCost,s.knownPersonCost],['property','대물',s.propertyCost,s.knownPropertyCost]].map(([key,label,amount,known])=>'<button type="button" data-cost-category="'+key+'"><span>'+label+'</span><strong>'+(known?n(amount)+'원':'미확인')+'</strong></button>').join('')+'</div><button type="button" class="analysis-cost-followup" data-cost-unknown><span>추가 확인</span><strong>피해비용 미확인 '+(s.total-s.knownCost)+'건 보기</strong><small>해당 사고보고서에서 금액을 확인할 수 있습니다.</small></button></div><div class="analysis-ratios">'+ratioChart('대인 / 대물 사고 비율',s.person,s.property,'건')+ratioChart('대인 / 대물 사고금액 비율',s.personCost,s.propertyCost,'원')+'</div></div><p class="analysis-ratio-note">사고 비율은 대인과 대물 사고 기준입니다. 금액 비율은 확인된 금액만 반영합니다. 대인이나 대물을 누르면 금액이 큰 순서로 볼 수 있습니다.</p><section class="stats426-drill" data-cost-drill aria-live="polite"></section></section>';
   }
   function renderStats(root,u,state={}){
     if(!root)return;

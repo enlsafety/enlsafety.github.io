@@ -63,12 +63,22 @@ function loadScript(file){
  {id:'property-high',status:'closed',category:'property',siteId:'s02',occurredAt:'2026-02-02',reportDetails:{repairCost:9000}}];
  w.enlIncidentAnalysisRecords=()=>costSource;
  w.enlRenderIncidentStats(d.getElementById('view'),w.currentUser(),{year:'2026'});
+ assert.ok(d.querySelector('.analysis-cost-layout > .analysis-cost-heading'));
+ assert.ok(d.querySelector('.analysis-cost-layout > .analysis-ratios'));
+ assert.equal(d.querySelector('.analysis-cost-heading [data-cost-unknown]')!==null,true);
+ assert.equal(d.querySelector('.analysis-donut-segment[data-cost-category="person"]').getAttribute('stroke'),'#c84550');
+ assert.equal(d.querySelector('.analysis-donut-segment[data-cost-category="property"]').getAttribute('stroke'),'#287caf');
  assert.match(d.querySelectorAll('.analysis-ratio')[0].textContent,/대인4건67%/);
  assert.match(d.querySelectorAll('.analysis-ratio')[1].textContent,/대인9,000원43%/);
  for(const svg of d.querySelectorAll('.analysis-donut')){const segments=[...svg.querySelectorAll('.analysis-donut-segment')];const length=segments.reduce((sum,c)=>sum+Number(c.getAttribute('stroke-dasharray').split(' ')[0]),0);assert.ok(Math.abs(length-2*Math.PI*42)<1e-7,'chart arcs represent the complete denominator');}
  d.querySelector('.analysis-cost-breakdown [data-cost-category="person"]').click();
  assert.deepEqual([...d.querySelectorAll('[data-cost-drill] [data-inc-id]')].map(b=>b.dataset.incId),['high','low','zero','unknown']);
  assert.match(d.querySelector('[data-cost-drill]').textContent,/8,000원/);
+ assert.equal(d.querySelector('[data-cost-drill] [data-inc-id="high"]').dataset.analysisRank,'1');
+ assert.equal(d.querySelector('[data-cost-drill] [data-inc-id="low"]').dataset.analysisRank,'2');
+ assert.equal(d.querySelector('[data-cost-drill] [data-inc-id="zero"]').dataset.analysisRank,'0');
+ assert.equal(d.querySelector('[data-cost-drill] [data-inc-id="unknown"]').dataset.analysisRank,'0');
+
  d.querySelector('.analysis-ratio-legend [data-cost-category="property"]').click();
  assert.deepEqual([...d.querySelectorAll('[data-cost-drill] [data-inc-id]')].map(b=>b.dataset.incId),['property-high','property-low']);
  d.querySelector('.analysis-donut-segment[data-cost-category="person"]').dispatchEvent(new w.KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
@@ -77,7 +87,7 @@ function loadScript(file){
  assert.deepEqual([...d.querySelectorAll('[data-cost-drill] [data-inc-id]')].map(b=>b.dataset.incId),['unknown']);
  // Default map ranking, in-panel navigation, report open and outside reset.
  await until(()=>d.querySelector('[data-sd450-select="s02"]')&&d.querySelector('[data-sd450-select="s02"]').textContent.includes('3건'),'loaded map ranking');
- assert.equal(d.querySelector('[data-sd450-select]').dataset.sd450Select,'s02');
+ assert.equal(d.querySelector('[data-sd450-select]').dataset.sd450Select,'s02');assert.equal(d.querySelector('[data-sd450-select]').dataset.analysisRank,'1');
  assert.match(d.querySelector('[data-sd450-select="s01"]').textContent,/대인 2건 \/ 대물 0건/);
  d.querySelector('[data-sd450-select="s01"]').click();
  assert.equal(d.querySelector('#sd450Site').value,'s01');
@@ -128,6 +138,16 @@ function loadScript(file){
    assert.equal((await upload).length,0);assert.equal(w.ENLProcessing.active(),false);assert.equal(form.querySelector('button').disabled,false);assert.equal(d.querySelector('.enl-processing'),null);
    form.remove();w.fetch=originalFetch;
  }
+ function checkMobileManagement(panel){
+   assert.equal(panel.querySelectorAll('[data-mobile-folder-action]').length,role==='safety'?3:0,'mobile folder edit permission');
+   if(role==='safety'){
+     const mobile=panel.querySelector('.org-mobile-management');mobile.open=true;
+     const create=mobile.querySelector('[data-mobile-folder-action="create"]');create.click();
+     assert.ok(mobile.querySelector('form.org-manage'),'mobile folder form remains outside hidden rail');
+     [...mobile.querySelectorAll('form button')].find(b=>b.textContent==='취소').click();
+     assert.equal(mobile.querySelector('form'),null,'cancel closes form without saving');
+   }
+ }
  const frame=d.querySelector('.app-shell').enlWorkspaceFrame;
  await until(()=>d.querySelector('[data-hub="feature:organization"]'),'organization menu');
  const calls=w.__fixtureCalls.filter(x=>x==='platform_enter').length;
@@ -141,8 +161,10 @@ function loadScript(file){
  w.dispatchEvent(new w.Event('focus'));assert.match(d.querySelector('.risk-panel .org-main').textContent,/세부 입력 화면은 아직 준비 중/,'focus preserves selected document');
  assert.equal(w.__fixtureCalls.filter(x=>x==='platform_enter').length,calls,'document entry uses its authorized list endpoint only');
  assert.equal(d.querySelectorAll('.risk-panel [data-folder-action]').length,role==='safety'?3:0,'folder edit permission');
+ checkMobileManagement(d.querySelector('.risk-panel'));
  await frame.activateWorkTab('organization');await until(()=>d.querySelector('.org-panel:not(.risk-panel) .org-site-card'),'return to organization');
  assert.equal(d.querySelectorAll('.org-panel:not(.risk-panel) [data-folder-action]').length,role==='safety'?3:0);
+ checkMobileManagement(d.querySelector('.org-panel:not(.risk-panel)'));
  assert.deepEqual(errors,[],'no script errors '+role);console.log('PASS DOM '+role+': cost ratios/sorting/unknowns, inline month and report links, map ranking/select/outside-reset, roles and existing navigation');
  }finally{w.close();}
  }

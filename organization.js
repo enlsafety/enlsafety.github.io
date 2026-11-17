@@ -198,7 +198,7 @@
       rail.querySelector('.org-summary').textContent=periodName(listingPeriod)+' 미승인 '+count+'곳';
       const scroll=railBody.scrollTop;
       const focus=railBody.contains(document.activeElement)?document.activeElement.dataset:null;
-      rail.querySelectorAll('[data-needs-site]').forEach(b=>{b.disabled=!shownSite});
+      panel.querySelectorAll('[data-needs-site]').forEach(b=>{b.disabled=!shownSite});
       railBody.replaceChildren();
       for(const s of folders){
         const expanded=s.site_id===shownSite;
@@ -228,7 +228,7 @@
       railBody.scrollTop=scroll;
     }
     function closeManager(){managerForm?.remove();managerForm=null;}
-    async function manage(action){
+    async function manage(action,mobile=false){
       if(!admin||busy)return;
       closeManager();
       const site=folders.find(s=>s.site_id===shownSite);
@@ -248,7 +248,7 @@
         if(site&&action==='rename')name.value=site.folder_name||site.site_name;
       }else form.append(el('p','「'+(site.folder_name||site.site_name)+'」 폴더를 목록에서 삭제할까요? 같은 사업장의 폴더를 다시 만들면 저장 이력을 볼 수 있습니다.'));
       if(action==='create'&&!available.length){submit.disabled=true;note.textContent='등록된 모든 사업장에 폴더가 있습니다.';}
-      form.append(submit,button('취소',closeManager),note);rail.querySelector('.org-manage-tools').after(form);
+      form.append(submit,button('취소',closeManager),note);(mobile?panel.querySelector('.org-mobile-management .org-manage-tools'):rail.querySelector('.org-manage-tools')).after(form);
       form.onsubmit=async ev=>{
         ev.preventDefault();if(busy||!canLeave())return;
         const selected=action==='create'?available.find(s=>s.site_id===sites.value):site;
@@ -278,6 +278,9 @@
         folders=result.sites;available=result.candidates||[];listingPeriod=shownPeriod=result.period;
         if(admin){
           const tools=el('div',null,'org-manage-tools');
+          const mobile=el('details',null,'org-mobile-management'), mobileTools=el('div',null,'org-manage-tools');
+          mobile.append(el('summary','폴더 관리'),mobileTools);
+          layout.before(mobile);
           tools.setAttribute('role','group');tools.setAttribute('aria-label','사업장 폴더 관리');
           for(const [key,title,path] of [
             ['create','생성','M3 8h10M8 3v10'],
@@ -289,6 +292,10 @@
             icon.setAttribute('viewBox','0 0 16 16');icon.setAttribute('aria-hidden','true');stroke.setAttribute('d',path);
             icon.append(stroke);b.prepend(icon);tools.append(b);
             if(key!=='create')b.dataset.needsSite='';
+            const mobileButton=button(title,()=>manage(key,true));
+            mobileButton.setAttribute('aria-label','폴더 '+title);mobileButton.dataset.mobileFolderAction=key;
+            if(key!=='create')mobileButton.dataset.needsSite='';
+            mobileTools.append(mobileButton);
           }
           railBody.before(tools);
         }
@@ -296,7 +303,7 @@
         paintRail();
         if(shownSite){const selected=folders.find(s=>s.site_id===shownSite);if(selected)paintDocuments(selected);else paintSites();}
         else paintSites();
-      }catch(err){if(onScreen()&&token===sequence)failure(err,()=>open(),railBody)}
+      }catch(err){if(onScreen()&&token===sequence)failure(err,()=>open(),main)}
     }
     async function folder(siteId,version){
       if(!canLeave())return;
