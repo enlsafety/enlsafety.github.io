@@ -123,6 +123,12 @@ function loadScript(file){
  assert.ok(d.querySelector('.analysis-strategy'));
  assert.match(d.querySelector('.strategy-rates').textContent,/산출 자료 부족/);
  assert.ok(d.querySelector('#strategy-plan'));assert.ok(d.querySelector('#strategy-focus'));
+ assert.equal(d.querySelectorAll('.strategy-overview > .analysis-card').length,2,'two compact decision panels');
+ assert.equal(d.querySelector('.strategy-support').open,false,'secondary records start collapsed');
+ assert.ok(d.querySelectorAll('#strategy-plan > details').length<=3,'at most three focus/action rows');
+ assert.equal(d.querySelectorAll('.strategy-sections,.strategy-roadmap,.strategy-plan-cards').length,0,'duplicated sections removed');
+ const disclosure=d.querySelector('#strategy-plan > details');if(disclosure){assert.equal(disclosure.open,false);disclosure.querySelector('summary').click();assert.equal(disclosure.open,true,'action and evidence expand');}
+ d.querySelector('.strategy-support > summary').click();assert.equal(d.querySelector('.strategy-support').open,true,'supporting data remains accessible');
  assert.equal(d.querySelectorAll('[data-sd450-map]').length,0,'strategy is separate from current dashboard map');
  const analysisReport=d.querySelector('[data-analysis-incident]');assert.ok(analysisReport,'analysis links its evidence');analysisReport.click();
  await until(()=>d.querySelector('#modalRoot [data-incident-view]'),'strategy report opens');
