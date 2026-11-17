@@ -1,12 +1,11 @@
 /* E&L Accident Report App v4.2.8 - interactive incident dashboard */
 (function(){
   'use strict';
-  const VERSION='4.4.28-dashboard-filter-simplify1';
+  const VERSION='4.8.13-dashboard-analysis-r131';
+  let rememberedKey='',rememberedYear;
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   const escx=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-  const siteName=id=>{try{return window.ENLContracts?.site(id)?.site_name||siteById?.(id)?.name||window.ENL_SITE_DIRECTORY?.find(s=>String(s.id)===String(id))?.name||id||'-'}catch(e){return id||'-'}};
   const canUseStats=u=>!!u&&['safety','manager','executive'].includes(roleNorm(u.role));
-  const isHistorical=i=>!!i&&(String(i.recordMode||'')==='historical_transfer'||String(i?.historicalTransfer?.mode||'')==='historical_transfer'||(i?.historicalImport?.enabled===true&&i?.historicalImport?.erpApproved===true&&i?.historicalImport?.workflowExempt===true&&String(i?.historicalImport?.transferState||'')==='closed'));
 
   function css(){
     if(document.getElementById('incidentStats426Css'))return;
@@ -15,10 +14,9 @@
       .stats426-head{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;padding:4px 12px}
       .stats426-head h2{margin:0;color:#173b66;font-size:clamp(17px,2vw,21px);line-height:1.25;overflow-wrap:anywhere}
       .stats426-head select{box-sizing:border-box;width:auto;min-width:0;min-height:44px;margin:0;padding:0 8px;border:1px solid #cbd9e5;border-radius:8px;background:#fff;color:#294b68;font-size:16px;font-weight:700}
-      .stats426-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}.stats426-card{padding:15px;border:1px solid #d7e3ed;border-radius:14px;background:#fff;box-shadow:0 3px 10px rgba(22,67,104,.04)}.stats426-card span{display:block;color:#72869a;font-size:11px;font-weight:850}.stats426-card b{display:block;margin-top:5px;color:#173b66;font-size:27px}.stats426-card small{display:block;margin-top:4px;color:#7a8d9e;font-size:11px}.stats426-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,.75fr);gap:12px}.stats426-chart{padding:15px;border:1px solid #d7e3ed;border-radius:14px;background:#fff}.stats426-chart h3{margin:0;color:#244d70;font-size:16px}.stats426-chart p{margin:4px 0 0;color:#788b9b;font-size:11px}.stats426-months{height:190px;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));align-items:end;gap:5px;margin-top:17px;border-bottom:1px solid #d8e2eb;padding:0 2px 1px}.stats426-month{height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px;min-width:0}.stats426-month b{font-size:10px;color:#49667e}.stats426-bar{width:min(28px,75%);min-height:3px;border-radius:7px 7px 2px 2px;background:linear-gradient(180deg,#4f91c2,#1e5d91)}.stats426-month span{font-size:9px;color:#7a8c9d;white-space:nowrap}.stats426-donut-wrap{display:flex;align-items:center;justify-content:center;gap:18px;min-height:190px;margin-top:8px}.stats426-donut{width:132px;height:132px;border-radius:50%;position:relative;flex:0 0 auto}.stats426-donut:after{content:'';position:absolute;inset:25px;border-radius:50%;background:#fff}.stats426-donut-center{position:absolute;inset:0;display:grid;place-content:center;text-align:center;z-index:1;color:#688097;font-size:10px;font-weight:800}.stats426-donut-center b{display:block;color:#173b66;font-size:24px;line-height:1.1}.stats426-legend{display:grid;gap:9px;min-width:115px}.stats426-legend div{display:grid;grid-template-columns:10px 1fr auto;align-items:center;gap:7px;font-size:11px;color:#566f84}.stats426-dot{width:9px;height:9px;border-radius:50%}.stats426-person{background:#d65b65}.stats426-property{background:#457fae}.stats426-other{background:#bdc9d3}.stats426-legend b{color:#294b68}.stats426-sites{display:grid;gap:7px;margin-top:11px}.stats426-site{display:grid;grid-template-columns:32px minmax(0,1fr) auto;align-items:center;gap:9px;padding:10px 11px;border:1px solid #dce6ee;border-radius:10px;background:#fff}.stats426-rank{display:grid;place-items:center;width:25px;height:25px;border-radius:8px;background:#edf6fc;color:#245b86;font-size:11px;font-weight:950}.stats426-site b{color:#294b68;font-size:13px}.stats426-site strong{color:#173b66;font-size:14px}.stats426-empty{padding:28px 10px;text-align:center;color:#8191a0}.stats426-note{margin:0;color:#8090a0;font-size:10px;line-height:1.5}.stats426-nav{position:relative}
+      .stats426-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}.stats426-card{padding:15px;border:1px solid #d7e3ed;border-radius:14px;background:#fff;box-shadow:0 3px 10px rgba(22,67,104,.04)}.stats426-card span{display:block;color:#72869a;font-size:11px;font-weight:850}.stats426-card b{display:block;margin-top:5px;color:#173b66;font-size:27px}.stats426-card small{display:block;margin-top:4px;color:#7a8d9e;font-size:11px}.stats426-nav{position:relative}
       .stats426-card{appearance:none;width:100%;text-align:left;font:inherit;cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .15s}.stats426-card:hover,.stats426-card:focus-visible{border-color:#7fa9c9;box-shadow:0 6px 16px rgba(23,59,102,.09);outline:none}.stats426-card:active{transform:translateY(1px)}
-      .stats426-month{appearance:none;border:0;background:transparent;padding:0;font:inherit;cursor:pointer;border-radius:8px}.stats426-month:hover,.stats426-month:focus-visible{background:#f3f9fd;outline:2px solid #b8d4e8;outline-offset:2px}.stats426-month:active{transform:translateY(1px)}
-      .stats426-drill{display:none;padding:14px;border:1px solid #cbdde9;border-radius:14px;background:#f8fcff;box-shadow:0 5px 16px rgba(27,73,109,.05)}.stats426-drill.show{display:block}.stats426-drill-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}.stats426-drill-head h3{margin:0;color:#173b66;font-size:17px}.stats426-drill-head p{margin:4px 0 0;color:#6d8294;font-size:11px}.stats426-drill-close{min-height:34px;border:1px solid #b8cada;border-radius:9px;background:#fff;color:#46657d;font-weight:900;padding:0 10px;cursor:pointer}.stats426-drill-list{display:grid;gap:7px}.stats426-site{transition:border-color .15s,background .15s,box-shadow .15s}.stats426-site-attention{border-color:#efc36c;background:#fff9e9;box-shadow:inset 3px 0 0 #e4a72b}.stats426-site-manage{border-color:#e49b9f;background:#fff1f2;box-shadow:inset 3px 0 0 #cf3f48}.stats426-site-flag{display:inline-flex;align-items:center;min-height:22px;margin-left:7px;padding:0 7px;border-radius:999px;font-size:9px;font-weight:950;vertical-align:middle}.stats426-site-flag.attention{background:#fff0bd;color:#8b5b00;border:1px solid #efc45e}.stats426-site-flag.manage{background:#ffdfe2;color:#9e252e;border:1px solid #e8a0a5}@media(max-width:760px){.stats426-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.stats426-grid{grid-template-columns:1fr}.stats426-months{height:165px;gap:3px}.stats426-donut-wrap{min-height:160px}}@media(max-width:480px){.stats426-card{padding:12px}.stats426-card b{font-size:24px}.stats426-chart{padding:12px}.stats426-month span{font-size:8px}.stats426-donut{width:118px;height:118px}.stats426-donut:after{inset:23px}}
+      .stats426-drill{display:none;padding:14px;border:1px solid #cbdde9;border-radius:14px;background:#f8fcff;box-shadow:0 5px 16px rgba(27,73,109,.05)}.stats426-drill.show{display:block}.stats426-drill-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}.stats426-drill-head h3{margin:0;color:#173b66;font-size:17px}.stats426-drill-head p{margin:4px 0 0;color:#6d8294;font-size:11px}.stats426-drill-close{min-height:34px;border:1px solid #b8cada;border-radius:9px;background:#fff;color:#46657d;font-weight:900;padding:0 10px;cursor:pointer}.stats426-drill-list{display:grid;gap:7px}@media(max-width:760px){.stats426-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:480px){.stats426-card{padding:12px}.stats426-card b{font-size:24px}}
     `;document.head.appendChild(s)
   }
 
@@ -29,46 +27,12 @@
     return [];
   }
   function validDate(i){const d=new Date(i?.occurredAt||'');return Number.isFinite(d.getTime())?d:null}
-  function availableYears(arr){
-    const set=new Set([new Date().getFullYear()]);
-    arr.forEach(i=>{const d=validDate(i);if(d)set.add(d.getFullYear())});
-    return [...set].sort((a,b)=>b-a)
-  }
-  function sitesForFilter(){
-    const map=new Map();
-    [...(data?.sites||[]),...(window.ENL_SITE_DIRECTORY||[]),...(window.ENLContracts?.list()||[]).map(s=>({id:s.site_id,name:s.site_name||s.name}))].forEach(s=>{if(s?.id&&s.id!=='site-hq')map.set(String(s.id),{id:String(s.id),name:s.name||String(s.id)})});
-    return [...map.values()].sort((a,b)=>String(a.name).localeCompare(String(b.name),'ko'))
-  }
-  function pct(n,total){return total?Math.round((n/total)*1000)/10:0}
-  function summarize(arr,year,siteId,siteStatus='all'){
-    const filtered=arr.filter(i=>{const d=validDate(i);return (!window.ENLContracts||window.ENLContracts.matches(i.siteId,siteStatus))&&d&&d.getFullYear()===Number(year)&&(!siteId||String(i.siteId||'')===String(siteId))});
-    const person=filtered.filter(i=>String(i.category||'')==='person').length;
-    const property=filtered.filter(i=>String(i.category||'')==='property').length;
-    const other=Math.max(0,filtered.length-person-property);
-    const unresolved=filtered.filter(i=>String(i.status||'')!=='closed').length;
-    const months=Array.from({length:12},(_,idx)=>({month:idx+1,count:0}));
-    filtered.forEach(i=>{const d=validDate(i);if(d)months[d.getMonth()].count++});
-    const siteMap=new Map();filtered.forEach(i=>{const id=String(i.siteId||'');if(!id)return;siteMap.set(id,(siteMap.get(id)||0)+1)});
-    const siteRows=[...siteMap.entries()].map(([id,count])=>({id,name:siteName(id),count})).sort((a,b)=>b.count-a.count||String(a.name).localeCompare(String(b.name),'ko')).slice(0,10);
-    return {year,siteId,siteStatus,filtered,total:filtered.length,person,property,other,unresolved,months,siteRows}
-  }
-  function monthChart(months){
-    const max=Math.max(1,...months.map(x=>x.count));
-    return `<div class="stats426-months">${months.map(x=>{const h=x.count?Math.max(8,Math.round((x.count/max)*142)):3;return `<button type="button" class="stats426-month" data-stats-month="${x.month}" aria-label="${x.month}월 사고 ${x.count}건 보기"><b>${x.count||''}</b><div class="stats426-bar" style="height:${h}px" title="${x.month}월 ${x.count}건"></div><span>${x.month}월</span></button>`}).join('')}</div>`
-  }
-  function donut(s){
-    const pp=pct(s.person,s.total),dp=pct(s.property,s.total),op=Math.max(0,Math.round((100-pp-dp)*10)/10),pEnd=pp,dEnd=Math.min(100,pp+dp);
-    const bg=s.total?`conic-gradient(#d65b65 0 ${pEnd}%,#457fae ${pEnd}% ${dEnd}%,#bdc9d3 ${dEnd}% 100%)`:'conic-gradient(#e7edf2 0 100%)';
-    return `<div class="stats426-donut-wrap"><div class="stats426-donut" style="background:${bg}"><div class="stats426-donut-center"><b>${s.total}</b>전체 사고</div></div><div class="stats426-legend"><div><i class="stats426-dot stats426-person"></i><span>인명사고</span><b>${s.person}건 · ${pp}%</b></div><div><i class="stats426-dot stats426-property"></i><span>대물사고</span><b>${s.property}건 · ${dp}%</b></div><div><i class="stats426-dot stats426-other"></i><span>기타</span><b>${s.other}건 · ${op}%</b></div></div></div>`
-  }
-  function siteRanking(rows){return rows.length?`<div class="stats426-sites">${rows.map((x,idx)=>{const level=window.ENLContracts?.closed(x.id)?'':x.count>=5?'manage':x.count>=3?'attention':'';const cls=level?` stats426-site-${level}`:'';const flag=level==='manage'?'<span class="stats426-site-flag manage">관리필요</span>':level==='attention'?'<span class="stats426-site-flag attention">관심요망</span>':'';return `<div class="stats426-site${cls}"><span class="stats426-rank">${idx+1}</span><b>${escx(x.name)}${window.ENLContracts?.badge(x.id)||''}${flag}</b><strong>${x.count}건</strong></div>`}).join('')}</div>`:'<div class="stats426-empty">해당 기간의 사고기록이 없습니다.</div>'}
-
   function recentFirst(arr){return [...arr].sort((a,b)=>(validDate(b)?.getTime()||0)-(validDate(a)?.getTime()||0))}
   function openIncident(id,u){if(typeof window.enlOpenIncidentReview==='function')return window.enlOpenIncidentReview(id,roleNorm(u?.role)==='safety',u);if(typeof window.openIncidentModal==='function')return window.openIncidentModal(id,roleNorm(u?.role)==='safety',u)}
   function showDrill(root,u,s,title,predicate){
     const box=root.querySelector('#stats426Drill');if(!box)return;
-    const arr=recentFirst(summarize(allowedIncidents(u),s.year,s.siteId,s.siteStatus).filtered.filter(predicate||(()=>true))),total=(s.filtered||[]).filter(predicate||(()=>true)).length;
-    box.classList.add('show');box.innerHTML=`<div class="stats426-drill-head"><div><h3>${escx(title)}</h3><p>${arr.length}건 · 최근 발생일 순${total>arr.length?` · 전체 집계 ${total}건 중 조회 가능한 사고만 표시`:""}</p></div><button type="button" class="stats426-drill-close" data-stats-close>닫기</button></div><div class="stats426-drill-list">${window.enlIncidentTable(arr,roleNorm(u.role)==='safety',u)}</div>`;
+    const arr=recentFirst(s.rows.filter(predicate||(()=>true)));
+    box.classList.add('show');box.innerHTML=`<div class="stats426-drill-head"><div><h3>${escx(title)}</h3><p>${arr.length}건 / 최근 발생일 순</p></div><button type="button" class="stats426-drill-close" data-stats-close>닫기</button></div><div class="stats426-drill-list">${window.enlIncidentTable(arr,roleNorm(u.role)==='safety',u)}</div>`;
     box.querySelector('[data-stats-close]')?.addEventListener('click',()=>{box.classList.remove('show');box.innerHTML=''});
     box.querySelectorAll('[data-inc-id]').forEach(b=>b.addEventListener('click',()=>openIncident(b.dataset.incId,u)));
     window.enlAttachIncidentSearch?.(box,box.querySelector('.stats426-drill-list'),'현재 목록에서 검색');
@@ -76,20 +40,45 @@
   }
 
   function renderStats(root,u,state={}){
-    if(!root||!u)return;
+    if(!root)return;
+    if(!canUseStats(u)){root.replaceChildren();return;}
     css();
-    const shared=window.enlDashboardMetrics?.(),all=Array.isArray(shared)?shared:allowedIncidents(u),years=availableYears(all),year=Number(state.year)||years[0]||new Date().getFullYear(),siteId='',siteStatus='active',s=summarize(all,year,siteId,siteStatus);
-    root.innerHTML=`<section class="stats426"><header class="panel stats426-head"><h2>사고 대시보드</h2><select id="stats426Year" aria-label="통계 연도">${years.map(y=>`<option value="${y}" ${y===year?'selected':''}>${y}년</option>`).join('')}</select></header><div class="stats426-cards"><button type="button" class="stats426-card" data-stats-filter="all"><span>${year}년 사고</span><b>${s.total}건</b><small>목록보기</small></button><button type="button" class="stats426-card" data-stats-filter="person"><span>인명사고</span><b>${s.person}건</b><small>전체의 ${pct(s.person,s.total)}% · 목록보기</small></button><button type="button" class="stats426-card" data-stats-filter="property"><span>대물사고</span><b>${s.property}건</b><small>전체의 ${pct(s.property,s.total)}% · 목록보기</small></button><button type="button" class="stats426-card" data-stats-filter="unresolved"><span>미종결 사고</span><b>${s.unresolved}건</b><small>현재 종결 전 상태 · 목록보기</small></button></div><section id="stats426Drill" class="stats426-drill" aria-live="polite"></section><div class="stats426-grid"><section class="stats426-chart"><h3>월별 사고 발생</h3><p>${year}년 월별 사고건수 · 막대를 누르면 해당 월 사고목록을 확인할 수 있습니다.</p>${monthChart(s.months)}</section><section class="stats426-chart"><h3>사고 유형 비율</h3><p>인명 · 대물 · 기타</p>${donut(s)}</section></div><section class="stats426-chart"><h3>사업장별 사고건수</h3><p>사고가 많은 사업장부터 최대 10개까지 표시합니다. 3건 이상은 관심요망, 5건 이상은 관리필요로 강조합니다.</p>${siteRanking(s.siteRows)}</section><p class="stats426-note">※ 이 화면은 법정 재해율이 아닌 사고보고앱 등록자료의 단순 통계입니다. 재해율·도수율 등 공식 지표는 별도 기준 확정 후 추가합니다.</p></section>`;
-    const y=document.getElementById('stats426Year');
-    if(y)y.onchange=()=>renderStats(root,u,{year:Number(y.value)});
+    const a=window.ENLIncidentAnalysis;if(!a){root.textContent='분석 화면을 불러오지 못했습니다. 새로고침해 주세요.';return;}
+    const userKey=JSON.stringify([u.id||u.personnelId,u.role,u.siteId||'']);
+    const all=a.records(window.enlIncidentAnalysisRecords?.()||allowedIncidents(u));
+    const currentYear=String(new Date().getFullYear());
+    const years=[...new Set([currentYear,...all.map(i=>a.dateKey(i).slice(0,4)).filter(Boolean)])].sort().reverse();
+    const requested=String(state.year??(rememberedKey===userKey?rememberedYear:currentYear));
+    const year=years.includes(requested)?requested:currentYear,s=a.summarize(all,year);
+    rememberedKey=userKey;rememberedYear=year;
+    const n=v=>Number(v).toLocaleString('ko-KR'),pct=v=>s.total?Math.round(v/s.total*100):0;
+    const compactCost=s.cost>=100000000?(s.cost/100000000).toLocaleString('ko-KR',{maximumFractionDigits:1})+'억원':s.cost>=10000?(s.cost/10000).toLocaleString('ko-KR',{maximumFractionDigits:1})+'만원':n(s.cost)+'원';
+    const unresolved=s.rows.filter(i=>i.status!=='closed').length;
+    root.innerHTML=`<section class="stats426"><header class="panel stats426-head"><h2>사고 대시보드</h2><select id="stats426Year" aria-label="통계 연도">${years.map(y=>`<option value="${y}" ${y===year?'selected':''}>${y}년</option>`).join('')}</select></header>
+      <div class="stats426-cards">
+        <button type="button" class="stats426-card" data-stats-filter="all"><span>전체 사고</span><b>${n(s.total)}건</b><small>${year}년 / 목록보기</small></button>
+        <button type="button" class="stats426-card" data-stats-filter="person"><span>인명사고</span><b>${n(s.person)}건</b><small>전체의 ${pct(s.person)}% / 목록보기</small></button>
+        <button type="button" class="stats426-card" data-stats-filter="property"><span>대물사고</span><b>${n(s.property)}건</b><small>전체의 ${pct(s.property)}% / 목록보기</small></button>
+        <article class="stats426-card stats426-cost"><span>피해비용</span><b title="${s.knownCost?n(s.cost)+'원':'미확인'}">${s.knownCost?compactCost:'미확인'}</b><small>상세금액은 아래에</small></article>
+      </div>
+      <section id="stats426Drill" class="stats426-drill" aria-live="polite"></section>
+      <section class="incident-analysis analysis-dashboard-details" aria-label="사고 종합 현황">
+        <div class="analysis-dashboard-context"><div><h3>${year}년 사고 종합 현황</h3><p>전체 사업장의 최초사고보고 기준이며 과거사고 입력을 포함합니다. 지도는 기존 사업장 분포 기준을 유지합니다.</p><p>피해비용은 입력된 대인 진료비와 대물 복구 예상비용의 합계입니다. 미확인 금액은 제외하며 최종 확정 손실액은 아닙니다.</p></div><button type="button" data-stats-filter="unresolved">미종결 ${n(unresolved)}건 보기</button></div>
+        <section class="analysis-card analysis-dashboard-cost"><div><h3>입력된 피해비용</h3><strong class="analysis-cost-total">${s.knownCost?n(s.cost)+'원':'미확인'}</strong><p>${s.knownCost}건 입력 / ${s.total-s.knownCost}건 미확인</p></div>${a.costBreakdown(s)}</section>
+        <p class="analysis-sync" role="status">${window.enlIncidentServerReady?.()===true?'현재 동기화된 저장 자료 기준입니다.':'최신 서버 자료 확인 전입니다. 연결 상태에 따라 이전 자료가 표시될 수 있습니다.'}</p>
+        ${s.total?'':'<p class="analysis-empty">선택한 연도의 사고보고가 없습니다.</p>'}
+        ${a.detailHtml(s,true)}
+      </section></section>`;
+    const y=root.querySelector('#stats426Year');
+    y.onchange=()=>renderStats(root,u,{year:y.value});
     root.querySelectorAll('[data-stats-filter]').forEach(b=>b.addEventListener('click',()=>{
       const k=b.dataset.statsFilter;
-      if(k==='person')return showDrill(root,u,s,`${year}년 인명사고`,i=>String(i.category||'')==='person');
-      if(k==='property')return showDrill(root,u,s,`${year}년 대물사고`,i=>String(i.category||'')==='property');
-      if(k==='unresolved')return showDrill(root,u,s,`${year}년 미종결 사고`,i=>String(i.status||'')!=='closed');
-      return showDrill(root,u,s,`${year}년 전체 사고`);
+      if(k==='person')return showDrill(root,u,s,`${year}년 인명사고`,i=>i.category==='person');
+      if(k==='property')return showDrill(root,u,s,`${year}년 대물사고`,i=>i.category==='property');
+      if(k==='unresolved')return showDrill(root,u,s,`${year}년 미종결 사고`,i=>i.status!=='closed');
+      showDrill(root,u,s,`${year}년 전체 사고`);
     }));
-    root.querySelectorAll('[data-stats-month]').forEach(b=>b.addEventListener('click',()=>{const month=Number(b.dataset.statsMonth);showDrill(root,u,s,`${year}년 ${month}월 사고`,i=>validDate(i)?.getMonth()+1===month)}));
+    root.querySelectorAll('[data-stats-month]').forEach(b=>b.addEventListener('click',()=>{const month=b.dataset.statsMonth;showDrill(root,u,s,`${month.replace('-','년 ')}월 사고`,i=>a.dateKey(i).slice(0,7)===month)}));
   }
   function enhanceNav(u){
     if(!canUseStats(u))return;

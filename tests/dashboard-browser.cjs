@@ -12,7 +12,7 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
   return route.abort();
  });
  await page.goto('http://enl-qa.test/fixture');
- for(const path of ['style.css','v3.css','responsive-v432.css','platform-dashboard.css'])await page.addStyleTag({content:fs.readFileSync(path,'utf8')});
+ for(const path of ['style.css','v3.css','responsive-v432.css','platform-dashboard.css','incident-analysis.css'])await page.addStyleTag({content:fs.readFileSync(path,'utf8')});
  await page.evaluate(()=>{
   window.app=document.getElementById('app');window.currentView='home';window.qaUser={id:'qa-safety',role:'safety',name:'안전관리자'};window.currentUser=()=>qaUser;
   window.data={sites:[],incidents:[]};window.roleName=x=>x;window.siteById=id=>data.sites.find(s=>s.id===id);window.fmt=x=>String(x).slice(0,10);window.statusBadge=x=>x;window.priorityBadge=x=>x||'';
@@ -30,7 +30,7 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
   const year=new Date().getFullYear();data.incidents=[{id:'urgent-prior-year',siteId:'s29',occurredAt:`${year-1}-01-01`,status:'approved',priority:'urgent'}, {id:'ordinary-current',siteId:'s01',occurredAt:`${year}-05-01`,status:'closed'}];
   window.enlIncidentApi=async ({action})=>{if(action!=='dashboard_read')throw Error('Mutation blocked');return {sites:ENL_SITE_MASTER_SEED,metrics:[...data.incidents,{siteId:'s01',occurredAt:`${year}-01-01`,status:'rejected',category:'person'},...Array.from({length:3},()=>({siteId:'s02',occurredAt:`${year}-02-01`,status:'closed'})),...Array.from({length:5},()=>({siteId:'s03',occurredAt:`${year}-03-01`,status:'closed'}))]}};
  });
- for(const path of ['site-contract-v451.js','app-shell-v411.js','reader-ui-v414.js','incident-stats-v426.js','workflow-enhancements-v432.js','site-dashboard-v450.js'])await page.addScriptTag({content:fs.readFileSync(path,'utf8')});
+ for(const path of ['site-contract-v451.js','app-shell-v411.js','reader-ui-v414.js','incident-analysis.js','incident-stats-v426.js','workflow-enhancements-v432.js','site-dashboard-v450.js'])await page.addScriptTag({content:fs.readFileSync(path,'utf8')});
  const verifyDashboard=async()=>{
   const head=page.locator('.stats426-head'),year=head.getByRole('combobox',{name:'통계 연도'});
   assert.equal(await head.locator('h2').innerText(),'사고 대시보드');
@@ -181,8 +181,8 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
   await page.evaluate(role=>{qaUser={id:role,role,name:'본사 조회자'};currentView='stats';renderShell(qaUser)},role);
   await page.locator('[data-sd450-map]').waitFor();await page.waitForFunction(()=>window.enlDashboardMetrics?.()!==null);
   await page.locator('#stats426Year').selectOption(String(new Date().getFullYear()));
-  await page.waitForFunction(()=>document.querySelector('[data-stats-filter="all"] b')?.textContent==='10건',null,{timeout:5000});
-  assert.equal(await page.locator('[data-sd450-map-site]').count(),33);await verifyDashboard();assert.equal(await page.locator('[data-stats-filter=all] b').innerText(),'10건');await page.locator('[data-stats-filter=all]').click();assert.equal(await page.locator('#stats426Drill [data-inc-id]').count(),1,'aggregate-only rejected record must not disclose details');
+  await page.waitForFunction(()=>document.querySelector('[data-stats-filter="all"] b')?.textContent==='1건',null,{timeout:5000});
+  assert.equal(await page.locator('[data-sd450-map-site]').count(),33);await verifyDashboard();assert.equal(await page.locator('[data-stats-filter=all] b').innerText(),'1건');await page.locator('[data-stats-filter=all]').click();assert.equal(await page.locator('#stats426Drill [data-inc-id]').count(),1,'analysis totals and drill use the same saved reports; aggregate-only records stay private');
   await openSite('s29');await page.locator('[data-sd450-open]').click();await page.locator('[data-sd450-info]').waitFor();
   assert.equal(await page.locator('[data-qa-table]').getAttribute('data-edit'),'false');
   await page.locator('[data-inc-id="urgent-prior-year"]').click();assert.equal(await page.evaluate(()=>qaReview.edit),false,'existing review remains read-only');

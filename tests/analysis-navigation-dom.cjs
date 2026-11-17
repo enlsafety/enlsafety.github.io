@@ -26,6 +26,32 @@ function loadScript(file){
  if(role==='field'){
  assert.equal(nav,null);w.eval("currentView='analysis';renderShell(currentUser());");assert.equal(d.querySelector('.incident-analysis'),null);assert.equal(w.enlIncidentAnalysisRecords().length,0);
  }else{
+ await until(()=>d.querySelector('[data-sd450-map]'),'dashboard map');
+ assert.equal(d.querySelectorAll('.stats426-cards .stats426-card').length,4);
+ assert.match(d.querySelector('[data-stats-filter="all"] b').textContent,/1건/);
+ assert.match(d.querySelector('.analysis-dashboard-cost').textContent,/대인.*대물/s);
+ assert.equal(d.querySelectorAll('[data-sd450-map]').length,1);
+ assert.ok(d.querySelector('.incident-overview > .stats426-cards'));
+ assert.ok(d.querySelector('.incident-overview > [data-sd450-map]'));
+ for(const title of ['월별 사고 발생','사고유형별 분포','사업장별 사고 건수','우선 확인할 작업','업무별 발생 현황','추가 확인이 필요한 정보'])assert.equal([...d.querySelectorAll('.stats426 h3')].filter(h=>h.textContent===title).length,1,title+' appears once');
+ assert.equal(d.querySelector('.stats426-donut'),null);
+ const selected=d.querySelector('#stats426Year').value;
+ d.querySelector('[data-stats-filter="all"]').click();assert.match(d.querySelector('#stats426Drill').textContent,/1건/);
+ d.querySelector('[data-stats-close]').click();assert.equal(d.querySelector('#stats426Drill').textContent,'');
+ const occurred=w.ENLIncidentAnalysis.dateKey(w.enlIncidentAnalysisRecords()[0]).slice(0,7);
+ d.querySelector('[data-stats-month="'+occurred+'"]').click();assert.match(d.querySelector('#stats426Drill').textContent,/1건/);
+ w.eval('renderShell(currentUser())');assert.equal(d.querySelector('#stats426Year').value,selected);
+ const savedSource=w.enlIncidentAnalysisRecords;
+ const fixtureSource=[{id:'compare-26',status:'reported',category:'person',siteId:'qa-site',occurredAt:'2026-12-31',reportDetails:{medicalCost:1234}},{id:'compare-27',status:'closed',category:'property',siteId:'qa-site',occurredAt:'2026-12-31T16:00:00Z',reportDetails:{repairCost:5000}}];
+ w.enlIncidentAnalysisRecords=()=>fixtureSource;
+ w.enlRenderIncidentStats(d.getElementById('view'),w.currentUser(),{year:'2027'});
+ assert.match(d.querySelector('.analysis-dashboard-cost').textContent,/5,000원.*대인미확인.*대물5,000원/s);
+ assert.equal(d.querySelector('#stats426Year').value,'2027');
+ d.querySelector('[data-stats-month="2027-01"]').click();assert.match(d.querySelector('#stats426Drill').textContent,/1건/);
+ const yearControl=d.querySelector('#stats426Year');yearControl.value='2026';yearControl.dispatchEvent(new w.Event('change',{bubbles:true}));
+ assert.match(d.querySelector('.analysis-dashboard-cost').textContent,/1,234원.*대인1,234원.*대물미확인/s);
+ w.enlIncidentAnalysisRecords=savedSource;w.eval('renderShell(currentUser())');
+
  assert.ok(nav,'analysis tab '+role);const before=w.__fixtureCalls.length;nav.click();
  assert.ok(d.querySelector('.incident-analysis'),'analysis opens '+role);assert.equal(d.querySelectorAll('.analysis-kpis article').length,4);
  assert.equal(w.__fixtureCalls.length,before,'opening analysis does not add network calls');
