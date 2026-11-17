@@ -16,7 +16,8 @@
   function mount(host,user,api,sameUser){
     const admin=user.role==='safety';
     let panel,rail,railBody,main,managerForm,sites=[],candidates=[],selected=null,docOpen=false;
-    let sequence=0,busy=false,enabled=false;
+    let sequence=0,busy=false,enabled=false,listFlight;
+    function readList(){if(!listFlight){const flight=api({action:'platform_risk_list',manageFolders:admin}).finally(()=>{if(listFlight===flight)listFlight=null;});listFlight=flight;}return listFlight;}
     const onScreen=()=>sameUser()&&host.dataset.workspace==='risk';
     const message=text=>{const node=$('p',text,'org-status');node.setAttribute('role','status');return node;};
     const canLeave=()=>!busy;
@@ -121,7 +122,7 @@
         busy=true;form.inert=true;
         try{
           await api({action:'platform_risk_folder_'+action,siteId:item.site_id,name:name.value,folderRevision:item.folder_revision});
-          busy=false;closeManager();
+          listFlight=null;busy=false;closeManager();
           if(onScreen())await open(action==='delete'?null:item.site_id);
         }catch(err){
           note.textContent=err.message==='folder_changed'?'다른 사용자가 폴더를 변경했습니다. 다시 불러와 주세요.':'폴더 변경에 실패했습니다. 다시 시도해 주세요.';
@@ -141,7 +142,7 @@
       main=$('div',null,'org-main');main.append(message('사업장을 선택해 주세요.'));
       layout.append(rail,main);panel.replaceChildren($('h2','위험성평가'),layout);
       try{
-        const result=await api({action:'platform_risk_list',manageFolders:admin});
+        const result=await readList();
         if(!onScreen()||token!==sequence)return;
         sites=Array.isArray(result.sites)?result.sites.sort((a,b)=>sortKo.compare(a.folder_name||a.site_name,b.folder_name||b.site_name)):[];
         candidates=Array.isArray(result.candidates)?result.candidates:[];
@@ -171,7 +172,7 @@
     }
     const focus=()=>{
       if(!sameUser()){window.removeEventListener('focus',focus);document.removeEventListener('visibilitychange',focus);return;}
-      if(onScreen()&&!busy&&!document.hidden&&!managerForm)open(selected).catch(()=>{});
+      if(onScreen()&&!busy&&!document.hidden&&!managerForm&&!docOpen)open(selected).catch(()=>{});
     };
     window.addEventListener('focus',focus);document.addEventListener('visibilitychange',focus);
     return {catalog,canLeave,leave,open};

@@ -19,7 +19,7 @@
   `;document.head.appendChild(s)}
 
   function logout(){session=null;saveSession();currentView='';try{enlPlatformSection='hub';localStorage.setItem(ENL_PLATFORM_SECTION_KEY,'hub')}catch(e){}renderLogin()}
-  function navItems(u){if(isField(u))return [];if(roleNorm(u.role)==='safety')return [['home','사고현황'],['report','사고 등록'],['incidents','전체 사고'],['actions','재발방지 관리']];return [['home','사고현황'],['incidents','사고 조회'],['actions','확인완료 재발방지조치']]}
+  function navItems(u){if(isField(u))return [];if(roleNorm(u.role)==='safety')return [['home','사고현황'],['analysis','종합분석'],['report','사고 등록'],['incidents','전체 사고'],['actions','재발방지 관리']];return [['home','사고현황'],...(['manager','executive'].includes(roleNorm(u.role))?[['analysis','종합분석']]:[]),['incidents','사고 조회'],['actions','확인완료 재발방지조치']]}
   function navHtml(u){const items=navItems(u);
     if(!items.length)return '';
     return `<nav class="shell411-nav">${items.map(([v,t])=>`<button type="button" data-shell-view="${v}" class="${currentView===v?'on':''}">${t}</button>`).join('')}</nav>`}
@@ -145,6 +145,7 @@
     if(currentView==='platform-tool'&&!root.closest('.app-shell').enlWorkspaceFrame)currentView='platform';
     window.enlEnsureWorkspace?.(root,u)?.syncWorkView(root,u);
     if(currentView==='platform-tool'){root.replaceChildren();return root;}
+    if(currentView==='analysis'&&['safety','manager','executive'].includes(roleNorm(u.role))&&window.ENLIncidentAnalysis){window.ENLIncidentAnalysis.render(root,u);return root;}
     if(currentView==='stats'&&['safety','manager','executive'].includes(roleNorm(u.role))&&window.enlRenderIncidentStats){
       window.enlRenderIncidentStats(root,u);return root;
     }

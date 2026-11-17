@@ -93,9 +93,13 @@
         dot.setAttribute('aria-label','최신화 미승인 '+pending+'개 사업장');dot.title=dot.getAttribute('aria-label');
       }
     }
+    const listFlights=new Map();
     async function readList(manageFolders=false){
       const token=++listRequest;
-      const result=await api({action:'platform_org_list',manageFolders});
+      const key=manageFolders===true;
+      let flight=listFlights.get(key)||(!key&&listFlights.get(true));
+      if(!flight){flight=api({action:'platform_org_list',manageFolders:key}).finally(()=>{if(listFlights.get(key)===flight)listFlights.delete(key);});listFlights.set(key,flight);}
+      const result=await flight;
       if(token===listRequest && sameUser() && allowed){
         pending=result.sites.filter(s=>s.active!==false&&!s.checked).length;
         badges();
@@ -252,7 +256,7 @@
         busy=true;form.inert=true;
         try{
           await api({action:'platform_org_folder_'+action,siteId:selected.site_id,name:name.value,folderRevision:selected.folder_revision});
-          dirty=false;busy=false;closeManager();if(onScreen())await open(action==='delete'?null:selected.site_id);
+          listFlights.clear();dirty=false;busy=false;closeManager();if(onScreen())await open(action==='delete'?null:selected.site_id);
         }catch(err){note.textContent=err.message==='folder_changed'?'다른 사용자가 폴더를 변경했습니다. 메뉴를 다시 열어 주세요.':'폴더를 변경하지 못했습니다. 다시 시도해 주세요.';}
         finally{busy=false;form.inert=false;}
       };

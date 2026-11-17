@@ -356,7 +356,15 @@
     return catalog?.documentMenus?.find(item=>item.key===key.slice('document:'.length));
   }
   const moduleAvailable=m=>!!m&&m.enabled!==false&&m.canEnter!==false&&m.state!=='hidden'&&(m.state==='live'||m.preview);
-  async function allowed(key){const m=entry(key);if(!moduleAvailable(m)){status.textContent='현재 접근할 수 없는 업무입니다.';return false}try{await api({action:'platform_enter',key});return sameUser()}catch{status.textContent='접근 권한 또는 연결 상태를 확인해 주세요.';return false}}
+  const entering=new Map();
+  async function allowed(key){
+    const m=entry(key);if(!moduleAvailable(m)){status.textContent='현재 접근할 수 없는 업무입니다.';return false;}
+    // These list endpoints enforce the same module gate and actor permissions on the server.
+    // Render their loading view immediately instead of waiting for a redundant enter request.
+    if(['organization','risk'].includes(key))return sameUser();
+    try{if(!entering.has(key))entering.set(key,api({action:'platform_enter',key}).finally(()=>entering.delete(key)));await entering.get(key);return sameUser();}
+    catch{status.textContent='접근 권한 또는 연결 상태를 확인해 주세요.';return false;}
+  }
   function clickFeature(key){return selectTab(key);}
   function support(){return selectTab('support');}
   function addSupportCard(grid){const r=document.createElement('article');r.className='hub-support-card feature-card-wrap';r.dataset.key='support';r.dataset.state='live';r.dataset.on='true';r.innerHTML=action('support','<span class="hub-art hub-art-support" aria-hidden="true"></span><strong class="hub-card-title">공통업무지원<wbr>서비스</strong><span class="hub-card-description">'+descriptions.support+'</span><small>운영중</small><span class="hub-card-arrow" aria-hidden="true">'+svg('arrow')+'</span>','platform-card');r.firstElementChild.onclick=support;grid.append(r);return r}
@@ -414,6 +422,7 @@
   const org=window.enlOrganization?.(host,u,api,sameUser);
   const risk=window.enlRiskAssessment?.(host,u,api,sameUser);
   function canLeave(){
+    if(window.ENLProcessing?.active())return false;
     if(active==='organization'&&org&&!org.canLeave())return false;
     if(active==='risk'&&risk&&!risk.canLeave())return false;
     const changed=document.querySelector('#view [data-worktab-edited],#view [data-wf440-dirty="1"]');

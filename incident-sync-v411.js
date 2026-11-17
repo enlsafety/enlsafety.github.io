@@ -209,9 +209,10 @@
   const controlLocks=new WeakMap();
   function lockEditor(){
     const root=document.querySelector('#unifiedReportForm,#reportForm,#modalRoot .modal');
+    const finish=root?window.ENLProcessing?.begin():null;
     const controls=[...(root?.querySelectorAll?.('input,textarea,select,button')||[])];
     controls.forEach(el=>{const state=controlLocks.get(el)||{count:0,disabled:el.disabled};state.count++;controlLocks.set(el,state);el.disabled=true;});
-    return ()=>controls.forEach(el=>{const state=controlLocks.get(el);if(state&&!--state.count){el.disabled=state.disabled;controlLocks.delete(el);}});
+    return ()=>{controls.forEach(el=>{const state=controlLocks.get(el);if(state&&!--state.count){el.disabled=state.disabled;controlLocks.delete(el);}});finish?.();};
   }
   window.enlCommitIncident=commitIncident;window.enlAcceptSavedIncident=acceptSaved;
   window.enlIncidentSaveErrorMessage=errorMessage;
@@ -250,6 +251,7 @@
   window.enlIncidentSyncNow=()=>syncNow();window.enlIncidentPullNow=pull;
   window.enlIncidentAcknowledge=async(incidentId,u=currentUser(),documentType='incident_report')=>call({action:'acknowledge',actor:actor(),incidentId,documentType});
   window.enlIncidentServerReady=()=>serverReady;
+  window.enlIncidentAnalysisRecords=()=>{scope();return ['safety','manager','executive'].includes(actor()?.role)?clone([...authoritative.values()].filter(i=>!deleted.has(String(i.id)))):[];};
   window.enlIncidentPendingWrites=()=>queues.size;
   window.enlIncidentSaveInProgress=()=>queues.size>0;
   window.enlIncidentHasUnsavedChanges=()=>!!(dirty||queues.size||drafts.size||failures.size);
