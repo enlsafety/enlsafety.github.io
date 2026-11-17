@@ -16,7 +16,7 @@
   let out={ok:true,epoch:1,incidents,sites,metrics:incidents,inquiries:[],count:0,users:[actor],readers:[],unread:0};let status=200;
   if(b.action==='dashboard_read')out.sites=Object.entries(window.ENL_SITE_LOCATIONS).filter(([id])=>id!=='s34').map(([id,loc])=>({site_id:id,site_name:'검수 '+id,address:loc.address,active:true}));
   if(b.action==='platform_analysis_target_get'){const baseline=window.ENLTargetPolicy.baseline(incidents,b.year,b.siteId||'');out={ok:true,baseline,baselineKey:JSON.stringify(baseline),targetYear:b.year+1,record:null};}
-  if(b.action==='platform_storage_usage')out={ok:true,fileBytes:120984794,databaseBytes:12886016,fileCount:132,unknownFiles:0,checkedAt:'2026-11-17T07:00:00Z'};
+  if(b.action==='platform_storage_usage')out={ok:true,fileBytes:120984794,databaseBytes:12886016,projectDatabaseBytes:99056437,quota:{plan:'free',verifiedAt:'2026-11-17',fileBytes:1073741824,databaseBytes:524288000},fileCount:132,unknownFiles:0,checkedAt:'2026-11-17T07:00:00Z'};
   if(b.action==='platform_catalog')out={ok:true,...config};
   if(b.action==='platform_enter'){const m=[...config.modules,...config.services].find(x=>x.key===b.key);if(!m||m.enabled===false||m.state==='hidden'||m.state!=='live'&&!m.preview){out={ok:false,message:'module_unavailable'};status=403}else out={ok:true,key:b.key,state:m.state}}
   if(b.action==='platform_home_cards'){

@@ -1,6 +1,10 @@
 // Aggregate sizes only. Authorization precedes cache access on every request.
 let storageCache:any=null,storageFlight:Promise<any>|null=null;
 const storageTtl=300000;
+// Organization plan verified through the management API on 2026-11-17.
+// https://supabase.com/docs/guides/platform/billing-on-supabase
+// Storage is an organization-shared allowance; DB is per project, not per app table.
+const quota={plan:'free',verifiedAt:'2026-11-17',fileBytes:1024**3,databaseBytes:500*1024**2,fileScope:'organization_shared'};
 export async function storageUsageRequest(sql:any,actor:any,reply:any){
  if(actor?.role!=='safety')return reply({ok:false,message:'safety_required'},403);
  if(storageCache&&Date.now()-storageCache.cachedAt<storageTtl)return reply({ok:true,...storageCache.data});
@@ -10,12 +14,13 @@ export async function storageUsageRequest(sql:any,actor:any,reply:any){
     coalesce(sum(case when metadata->>'size' ~ '^[0-9]+$' then (metadata->>'size')::numeric else 0 end),0)::text as file_bytes,
     count(*)::text as file_count,
     count(*) filter(where metadata->>'size' is null or metadata->>'size' !~ '^[0-9]+$')::text as unknown_files,
-    (select coalesce(sum(pg_total_relation_size(c.oid)),0)::text from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private') and c.relkind in ('r','m') and left(c.relname,4)='enl_') as database_bytes
+    (select coalesce(sum(pg_total_relation_size(c.oid)),0)::text from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private') and c.relkind in ('r','m') and left(c.relname,4)='enl_') as database_bytes,
+    (select sum(pg_database_size(datname))::text from pg_database) as project_database_bytes
     from storage.objects where left(bucket_id,4)='enl-'`;
-   const values=[row?.file_bytes,row?.database_bytes,row?.file_count,row?.unknown_files].map(v=>v==null?NaN:Number(v));
+   const values=[row?.file_bytes,row?.database_bytes,row?.file_count,row?.unknown_files,row?.project_database_bytes].map(v=>v==null?NaN:Number(v));
    if(values.some(v=>!Number.isSafeInteger(v)||v<0))throw Error('invalid_size');
-   const [fileBytes,databaseBytes,fileCount,unknownFiles]=values;
-   const data={fileBytes,databaseBytes,fileCount,unknownFiles,checkedAt:new Date().toISOString(),scope:'app_files_and_tables'};
+   const [fileBytes,databaseBytes,fileCount,unknownFiles,projectDatabaseBytes]=values;
+   const data={fileBytes,databaseBytes,fileCount,unknownFiles,projectDatabaseBytes,quota,checkedAt:new Date().toISOString(),scope:'app_files_and_project_database'};
    storageCache={cachedAt:Date.now(),data};return data;
   })().finally(()=>{storageFlight=null});
   return reply({ok:true,...await storageFlight});

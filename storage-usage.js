@@ -7,18 +7,30 @@
   if(u?.role!=='safety')return null;
   const key=JSON.stringify([u.id||u.personnelId,u.role]);
   const box=document.createElement('section');box.className='hub-storage-usage';box.setAttribute('aria-label','앱 서버 저장 현황');
-  box.innerHTML='<header><strong>서버 저장 현황</strong><button type="button" aria-label="저장 현황 새로고침">갱신</button></header><div class="hub-storage-total">확인 중...</div><div class="hub-storage-bar" role="img" aria-label="사용량 확인 중"><i></i><i></i></div><dl><div><dt>첨부파일</dt><dd>—</dd></div><div><dt>앱 DB</dt><dd>—</dd></div></dl><small role="status">현재 보관량 확인 중</small>';
+  box.innerHTML='<header><strong>서버 저장 현황</strong><button type="button" aria-label="저장 현황 새로고침">갱신</button></header><div class="hub-storage-total">한도 확인 중...</div><div class="hub-storage-item" data-kind="file"><div class="hub-storage-label"><strong>이 앱 첨부파일</strong><b>—</b></div><div class="hub-storage-bar" role="img"><i></i></div><div class="hub-storage-amount">—</div></div><div class="hub-storage-item" data-kind="database"><div class="hub-storage-label"><strong>운영 서버 DB</strong><b>—</b></div><div class="hub-storage-bar" role="img"><i></i></div><div class="hub-storage-amount">—</div></div><small class="hub-storage-scope">파일은 조직 공용 한도 기준</small><small role="status">현재 보관량 확인 중</small>';
   parent.append(box);const button=box.querySelector('button'),status=box.querySelector('[role=status]');
   const active=()=>box.isConnected&&sameUser();
   function paint(data){
-   const {fileBytes,databaseBytes}=data,total=fileBytes+databaseBytes;
-   box.querySelector('.hub-storage-total').textContent=bytes(total)+(data.unknownFiles?' + 미확인':'');
-   const numbers=box.querySelectorAll('dd');numbers[0].textContent=bytes(fileBytes);numbers[1].textContent=bytes(databaseBytes);
-   const bar=box.querySelector('.hub-storage-bar'),parts=bar.querySelectorAll('i');parts[0].style.width=(total?fileBytes/total*100:0)+'%';parts[1].style.width=(total?databaseBytes/total*100:0)+'%';
-   bar.setAttribute('aria-label','확인된 용량 구성: 첨부파일 '+bytes(fileBytes)+', 앱 DB '+bytes(databaseBytes));
+   const q=data.quota,validLimit=n=>Number.isSafeInteger(n)&&n>0;
+   function row(kind,used,limit,unknown){
+    const item=box.querySelector('[data-kind='+kind+']'),bar=item.querySelector('.hub-storage-bar');
+    const available=Number.isSafeInteger(used)&&used>=0,known=available&&validLimit(limit)&&!unknown;
+    const percent=known?used/limit*100:null;
+    const label=percent===null?'확인 필요':(percent>0&&percent<0.1?'<0.1':percent.toLocaleString('ko-KR',{maximumFractionDigits:1}))+'%';
+    item.querySelector('b').textContent=label;
+    item.querySelector('.hub-storage-amount').textContent=(available?bytes(used):'확인 필요')+' / '+(validLimit(limit)?bytes(limit):'한도 확인 필요')+(unknown?' + 미확인':'');
+    bar.querySelector('i').style.width=percent===null?'0%':Math.min(100,percent)+'%';
+    item.dataset.level=percent===null?'unknown':percent>=90?'danger':percent>=80?'warning':'normal';
+    const scope=kind==='file'?'조직 공용 한도 중 이 앱 파일':'운영 서버 전체 DB';
+    bar.setAttribute('aria-label',scope+' '+label);bar.dataset.unknown=String(percent===null);
+   }
+   row('file',data.fileBytes,q?.fileBytes,data.unknownFiles>0);
+   row('database',data.projectDatabaseBytes,q?.databaseBytes,false);
+   box.querySelector('.hub-storage-total').textContent=q?.plan==='free'?'Free 기준 / '+String(q.verifiedAt||'미확인').replace(/^\d{4}-/,'').replace('-','/')+' 확인':'한도 확인 필요';
    const date=new Date(data.checkedAt),stamp=Number.isFinite(+date)?date.toLocaleTimeString('ko-KR',{timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hour12:false}):'시각 미확인';
-   status.textContent='파일/DB 구성비 / '+stamp+' 확인'+(data.unknownFiles?' / 파일 '+data.unknownFiles+'개 용량 미확인':'');
-   box.title='앱 첨부파일과 앱 테이블(인덱스 포함)의 현재 보관량입니다. 그래프는 구성비이며 저장 한도 대비 사용률이 아닙니다. 서버 로그, 별도 백업과 다른 프로젝트는 제외합니다.';
+   status.textContent=stamp+' 사용량 확인';
+   box.title='파일은 조직 공용 한도 중 이 앱의 사용량으로, 다른 프로젝트의 파일 사용량은 제외합니다. 남은 용량을 뜻하지 않습니다. DB는 시스템 기본 데이터를 포함한 운영 프로젝트 전체 데이터베이스입니다. 한도는 '+(q?.verifiedAt||'미확인')+'에 확인한 요금제 기준이며 요금제 변경 시 재확인이 필요합니다.';
+
   }
   async function refresh(force=false){
    if(!active()||button.disabled)return;
