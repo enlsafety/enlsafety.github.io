@@ -1,0 +1,60 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),crypto=require('node:crypto');
+const {orgFixture}=require('./organization.cjs');
+(async()=>{
+ const f=await orgFixture();
+ try{
+  await f.db.exec(fs.readFileSync('supabase/migrations/20261117000000_risk_assessment_folders.sql','utf8'));
+  await f.db.exec(fs.readFileSync('supabase/migrations/20261117000100_open_risk_assessment_module.sql','utf8'));
+  await f.db.exec(fs.readFileSync('supabase/migrations/20261117042933_risk_assessment_records.sql','utf8'));
+  const key={siteId:'qa-site',kind:'initial',period:'initial',templateId:'course'};
+  const call=(who,op,extra={})=>f.call(who,{action:'platform_risk_'+op,...key,...extra});
+  const doc=async(who='field',extra={})=>(await call(who,'open',extra)).body;
+  const templates=JSON.parse(fs.readFileSync('edge-functions/enl-incident-sync-v411/risk-templates.json'));
+  assert.equal(templates.books.flatMap(b=>b.sections.flatMap(s=>s.rows)).length,204);
+  for(const b of templates.books){const data=await doc('field',{templateId:b.id});assert.equal(data.document.content.rows.length,b.sections.flatMap(s=>s.rows).length);assert.equal(data.document.revision,0);assert.equal(data.document.content.improvements.length,3);}
+  assert.equal((await f.db.query('select count(*)::int n from private.enl_risk_records')).rows[0].n,0,'opening defaults does not create actual evaluations');
+  let data=await doc();const content=data.document.content;
+  assert.equal(content.rows.length,84);assert.ok(content.rows.every(r=>!r.level&&!r.dueDate&&!r.doneDate));
+  const save={revision:0,folderRevision:1,state:'draft',content};
+  for(const who of ['manager','executive'])assert.equal((await call(who,'save',save)).status,403);
+  for(const op of ['open','documents','save'])assert.equal((await call('other',op,save)).status,403);
+  assert.equal((await call('field','save',{...save,state:'completed'})).status,400,'cannot claim completion of blank template');
+  assert.equal((await call('field','save',save)).status,200);
+  assert.equal((await call('safety','save',save)).status,409,'concurrent overwrite denied');
+  content.evaluator='QA 현장';content.assessmentDate='2026-11-17';content.rows.forEach(r=>r.level='하');
+  content.rows[0].level='상';
+  assert.equal((await call('field','save',{...save,revision:1,state:'completed'})).status,400,'high risk action required');
+  Object.assign(content.rows[0],{measure:'QA 가상 조치',owner:'QA 담당',dueDate:'2026-11-18'});
+  content.rows[1].excluded=true;content.rows[1].excludeReason='';
+  assert.equal((await call('safety','save',{...save,revision:1,state:'completed'})).status,400,'exclusion reason required');
+  content.rows[1].excludeReason='해당 작업 없음';
+  assert.equal((await call('safety','save',{...save,revision:1,state:'completed'})).status,200);
+  for(const who of ['field','safety','manager','executive']){data=await doc(who);assert.equal(data.document.state,'completed');assert.equal(data.document.revision,2);assert.equal(data.history.length,2);}
+  assert.equal((await doc('manager',{revision:1})).document.content.evaluator,'','previous version preserved');
+  assert.equal((await doc('manager',{kind:'regular',period:'2026'})).document.revision,0);
+  assert.equal((await call('field','save',{...save,kind:'regular',period:'2027',state:'completed'})).status,400,'year mismatch rejected');
+  assert.equal((await call('field','save',{...save,kind:'regular',period:'2026'})).status,200);
+  assert.equal((await doc('field',{kind:'regular',period:'2027'})).document.revision,0,'years isolated');
+  assert.equal((await doc()).document.revision,2,'initial unaffected');
+  const listing=(await call('field','documents')).body;assert.deepEqual(listing.years,['2026']);assert.equal(listing.templates.length,5);assert.equal(listing.records.length,1);
+  assert.equal((await call('field','save',{...save,revision:2,content:{...content,rows:content.rows.slice(1)}})).status,400,'base records cannot be silently removed');
+  const base64='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aMioAAAAASUVORK5CYII=';
+  const id=crypto.createHash('sha256').update(Buffer.from(base64,'base64')).digest('hex');
+  content.improvements[0].beforePhoto=id;
+  assert.equal((await call('field','save',{...save,revision:2})).status,400,'unowned photo rejected');
+  const photo={id,mime:'image/png',base64};
+  assert.equal((await call('field','save',{...save,revision:2,photos:[photo]})).status,200);
+  assert.equal((await doc('manager')).photos[0].base64,base64);
+  assert.equal((await call('safety','save',{...save,revision:3,photos:[photo]})).status,200);
+  assert.equal((await f.db.query('select count(*)::int n from private.enl_risk_photos')).rows[0].n,1,'photos deduplicated across revisions');
+  assert.equal((await call('safety','save',{...save,revision:4,folderRevision:99})).status,409);
+  await call('safety','folder_delete',{folderRevision:1});
+  assert.equal((await call('field','save',{...save,revision:4})).status,404,'hidden folder cannot be saved');
+  assert.equal((await call('manager','open')).status,404);
+  await call('safety','folder_create',{folderRevision:2,name:'QA 복구'});
+  assert.equal((await doc()).document.revision,4,'restored folder preserves all records');
+  const rls=await f.db.query("select relname,relrowsecurity from pg_class where relname in ('enl_risk_records','enl_risk_photos')");assert.ok(rls.rows.every(r=>r.relrowsecurity));
+  console.log('PASS 204 base rows; initial/annual/category isolation; actual role/auth scope; completion validation; history; concurrent edits; photo ownership/dedup; folder hide/restore; RLS');
+ }finally{await f.db.close();}
+})().catch(e=>{console.error(e);process.exitCode=1;});

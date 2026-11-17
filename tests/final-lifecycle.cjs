@@ -50,7 +50,8 @@ async function fixture({hubNotices=false,fetchMock}={}){
  vm.runInContext(read('executive-approval-v482.js'),ctx);
  vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/lifecycle-policy.ts').replace(/export /g,'')),ctx);
  vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/organization.ts').replace(/export /g,'')),ctx);
- vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/risk-assessment.ts').replace(/export /g,'')),ctx);
+ ctx.riskTemplates=JSON.parse(read('edge-functions/enl-incident-sync-v411/risk-templates.json'));
+ vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/risk-assessment.ts').replace(/^import .*;\r?\n/gm,'').replace(/export /g,'')),ctx);
  vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/platform-api.ts').replace(/^import .*;\r?\n/gm,'').replace(/export /g,'')),ctx);
  // Put the endpoint in an inner scope because each imported file has its own module scope.
  vm.runInContext('{'+stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/index.ts').replace(/^import .*;\r?\n/gm,''))+'}',ctx);

@@ -1,6 +1,6 @@
 (() => {
   'use strict';
-  // Initial risk-assessment workspace. Assessment records are intentionally not created here.
+  // Site-scoped initial and annual evaluation workspaces.
   const roles=['field','safety','manager','executive'];
   const ns='http://www.w3.org/2000/svg';
   const sortKo=new Intl.Collator('ko-KR',{numeric:true,sensitivity:'base'});
@@ -16,13 +16,14 @@
   function mount(host,user,api,sameUser){
     const admin=user.role==='safety';
     let panel,rail,railBody,main,managerForm,sites=[],candidates=[],selected=null,docOpen=false;
-    let sequence=0,busy=false,enabled=false,listFlight;
+    let sequence=0,busy=false,enabled=false,listFlight,editor=null,selectedKind=null;
     function readList(){if(!listFlight){const flight=api({action:'platform_risk_list',manageFolders:admin}).finally(()=>{if(listFlight===flight)listFlight=null;});listFlight=flight;}return listFlight;}
     const onScreen=()=>sameUser()&&host.dataset.workspace==='risk';
     const message=text=>{const node=$('p',text,'org-status');node.setAttribute('role','status');return node;};
-    const canLeave=()=>!busy;
+    const canLeave=()=>!busy&&(!editor||editor.canLeave());
+    function closeEditor(){editor?.destroy();editor=null;}
     function closeManager(){managerForm?.remove();managerForm=null;}
-    function leave(){sequence++;closeManager();selected=null;docOpen=false;panel?.replaceChildren();}
+    function leave(){sequence++;closeEditor();closeManager();selected=null;docOpen=false;panel?.replaceChildren();}
     function catalog(item){
       enabled=roles.includes(user.role)&&!!item&&item.enabled!==false&&item.state!=='hidden'&&item.canEnter!==false&&(item.state==='live'||item.preview);
       if(!enabled&&panel)panel.hidden=true;
@@ -44,9 +45,9 @@
         railBody.append(row);
         if(expanded){
           const submenu=$('div',null,'org-submenu');submenu.setAttribute('role','group');submenu.setAttribute('aria-label',(site.folder_name||site.site_name)+' 위험성평가');
-          const child=button('01. 위험성평가',()=>chooseDoc(site));
-          if(docOpen)child.setAttribute('aria-current','page');
-          submenu.append(child);railBody.append(submenu);
+          for(const [kind,label] of [['initial','01. 최초 위험성평가'],['regular','02. 정기 위험성평가']]){
+            const child=button(label,()=>chooseType(site,kind));if(docOpen&&selectedKind===kind)child.setAttribute('aria-current','page');submenu.append(child);
+          }railBody.append(submenu);
         }
       }
       railBody.scrollTop=oldScroll;
@@ -70,27 +71,49 @@
       const heading=$('div',null,'org-page-title');
       heading.append($('h3',site.folder_name||site.site_name),message('조회할 항목을 선택하세요.'));
       const grid=$('div',null,'org-document-grid');
-      const card=button('',()=>chooseDoc(site),'org-document-card');
-      card.append($('strong','01. 위험성평가'),$('span','세부 평가양식과 작성 절차는 준비 중입니다.','org-status'));
-      grid.append(card);
+      for(const [kind,title,description] of [['initial','최초 위험성평가','사업장 오픈 전 완료 필수'],['regular','정기 위험성평가','매년 1회 실시']]){
+        const card=button('',()=>chooseType(site,kind),'org-document-card');card.dataset.riskKind=kind;
+        card.append($('strong',title),$('span',description,'org-status'));grid.append(card);
+      }
       main.replaceChildren(button('← 사업장 목록',()=>choose(null),'org-back'),heading,grid);
     }
     function choose(siteId){
       if(!canLeave())return;
-      ++sequence;closeManager();docOpen=false;
+      ++sequence;closeEditor();closeManager();docOpen=false;selectedKind=null;
       selected=siteId===selected?null:siteId;
       drawRail();
       const site=selectedSite();
       if(site)drawDocuments(site);else drawSites();
     }
-    function chooseDoc(site){
+    async function chooseType(site,kind,period){
       if(!canLeave())return;
-      ++sequence;closeManager();selected=site.site_id;docOpen=true;drawRail();
+      closeEditor();closeManager();selected=site.site_id;selectedKind=kind;docOpen=true;drawRail();
       if(innerWidth<=750)rail.open=false;
-      const back=button('← '+(site.folder_name||site.site_name)+' 서류 목록',()=>{selected=null;choose(site.site_id);},'org-back');
-      const heading=$('div',null,'org-page-title');
-      heading.append($('h3',(site.folder_name||site.site_name)+' / 01. 위험성평가'));
-      main.replaceChildren(back,heading,message('위험성평가의 세부 입력 화면은 아직 준비 중입니다. 이 화면에서는 평가서나 승인 기록을 생성하지 않습니다.'));
+      const year=new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Seoul'}).slice(0,4);
+      period=kind==='initial'?'initial':period||year;
+      const seq=++sequence;main.replaceChildren(message('평가서 목록을 불러오는 중입니다.'));
+      try{
+        const result=await api({action:'platform_risk_documents',siteId:site.site_id,kind,period});
+        if(!onScreen()||seq!==sequence)return;
+        const head=$('div',null,'org-page-title');head.append($('h3',site.site_name+' / '+(kind==='initial'?'최초 위험성평가':'정기 위험성평가')),message(kind==='initial'?'사업장 오픈 전 완료 필수':'매년 1회 실시'));
+        main.replaceChildren(button('← 평가구분 선택',()=>{if(canLeave()){closeEditor();docOpen=false;selectedKind=null;drawRail();drawDocuments(site);}},'org-back'),head);
+        if(kind==='regular'){
+          const label=$('label','평가연도','risk-period'),select=$('select');select.dataset.riskYear='';
+          const years=[...new Set([year,String(Number(year)+1),String(Number(year)-1),period,...result.years])].sort().reverse();
+          for(const y of years)select.add(new Option(y+'년',y));select.value=period;
+          select.onchange=()=>chooseType(site,kind,select.value);label.append(select);main.append(label);
+        }
+        const grid=$('div',null,'org-document-grid');
+        for(const book of result.templates){
+          const record=result.records.find(r=>r.template_id===book.id),card=button('',()=>openEditor(site,kind,period,book.id),'org-document-card');card.dataset.riskTemplate=book.id;
+          card.append($('strong',book.name),$('span',book.count+'개 기본 항목','org-status'),$('span',record?(record.state==='completed'?'평가완료':'작성중')+' / '+record.actor_name:'미작성','org-state '+(record?.state==='completed'?'approved':'')));grid.append(card);
+        }
+        main.append(grid,message('업무에 맞는 평가서를 선택해 작성하세요. 기본 항목은 실제 현장에 맞게 수정하고 해당하지 않는 작업은 사유를 남겨 제외할 수 있습니다.'));
+      }catch(err){if(onScreen()&&seq===sequence)main.replaceChildren(message('평가서 목록을 불러오지 못했습니다.'),button('다시 불러오기',()=>chooseType(site,kind,period)),button('평가구분 선택',()=>drawDocuments(site)));}
+    }
+    function openEditor(site,kind,period,templateId){
+      if(!canLeave())return;closeEditor();
+      editor=window.enlRiskEditor(main,{site,kind,period,templateId,user,isCurrent:onScreen,onBack:()=>{closeEditor();chooseType(site,kind,period);}},api);
     }
     async function manage(action,mobile=false){
       if(!admin||busy||!rail)return;
@@ -131,7 +154,7 @@
     }
     async function open(preferred){
       if(!panel){panel=$('section',null,'hub-tool-panel org-panel risk-panel');panel.dataset.listWorkspace='risk';host.append(panel);}
-      panel.hidden=false;closeManager();selected=null;docOpen=false;
+      panel.hidden=false;closeEditor();closeManager();selected=null;docOpen=false;selectedKind=null;
       const token=++sequence;
       const layout=$('div',null,'org-workspace');
       rail=$('details',null,'org-rail');rail.open=true;

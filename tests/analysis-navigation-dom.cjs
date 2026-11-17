@@ -8,7 +8,7 @@ function loadScript(file){
  let source=fs.readFileSync(file,'utf8');if(file!=='tests/integrated-home-fixture.js')return source;
  source=source.replace("if(b.action==='dashboard_read')out.sites=","if(b.action==='dashboard_read')out.metrics=[...Array.from({length:2},()=>({siteId:'s01',category:'person',status:'reported',occurredAt:new Date().getFullYear()+'-01-01'})),...Array.from({length:3},()=>({siteId:'s02',category:'property',status:'closed',occurredAt:new Date().getFullYear()+'-02-01'}))];if(b.action==='dashboard_read')out.sites=");
  source=source.replaceAll("['incident','history','notices','system'].includes(key)","['incident','organization','risk','history','notices','system'].includes(key)");
- return source.replace("if(b.action==='platform_catalog')", "if(b.action==='platform_org_list'||b.action==='platform_risk_list'){await new Promise(r=>setTimeout(r,60));out={ok:true,period:'2026-2',sites:[{site_id:'qa-site',site_name:'검수 골프장',folder_name:'검수 골프장',folder_revision:1,state:'draft',active:true}],candidates:[]};}\n  if(b.action==='platform_catalog')");
+ return source.replace("if(b.action==='platform_catalog')", "if(b.action==='platform_risk_documents')out={ok:true,site:{site_id:'qa-site',site_name:'검수 골프장'},records:[],years:[],templates:[{id:'course',name:'코스관리',count:84},{id:'landscape',name:'조경',count:39},{id:'sprinkler',name:'스프링클러',count:31},{id:'pest',name:'방제',count:36},{id:'office',name:'사무실',count:14}]};if(b.action==='platform_org_list'||b.action==='platform_risk_list'){await new Promise(r=>setTimeout(r,60));out={ok:true,period:'2026-2',sites:[{site_id:'qa-site',site_name:'검수 골프장',folder_name:'검수 골프장',folder_revision:1,state:'draft',active:true}],candidates:[]};}\n  if(b.action==='platform_catalog')");
 }
 (async()=>{
  for(const role of ['safety','manager','executive','field']){
@@ -156,9 +156,9 @@ function loadScript(file){
  assert.match(d.querySelector('.org-main').textContent,/검수 골프장/);
  d.querySelector('.org-site-card').click();assert.equal(d.querySelectorAll('.org-document-card').length,3);
  await frame.activateWorkTab('risk');await until(()=>d.querySelector('.risk-panel .org-site-card'),'risk folders');
- d.querySelector('.risk-panel .org-site-card').click();assert.equal(d.querySelectorAll('.risk-panel .org-document-card').length,1);
- d.querySelector('.risk-panel .org-document-card').click();assert.match(d.querySelector('.risk-panel .org-main').textContent,/세부 입력 화면은 아직 준비 중/);
- w.dispatchEvent(new w.Event('focus'));assert.match(d.querySelector('.risk-panel .org-main').textContent,/세부 입력 화면은 아직 준비 중/,'focus preserves selected document');
+ d.querySelector('.risk-panel .org-site-card').click();assert.equal(d.querySelectorAll('.risk-panel .org-document-card').length,2);
+ d.querySelector('.risk-panel .org-document-card').click();await until(()=>d.querySelector('.risk-panel [data-risk-template]'),'risk templates');assert.equal(d.querySelectorAll('.risk-panel [data-risk-template]').length,5);
+ w.dispatchEvent(new w.Event('focus'));assert.equal(d.querySelectorAll('.risk-panel [data-risk-template]').length,5,'focus preserves selected evaluation type');
  assert.equal(w.__fixtureCalls.filter(x=>x==='platform_enter').length,calls,'document entry uses its authorized list endpoint only');
  assert.equal(d.querySelectorAll('.risk-panel [data-folder-action]').length,role==='safety'?3:0,'folder edit permission');
  checkMobileManagement(d.querySelector('.risk-panel'));
