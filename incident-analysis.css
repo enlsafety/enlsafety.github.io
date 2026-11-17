@@ -9,13 +9,13 @@
 .stats426 .stats426-cost{cursor:default;box-sizing:border-box;min-width:0}
 .stats426 .stats426-cost>b{font-size:27px;white-space:nowrap}
 .stats426 .stats426-cost:active{transform:none}
-.stats426 .analysis-dashboard-details{gap:16px;font-size:16px}
-.analysis-dashboard-details .analysis-card{padding:20px}
-.analysis-dashboard-details h3{font-size:21px}
-.analysis-dashboard-details .analysis-grid{gap:16px;grid-template-columns:repeat(2,minmax(0,1fr))}
+.stats426 .analysis-dashboard-details{gap:12px;font-size:14px;line-height:1.55}
+.analysis-dashboard-details .analysis-card{padding:14px}
+.analysis-dashboard-details h3{font-size:18px}
+.analysis-dashboard-details .analysis-grid{gap:12px;grid-template-columns:repeat(2,minmax(0,1fr))}
 .analysis-dashboard-details .analysis-priorities{gap:12px}
-.analysis-dashboard-details .analysis-priorities article{padding:16px}
-.analysis-dashboard-details .analysis-bars{gap:14px}
+.analysis-dashboard-details .analysis-priorities article{padding:12px}
+.analysis-dashboard-details .analysis-bars{gap:8px}
 .analysis-dashboard-details .analysis-months{gap:8px}
 .analysis-dashboard-details button.analysis-month{appearance:none;border:0;border-radius:6px;background:transparent;padding:4px 0;font-family:inherit;color:inherit;cursor:pointer;min-width:0}
 .analysis-dashboard-details button.analysis-month:hover{background:#edf6fc}
@@ -106,13 +106,47 @@
 .safety-ui #app .incident-overview .stats426-cost{--card-color:#ac7b2c;--card-tint:#fff7e9;--tile:#f7ebcd;--glyph:var(--icon-stats)}
 .safety-ui #app .incident-overview .stats426-card>span{color:#35516b;font-size:13px}
 @media(min-width:901px){
- .safety-ui #app .incident-overview .stats426-card{display:grid;grid-template-columns:minmax(0,1fr) 44px;grid-template-areas:"label icon" "value value" "meta meta";align-items:center;gap:4px;min-height:126px;padding:12px 14px!important}
+ .safety-ui #app .incident-overview .stats426-card{display:grid;grid-template-columns:minmax(0,1fr) 44px;grid-template-areas:"label icon" "value value" "meta meta";align-items:center;gap:3px;min-height:108px;padding:10px 12px!important}
  .safety-ui #app .incident-overview .stats426-card::before{grid-area:icon;width:44px;height:44px;border-radius:12px;background-size:30px;margin:0}
  .safety-ui #app .incident-overview .stats426-card>span{grid-area:label}.safety-ui #app .incident-overview .stats426-card>b{grid-area:value}.safety-ui #app .incident-overview .stats426-card>small{grid-area:meta}
 }
 @media(prefers-reduced-motion:no-preference){.analysis-cost-list>button,.sd450-ranked-list>button,.analysis-ratio-legend button{transition:border-color .15s,box-shadow .15s}.analysis-cost-list>button:hover,.sd450-ranked-list>button:hover{box-shadow:0 3px 10px #163d6018;border-color:#759dbb}}
 .incident-analysis [data-analysis-section="missing"] tr[data-analysis-rank="1"],.incident-analysis [data-analysis-section="missing"] tr[data-analysis-rank="2"],.incident-analysis [data-analysis-section="missing"] tr[data-analysis-rank="3"]{background:var(--rank-tint)}
 .incident-analysis [data-analysis-section="missing"] tr[data-analysis-rank="1"] th,.incident-analysis [data-analysis-section="missing"] tr[data-analysis-rank="2"] th,.incident-analysis [data-analysis-section="missing"] tr[data-analysis-rank="3"] th{border-left:4px solid var(--rank-color)}
+
+/* Dashboard density is independent of the annual analysis and fixed map frame. */
+.stats426 .analysis-dashboard-details .analysis-card>h3{padding-bottom:8px;margin-bottom:8px;gap:8px}
+.stats426 .analysis-dashboard-details .analysis-card>h3::before{width:26px;height:26px;font-size:12px}
+.analysis-dashboard-details .analysis-card>p{font-size:13px;margin:4px 0 10px}
+.analysis-dashboard-details .analysis-cost-layout{gap:14px}
+.analysis-dashboard-details .analysis-cost-heading{gap:10px;padding:16px}
+.analysis-dashboard-details .analysis-cost-total{font-size:clamp(26px,2.4vw,32px);margin:4px 0}
+.analysis-dashboard-details .analysis-cost-breakdown{font-size:17px;gap:7px}
+.analysis-dashboard-details .analysis-cost-breakdown button{padding:8px 10px}
+.analysis-dashboard-details button.analysis-cost-followup{padding:9px 11px;gap:3px}
+.analysis-dashboard-details .analysis-ratios{gap:8px}
+.analysis-dashboard-details .analysis-ratio{padding:10px 12px}
+.analysis-dashboard-details .analysis-ratio h4{font-size:15px;margin-bottom:5px}
+.analysis-dashboard-details .analysis-ratio-body{gap:10px}
+.analysis-dashboard-details .analysis-donut{width:96px;height:96px;flex-basis:96px}
+.analysis-dashboard-details .analysis-ratio-legend{gap:4px;flex-basis:150px}
+.analysis-dashboard-details .analysis-ratio-legend button{padding:5px 8px;gap:5px;min-height:44px}
+.analysis-dashboard-details .analysis-ratio-legend button small{font-size:12px}
+.analysis-dashboard-details .analysis-ratio-note{font-size:12px!important;margin-top:6px!important}
+.analysis-dashboard-details .analysis-month>div{height:96px}
+.analysis-dashboard-details .analysis-month-scroll{padding:5px 0 8px}
+.analysis-dashboard-details .analysis-bar-row{padding:7px 9px}
+.analysis-dashboard-details .analysis-bar-row strong{font-size:16px}
+.analysis-dashboard-details .analysis-priorities h3{font-size:17px}
+.analysis-dashboard-details .analysis-priorities p{font-size:14px}
+.analysis-dashboard-details table{font-size:14px}
+.analysis-dashboard-details th,.analysis-dashboard-details td{padding:8px}
+.analysis-dashboard-details .analysis-footnote{font-size:12px;padding:8px 10px}
+@media(max-width:600px){
+ .stats426 .analysis-dashboard-details{font-size:15px}
+ .analysis-dashboard-details .analysis-card>p{font-size:14px}
+ .analysis-dashboard-details .analysis-cost-heading{padding:14px}
+}
 
 /* Compact decision summary; dashboard styling remains unchanged. */
 .analysis-strategy{width:100%;max-width:1440px;margin:0 auto;box-sizing:border-box;gap:12px;font-size:15px;line-height:1.5}
