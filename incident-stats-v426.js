@@ -1,7 +1,7 @@
 /* E&L Accident Report App v4.2.8 - interactive incident dashboard */
 (function(){
   'use strict';
-  const VERSION='4.8.13-dashboard-visual-r133';
+  const VERSION='4.8.13-management-points-r140';
   let rememberedKey='',rememberedYear;
   const roleNorm=v=>String(v||'')==='final'?'manager':String(v||'');
   const escx=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -82,6 +82,7 @@
         <button type="button" class="stats426-card" data-stats-filter="property"><span>대물사고</span><b>${n(s.property)}건</b><small>전체의 ${pct(s.property)}% / 목록보기</small></button>
         <article class="stats426-card stats426-cost"><span>피해비용</span><b title="${s.knownCost?n(s.cost)+'원':'미확인'}">${s.knownCost?compactCost:'미확인'}</b><small>상세금액은 아래에</small></article>
       </div>
+      ${window.ENLManagementPoints?.html(window.ENLManagementPoints.build(all,year),{ready:window.enlIncidentServerReady?.()===true})||''}
       <section id="stats426Drill" class="stats426-drill" aria-live="polite"></section>
       <section class="incident-analysis analysis-dashboard-details" aria-label="사고 종합 현황">
         <div class="analysis-dashboard-context"><div><h3>${year}년 사고 종합 현황</h3><p>전체 사업장의 최초사고보고 기준이며 과거사고 입력을 포함합니다. 지도는 기존 사업장 분포 기준을 유지합니다.</p><p>피해비용은 입력된 대인 진료비와 대물 복구 예상비용의 합계입니다. 미확인 금액은 제외하며 최종 확정 손실액은 아닙니다.</p></div><button type="button" data-stats-filter="unresolved">미종결 ${n(unresolved)}건 보기</button></div>
@@ -102,6 +103,7 @@
     const openCost=category=>showDrill(root,u,s,`${year}년 ${category==='person'?'대인':'대물'} 사고`,i=>i.category===category,{target:root.querySelector('[data-cost-drill]'),costs:true});
     root.querySelectorAll('[data-cost-category]').forEach(b=>{b.addEventListener('click',()=>openCost(b.dataset.costCategory));if(b.tagName.toLowerCase()==='circle')b.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openCost(b.dataset.costCategory)}})});
     root.querySelectorAll('[data-cost-unknown]').forEach(b=>b.addEventListener('click',()=>showDrill(root,u,s,`${year}년 피해비용 미확인 사고`,i=>a.cost(i)===null,{target:b.closest('.analysis-card').querySelector('[data-missing-drill],[data-cost-drill]'),costs:true})));
+    window.ENLManagementPoints?.mount(root);
     root.querySelectorAll('[data-stats-month]').forEach(b=>b.addEventListener('click',()=>{const month=b.dataset.statsMonth;showDrill(root,u,s,`${month.replace('-','년 ')}월 사고`,i=>a.dateKey(i).slice(0,7)===month,{target:root.querySelector('[data-month-drill]')})}));
   }
   function enhanceNav(u){

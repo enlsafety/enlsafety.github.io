@@ -25,7 +25,7 @@ function loadScript(file){
  w.eval("currentView='stats';renderShell(currentUser());");
  const nav=d.querySelector('[data-shell-view="analysis"]');
  if(role==='field'){
- assert.equal(nav,null);w.eval("currentView='analysis';renderShell(currentUser());");assert.equal(d.querySelector('.incident-analysis'),null);assert.equal(w.enlIncidentAnalysisRecords().length,0);
+ assert.equal(nav,null);assert.equal(d.querySelector('.management-points'),null);w.eval("currentView='analysis';renderShell(currentUser());");assert.equal(d.querySelector('.incident-analysis'),null);assert.equal(w.enlIncidentAnalysisRecords().length,0);
  }else{
  await until(()=>d.querySelector('[data-sd450-map]'),'dashboard map');
  assert.equal(d.querySelectorAll('.stats426-cards .stats426-card').length,4);
@@ -33,6 +33,8 @@ function loadScript(file){
  assert.match(d.querySelector('.analysis-dashboard-cost').textContent,/대인.*대물/s);
  assert.equal(d.querySelectorAll('[data-sd450-map]').length,1);
  assert.ok(d.querySelector('.incident-overview > .stats426-cards'));
+ assert.equal(d.querySelectorAll('.management-points').length,1);
+ assert.match(d.querySelector('.management-points').textContent,/핵심 관리 포인트.*사고 핵심 요약.*산재 검토 필요.*재발사고.*확인 필요.*우선 관리 사업장 TOP 3/s);
  assert.ok(d.querySelector('.incident-overview > [data-sd450-map]'));
  for(const title of ['월별 사고 발생','사고유형별 분포','사업장별 사고 건수','우선 확인할 작업','업무별 발생 현황','추가 확인이 필요한 정보'])assert.equal([...d.querySelectorAll('.stats426 h3')].filter(h=>h.textContent===title).length,1,title+' appears once');
  assert.equal(d.querySelector('.stats426-donut'),null);
@@ -62,7 +64,11 @@ function loadScript(file){
  {id:'property-low',status:'closed',category:'property',siteId:'s02',occurredAt:'2026-03-02',reportDetails:{repairCost:3000}},
  {id:'property-high',status:'closed',category:'property',siteId:'s02',occurredAt:'2026-02-02',reportDetails:{repairCost:9000}}];
  w.enlIncidentAnalysisRecords=()=>costSource;
+ const pointsCalls=w.__fixtureCalls.length;
  w.enlRenderIncidentStats(d.getElementById('view'),w.currentUser(),{year:'2026'});
+ assert.equal(w.__fixtureCalls.length,pointsCalls,'summary makes no additional requests');
+ assert.match(d.querySelector('.management-points').textContent,/미종결 사고4건/);
+ assert.equal(d.querySelectorAll('.management-points ol li').length,2);
  assert.ok(d.querySelector('.analysis-cost-layout > .analysis-cost-heading'));
  assert.ok(d.querySelector('.analysis-cost-layout > .analysis-ratios'));
  assert.equal(d.querySelector('.analysis-cost-heading [data-cost-unknown]')!==null,true);
@@ -107,8 +113,11 @@ function loadScript(file){
  w.enlRenderIncidentStats(d.getElementById('view'),w.currentUser(),{year:'2027'});
  assert.match(d.querySelector('.analysis-dashboard-cost').textContent,/5,000원.*대인미확인.*대물5,000원/s);
  assert.equal(d.querySelector('#stats426Year').value,'2027');
+ assert.match(d.querySelector('.management-points > header').textContent,/2027년/);
  d.querySelector('[data-stats-month="2027-01"]').click();assert.match(d.querySelector('[data-month-drill]').textContent,/1건/);
  const yearControl=d.querySelector('#stats426Year');yearControl.value='2026';yearControl.dispatchEvent(new w.Event('change',{bubbles:true}));
+ assert.match(d.querySelector('.management-points > header').textContent,/2026년/);
+ assert.equal(d.querySelectorAll('.management-points').length,1);
  assert.match(d.querySelector('.analysis-dashboard-cost').textContent,/1,234원.*대인1,234원.*대물미확인/s);
  w.enlIncidentAnalysisRecords=savedSource;w.eval('renderShell(currentUser())');
 
