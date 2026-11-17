@@ -169,7 +169,7 @@
  const sidebarKeys=new Set('home incident risk tbm organization training msds support system policy law voice emergency ppe ergonomics rules favorites history approvals notices documents dashboard bulletins schedule'.split(' '));
  function sidebarIcon(key,custom){
   const id=sidebarKeys.has(key)?key:'module';
-  const use='<use href="assets/sidebar-pictograms-r58.svg#'+id+'"/>';
+  const use='<use href="assets/sidebar-outline-r135.svg#'+id+'"/>';
   const glyph=custom?'<g transform="translate(0 1) scale(.74)">'+use+'</g><text x="23" y="22" text-anchor="end" font-family="system-ui,sans-serif" font-size="10" font-weight="800" fill="currentColor" stroke="none">'+custom+'</text>':use;
   return '<svg class="hub-nav-picto" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round">'+glyph+'</svg>';
  }
@@ -331,7 +331,7 @@
   const sameUser=()=>{const a=currentUser?.();return a&&JSON.stringify([a.id||a.personnelId,a.role,a.siteId||''])===userKey&&host.isConnected};
   const action=(key,label,cls='')=>'<button type="button" class="'+cls+'" data-hub="'+key+'"'+(key==='notifications'?' aria-label="알림센터"':key==='menu'?' aria-label="메뉴 열기"':key==='search'?' aria-label="통합검색"':'')+'>'+label+'</button>';
   const panel=(key,title,icon,more)=>'<section class="hub-panel hub-'+key+'"><header><h2>'+svg(icon,icons)+title+'</h2>'+action(key,more||'더보기 ›')+'</header><div data-list="'+key+'"><p class="hub-empty">불러오는 중입니다.</p></div></section>';
-  host.innerHTML='<aside class="hub-sidebar"><div class="hub-logo"><img src="assets/enl-wordmark.svg" width="102" height="52" alt="이앤엘 E&amp;L"></div><nav aria-label="통합시스템 메뉴"></nav><section class="hub-favorites"><header><h2>'+sidebarIcon('favorites')+'즐겨찾기</h2>'+action('favorites','＋')+'</header><div></div></section><div class="hub-sidebar-wave" aria-hidden="true"></div></aside><button class="hub-sidebar-backdrop" type="button" data-hub="close-menu" aria-label="메뉴 닫기"></button><section class="hub-hero"><div class="hub-hero-image" role="img" aria-label="골프장 풍경과 이앤엘 문구: 안전이 일상이 되는 안전보건관리 통합시스템"></div><div class="hub-original-slogan"><b>E&amp;L</b><div><span>안전이 일상이 되는</span><strong>안전보건관리 통합시스템</strong></div></div></section><div class="hub-middle"><section class="hub-features"><header class="hub-section-heading"><h2>'+svg('grid')+'주요 업무기능</h2><p>안전보건 업무를 한 곳에서 통합 관리하세요.</p>'+action('guide','ⓘ 모듈 안내')+(admin?action('manage-cards','카드 관리','hub-card-manager')+action('edit','편집','hub-edit-toggle'):'')+'</header><div class="platform-modules feature-list"></div></section><div class="hub-right">'+panel('recent','최근 업무 기록','clock')+panel('approvals','통합결재 대기 <span data-approval-count></span>','approvals')+'</div></div><div class="hub-bottom">'+panel('bulletins','공지사항','notice')+panel('schedule','오늘의 일정 <small>'+safe(new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',weekday:'short'}).format(new Date()))+'</small>','calendar','전체 일정 ›')+'</div><p class="hub-status" role="status" aria-live="polite"></p><section class="hub-support hub-tool-panel" hidden><h2>공통업무지원서비스</h2><section class="platform-services feature-list"><div class="platform-grid"></div></section></section><section class="hub-module-preview hub-tool-panel" hidden><h2></h2><p>이 업무의 세부 기능은 구현 중입니다.</p></section>';
+  host.innerHTML='<aside class="hub-sidebar"><div class="hub-logo"><span class="hub-wordmark" role="img" aria-label="이앤엘 E&amp;L"><span aria-hidden="true">E<span class="hub-wordmark-amp">&amp;</span>L</span><i aria-hidden="true"></i></span></div><nav aria-label="통합시스템 메뉴"></nav><section class="hub-favorites"><header><h2>'+sidebarIcon('favorites')+'즐겨찾기</h2>'+action('favorites','＋')+'</header><div></div></section><div class="hub-sidebar-wave" aria-hidden="true"></div></aside><button class="hub-sidebar-backdrop" type="button" data-hub="close-menu" aria-label="메뉴 닫기"></button><section class="hub-hero"><div class="hub-hero-image" role="img" aria-label="골프장 풍경과 이앤엘 문구: 안전이 일상이 되는 안전보건관리 통합시스템"></div><div class="hub-original-slogan"><b>E&amp;L</b><div><span>안전이 일상이 되는</span><strong>안전보건관리 통합시스템</strong></div></div></section><div class="hub-middle"><section class="hub-features"><header class="hub-section-heading"><h2>'+svg('grid')+'주요 업무기능</h2><p>안전보건 업무를 한 곳에서 통합 관리하세요.</p>'+action('guide','ⓘ 모듈 안내')+(admin?action('manage-cards','카드 관리','hub-card-manager')+action('edit','편집','hub-edit-toggle'):'')+'</header><div class="platform-modules feature-list"></div></section><div class="hub-right">'+panel('recent','최근 업무 기록','clock')+panel('approvals','통합결재 대기 <span data-approval-count></span>','approvals')+'</div></div><div class="hub-bottom">'+panel('bulletins','공지사항','notice')+panel('schedule','오늘의 일정 <small>'+safe(new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',weekday:'short'}).format(new Date()))+'</small>','calendar','전체 일정 ›')+'</div><p class="hub-status" role="status" aria-live="polite"></p><section class="hub-support hub-tool-panel" hidden><h2>공통업무지원서비스</h2><section class="platform-services feature-list"><div class="platform-grid"></div></section></section><section class="hub-module-preview hub-tool-panel" hidden><h2></h2><p>이 업무의 세부 기능은 구현 중입니다.</p></section>';
   const area=host.querySelector('.platform-modules'),services=host.querySelector('.platform-services .platform-grid'),status=host.querySelector('.hub-status');
   const recentLink=host.querySelector('[data-hub=recent]');
   recentLink.hidden=!window.enlHistoryAvailable?.(u);
@@ -395,7 +395,8 @@
     const selectedFeature=documentInfo(active)?.key||active;
     const selectedMenu=boards[active]?'boards':['home','support'].includes(active)?active:'feature:'+selectedFeature;
     host.querySelectorAll('.hub-sidebar nav [data-hub]').forEach(b=>{
-      b.classList.toggle('on',b.dataset.hub===selectedMenu);
+      const selected=b.dataset.hub===selectedMenu;b.classList.toggle('on',selected);
+      if(selected)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
     });
     const signature=JSON.stringify([active,opened.map(k=>[k,tabTitle(k)])]);
     if(signature===stripSignature)return;
@@ -513,7 +514,7 @@
     const customModules=catalog.modules.filter(m=>!sidebarKeys.has(m.key)).sort((a,b)=>a.key.localeCompare(b.key));
     return sidebarIcon(entry(key)?.iconKey,customModules.findIndex(m=>m.key===key)+1);
   }
-  let sidebarDraft=null, sidebarRevision=0, moving='', savingSidebar=false;
+  let sidebarDraft=null, sidebarRevision=0, moving='', savingSidebar=false, documentsExpanded=true;
   const sidebar=host.querySelector('.hub-sidebar');
   const editPanel=document.createElement('div');
   if(admin){
@@ -554,6 +555,7 @@
   }
   function navigation(){
     const nav=sidebar.querySelector('nav');
+    const previousGroup=nav.querySelector('.hub-document-menus');if(previousGroup)documentsExpanded=previousGroup.open;
     nav.innerHTML=action('home',sidebarIcon('home')+'<span>홈</span>',active==='home'?'on':'');
     nav.firstElementChild.onclick=()=>dispatch('home');
     nav.insertAdjacentHTML('beforeend',action('boards',sidebarIcon('bulletins')+'<span>게시판</span>',boards[active]?'on':''));
@@ -595,9 +597,11 @@
       nav.append(row);
     }
     if(numbered.length){
-      const group=document.createElement('section'),heading=document.createElement('h3');
+      const group=document.createElement('details'),heading=document.createElement('summary');
       group.className='hub-document-menus';group.setAttribute('aria-label','안전보건 서류관리');
-      heading.textContent='안전보건 서류관리';group.append(heading);
+      group.open=documentsExpanded;
+      group.ontoggle=()=>{documentsExpanded=group.open;};
+      heading.innerHTML=sidebarIcon('documents')+'<span>안전보건 서류관리</span>';group.append(heading);
       for(const item of numbered){
         const module=entry(item.key),row=document.createElement('div');
         row.className='hub-sidebar-row';

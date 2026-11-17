@@ -1,0 +1,9 @@
+# Integrated sidebar, r135
+
+The integrated sidebar follows the supplied reference: deep navy background, restrained diagonal header/footer layers, light outline icons, a blue gradient selected row, compact grouped document links and a visible hierarchy line. The sidebar width and main content geometry are retained. The standalone sidebar E&L mark uses crisp white italic typography with a cyan accent. The corporate wordmark source and approved app mark next to the system title remain intact.
+
+The document group is a native details/summary disclosure, open by default, and its expanded state survives catalog rerenders. Current-page menu items expose aria-current. Existing routes, hidden/admin indicators, role scopes, reorder controls, favorites, support link, unread badges and mobile drawer behavior are retained. Touch devices retain 44px navigation targets. The navy background removes the old sidebar blur filter, and there are no additional network requests beyond a small cacheable outline sprite.
+
+Validation: offline full-application DOM tests passed for field, safety, manager and executive, including all document menu entries, collapse and reopening, catalog refresh, menu destinations/current-page state, mobile drawer opening/dismissal and safety-only controls. Existing dashboard and document-navigation regression suite passed. Syntax, release/cache keys and SVG symbol coverage checked. Production publication is verified by deployment status and exact published-file bytes.
+
+Visual limit: the managed preview browser still fails before opening the page with `Storage.setCookies: Invalid cookie fields`. Actual desktop/mobile pixel layout, hover rendering and high-density display have not been verified in a browser. Generated raster logo trials were not integrated; the shipped mark is typography and CSS, which avoids raster edge artifacts at small size.
