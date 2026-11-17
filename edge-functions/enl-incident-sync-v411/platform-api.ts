@@ -1,4 +1,5 @@
 import { organizationRequest } from "./organization.ts";
+import { riskRequest } from "./risk-assessment.ts";
 const moduleKeys=['incident','risk','tbm','organization','training','msds'];
 const systemRoles=['worker','field','manager','executive','safety'];
 const safetyArt=['policy','law','voice','emergency','ppe','ergonomics','rules'];
@@ -119,6 +120,11 @@ function boardAttachment(f:any){
 }
 export async function platformRequest(sql:any,actor:any,body:any,reply:any){
   const admin=actor.role==='safety',action=body.action;
+  if(action.startsWith('platform_risk_')){
+    const [config]=await sql`select item from private.enl_platform_catalog cross join lateral jsonb_array_elements(modules) item where singleton and item->>'key'='risk'`;
+    if(!canEnter(config?.item,actor))return reply({ok:false,message:'module_unavailable'},403);
+    return riskRequest(sql,actor,body,reply);
+  }
   if(action.startsWith('platform_org_')){
     const [config]=await sql`select item from private.enl_platform_catalog cross join lateral jsonb_array_elements(modules) item where singleton and item->>'key'='organization'`;
     if(!canEnter(config?.item,actor))return reply({ok:false,message:'module_unavailable'},403);
