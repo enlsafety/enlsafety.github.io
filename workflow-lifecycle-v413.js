@@ -137,6 +137,7 @@
   function injectClosedNav(u){
     if(!u||isSite(u))return;const nav=document.querySelector('.shell411-nav');if(!nav||nav.querySelector('[data-lifecycle-closed]'))return;
     const b=document.createElement('button');b.type='button';b.className='lifecycle413-nav';b.dataset.lifecycleClosed='1';b.textContent='종결';b.onclick=()=>{currentView='closed';renderShell(u)};nav.appendChild(b);
+    const analysis=nav.querySelector('[data-shell-view="analysis"]');if(analysis)b.after(analysis);
   }
   window.enlRenderClosedView=renderClosedView;
   const baseShell=window.renderShell;if(typeof baseShell==='function')window.renderShell=function(u){const r=baseShell(u);injectClosedNav(u);rewriteLabels(document);snapshot();return r};

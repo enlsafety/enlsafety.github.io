@@ -112,15 +112,28 @@ function loadScript(file){
  assert.match(d.querySelector('.analysis-dashboard-cost').textContent,/1,234원.*대인1,234원.*대물미확인/s);
  w.enlIncidentAnalysisRecords=savedSource;w.eval('renderShell(currentUser())');
 
- assert.ok(nav,'analysis tab '+role);const before=w.__fixtureCalls.length;nav.click();
+ assert.ok(nav,'analysis tab '+role);assert.equal(nav.previousElementSibling?.dataset.lifecycleClosed,'1','analysis immediately after closed');const before=w.__fixtureCalls.length;nav.click();
  assert.ok(d.querySelector('.incident-analysis'),'analysis opens '+role);assert.equal(d.querySelectorAll('.analysis-kpis article').length,4);
  assert.equal(w.__fixtureCalls.length,before,'opening analysis does not add network calls');
- assert.match(d.querySelector('.analysis-kpis').textContent,/전체 사고1건/);
+ assert.match(d.querySelector('.analysis-kpis').textContent,/전체 사고1건 등록/);
  const select=d.querySelector('[data-analysis-year]');select.value='2026';select.dispatchEvent(new w.Event('change',{bubbles:true}));
- assert.equal(d.querySelectorAll('.analysis-month').length,12);
+ assert.equal(d.querySelectorAll('.strategy-month').length,12);
  w.eval('renderShell(currentUser())');assert.equal(d.querySelector('[data-analysis-year]').value,'2026','filter survives shell refresh');
  d.querySelector('[data-analysis-refresh]').click();await until(()=>!d.querySelector('[data-analysis-refresh]').disabled,'refresh unlock');
- assert.ok(d.querySelector('.incident-analysis'));
+ assert.ok(d.querySelector('.analysis-strategy'));
+ assert.match(d.querySelector('.strategy-rates').textContent,/산출 자료 부족/);
+ assert.ok(d.querySelector('#strategy-plan'));assert.ok(d.querySelector('#strategy-focus'));
+ assert.equal(d.querySelectorAll('[data-sd450-map]').length,0,'strategy is separate from current dashboard map');
+ const analysisReport=d.querySelector('[data-analysis-incident]');assert.ok(analysisReport,'analysis links its evidence');analysisReport.click();
+ await until(()=>d.querySelector('#modalRoot [data-incident-view]'),'strategy report opens');
+ assert.equal(!!d.querySelector('#modalRoot #editInc'),role==='safety','strategy preserves report editing roles');w.closeModal();
+ const currentYear=new Date().getUTCFullYear();
+ w.enlIncidentAnalysisRecords=()=>[{id:'strategy-previous',status:'closed',category:'property',siteId:'qa-site',eventType:'<img src=x onerror=alert(1)>',occurredAt:(currentYear-1)+'-01-01',reportDetails:{repairCost:2000}},{id:'strategy-now',status:'reported',category:'person',siteId:'qa-site',eventType:'넘어짐',summary:'<script>alert(1)</script>',occurredAt:currentYear+'-01-01',reportDetails:{medicalCost:1000}}];
+ w.ENLIncidentAnalysis.render(d.getElementById('view'),w.currentUser(),{year:String(currentYear),site:''});
+ assert.match(d.querySelector('.analysis-strategy').textContent,/전년도 사고목록 1건/);
+ assert.equal(d.querySelectorAll('.analysis-strategy img,.analysis-strategy script').length,0,'report evidence is escaped');
+ assert.equal(d.querySelectorAll('.strategy-month').length,12);
+ w.enlIncidentAnalysisRecords=savedSource;w.eval('renderShell(currentUser())');
  // Saved source cannot be changed through the analysis snapshot.
  const snapshot=w.enlIncidentAnalysisRecords();snapshot[0].eventType='modified';assert.notEqual(w.enlIncidentAnalysisRecords()[0].eventType,'modified');
  }

@@ -1,0 +1,27 @@
+/* Isolated longitudinal-data regressions. No production mutations. */
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const window={addEventListener(){}};vm.runInNewContext(fs.readFileSync('incident-analysis.js','utf8'),{window,Date,Map,Set,Number,String});
+const a=window.ENLIncidentAnalysis;
+const item=(id,date,extra={})=>({id,occurredAt:date,status:'closed',siteId:'one',category:'person',eventType:'넘어짐',reportDetails:{medicalCost:1000},...extra});
+const source=[item('p1','2026-02-01'),item('p2','2026-12-31'),item('n1','2027-01-01'),item('n2','2027-06-30T15:00:00Z',{reportDetails:{medicalCost:9000,medicalCostPending:true}}),item('n3','2027-07-02',{siteId:'two'}),item('future','2028-01-01'),item('bad','bad'),item('draft','2027-01-01',{status:'draft'}),item('void','2027-01-01',{bulkInvalidation:{active:true}})];
+const raw=JSON.stringify(source),m=a.comparison(source,'2027','','2027-07-01');
+assert.equal(m.now.total,2);assert.equal(m.previous.total,1);assert.equal(m.annual.total,2);
+assert.equal(m.end,'2027-07-01');assert.equal(m.previousEnd,'2026-07-01');assert.equal(m.now.months[6].count,1);
+assert.equal(m.unknown.length,1);assert.equal(m.now.cost,1000);assert.equal(m.now.knownCost,1);assert.equal(m.missingDate,1);assert.equal(m.future,2);
+assert.equal(m.focus[0].count,2);assert.equal(m.focus[0].prior,2);assert.equal(m.focusYear,2027);
+assert.equal(m.sites.length,1);assert.equal(m.sites[0].current.total,2);
+assert.equal(JSON.stringify(source),raw,'analysis is read-only');
+assert.equal(a.comparison(source,'2026','','2027-07-01').now.total,2,'past years compare full calendar year');
+assert.equal(a.comparison(source,'2027','two','2027-07-01').now.total,0);
+assert.equal(a.comparison(source,'2099','','2027-07-01').year,2027,'future analysis year rejected');
+assert.equal(a.comparison(source,'2027','','2027-01-01').previous.total,0,'late prior reports do not masquerade as same-period records');
+assert.equal(a.comparison([],'2028','','2028-02-29').previousEnd,'2027-02-28','leap day clamps prior calendar cutoff');
+assert.equal(a.comparison([],'2029','','2029-02-28').previousEnd,'2028-02-28','same date in leap prior year');
+assert.equal(a.change(2,1),'1건 증가 (100.0%)');assert.equal(a.change(1,2),'1건 감소 (50.0%)');assert.equal(a.change(0,0),'변동 없음');assert.equal(a.change(1,0),'1건 증가 / 기준값 0, 증감률 미산출');assert.equal(a.change(0,0,false),'비교자료 없음');
+const fallback=a.comparison([item('last','2026-11-15')],'2027','','2027-02-01');assert.equal(fallback.focusYear,2026);assert.equal(fallback.focus[0].count,1);
+const attention=a.comparison([item('severe','2027-01-02',{potentialMajor:true}),item('fatal','2027-01-03',{leaveEstimate:'fatal'}),item('cost','2027-01-04',{reportDetails:{medicalCost:2000}})],'2027','','2027-05-01');
+assert.equal(attention.urgent.length,2);assert.equal(attention.expensive[0].id,'cost');
+for(const type of ['넘어짐','추락','맞음(날아옴)','설비/시설 파손','끼임','근골격','감전','기타'])assert.equal(a.prevention(type).length,3);
+assert.match(a.prevention('맞음(날아옴)')[1],/타구/);assert.match(a.prevention('넘어짐')[1],/단차/);
+const dup=a.comparison([item('dup','2027-01-01'),item('dup','2027-01-01',{_syncVersion:2,reportDetails:{medicalCost:4000}})],'2027','','2027-05-01');assert.equal(dup.now.total,1);assert.equal(dup.now.cost,4000);
+console.log('PASS strategy: 2026/2027 windows, KST, leap years, missing history, zero baseline, future exclusions, costs, duplicates, site focus and non-mutation');
