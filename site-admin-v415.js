@@ -124,15 +124,48 @@
 
   function renderSites(root,u){
     const pageData=sitePageData();
-    root.innerHTML=`<div class="sa415"><section class="panel"><div class="sa415-head"><div><div class="ey">SITE & USER SETTINGS</div><h2>사업장 및 근무자</h2><p>사업장의 기본정보와 소속 근무자를 관리합니다.</p></div>${tabsHtml()}</div></section><section class="panel"><div class="sa415-tools"><div class="sa415-search"><input id="sa415SiteSearch" value="${escx(siteQuery)}" placeholder="사업장명, 지역, 소장 검색"><button type="button" id="sa415SiteSearchBtn">검색</button></div><button type="button" class="sa415-primary" id="sa415CreateSite">+ 사업장 추가</button></div><label class="sa415-status-label">목록 선택 <select id="sa415SiteStatus">${[['active','운영중'],['closed','계약종료']].map(([v,t])=>`<option value="${v}" ${v===siteStatus?'selected':''}>${t}</option>`).join('')}</select></label><div class="sa415-sites">${pageData.rows.map(s=>`<button type="button" class="sa415-site" data-sa415-site="${escx(s.site_id)}"><div><h3>${escx(siteName(s))}</h3><p>${escx(text(s.region)||'지역 미등록')}${text(s.address)?' · '+escx(s.address):''}</p></div><div class="sa415-counts"><span>상용<b>${number(s.regular_count)}</b></span><span>일용<b>${number(s.daily_count)}</b></span><span>합계<b>${total(s)}</b></span></div><div><b>소장 ${escx(text(s.manager_name)||'미등록')}</b><p>등록 근무자 ${number(s.worker_login_count)}명</p></div><span class="sa415-arrow">정보 수정 ›</span></button>`).join('')||'<div class="sa415-empty">조건에 맞는 사업장이 없습니다.</div>'}</div><div class="sa415-page">${Array.from({length:pageData.pages},(_,i)=>i+1).slice(Math.max(0,sitePage-3),Math.max(0,sitePage-3)+5).map(p=>`<button type="button" data-sa415-site-page="${p}" class="${p===sitePage?'on':''}">${p}</button>`).join('')}</div></section></div>`;
+    root.innerHTML=`<div class="sa415"><section class="panel"><div class="sa415-head"><div><div class="ey">SITE & USER SETTINGS</div><h2>사업장 및 근무자</h2><p>사업장의 기본정보와 소속 근무자를 관리합니다.</p></div>${tabsHtml()}</div></section><section class="panel"><div class="sa415-tools"><div class="sa415-search"><input id="sa415SiteSearch" value="${escx(siteQuery)}" placeholder="사업장명, 지역, 근무자 이름 검색"><button type="button" id="sa415SiteSearchBtn">검색</button></div><button type="button" class="sa415-primary" id="sa415CreateSite">+ 사업장 추가</button><button type="button" class="sa415-primary" id="sa415CreatePerson">+ 근무자 추가</button></div><label class="sa415-status-label">목록 선택 <select id="sa415SiteStatus">${[['active','운영중'],['closed','계약종료']].map(([v,t])=>`<option value="${v}" ${v===siteStatus?'selected':''}>${t}</option>`).join('')}</select></label><div data-person-results></div><div class="sa415-sites">${pageData.rows.map(s=>`<button type="button" class="sa415-site" data-sa415-site="${escx(s.site_id)}"><div><h3>${escx(siteName(s))}</h3><p>${escx(text(s.region)||'지역 미등록')}${text(s.address)?' · '+escx(s.address):''}</p></div><div class="sa415-counts"><span>상용<b>${number(s.regular_count)}</b></span><span>일용<b>${number(s.daily_count)}</b></span><span>합계<b>${total(s)}</b></span></div><div><b>소장 ${escx(text(s.manager_name)||'미등록')}</b><p>등록 근무자 ${number(s.worker_login_count)}명</p></div><span class="sa415-arrow">정보 수정 ›</span></button>`).join('')||'<div class="sa415-empty">조건에 맞는 사업장이 없습니다.</div>'}</div><div class="sa415-page">${Array.from({length:pageData.pages},(_,i)=>i+1).slice(Math.max(0,sitePage-3),Math.max(0,sitePage-3)+5).map(p=>`<button type="button" data-sa415-site-page="${p}" class="${p===sitePage?'on':''}">${p}</button>`).join('')}</div></section></div>`;
     bindTabs(root,u);
     document.getElementById('sa415SiteStatus').onchange=e=>{siteStatus=e.target.value;sitePage=1;renderSites(root,u)};
     const search=()=>{siteQuery=document.getElementById('sa415SiteSearch').value;sitePage=1;renderSites(root,u);};
     document.getElementById('sa415SiteSearchBtn').onclick=search;
     document.getElementById('sa415SiteSearch').onkeydown=ev=>{if(ev.key==='Enter'){ev.preventDefault();search();}};
+    const results=root.querySelector('[data-person-results]');
+    if(siteQuery.trim())searchPeople(results,siteQuery.trim(),root,u);
+    root.querySelector('#sa415CreatePerson').onclick=()=>{
+      openModal('<div class="modal-head"><h2>근무자 추가</h2><button class="x" data-close>×</button></div><form id="sa415NewAffiliation" class="sa415-form"><label>소속지<select name="site" required><option value="">소속을 선택하세요</option><option value="hq">본사</option>'+sites.filter(s=>s.active!==false&&s.site_id!=='site-hq').map(s=>'<option value="'+escx(s.site_id)+'">'+escx(siteName(s))+'</option>').join('')+'</select></label><button class="primary">기본정보 입력</button></form>');
+      document.getElementById('sa415NewAffiliation').onsubmit=ev=>{
+        ev.preventDefault();const key=ev.currentTarget.elements.site.value;
+        if(key==='hq'){closeModal();window.openUserModal(null,u);return;}
+        const site=sites.find(s=>s.site_id===key);if(site)openSite(site,u,root,'new-worker');
+      };
+    };
     document.getElementById('sa415CreateSite').onclick=()=>openSite(null,u,root);
     root.querySelectorAll('[data-sa415-site]').forEach(button=>button.onclick=()=>openSite(sites.find(s=>String(s.site_id)===String(button.dataset.sa415Site)),u,root));
     root.querySelectorAll('[data-sa415-site-page]').forEach(button=>button.onclick=()=>{sitePage=Number(button.dataset.sa415SitePage);renderSites(root,u);});
+  }
+
+  async function searchPeople(box,query,root,u){
+    let offset=0;
+    const rows=document.createElement('div'),more=document.createElement('button'),note=document.createElement('p');
+    more.type='button';more.textContent='근무자 더 보기';more.hidden=true;box.append(note,rows,more);
+    async function load(){
+      more.disabled=true;
+      try{
+        const result=await siteApi({action:'platform_directory',actor:actor(u),query,offset});
+        if(!box.isConnected)return;
+        for(const person of result.rows){
+          const site=sites.find(s=>s.site_id===person.site_id);
+          const row=document.createElement(site?'button':'p');
+          row.textContent=[person.name,person.site_name,person.position,person.active?'근무중':'비활성'].filter(Boolean).join(' / ');
+          if(site){row.type='button';row.onclick=()=>openSite(site,u,root,person.id);}
+          rows.append(row);
+        }
+        offset+=result.rows.length;note.textContent=offset?'근무자 검색 결과':'일치하는 근무자가 없습니다.';
+        more.hidden=!result.more;
+      }catch{note.textContent='근무자 검색 결과를 불러오지 못했습니다.';more.hidden=false;}finally{more.disabled=false;}
+    }
+    more.onclick=load;await load();
   }
 
   function value(id){return text(document.getElementById(id)?.value);}
@@ -141,8 +174,8 @@
     return `<form id="sa415SiteForm" class="sa415-form"><section class="sa415-section"><h3>1. 기본 현황</h3><div class="sa415-grid"><label><span>사업장명 *</span><input id="sa415Name" value="${escx(text(s.site_name))}" required></label><label><span>지역</span><input id="sa415Region" value="${escx(text(s.region))}"></label><label><span>주소</span><input id="sa415Address" value="${escx(text(s.address))}"></label><label><span>구분</span><input id="sa415Type" value="${escx(text(s.site_type)||'코스현장')}"></label><label><span>목록 분류</span><select id="sa415Active"><option value="1" ${s.active!==false?'selected':''}>운영중</option><option value="0" ${s.active===false?'selected':''}>계약종료</option></select></label></div></section><section class="sa415-section"><h3>2. 인원</h3><div class="sa415-grid cols3"><label><span>상용 인원</span><input id="sa415Regular" type="number" min="0" value="${number(s.regular_count)}"></label><label><span>일용직</span><input id="sa415Daily" type="number" min="0" value="${number(s.daily_count)}"></label><label><span>총인원</span><input value="${total(s)}" disabled></label></div></section><section class="sa415-section"><h3>3. 현장 연락망</h3><div class="sa415-grid"><label><span>현장소장</span><input id="sa415Manager" value="${escx(text(s.manager_name))}" readonly></label><label><span>현장소장 전화</span><input id="sa415ManagerPhone" value="${escx(text(s.manager_phone))}" readonly></label><label><span>파트장</span><input id="sa415Part" value="${escx(text(s.part_name))}" readonly></label><label><span>파트장 전화</span><input id="sa415PartPhone" value="${escx(text(s.part_phone))}" readonly></label><label><span>서무</span><input id="sa415Clerk" value="${escx(text(s.clerk_name))}" readonly></label><label><span>서무 전화</span><input id="sa415ClerkPhone" value="${escx(text(s.clerk_phone))}" readonly></label></div><p class="sa415-note">현장소장·파트장·서무 연락망은 아래 인원목록에서 직책과 전화번호를 수정하면 자동으로 반영됩니다.</p></section><section class="sa415-section"><h3>4. 안전관리 대행</h3><div class="sa415-grid"><label><span>안전대행업체</span><input id="sa415Agency" value="${escx(text(s.safety_agency))}"></label><label><span>담당자</span><input id="sa415AgencyManager" value="${escx(text(s.agency_manager))}"></label><label><span>연락처</span><input id="sa415AgencyPhone" value="${escx(text(s.agency_phone))}"></label><label><span>점검주기</span><input id="sa415Cycle" value="${escx(text(s.inspection_cycle))}"></label></div><label style="margin-top:8px"><span>업무범위/비고</span><textarea id="sa415Scope">${escx(text(s.agency_scope||s.agency_note))}</textarea></label></section><div class="sa415-form-actions"><button type="button" data-close>취소</button><button class="primary" type="submit">현장정보 저장</button></div></form>`;
   }
 
-  async function openSite(site,u,root){
-    if(site&&stateFor(site.site_id).selectedId==='new-manager')stateFor(site.site_id).selectedId='';
+  async function openSite(site,u,root,selectedId){
+    if(site&&['new-manager','new-worker'].includes(stateFor(site.site_id).selectedId))stateFor(site.site_id).selectedId='';
     openModal(`<div class="modal-head"><div><div class="ey">SITE MASTER</div><h2>${site?'사업장 정보 수정':'신규 사업장 추가'}</h2></div><button class="x" data-close>×</button></div>${siteFormHtml(site||{})}${site?'<div id="sa415People" class="sa415-people"><div class="sa415-empty">근무자 명단을 불러오는 중입니다.</div></div>':''}`);
     document.getElementById('sa415SiteForm').onsubmit=async ev=>{
       ev.preventDefault();
@@ -166,7 +199,11 @@
       }catch(err){alert('현장정보를 저장하지 못했습니다.');}finally{submit.disabled=false;if(remove)remove.disabled=false;}
     };
     if(site&&site.active!==false){const bar=document.querySelector('#sa415SiteForm .sa415-form-actions'),button=document.createElement('button');button.type='button';button.id='sa415CloseSite';button.textContent='계약종료 처리';bar.prepend(button);button.onclick=()=>{document.getElementById('sa415Active').value='0';document.getElementById('sa415SiteForm').requestSubmit()}}
-    if(site)await loadPeople(site,u);
+    if(site){
+      if(selectedId)stateFor(site.site_id).selectedId=selectedId;
+      await loadPeople(site,u);
+      if(selectedId)document.getElementById('sa415PersonForm')?.scrollIntoView({block:'nearest'});
+    }
   }
 
   function refreshContactFields(siteId){
@@ -184,7 +221,7 @@
     if(!person)return '';
     const position=FIELD_TITLES.includes(text(person.job_title))?text(person.job_title):'일반근로자';
     const fieldRole=FIELD_TITLES.includes(position);
-    return `<form id="sa415PersonForm" class="sa415-person-edit"><h4>${creating?'신규 관리자 추가':escx(person.name)+' 정보 수정'}</h4><div class="sa415-grid"><label><span>이름 *</span><input id="sa415PersonName" value="${escx(person.name)}" required></label><label><span>직책 *</span><select id="sa415PersonPosition" required>${creating?'':`<option ${position==='일반근로자'?'selected':''}>일반근로자</option>`}${FIELD_TITLES.map(x=>`<option ${position===x?'selected':''}>${x}</option>`).join('')}</select></label><label><span>전화번호</span><input id="sa415PersonPhone" inputmode="tel" value="${escx(person.phone||'')}" placeholder="010-0000-0000"></label><label><span>이메일</span><input id="sa415PersonEmail" type="email" value="${escx(person.email||'')}" placeholder="name@company.com"></label><label><span>앱 푸시 알림</span><select id="sa415PersonPush"><option value="1" ${person.push_enabled!==false?'selected':''}>ON</option><option value="0" ${person.push_enabled===false?'selected':''}>OFF</option></select></label><label><span>이메일 알림</span><select id="sa415PersonMail"><option value="1" ${person.email_enabled!==false?'selected':''}>ON</option><option value="0" ${person.email_enabled===false?'selected':''}>OFF</option></select></label><label><span>근무상태</span><select id="sa415PersonActive"><option value="1" ${person.active!==false?'selected':''}>근무중</option><option value="0" ${person.active===false?'selected':''}>퇴사</option></select></label></div><div id="sa415PasswordBox" style="${fieldRole?'':'display:none'};margin-top:9px"><label><span>${creating?'초기 로그인 비밀번호 *':'새 로그인 비밀번호'}</span><input id="sa415PersonPassword" type="password" autocomplete="new-password" ${creating?'minlength="4" required placeholder="4자 이상 입력"':'placeholder="변경할 때만 입력"'}></label><p class="sa415-note">현장소장·파트장·서무만 비밀번호 로그인을 사용합니다. ${creating?'신규 관리자가 사용할 초기 비밀번호를 입력해 주세요.':'기존 담당자는 비워두면 현재 비밀번호가 유지되고, 일반근로자를 처음 승격할 때 비워두면 등록 전화번호 뒷 4자리가 초기 비밀번호가 됩니다.'}</p></div><div class="sa415-person-actions"><button type="button" id="sa415PersonCancel">취소</button><button type="submit" class="primary">${creating?'관리자 등록':'정보 저장'}</button></div></form>`;
+    return `<form id="sa415PersonForm" class="sa415-person-edit"><h4>${creating?'근무자 기본정보':escx(person.name)+' 정보 수정'}</h4><div class="sa415-grid"><label><span>이름 *</span><input id="sa415PersonName" value="${escx(person.name)}" required></label><label><span>직책 *</span><select id="sa415PersonPosition" required><option ${position==='일반근로자'?'selected':''}>일반근로자</option>${FIELD_TITLES.map(x=>`<option ${position===x?'selected':''}>${x}</option>`).join('')}</select></label><label><span>전화번호</span><input id="sa415PersonPhone" inputmode="tel" value="${escx(person.phone||'')}" placeholder="010-0000-0000"></label><label><span>이메일</span><input id="sa415PersonEmail" type="email" value="${escx(person.email||'')}" placeholder="name@company.com"></label><label><span>앱 푸시 알림</span><select id="sa415PersonPush"><option value="1" ${person.push_enabled!==false?'selected':''}>ON</option><option value="0" ${person.push_enabled===false?'selected':''}>OFF</option></select></label><label><span>이메일 알림</span><select id="sa415PersonMail"><option value="1" ${person.email_enabled!==false?'selected':''}>ON</option><option value="0" ${person.email_enabled===false?'selected':''}>OFF</option></select></label><label><span>근무상태</span><select id="sa415PersonActive"><option value="1" ${person.active!==false?'selected':''}>근무중</option><option value="0" ${person.active===false?'selected':''}>퇴사</option></select></label></div><div id="sa415PasswordBox" style="${fieldRole?'':'display:none'};margin-top:9px"><label><span>${creating?'초기 로그인 비밀번호 *':'새 로그인 비밀번호'}</span><input id="sa415PersonPassword" type="password" autocomplete="new-password" ${creating?'minlength="4" required placeholder="4자 이상 입력"':'placeholder="변경할 때만 입력"'}></label><p class="sa415-note">현장소장·파트장·서무만 비밀번호 로그인을 사용합니다. ${creating?'신규 관리자가 사용할 초기 비밀번호를 입력해 주세요.':'기존 담당자는 비워두면 현재 비밀번호가 유지되고, 일반근로자를 처음 승격할 때 비워두면 등록 전화번호 뒷 4자리가 초기 비밀번호가 됩니다.'}</p></div><div class="sa415-person-actions"><button type="button" id="sa415PersonCancel">취소</button><button type="submit" class="primary">${creating?'관리자 등록':'정보 저장'}</button></div></form>`;
   }
 
   function renderPeople(site,u){
@@ -197,8 +234,8 @@
     const pages=Math.max(1,Math.ceil(filtered.length/PERSON_PAGE_SIZE));
     state.page=Math.max(1,Math.min(state.page,pages));
     const rows=filtered.slice((state.page-1)*PERSON_PAGE_SIZE,state.page*PERSON_PAGE_SIZE);
-    const creating=state.selectedId==='new-manager';
-    const selected=creating?{name:'',job_title:'현장소장'}:all.find(p=>String(p.personnel_id)===String(state.selectedId));
+    const creating=['new-manager','new-worker'].includes(state.selectedId);
+    const selected=creating?{name:'',job_title:state.selectedId==='new-worker'?'일반근로자':'현장소장'}:all.find(p=>String(p.personnel_id)===String(state.selectedId));
 
     box.innerHTML=`<div class="sa415-people-head"><div><h3>5. 현장 근무자·관리자</h3><p>일반근로자, 현장소장, 파트장, 서무를 한 목록에서 관리합니다. 한 페이지에 10명씩 표시합니다.</p></div><b>전체 ${all.length}명</b></div><button type="button" id="sa415NewManager" class="sa415-primary">＋ 신규 관리자 추가</button><div class="sa415-add"><textarea id="sa415NewNames" placeholder="신규 일반근로자 이름을 한 줄에 한 명씩 입력"></textarea><button type="button" id="sa415AddWorkers">일반근로자 등록</button></div><div class="sa415-person-tools"><input id="sa415PersonSearch" value="${escx(state.query)}" placeholder="이름, 직책, 전화번호, 이메일 검색"><button type="button" id="sa415PersonSearchBtn">검색</button></div><div class="sa415-person-list">${rows.map(p=>`<div class="sa415-person ${p.active===false?'inactive':''}"><div><b>${escx(p.name)}</b><small>${p.active===false?'퇴사':'근무중'} · ${p.access_role==='field'?'현장관리':'일반근로자'}</small></div><div class="position">${escx(p.job_title||'일반근로자')}${p.duties?.length?'<small class="sa415-duty-label">('+escx(window.enlDutyNames(p.duties).join(', '))+')</small>':''}</div><div class="phone">${escx(text(p.phone)||'전화번호 미등록')}<span class="${!p.email?'email-missing':p.email_enabled===false?'email-off':'email-on'}">${escx(!p.email?'이메일 미등록':(p.email_enabled===false?'이메일 OFF · ':'이메일 ON · ')+p.email)}</span></div><div class="sa415-row-actions"><button type="button" data-sa415-person="${escx(p.personnel_id)}">정보 수정</button></div></div>`).join('')||'<div class="sa415-empty">등록된 근무자가 없습니다.</div>'}</div><div class="sa415-page">${Array.from({length:pages},(_,i)=>i+1).slice(Math.max(0,state.page-3),Math.max(0,state.page-3)+5).map(p=>`<button type="button" data-sa415-person-page="${p}" class="${p===state.page?'on':''}">${p}</button>`).join('')}</div>${editorHtml(selected,creating)}`;
 
@@ -264,7 +301,7 @@
         await loadSites(u);
         refreshContactFields(site.site_id);
         await loadPeople(site,u);
-        alert(creating?'신규 관리자를 등록했습니다.':'근무자 정보가 저장되었습니다.');
+        alert(creating?'근무자를 등록했습니다.':'근무자 정보가 저장되었습니다.');
       }catch(err){
         submit.disabled=false;
         const message=err?.message;

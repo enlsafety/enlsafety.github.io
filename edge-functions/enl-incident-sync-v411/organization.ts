@@ -19,12 +19,34 @@ export function halfYear(at = new Date()) {
   return kst.getUTCFullYear() + '-' + (kst.getUTCMonth() < 6 ? 1 : 2);
 }
 
+function validPrintPhoto(data:unknown){
+  if(typeof data!=='string'||data.length>466668||!/^\/9j\/[a-zA-Z0-9+/]*={0,2}$/.test(data))return false;
+  let image;
+  try{image=atob(data);}catch{return false;}
+  if(image.length>350000||!image.endsWith('\xff\xd9'))return false;
+  const word=(i:number)=>image.charCodeAt(i)*256+image.charCodeAt(i+1);
+  let hasFrame=false;
+  for(let i=2;i+4<image.length;){
+    if(image.charCodeAt(i++)!==255)return false;
+    while(image.charCodeAt(i)===255)i++;
+    const marker=image.charCodeAt(i++),size=word(i);
+    if(size<2||i+size>image.length)return false;
+    if([192,193,194].includes(marker)){
+      if(size<8||!word(i+3)||!word(i+5)||Math.max(word(i+3),word(i+5))>1400)return false;
+      hasFrame=true;
+    }
+    if(marker===218)return hasFrame&&i+size<image.length-2;
+    i+=size;
+  }
+  return false;
+}
+
 function reviewState(row:any, period:string, tip:number) {
   if(!row?.revision)return 'empty';
   // Deleting a newer version must not silently reapprove an earlier snapshot.
   if(row.period!==period || row.revision!==tip)return 'draft';
   if(row.review_event==='approve')return 'approved';
-  return row.confirmed?'pending':'draft';
+  return row.confirmed && row.photo_revision?'pending':'draft';
 }
 
 async function changeFolder(sql:any,actor:any,body:any,reply:any) {
@@ -53,18 +75,19 @@ async function changeFolder(sql:any,actor:any,body:any,reply:any) {
 
 export async function organizationRequest(sql:any, actor:any, body:any, reply:any) {
   const field = actor.role === 'field';
-  if (!field && !['safety','manager','executive'].includes(actor.role))
+  if (!field && !['safety','manager','executive','worker'].includes(actor.role))
     return reply({ok:false, message:'forbidden'},403);
   if(body.action.startsWith('platform_org_folder_'))return changeFolder(sql,actor,body,reply);
   const period = halfYear();
-  const visible = field ? sql`s.site_id = ${actor.siteId}` : sql`true`;
+  const siteScoped=field||actor.role==='worker';
+  const visible = siteScoped ? sql`s.site_id = ${actor.siteId}` : sql`true`;
   const recent = sql`left join lateral (
-    select revision, period, confirmed, review_event, saved_at, actor_name from private.enl_org_charts
+    select revision, period, confirmed, photo_revision, review_event, saved_at, actor_name from private.enl_org_charts
     where site_id=s.site_id and deleted_at is null order by revision desc limit 1
   ) v on true`;
   if (body.action === 'platform_org_list') {
     const sites = await sql`select s.site_id,s.site_name,coalesce(f.display_name,s.site_name) as folder_name,f.revision as folder_revision,s.active,v.revision,v.saved_at,
-        v.period,v.confirmed,v.review_event,(select max(revision) from private.enl_org_charts where site_id=s.site_id) as tip
+        v.period,v.confirmed,v.photo_revision,v.review_event,(select max(revision) from private.enl_org_charts where site_id=s.site_id) as tip
       from public.enl_site_master s join private.enl_org_folders f using(site_id) ${recent}
       where ${visible} and s.site_id <> 'site-hq' and not f.deleted
       order by (s.active is false),s.site_name,s.site_id`;
@@ -81,7 +104,7 @@ export async function organizationRequest(sql:any, actor:any, body:any, reply:an
     })});
   }
   const siteId = body.siteId;
-  if (!validText(siteId,128) || (field && siteId !== actor.siteId))
+  if (!validText(siteId,128) || (siteScoped && siteId !== actor.siteId))
     return reply({ok:false,message:'forbidden'},403);
   const [site] = await sql`select s.site_id,s.site_name,s.active,f.revision as folder_revision from public.enl_site_master s join private.enl_org_folders f using(site_id)
     where not f.deleted and s.site_id=${siteId} and site_id <> 'site-hq' and ${visible}`;
@@ -91,12 +114,17 @@ export async function organizationRequest(sql:any, actor:any, body:any, reply:an
       return reply({ok:false,message:'invalid_revision'},400);
     // One snapshot for both the history index and the selected document.
     const [result] = await sql`with versions as (
-        select revision,period,confirmed,review_event,saved_at,actor_name,chart,site_name from private.enl_org_charts where site_id=${siteId} and deleted_at is null
+        select revision,period,confirmed,photo_revision,review_event,saved_at,actor_name,chart,site_name from private.enl_org_charts where site_id=${siteId} and deleted_at is null
       ) select (select jsonb_agg(to_jsonb(v)-'chart'-'site_name' order by revision desc) from versions v) as history,
         (select to_jsonb(v) from versions v where ${body.revision ?? null}::integer is null or revision=${body.revision ?? null}::integer order by revision desc limit 1) as document,
         (select coalesce(jsonb_agg(distinct period),'[]'::jsonb) from private.enl_org_charts where site_id=${siteId} and confirmed) as confirmed_periods,
         (select max(revision) from private.enl_org_charts where site_id=${siteId}) as tip`;
     if (body.revision != null && !result.document) return reply({ok:false,message:'unavailable'},404);
+    const proof=result.document?.photo_revision;
+    if(proof){
+      const [photo]=await sql`select encode(print_jpeg,'base64') as jpeg from private.enl_org_charts where site_id=${siteId} and revision=${proof}`;
+      if(photo?.jpeg)result.document.photo='data:image/jpeg;base64,'+photo.jpeg.replace(/\s/g,'');
+    }
     let template;
     if (body.includeTemplate === true) {
       const [row] = await sql`select encode(image_webp,'base64') as image from private.enl_org_templates where template_key='v1'`;
@@ -107,9 +135,9 @@ export async function organizationRequest(sql:any, actor:any, body:any, reply:an
   }
   const op=body.action.slice('platform_org_'.length);
   if(!['save','confirm','approve','reopen','delete'].includes(op))return reply({ok:false,message:'unknown_action'},400);
-  if(!field && actor.role!=='safety' || op==='approve' && actor.role!=='safety')
+  if(!field && actor.role!=='safety' || op==='approve' && actor.role!=='safety' || op==='confirm' && !field)
     return reply({ok:false,message:'forbidden'},403);
-  const suppliesChart=op==='save' || op==='confirm' && body.chart!==undefined;
+  const suppliesChart=op==='save';
   const chart=suppliesChart?chartData(body.chart):null;
   if(suppliesChart && !chart || !Number.isInteger(body.revision) || body.revision<0 ||
      op==='delete' && (!Number.isInteger(body.targetRevision) || body.targetRevision<1) ||
@@ -121,7 +149,7 @@ export async function organizationRequest(sql:any, actor:any, body:any, reply:an
     const [currentSite] = await tx`select s.site_name,s.active,f.revision from public.enl_site_master s join private.enl_org_folders f using(site_id) where s.site_id=${siteId} and not f.deleted for share`;
     if (!currentSite) return reply({ok:false,message:'site_unavailable'},409);
     if(body.folderRevision!=null && currentSite.revision!==body.folderRevision)return reply({ok:false,message:'folder_changed'},409);
-    const [last] = await tx`select revision, chart, period, confirmed, review_event from private.enl_org_charts where site_id=${siteId} and deleted_at is null order by revision desc limit 1`;
+    const [last] = await tx`select revision, chart, period, confirmed, photo_revision, review_event from private.enl_org_charts where site_id=${siteId} and deleted_at is null order by revision desc limit 1`;
     if ((last?.revision ?? 0) !== body.revision || body.period !== halfYear() || body.period !== period)
       return reply({ok:false,message:'chart_changed'},409);
     if(field && currentSite.active===false && (!last || op==='confirm'))return reply({ok:false,message:'forbidden'},403);
@@ -145,11 +173,20 @@ export async function organizationRequest(sql:any, actor:any, body:any, reply:an
     if(op==='approve' && state!=='pending' || op==='reopen' && state!=='approved')
       return reply({ok:false,message:'review_state_changed'},409);
     if(!chart && !last)return reply({ok:false,message:'chart_required'},400);
-    if(op==='confirm' && state==='pending' && !chart)return reply({ok:true,revision:last.revision});
+    if(op==='approve'&&(!last.photo_revision||last.photo_revision!==body.reviewedPhotoRevision))
+      return reply({ok:false,message:'review_photo_required'},409);
+    let photo=null;
+    if(op==='confirm'){
+      if(state==='pending')return reply({ok:false,message:'review_state_changed'},409);
+      const data=body.photo;
+      if(body.chart!==undefined||!validPrintPhoto(data))return reply({ok:false,message:'photo_required'},400);
+      photo=data;
+    }
     const revision=tip+1;
     const event=op==='approve'||op==='reopen'?op:null;
-    await tx`insert into private.enl_org_charts (site_id,revision,site_name,chart,period,confirmed,review_event,actor_id,actor_name)
-      values (${siteId},${revision},${currentSite.site_name},${tx.json(chart??last.chart)},${period},${op==='confirm'||op==='approve'},${event},${actor.id},${actor.name})`;
+    await tx`insert into private.enl_org_charts (site_id,revision,site_name,chart,period,confirmed,review_event,actor_id,actor_name,photo_revision,print_jpeg)
+      values (${siteId},${revision},${currentSite.site_name},${tx.json(chart??last.chart)},${period},${op==='confirm'||op==='approve'},${event},${actor.id},${actor.name},
+        ${photo?revision:op==='approve'?last.photo_revision:null},decode(${photo},'base64'))`;
     return reply({ok:true,revision});
   });
 }

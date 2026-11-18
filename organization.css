@@ -94,3 +94,7 @@
  .org-mobile-management{display:block}
  .org-mobile-management button{min-height:44px}
 }
+
+.org-evidence img{display:block;max-width:100%;max-height:65vh;object-fit:contain;margin-block:8px}.org-evidence label{display:inline-flex;align-items:center;gap:6px}.org-actions button:disabled,.org-manage-tools button:disabled{opacity:.55;cursor:default}
+
+.hub-sidebar nav button:has(.org-dot),.hub-sidebar .hub-document-menus>summary{position:relative}.hub-document-menus:not([open]):has(.org-dot)>summary:after{content:'';width:9px;height:9px;border-radius:50%;background:#d73740;position:absolute;right:10px;top:9px}

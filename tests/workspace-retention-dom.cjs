@@ -13,15 +13,25 @@ const until=async(fn,label)=>{for(let i=0;i<400;i++){if(fn())return;await new Pr
   html=html.replace(/<script src="([^"]+)"><\/script>/g,(_,url)=>{
    const file=url.split('?')[0];let source=fs.readFileSync(file,'utf8');
    if(file==='tests/integrated-home-fixture.js')source=source.replaceAll("['incident','history','notices','system'].includes(key)","['incident','organization','risk','history','notices','system'].includes(key)");
+   if(file==='tests/integrated-home-fixture.js')source=source.replace("if(b.action==='platform_catalog')","if(b.action==='platform_risk_list')out=await window.qaRiskList(b);if(b.action==='platform_catalog')");
    return '<script>'+source.replace(/<\/script/gi,'<\\/script')+'</script>';
   }).replace(/<link[^>]*>/g,'');
   const dom=new JSDOM(html,{url:'https://isolated.test/stable412.html?role='+role,runScripts:'dangerously',pretendToBeVisual:true,virtualConsole:vc,beforeParse(w){
+   w.qaRiskList=async body=>(await f.call(role,{action:'platform_risk_list',manageFolders:body.manageFolders,includeTasks:body.includeTasks})).body;
    Object.assign(w,{TextEncoder,TextDecoder,structuredClone,Response,Request,Headers,AbortController,fetch:async()=>new Response('{}'),scrollTo:(x,y)=>{w.scrollX=x;w.scrollY=y;},confirm:()=>{confirms++;return answer;},alert:()=>{}});
    w.ResizeObserver=class{observe(){}disconnect(){}};w.HTMLElement.prototype.scrollIntoView=()=>{};w.matchMedia=()=>({matches:false,addEventListener(){},removeEventListener(){}});w.URL.createObjectURL=()=>'';w.URL.revokeObjectURL=()=>{};
   }});
   const w=dom.window,d=w.document;
+  const append=d.head.append.bind(d.head);
+  d.head.append=(...nodes)=>{
+   for(const node of nodes)if(node.tagName==='SCRIPT'&&node.src.includes('risk-paper-templates.js')){
+    w.eval(fs.readFileSync('risk-paper-templates.js','utf8'));queueMicrotask(()=>node.onload());
+   }
+   return append(...nodes);
+  };
   try{
    await until(()=>d.querySelector('.hub-sidebar [data-hub="feature:risk"]'),'catalog');await until(()=>w.enlIncidentServerReady?.(),'data ready');
+   assert.equal(w.ENLRiskPaperTemplates,undefined,'do not parse report templates at login');
    const original=w.enlIncidentApi;
    w.enlIncidentApi=async body=>{
     if(/^platform_(risk|org)_/.test(body.action)){
@@ -34,6 +44,8 @@ const until=async(fn,label)=>{for(let i=0;i<400;i++){if(fn())return;await new Pr
    d.querySelector('.risk-panel [data-site-id="qa-site"]').click();d.querySelector('[data-risk-kind=initial]').click();
    await until(()=>d.querySelector('[data-risk-template=office]'),'books');d.querySelector('[data-risk-template=office]').click();
    await frame.activateWorkTab('home');await until(()=>d.querySelector('.risk-paper'),'background document loading');await frame.activateWorkTab('risk');
+   assert.equal(d.head.querySelectorAll('script[src*="risk-paper-templates"]').length,1);
+   assert.equal(!!d.querySelector('.hub-sidebar [data-hub="feature:risk"] .hub-task-dot'),['field','safety'].includes(role));
    const evaluator=d.querySelector('[data-risk-field=evaluator]'),paper=d.querySelector('.risk-paper-scroll'),improvements=d.querySelector('.risk-improvements');
    if(['field','safety'].includes(role)){evaluator.value='유지 '+role;evaluator.dispatchEvent(new w.Event('input',{bubbles:true}));}
    improvements.open=true;paper.scrollLeft=250;w.scrollTo(0,420);const before=confirms;

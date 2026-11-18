@@ -765,3 +765,5 @@
  .platform-hub .hub-features .feature-card-wrap>.platform-card {--art-width:min(23%,72px);padding-inline:calc(var(--art-width) + 8px)}
 }
 .hub-other-settings>summary {cursor:pointer;margin-block:12px}
+
+.hub-other-settings .hub-card-arrow{display:none}.hub-other-settings .feature-pencil,.hub-other-settings .feature-controls{position:relative;z-index:1}

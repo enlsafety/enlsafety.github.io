@@ -6,7 +6,7 @@ const {tab,noOverflow}=require('./field-entry-table-browser.cjs');
  for(const [engine,width,roles] of [[chromium,1365,['safety','field','manager','executive']],[chromium,320,['safety']],[webkit,390,['safety']],[webkit,820,['safety']]]){
   const browser=await engine.launch();
   try{for(const role of roles){
-   const {p,c}=await tab(browser,width,role);
+   const {p,c}=await tab(browser,width,role);p.setDefaultTimeout(20000);
    let enabled=true,modules=[{key:'incident',state:'live'}],services=[{key:'system',state:'live'}];const gates=[],savedUsers=[],personnel=[];
    await c.route('**/*',async route=>{
     const req=route.request(),b=req.method()==='POST'?req.postDataJSON():null;
@@ -22,7 +22,7 @@ const {tab,noOverflow}=require('./field-entry-table-browser.cjs');
     if(b?.action==='platform_enter'){gates.push(b.key);return route.fulfill({status:enabled?200:403,json:{ok:enabled,key:b.key,message:enabled?'ok':'module_unavailable'}})}
     if(b?.action==='hq_upsert'){const {passwordHash,...record}=b.user;savedUsers.push(record);return route.fulfill({json:{ok:true,user:record}})}
     if(b?.action==='hq_list'&&savedUsers.length)return route.fulfill({json:{ok:true,users:[{id:'sample-safety',role:'safety',name:'검수 담당'},...savedUsers]}});
-    if(b?.action==='platform_directory')return route.fulfill({json:{ok:true,rows:[],more:false}});
+    if(b?.action==='platform_directory')return route.fulfill({json:{ok:true,rows:b.query==='검수 파트장'?[{id:'sample-person',site_id:'s01',site_name:'가람CC',name:b.query,position:'파트장',active:true}]:[],more:false}});
     return route.fallback();
    });
    await p.waitForFunction(()=>!!currentUser()&&!!window.enlOpenSystemAdmin);
@@ -33,6 +33,8 @@ const {tab,noOverflow}=require('./field-entry-table-browser.cjs');
     await p.evaluate(()=>{currentView='system-admin';renderShell(currentUser())});
     await p.locator('[data-module=incident]').waitFor();assert.equal(await p.locator('.system-admin').count(),0);
    }else{
+    await p.bringToFront();
+    await p.locator('[data-hub=edit]').scrollIntoViewIfNeeded();
     await p.locator('[data-hub=edit]').click();
     await p.locator('[data-key=incident] .feature-pencil').click();await p.getByLabel('업무기능 이름',{exact:true}).fill('사고 <보고>');
     await p.locator('.feature-name-form [type=submit]').click();await p.locator('[data-key=incident]').getByRole('button',{name:'사고 <보고>',exact:true}).waitFor();assert.equal(modules[0].displayName,'사고 <보고>');
@@ -51,7 +53,13 @@ const {tab,noOverflow}=require('./field-entry-table-browser.cjs');
     const workspace=p.locator('.system-admin');await workspace.locator('#sa415CreateSite').waitFor();
     assert.equal(await p.evaluate(()=>currentView),'system-admin');assert.equal(await p.locator('.shell411-nav').count(),0);
     assert.ok(gates.includes('system'));await noOverflow(p);
-    await workspace.locator('[data-sa415-site=s01]').click();await p.locator('#sa415SiteForm').waitFor();
+    await workspace.locator('#sa415CreatePerson').click();
+    await p.locator('#sa415NewAffiliation select').selectOption('s01');
+    await p.locator('#sa415NewAffiliation button').click();
+    await p.locator('#sa415PersonForm').waitFor();
+    assert.equal(await p.locator('#sa415PersonPosition').inputValue(),'일반근로자');
+    await p.locator('#sa415PersonCancel').click();
+    await p.locator('#sa415SiteForm').waitFor();
     assert.equal(await workspace.locator('[data-platform-modules]').count(),0);
     assert.deepEqual(await workspace.locator('#sa415SiteStatus option').allTextContents(),['운영중','계약종료']);
     await p.locator('#sa415NewManager').waitFor();assert.equal(await p.locator('#sa415People .platform-duties').count(),0);
@@ -62,6 +70,10 @@ const {tab,noOverflow}=require('./field-entry-table-browser.cjs');
     await p.locator('[data-sa415-person=sample-person]').click();await p.locator('#sa415PersonForm [value=health]').check();
     await p.locator('#sa415PersonForm button[type=submit]').click();await p.getByText('(관리감독자, 보건관리자)',{exact:true}).waitFor();
     await noOverflow(p);await p.evaluate(()=>closeModal());
+    await workspace.locator('#sa415SiteSearch').fill('검수 파트장');await workspace.locator('#sa415SiteSearchBtn').click();
+    await workspace.locator('[data-person-results] button').filter({hasText:'검수 파트장'}).click();
+    await p.locator('#sa415PersonForm').waitFor();assert.equal(await p.locator('#sa415PersonName').inputValue(),'검수 파트장');
+    await p.evaluate(()=>closeModal());
     await workspace.locator('[data-sa415-tab=hq]').click();await workspace.locator('#sa415AddHq').click();await p.locator('#hqUserForm422').waitFor();
     await p.locator('#hqName422').fill('검수 사용자');await p.locator('#hqRole422').selectOption('manager');
     await p.locator('#hqPw422').fill('isolated-test');await p.locator('#hqSave422').click();
