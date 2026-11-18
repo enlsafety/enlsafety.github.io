@@ -1,0 +1,26 @@
+name: Verify organization reviews and navigation
+on:
+  push:
+    branches: [qa/organization-review-r150]
+permissions:
+  contents: read
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-save --package-lock=false playwright@1.51.1 jsdom@31.0.1 @electric-sql/pglite@0.3.10
+      - run: node tests/organization.cjs && node tests/risk-records.cjs && node tests/personnel-proof-edge.cjs
+      - run: PW_CHANNEL=chrome node tests/organization-print-browser.cjs && PW_CHANNEL=chrome node tests/newsroom-browser.cjs
+      - run: node tests/workspace-retention-dom.cjs && node tests/analysis-navigation-dom.cjs
+      - run: |
+          for source in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
+            [ -f "$source" ] || continue
+            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source"
+          done
+          npx playwright install --with-deps chromium webkit
+      - run: node tests/system-admin-workspace.cjs && node tests/dashboard-browser.cjs
