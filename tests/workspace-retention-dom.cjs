@@ -20,6 +20,13 @@ const until=async(fn,label)=>{for(let i=0;i<400;i++){if(fn())return;await new Pr
    w.ResizeObserver=class{observe(){}disconnect(){}};w.HTMLElement.prototype.scrollIntoView=()=>{};w.matchMedia=()=>({matches:false,addEventListener(){},removeEventListener(){}});w.URL.createObjectURL=()=>'';w.URL.revokeObjectURL=()=>{};
   }});
   const w=dom.window,d=w.document;
+  const append=d.head.append.bind(d.head);
+  d.head.append=(...nodes)=>{
+   for(const node of nodes)if(node.tagName==='SCRIPT'&&node.src.includes('risk-paper-templates.js')){
+    w.eval(fs.readFileSync('risk-paper-templates.js','utf8'));queueMicrotask(()=>node.onload());
+   }
+   return append(...nodes);
+  };
   try{
    await until(()=>d.querySelector('.hub-sidebar [data-hub="feature:risk"]'),'catalog');await until(()=>w.enlIncidentServerReady?.(),'data ready');
    const original=w.enlIncidentApi;

@@ -21,6 +21,19 @@ export async function riskRequest(sql:any,actor:any,body:any,reply:any){
     const collator=new Intl.Collator('ko-KR',{numeric:true,sensitivity:'base'});
     sites.sort((a:any,b:any)=>collator.compare(a.folder_name,b.folder_name)||collator.compare(a.site_name,b.site_name));
     candidates.sort((a:any,b:any)=>collator.compare(a.site_name,b.site_name));
+    if(body.includeTasks===true && (field||actor.role==='safety')){
+      const latest=await sql`select distinct on(r.site_id,r.kind,r.template_id) r.site_id,r.kind,r.state
+        from private.enl_risk_records r join public.enl_site_master s using(site_id)
+        where ${visible} and (r.kind='initial' or r.kind='regular' and r.period=to_char(now() at time zone 'Asia/Seoul','YYYY'))
+        order by r.site_id,r.kind,r.template_id,r.revision desc`;
+      for(const site of sites){
+        const records=latest.filter((r:any)=>r.site_id===site.site_id);
+        site.tasks=site.active===false?0:['initial','regular'].filter(kind=>{
+          const group=records.filter((r:any)=>r.kind===kind);
+          return !group.length||group.some((r:any)=>r.state!=='completed');
+        }).length;
+      }
+    }
     return reply({ok:true,sites,candidates});
   }
   if(!body.action.startsWith('platform_risk_folder_'))return evaluationRequest(sql,actor,body,reply);

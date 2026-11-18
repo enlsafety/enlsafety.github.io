@@ -17,7 +17,18 @@
     const admin=user.role==='safety';
     let panel,rail,railBody,main,managerForm,sites=[],candidates=[],selected=null,docOpen=false;
     let sequence=0,busy=false,enabled=false,listFlight,editor=null,selectedKind=null;
-    function readList(){if(!listFlight){const flight=api({action:'platform_risk_list',manageFolders:admin}).finally(()=>{if(listFlight===flight)listFlight=null;});listFlight=flight;}return listFlight;}
+    let lastList=null,listedAt=0;
+    function readList(force=false){
+      if(!force&&lastList&&Date.now()-listedAt<30000)return Promise.resolve(lastList);
+      if(!listFlight){
+        const flight=api({action:'platform_risk_list',manageFolders:admin,includeTasks:admin||user.role==='field'}).then(result=>{
+          if(sameUser()&&enabled){lastList=result;listedAt=Date.now();host.setTaskCount?.('risk',result.sites.reduce((n,s)=>n+(s.tasks||0),0));}
+          return result;
+        }).finally(()=>{if(listFlight===flight)listFlight=null;});
+        listFlight=flight;
+      }
+      return listFlight;
+    }
     const onScreen=()=>sameUser()&&host.dataset.workspace==='risk';
     const message=text=>{const node=$('p',text,'org-status');node.setAttribute('role','status');return node;};
     const canLeave=()=>!busy&&(!editor||editor.canLeave());
@@ -26,7 +37,8 @@
     function leave(){sequence++;closeEditor();closeManager();selected=null;docOpen=false;panel?.replaceChildren();}
     function catalog(item){
       enabled=roles.includes(user.role)&&!!item&&item.enabled!==false&&item.state!=='hidden'&&item.canEnter!==false&&(item.state==='live'||item.preview);
-      if(!enabled&&panel)panel.hidden=true;
+      if(enabled&&(admin||user.role==='field'))readList().catch(()=>{});
+      if(!enabled){lastList=null;host.setTaskCount?.('risk',0);if(panel)panel.hidden=true;}
     }
     function selectedSite(){return sites.find(s=>s.site_id===selected);}
     function drawRail(){
@@ -42,6 +54,7 @@
         row.dataset.siteId=site.site_id;row.setAttribute('aria-expanded',String(expanded));
         row.append($('span',site.folder_name||site.site_name));
         if(site.active===false)row.append($('small','종료','org-state'));
+        if(site.tasks)row.append($('small','처리 필요 '+site.tasks,'org-state pending'));
         railBody.append(row);
         if(expanded){
           const submenu=$('div',null,'org-submenu');submenu.setAttribute('role','group');submenu.setAttribute('aria-label',(site.folder_name||site.site_name)+' 위험성평가');
@@ -113,7 +126,7 @@
     }
     function openEditor(site,kind,period,templateId){
       if(!canLeave())return;closeEditor();
-      editor=window.enlRiskEditor(main,{site,kind,period,templateId,user,isCurrent:sameUser,onBack:()=>{closeEditor();chooseType(site,kind,period);}},api);
+      editor=window.enlRiskEditor(main,{site,kind,period,templateId,user,isCurrent:sameUser,onSaved:()=>{listedAt=0;readList(true).catch(()=>{});},onBack:()=>{closeEditor();chooseType(site,kind,period);}},api);
     }
     async function manage(action,mobile=false){
       if(!admin||busy||!rail)return;
@@ -145,7 +158,7 @@
         busy=true;form.inert=true;
         try{
           await api({action:'platform_risk_folder_'+action,siteId:item.site_id,name:name.value,folderRevision:item.folder_revision});
-          listFlight=null;busy=false;closeManager();
+          lastList=null;listFlight=null;busy=false;closeManager();
           if(onScreen())await open(action==='delete'?null:item.site_id);
         }catch(err){
           note.textContent=err.message==='folder_changed'?'다른 사용자가 폴더를 변경했습니다. 다시 불러와 주세요.':'폴더 변경에 실패했습니다. 다시 시도해 주세요.';
@@ -202,6 +215,7 @@
     }
     const focus=()=>{
       if(!sameUser()){window.removeEventListener('focus',focus);document.removeEventListener('visibilitychange',focus);return;}
+      if(enabled&&!document.hidden&&(admin||user.role==='field'))readList().catch(()=>{});
       if(onScreen()&&!busy&&!document.hidden&&!managerForm&&!docOpen)open(selected).catch(()=>{});
     };
     window.addEventListener('focus',focus);document.addEventListener('visibilitychange',focus);

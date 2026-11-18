@@ -167,7 +167,7 @@ function loadScript(file){
    form.remove();w.fetch=originalFetch;
  }
  function checkMobileManagement(panel){
-   assert.equal(panel.querySelectorAll('[data-mobile-folder-action]').length,role==='safety'?3:0,'mobile folder edit permission');
+   assert.equal(panel.querySelectorAll('[data-mobile-folder-action]').length,panel.classList.contains('risk-panel')&&role!=='safety'?0:3,'mobile folder edit permission');
    if(role==='safety'){
      const mobile=panel.querySelector('.org-mobile-management');mobile.open=true;
      const create=mobile.querySelector('[data-mobile-folder-action="create"]');create.click();
@@ -191,7 +191,8 @@ function loadScript(file){
  assert.equal(d.querySelectorAll('.risk-panel [data-folder-action]').length,role==='safety'?3:0,'folder edit permission');
  checkMobileManagement(d.querySelector('.risk-panel'));
  await frame.activateWorkTab('organization');await until(()=>d.querySelector('.org-panel:not(.risk-panel) .org-document-card'),'return to retained organization');
- assert.equal(d.querySelectorAll('.org-panel:not(.risk-panel) [data-folder-action]').length,role==='safety'?3:0);
+ assert.equal(d.querySelectorAll('.org-panel:not(.risk-panel) [data-folder-action]').length,3);
+ if(role!=='safety')assert.equal(d.querySelectorAll('.org-panel:not(.risk-panel) [data-folder-action]:enabled').length,0);
  checkMobileManagement(d.querySelector('.org-panel:not(.risk-panel)'));
  assert.deepEqual(errors,[],'no script errors '+role);console.log('PASS DOM '+role+': cost ratios/sorting/unknowns, inline month and report links, map ranking/select/outside-reset, roles and existing navigation');
  }finally{w.close();}

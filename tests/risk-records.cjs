@@ -10,6 +10,8 @@ const {orgFixture}=require('./organization.cjs');
   const key={siteId:'qa-site',kind:'initial',period:'initial',templateId:'course'};
   const call=(who,op,extra={})=>f.call(who,{action:'platform_risk_'+op,...key,...extra});
   const doc=async(who='field',extra={})=>(await call(who,'open',extra)).body;
+  const tasks=async who=>(await call(who,'list',{includeTasks:true})).body.sites[0].tasks;
+  assert.equal(await tasks('field'),2);assert.equal(await tasks('manager'),undefined);
   const templates=JSON.parse(fs.readFileSync('edge-functions/enl-incident-sync-v411/risk-templates.json'));
   assert.equal(templates.books.flatMap(b=>b.sections.flatMap(s=>s.rows)).length,204);
   for(const b of templates.books){const data=await doc('field',{templateId:b.id});assert.equal(data.document.content.rows.length,b.sections.flatMap(s=>s.rows).length);assert.equal(data.document.revision,0);assert.equal(data.document.content.improvements.length,3);}
@@ -37,6 +39,7 @@ const {orgFixture}=require('./organization.cjs');
   assert.equal((await call('field','save',{...save,kind:'regular',period:'2026'})).status,200);
   assert.equal((await doc('field',{kind:'regular',period:'2027'})).document.revision,0,'years isolated');
   assert.equal((await doc()).document.revision,2,'initial unaffected');
+  assert.equal(await tasks('field'),1);
   const listing=(await call('field','documents')).body;assert.deepEqual(listing.years,['2026']);assert.equal(listing.templates.length,5);assert.equal(listing.records.length,1);
   assert.equal((await call('field','save',{...save,revision:2,content:{...content,rows:content.rows.slice(1)}})).status,400,'base records cannot be silently removed');
   const base64='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aMioAAAAASUVORK5CYII=';

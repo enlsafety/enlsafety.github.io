@@ -193,6 +193,7 @@
  function renderArtwork(host){
   stopArtwork();let stopped=false,frame=0,observer,ratioQuery;
   const nodes=Array.from(host.querySelectorAll('.hub-art:not(.hub-shortcut-art)'));
+  if(!nodes.length)return;
   const schedule=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(paint)};
   function watchRatio(){ratioQuery?.removeEventListener('change',onRatio);ratioQuery=matchMedia('(resolution: '+(window.devicePixelRatio||1)+'dppx)');ratioQuery.addEventListener('change',onRatio)}
   function onRatio(){watchRatio();schedule()}
@@ -467,14 +468,17 @@
   }
   // Retain the real DOM and its handlers, including File inputs and editor closures.
   // The map belongs to this actor's shell only; nothing is shared across logins.
-  const retainedTabs=new Map();
+  const retainedTabs=new Map(),scrolled=new Set();
+  const trackScroll=e=>{const n=e.target;if(n instanceof Element&&(n.closest('#view')||host.contains(n)))scrolled.add(n);};
+  document.addEventListener('scroll',trackScroll,true);
   let restoringTab=null;
-  host.disposeWorkTabs=()=>{restoringTab=null;retainedTabs.clear();org?.leave();risk?.leave();};
+  host.disposeWorkTabs=()=>{document.removeEventListener('scroll',trackScroll,true);scrolled.clear();restoringTab=null;retainedTabs.clear();org?.leave();risk?.leave();};
   host.ownsRetainedNode=node=>sameUser()&&[...retainedTabs.values()].some(saved=>saved.root===node||saved.root.contains(node));
   function retainTab(){
     const view=host.closest('.app-shell').querySelector('#view');
-    const scrolls=[view,...view.querySelectorAll('*'),...host.querySelectorAll('[data-list-workspace="'+active+'"] *')]
+    const scrolls=[view,...scrolled].filter(n=>n.isConnected&&(view.contains(n)||host.contains(n)))
       .filter(n=>n.scrollTop||n.scrollLeft).map(n=>[n,n.scrollTop,n.scrollLeft]);
+    scrolled.clear();
     retainedTabs.set(active,{root:view,route:currentView,x:window.scrollX,y:window.scrollY,scrolls,
       incidentPhotos:active==='incident'?[...incidentPhotos]:null,actionPhotos:active==='incident'?[...actionPhotos]:null});
     if(view.contains(host))view.before(host);
@@ -489,7 +493,7 @@
     if(saved.incidentPhotos){incidentPhotos=saved.incidentPhotos;actionPhotos=saved.actionPhotos;}
     placeFrame(saved.root);
     requestAnimationFrame(()=>{if(sameUser()&&saved.root.isConnected){
-      for(const [node,top,left] of saved.scrolls){node.scrollTop=top;node.scrollLeft=left;}
+      for(const [node,top,left] of saved.scrolls){node.scrollTop=top;node.scrollLeft=left;scrolled.add(node);}
       window.scrollTo(saved.x,saved.y);
     }});
     return saved.root;
@@ -603,6 +607,17 @@
     if(from<0||to<0||from===to)return;
     sidebarDraft.splice(to,0,sidebarDraft.splice(from,1)[0]);navigation();
   }
+  const taskCounts=new Map();
+  host.setTaskCount=(key,count)=>{
+    taskCounts.set(key,count);
+    const selector=key==='support'?'[data-hub="support"]':'[data-hub="feature:'+key+'"]';
+    const button=sidebar.querySelector(selector);
+    if(!button)return;
+    let dot=button.querySelector('.hub-task-dot');
+    if(!count){dot?.remove();return;}
+    if(!dot){dot=document.createElement('span');dot.className='org-dot hub-task-dot';dot.setAttribute('role','img');button.append(dot);}
+    const label='처리할 업무 '+count+'건';dot.setAttribute('aria-label',label);dot.title=label;
+  };
   function navigation(){
     const nav=sidebar.querySelector('nav');
     const previousGroup=nav.querySelector('.hub-document-menus');if(previousGroup)documentsExpanded=previousGroup.open;
@@ -667,7 +682,7 @@
       }
       nav.append(group);
     }
-    paintFavorites();org?.badges();
+    paintFavorites();org?.badges();for(const [key,count] of taskCounts)host.setTaskCount(key,count);
   }
   function favoriteChoices(){return [...items().filter(m=>m.state!=='hidden'&&!catalog?.omitted?.includes(m.key)&&(m.key!=='system'||admin)).map(m=>({key:m.key,title:featureName(m)})),{key:'bulletins',title:'공지사항'},{key:'schedule',title:'전체 일정'}]}
   function paintFavorites(){const box=host.querySelector('.hub-favorites>div'),choices=favoriteChoices();box.replaceChildren();for(const key of content.favorites){const x=choices.find(v=>v.key===key);if(!x)continue;const b=document.createElement('button');b.type='button';b.innerHTML=menuPictogram(key)+'<span>'+safe(x.title)+'</span>';b.onclick=()=>dispatch(['bulletins','schedule'].includes(key)?key:'feature:'+key);box.append(b)}if(!box.children.length)box.innerHTML='<p>자주 쓰는 메뉴를 추가하세요.</p>'}
@@ -705,6 +720,17 @@
   }
   function paintApprovals(){
     const pending=approvals();
+    const readable=moduleAvailable(entry('incident'));
+    let tasks=0;
+    if(readable){
+      if(u.role==='safety')tasks=window.enlSafetyActionCounts?.(u)?.total||pending.length;
+      else if(u.role==='field')tasks=window.enlFieldAttentionCount?.(u)||0;
+      else if(['manager','executive'].includes(u.role)){
+        tasks=scopedIncidents().filter(i=>['reported','supplement','supplement_submitted'].includes(i.status)||pending.includes(i)).length;
+      }
+    }
+    host.setTaskCount('incident',tasks);
+    host.setTaskCount('support',moduleAvailable(entry('approvals'))?pending.length:0);
     showFeedCount('[data-approval-count]',pending.length);
     approvalBody(host.querySelector('[data-list=approvals]'),true,pending);
     const box=host.querySelector('[data-list-workspace=approvals] [data-approval-list]');

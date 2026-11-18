@@ -5,6 +5,31 @@
  const btn=(text,fn,cls)=>{const b=el('button',text,cls);b.type='button';b.onclick=fn;return b;};
  const caption={initial:'최초 위험성평가',regular:'정기 위험성평가'};
  const errorText={record_changed:'다른 사용자가 먼저 저장했습니다. 입력 내용은 남아 있습니다. 최신 저장본을 확인한 뒤 다시 작성해 주세요.',folder_changed:'사업장 폴더가 변경됐습니다. 입력 내용을 확인하고 목록에서 다시 열어 주세요.',invalid_record:'평가일, 평가자, 위험성 등급과 제외 사유를 확인해 주세요. 상 또는 중 항목은 개선대책, 담당자와 조치기한이 필요합니다.',invalid_photo:'사진을 처리하지 못했습니다. 사진을 다시 선택해 주세요.'};
+  async function preparePhoto(file){
+   if(file.size>25000000)throw Error('too_large');
+   const url=URL.createObjectURL(file);let img;
+   try{img=await new Promise((resolve,reject)=>{const image=new Image(),timer=setTimeout(()=>reject(Error('timeout')),20000);image.onload=()=>{clearTimeout(timer);resolve(image);};image.onerror=()=>{clearTimeout(timer);reject(Error('decode'));};image.src=url;});}
+   finally{URL.revokeObjectURL(url);}
+   const canvas=el('canvas'),scale=Math.min(1,1400/Math.max(img.naturalWidth,img.naturalHeight));canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+   const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
+   let blob;for(const quality of [.85,.7,.55,.4]){blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality));if(blob&&blob.size<=350000)break;}
+   if(!blob||blob.size>350000)throw Error('too_large');const buffer=await blob.arrayBuffer(),digest=await crypto.subtle.digest('SHA-256',buffer);
+   const id=[...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,'0')).join('');
+   const data=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(blob);});
+   return {id,mime:'image/jpeg',base64:data.split(',')[1]};
+  }
+ window.enlPrepareDocumentPhoto=preparePhoto;
+ let templateFlight;
+ function loadTemplates(){
+  if(window.ENLRiskPaperTemplates)return Promise.resolve();
+  if(!templateFlight)templateFlight=new Promise((resolve,reject)=>{
+    const script=document.createElement('script');
+    script.src='risk-paper-templates.js?v=4813-r144';
+    script.onload=()=>resolve();script.onerror=()=>{script.remove();templateFlight=null;reject(Error('template_unavailable'));};
+    document.head.append(script);
+  });
+  return templateFlight;
+ }
  function mount(host,config,api){
   const {site,kind,period,templateId,user,onBack,isCurrent}=config;
   let dirty=false,busy=false,alive=true,token=0,documentData,content,revision=0,latest=0,photos=new Map(),history=[],template;
@@ -49,7 +74,7 @@
    try{
     const used=new Set(content.improvements.flatMap(r=>[r.beforePhoto,r.afterPhoto]).filter(Boolean));
     const result=await api({action:'platform_risk_save',siteId:site.site_id,kind,period,templateId,revision,folderRevision:documentData.site.folder_revision,state,content,photos:[...photos.values()].filter(p=>p.fresh&&used.has(p.id)).map(({id,mime,base64})=>({id,mime,base64}))},60000);
-    dirty=false;revision=latest=result.revision;for(const p of photos.values())p.fresh=false;
+    config.onSaved?.();dirty=false;revision=latest=result.revision;for(const p of photos.values())p.fresh=false;
     if(current())await load(undefined,'저장했습니다.');
    }catch(e){if(current())note.textContent=errorText[e.message]||'저장하지 못했습니다. 입력 내용은 남아 있습니다. 연결을 확인하고 다시 저장해 주세요.';}
    finally{busy=false;if(editor)editor.inert=false;end?.();}
@@ -58,7 +83,7 @@
    const seq=++token;
    const loading=el('p','평가서를 불러오는 중입니다.','org-status');host.replaceChildren(loading);
    try{
-    const result=await api({action:'platform_risk_open',siteId:site.site_id,kind,period,templateId,...(selectedRevision===undefined?{}:{revision:selectedRevision})});
+    const [result]=await Promise.all([api({action:'platform_risk_open',siteId:site.site_id,kind,period,templateId,...(selectedRevision===undefined?{}:{revision:selectedRevision})}),loadTemplates()]);
     if(!current()||seq!==token)return;
     documentData=result;content=structuredClone(result.document.content);revision=result.document.revision;latest=result.latestRevision;history=result.history;template=result.template;photos=new Map((result.photos||[]).map(p=>[p.id,p]));dirty=false;draw();if(success)note.textContent=success;
    }catch(e){if(current()&&seq===token)host.replaceChildren(el('p','평가서를 불러오지 못했습니다.','org-status'),btn('다시 불러오기',()=>load(selectedRevision)),btn('평가서 목록',()=>{if(canLeave())onBack();}));}
@@ -129,19 +154,6 @@
      finally{input.value='';busy=false;end?.();}
     };box.append(input,btn('사진 제거',()=>{if(!busy){row[key]='';changed();paint();}},'risk-remove'));
    }return box;
-  }
-  async function preparePhoto(file){
-   if(file.size>25000000)throw Error('too_large');
-   const url=URL.createObjectURL(file);let img;
-   try{img=await new Promise((resolve,reject)=>{const image=new Image(),timer=setTimeout(()=>reject(Error('timeout')),20000);image.onload=()=>{clearTimeout(timer);resolve(image);};image.onerror=()=>{clearTimeout(timer);reject(Error('decode'));};image.src=url;});}
-   finally{URL.revokeObjectURL(url);}
-   const canvas=el('canvas'),scale=Math.min(1,1400/Math.max(img.naturalWidth,img.naturalHeight));canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
-   const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
-   let blob;for(const quality of [.85,.7,.55,.4]){blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality));if(blob&&blob.size<=350000)break;}
-   if(!blob||blob.size>350000)throw Error('too_large');const buffer=await blob.arrayBuffer(),digest=await crypto.subtle.digest('SHA-256',buffer);
-   const id=[...new Uint8Array(digest)].map(v=>v.toString(16).padStart(2,'0')).join('');
-   const data=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(blob);});
-   return {id,mime:'image/jpeg',base64:data.split(',')[1]};
   }
   function print(){
    const root=el('div');root.id='risk-print-page';root.className='risk-fixed-print';
