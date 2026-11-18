@@ -394,8 +394,9 @@
     safetyNews:{kind:'news',title:'안전뉴스',icon:'notices'},
     resources:{kind:'resource',title:'자료실',icon:'documents'}
   };
+  const sidebarBuiltins={safetyCard:{title:'안전관리카드',icon:'policy'},boards:{title:'게시판',icon:'bulletins'}};
   const boardKey=kind=>Object.keys(boards).find(key=>boards[key].kind===kind);
-  const builtins={...Object.fromEntries(Object.entries(boards).map(([key,b])=>[key,b.title])),home:'통합 홈',support:'공통업무지원서비스',schedule:'전체 일정',recent:'최근 업무 기록',inquiry:admin?'문의함':'안전관리자 문의'};
+  const builtins={...Object.fromEntries(Object.entries(boards).map(([key,b])=>[key,b.title])),home:'통합 홈',safetyCard:sidebarBuiltins.safetyCard.title,support:'공통업무지원서비스',schedule:'전체 일정',recent:'최근 업무 기록',inquiry:admin?'문의함':'안전관리자 문의'};
   let stripSignature='';
   let active='home',request=0,incidentView='',inquiryOrigin='home';
   const strip=document.createElement('nav');
@@ -410,7 +411,7 @@
     if(!header)return;
     if(header.nextElementSibling!==strip)header.after(strip);
     const selectedFeature=documentInfo(active)?.key||active;
-    const selectedMenu=boards[active]?'boards':['home','support'].includes(active)?active:'feature:'+selectedFeature;
+    const selectedMenu=boards[active]?'boards':['home','support','safetyCard'].includes(active)?active:'feature:'+selectedFeature;
     host.querySelectorAll('.hub-sidebar nav [data-hub]').forEach(b=>{
       const selected=b.dataset.hub===selectedMenu;b.classList.toggle('on',selected);
       if(selected)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');
@@ -423,7 +424,7 @@
     for(const key of opened){
       const item=document.createElement('div'),pick=document.createElement('button');
       item.className='hub-worktab';pick.type='button';pick.dataset.worktab=key;
-      pick.innerHTML=sidebarIcon(boards[key]?.icon||(sidebarKeys.has(key)?key:entry(key)?.iconKey))+'<span>'+safe(tabTitle(key))+'</span>';
+      pick.innerHTML=sidebarIcon(boards[key]?.icon||sidebarBuiltins[key]?.icon||(sidebarKeys.has(key)?key:entry(key)?.iconKey))+'<span>'+safe(tabTitle(key))+'</span>';
       if(active===key){item.classList.add('selected');pick.setAttribute('aria-current','page');}
       pick.onclick=()=>selectTab(key);item.append(pick);
       if(key!=='home'){
@@ -461,9 +462,12 @@
     else if(host.nextElementSibling!==view)view.before(host);
     host.querySelector('.hub-support').hidden=active!=='support';
     const preview=host.querySelector('.hub-module-preview');
-    preview.hidden=Object.hasOwn(builtins,active)||['incident','system','history','notices','approvals','organization','risk'].includes(active);
+    preview.hidden=(Object.hasOwn(builtins,active)&&active!=='safetyCard')||['incident','system','history','notices','approvals','organization','risk'].includes(active);
     for(const panel of host.querySelectorAll('[data-list-workspace]'))panel.hidden=panel.dataset.listWorkspace!==active;
-    if(!preview.hidden)preview.querySelector('h2').textContent=tabTitle(active);
+    if(!preview.hidden){
+      preview.querySelector('h2').textContent=tabTitle(active);
+      preview.querySelector('p').textContent=active==='safetyCard'?'안전관리카드 기능은 준비 중입니다.':'이 업무의 세부 기능은 구현 중입니다.';
+    }
     paintTabs();
   }
   // Retain the real DOM and its handlers, including File inputs and editor closures.
@@ -568,6 +572,7 @@
     return sidebarIcon(entry(key)?.iconKey,customModules.findIndex(m=>m.key===key)+1);
   }
   let sidebarDraft=null, sidebarRevision=0, moving='', savingSidebar=false, documentsExpanded=true;
+  const sidebarOrder=()=>catalog?.sidebarMenuOrder||[...Object.keys(sidebarBuiltins),...(catalog?.sidebarOrder||catalog?.homeOrder||[])];
   const sidebar=host.querySelector('.hub-sidebar');
   const editPanel=document.createElement('div');
   if(admin){
@@ -577,15 +582,15 @@
     editPanel.querySelector('[data-edit]').onclick=async()=>{
       if(!catalog||savingSidebar)return;
       if(!sidebarDraft){
-        sidebarRevision=catalog.revision;sidebarDraft=[...(catalog.sidebarOrder||catalog.homeOrder)];
+        sidebarRevision=catalog.revision;sidebarDraft=[...sidebarOrder()];
         navigation();return;
       }
       savingSidebar=true;navigation();
       try{
         const next=[...sidebarDraft];
-        const r=await api({action:'platform_sidebar_order',order:next,revision:sidebarRevision});
+        const r=await api({action:'platform_sidebar_order',layoutVersion:2,order:next,revision:sidebarRevision});
         if(!sameUser())return;
-        catalog.sidebarOrder=next;catalog.revision=r.revision;sidebarDraft=null;
+        catalog.sidebarMenuOrder=next;catalog.revision=r.revision;sidebarDraft=null;
         editPanel.querySelector('small').textContent='순서를 저장했습니다.';
         await host.reloadCatalog();
       }catch(err){
@@ -623,8 +628,6 @@
     const previousGroup=nav.querySelector('.hub-document-menus');if(previousGroup)documentsExpanded=previousGroup.open;
     nav.innerHTML=action('home',sidebarIcon('home')+'<span>홈</span>',active==='home'?'on':'');
     nav.firstElementChild.onclick=()=>dispatch('home');
-    nav.insertAdjacentHTML('beforeend',action('boards',sidebarIcon('bulletins')+'<span>게시판</span>',boards[active]?'on':''));
-    nav.lastElementChild.onclick=()=>selectTab(boards[active]?active:'boardAll');
     if(admin){
       const edit=editPanel.querySelector('[data-edit]'),cancel=editPanel.querySelector('[data-cancel]');
       edit.textContent=sidebarDraft?'순서 저장':'편집모드';edit.disabled=!catalog||savingSidebar;
@@ -636,14 +639,15 @@
       .filter(m=>/^\d{2}\. /.test(m.displayName||'')&&!catalog.omitted?.includes(m.key))
       .sort((a,b)=>a.displayName.localeCompare(b.displayName,'ko'));
     const grouped=new Set(numbered.map(m=>m.key));
-    const order=(sidebarDraft||catalog?.sidebarOrder||catalog?.homeOrder||[]).filter(k=>!grouped.has(k));
+    const order=(sidebarDraft||sidebarOrder()).filter(k=>!grouped.has(k));
     for(const [i,key] of order.entries()){
-      const m=entry(key),support=key==='support';
-      const hidden=catalog.omitted?.includes(key)||m?.state==='hidden';
-      if((!m&&!support)||(!admin&&hidden))continue;
-      const label=menuPictogram(key)+'<span>'+safe(support?'공통업무지원서비스':featureName(m))+'</span>';
+      const m=entry(key),support=key==='support',builtin=sidebarBuiltins[key];
+      const hidden=catalog?.omitted?.includes(key)||m?.state==='hidden';
+      if((!m&&!support&&!builtin)||(!admin&&hidden))continue;
+      const icon=builtin?sidebarIcon(builtin.icon):menuPictogram(key);
+      const label=icon+'<span>'+safe(builtin?.title||(support?'공통업무지원서비스':featureName(m)))+'</span>';
       const row=document.createElement('div');row.className='hub-sidebar-row';
-      row.innerHTML=action(support?key:'feature:'+key,label,active===key?'on':'');
+      row.innerHTML=action(builtin||support?key:'feature:'+key,label,(key==='boards'?boards[active]:active===key)?'on':'');
       const button=row.firstElementChild;
       if(hidden){row.classList.add('is-hidden');button.insertAdjacentHTML('beforeend','<small>숨김</small>');}
       if(hidden||sidebarDraft){button.setAttribute('aria-disabled','true');}
@@ -993,7 +997,7 @@
   }
   function search(){const d=dialog(host,'통합검색'),box=d.querySelector('.hub-dialog-body');box.innerHTML='<label class="hub-search-label">검색어<input type="search" placeholder="메뉴, 사고, 공지사항, 일정 검색" maxlength="100"></label><p>조회 권한이 있는 현재 자료에서 검색합니다.</p><div data-results></div>';const input=box.querySelector('input'),out=box.querySelector('[data-results]');const paint=()=>{out.replaceChildren();const q=input.value.trim().toLocaleLowerCase();if(!q)return;let count=0;for(const m of items().filter(m=>m.state!=='hidden'&&featureName(m).toLocaleLowerCase().includes(q))){rowButton(out,featureName(m),'업무 메뉴',()=>{d.close();clickFeature(m.key)});count++}if(entry('incident')?.state==='live'&&entry('incident')?.enabled!==false&&entry('incident')?.canEnter!==false)for(const i of scopedIncidents().filter(i=>[i.eventType,i.summary,siteById(i.siteId)?.name].join(' ').toLocaleLowerCase().includes(q)).slice(0,30)){rowButton(out,i.eventType||'사고보고',siteById(i.siteId)?.name||'',()=>openIncident(i.id));count++}for(const x of [...content.notices,...content.events].filter(x=>[x.title,x.body].join(' ').toLocaleLowerCase().includes(q))){rowButton(out,x.title,x.kind==='notice'?'공지사항':'일정',()=>{d.close();readContent(x)});count++}if(!count)out.innerHTML='<p class="hub-empty">검색 결과가 없습니다.</p>'};input.oninput=paint;input.focus()}
   function guide(){const d=dialog(host,'모듈 안내');d.querySelector('.hub-dialog-body').innerHTML='<p>운영 중인 업무는 카드를 눌러 바로 이용할 수 있습니다. 구현 중인 업무는 관리자가 허용한 시험 사용자만 진입합니다.</p><p>공지사항과 일정은 안전관리자가 등록하고 대상 사업장의 사용자에게 공유합니다.</p>'+(admin?'<p>편집을 누르면 이름 수정, 접근 설정, 순서 이동 도구가 나타납니다. 손잡이를 끌거나 접근 설정의 앞으로/뒤로 버튼으로 순서를 변경하세요.</p>':'')}
-  function dispatch(key){if(key.startsWith('feature:'))return clickFeature(key.slice(8));if(key==='home'){if(host.classList.contains('hub-incident-workspace'))return window.enlReturnToPlatform(u);host.classList.remove('hub-menu-open');window.scrollTo({top:0,behavior:'smooth'})}else if(key==='menu'||key==='close-menu')host.classList.toggle('hub-menu-open',key==='menu');else if(key==='support')support();else if(key==='search')search();else if(key==='notifications')clickFeature('notices');else if(key==='manage-cards'&&admin)manageCards();else if(key==='edit'){host.classList.toggle('hub-editing');host.querySelector('.hub-edit-toggle').textContent=host.classList.contains('hub-editing')?'편집 완료':'편집'}else if(key==='guide')guide();else if(key==='favorites')favorites();else if(key==='bulletins'||key==='schedule')selectTab(key);else if(key==='approvals')openApprovalList();else if(key==='recent')selectTab('recent');}
+  function dispatch(key){if(key.startsWith('feature:'))return clickFeature(key.slice(8));if(key==='boards')return selectTab(boards[active]?active:'boardAll');if(key==='safetyCard')return selectTab(key);if(key==='home'){if(host.classList.contains('hub-incident-workspace'))return window.enlReturnToPlatform(u);host.classList.remove('hub-menu-open');window.scrollTo({top:0,behavior:'smooth'})}else if(key==='menu'||key==='close-menu')host.classList.toggle('hub-menu-open',key==='menu');else if(key==='support')support();else if(key==='search')search();else if(key==='notifications')clickFeature('notices');else if(key==='manage-cards'&&admin)manageCards();else if(key==='edit'){host.classList.toggle('hub-editing');host.querySelector('.hub-edit-toggle').textContent=host.classList.contains('hub-editing')?'편집 완료':'편집'}else if(key==='guide')guide();else if(key==='favorites')favorites();else if(key==='bulletins'||key==='schedule')selectTab(key);else if(key==='approvals')openApprovalList();else if(key==='recent')selectTab('recent');}
   host.querySelectorAll('[data-hub]').forEach(b=>b.onclick=()=>dispatch(b.dataset.hub));
   function afterCards(c){catalog=c;historyShortcuts();navigation();paintTabs();paintApprovals();renderArtwork(host);org?.catalog(entry('organization'));risk?.catalog(entry('risk'));}
   function historyShortcuts(){

@@ -318,12 +318,19 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
   for(const key of [...extras].sort((a,b)=>(config.home_extras?.[a]??Infinity)-(config.home_extras?.[b]??Infinity))){
     order.splice(config.home_extras?.[key]??order.length,0,key);
   }
-  const savedOrder=(config.sidebar_order||[]).filter((k:string)=>order.includes(k));
-  const sidebarOrder=[...savedOrder,...order.filter(k=>!savedOrder.includes(k))];
+  const sidebarOnly=['safetyCard','boards'];
+  const sidebarKeys=[...sidebarOnly,...order];
+  const savedOrder=Array.from(new Set<string>(config.sidebar_order||[])).filter(k=>sidebarKeys.includes(k));
+  const sidebarOrder=[...sidebarOnly.filter(k=>!savedOrder.includes(k)),...savedOrder,...order.filter(k=>!savedOrder.includes(k))];
   if(action==='platform_sidebar_order'){
     if(!admin)return reply({ok:false,message:'forbidden'},403);
-    const next=body.order;
-    if(!Array.isArray(next)||next.length!==order.length||!order.every(k=>next.includes(k)))return reply({ok:false,message:'invalid_catalog'},400);
+    const requested=body.order;
+    const fullLayout=body.layoutVersion===2;
+    const expected=fullLayout?sidebarKeys:order;
+    if(!Array.isArray(requested)||requested.length!==expected.length||!expected.every(k=>requested.includes(k)))return reply({ok:false,message:'invalid_catalog'},400);
+    // Older clients can reorder their rows without moving the sidebar-only items.
+    let index=0;
+    const next=fullLayout?requested:sidebarOrder.map(k=>sidebarOnly.includes(k)?k:requested[index++]);
     const rows=await sql`update private.enl_platform_catalog set sidebar_order=${sql.json(next)}::jsonb,revision=revision+1,
       updated_at=now(),updated_by=${actor.id} where singleton and revision=${body.revision} returning revision`;
     return rows.length?reply({ok:true,revision:rows[0].revision}):reply({ok:false,message:'catalog_changed'},409);
@@ -333,7 +340,7 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
     const visible=new Set([...modules,...services].map(m=>m.key).concat('support'));
     const documentMenus=config.modules.filter((m:any)=>/^\d{2}\. /.test(m.displayName||'') && !(config.home_omitted||[]).includes(m.key))
       .map((m:any)=>({key:m.key,displayName:m.displayName})).sort((a:any,b:any)=>a.displayName.localeCompare(b.displayName,'ko'));
-    return reply({ok:true,revision:config.revision,modules,services,documentMenus,omitted:(config.home_omitted||[]).filter((k:string)=>visible.has(k)),sidebarOrder:sidebarOrder.filter(k=>visible.has(k)&&(admin||!(config.home_omitted||[]).includes(k))),homeOrder:order.filter(k=>visible.has(k))});
+    return reply({ok:true,revision:config.revision,modules,services,documentMenus,omitted:(config.home_omitted||[]).filter((k:string)=>visible.has(k)),sidebarMenuOrder:sidebarOrder.filter(k=>sidebarOnly.includes(k)||(visible.has(k)&&(admin||!(config.home_omitted||[]).includes(k)))),sidebarOrder:sidebarOrder.filter(k=>visible.has(k)&&(admin||!(config.home_omitted||[]).includes(k))),homeOrder:order.filter(k=>visible.has(k))});
   }
   if(action==='platform_home_cards'){
     if(!admin)return reply({ok:false,message:'forbidden'},403);
