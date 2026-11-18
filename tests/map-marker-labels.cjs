@@ -10,7 +10,7 @@ async function check(engine,width,height){
    if(u.origin!==origin||!fs.existsSync(file)||!fs.statSync(file).isFile())return route.abort();
    let body=fs.readFileSync(file);
    if(u.pathname==='/stable412.html')body=body.toString().replace('<head>','<head><script src="tests/integrated-home-fixture.js"></script>');
-   if(u.pathname==='/tests/integrated-home-fixture.js')body=body.toString().replace('const moduleKeys=',    "incidents.splice(0,1,...Array.from({length:15},(_,i)=>({...incidents[0],id:'qa-'+i,siteId:i<6?'s22':i<11?'s03':i<14?'s02':'s01'}))); const moduleKeys=");
+   if(u.pathname==='/tests/integrated-home-fixture.js')body=body.toString().replace('const moduleKeys=',    "incidents.splice(0,1,...Array.from({length:15},(_,i)=>({...incidents[0],id:'qa-'+i,siteId:i<6?'s22':i<11?'s03':i<14?'s26':'s01'}))); const moduleKeys=");
    const mime={'.js':'text/javascript','.css':'text/css','.html':'text/html','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.json':'application/json'};
    await route.fulfill({body,contentType:mime[path.extname(file)]||'application/octet-stream'});
   });
@@ -40,6 +40,36 @@ async function check(engine,width,height){
     assert.equal(await p.locator('#sd450Site').inputValue(),id);
     assert.deepEqual(await visible(),[id]);
   }
+  const gradeSites=['s29','s01','s26','s22'];
+  const styles=await Promise.all(gradeSites.map(id=>marker(id).evaluate(el=>{
+    const css=getComputedStyle(el);
+    return {fill:css.backgroundColor,frame:[css.width,css.height,css.border,css.boxShadow]};
+  })));
+  assert.equal(new Set(styles.map(s=>s.fill)).size,4);
+  for(const s of styles)assert.deepEqual(s.frame,styles[0].frame,'high-risk markers must have the same size, border and shadow');
+  async function redraw(){
+    const old=await viewport.elementHandle();
+    await p.evaluate(()=>window.enlRenderIncidentStats(document.getElementById('view'),currentUser(),{year:document.querySelector('#stats426Year').value}));
+    await p.waitForFunction(el=>!el.isConnected,old);
+    await viewport.waitFor();
+  }
+  for(const id of gradeSites){
+    if(width===390){
+      await marker(id).tap();
+      await redraw();
+      assert.deepEqual(await visible(),[id],'first tap survives redraw '+id);
+      await marker(id).locator('.sd450-marker-label').tap();
+    }else{
+      await marker(id).click();
+      const neighbor=marker(id==='s22'?'s26':'s22');
+      await neighbor.hover();
+      await neighbor.focus();
+    }
+    assert.deepEqual(await visible(),[id],'only the clicked name stays visible '+id);
+    await redraw();
+    assert.deepEqual(await visible(),[id],'selection survives dashboard refresh '+id);
+    assert.equal(await p.locator('#sd450Site').inputValue(),id);
+  }
   await select('s22');
   await select('s29');
   await panel.locator('.sd450-map-head h2').click();
@@ -55,7 +85,7 @@ async function check(engine,width,height){
     await viewport.click({position:{x:12,y:12}});
     assert.deepEqual(await visible(),[]);
   }
-  console.log('PASS all 33 sites including Sofia Green, second high-risk site, blank map and outside dismissal',engine.name(),width);
+  console.log('PASS all 33 sites including Sofia Green, Pine Ridge, grade-independent appearance, persistent selection, blank map and outside dismissal',engine.name(),width);
  }finally{await b.close()}
 }
 (async()=>{await check(chromium,1528,814);await check(webkit,390,844)})().catch(e=>{console.error(e);process.exitCode=1});
