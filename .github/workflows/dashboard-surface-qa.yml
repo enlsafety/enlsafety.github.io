@@ -1,0 +1,20 @@
+name: Dashboard surface checks
+on:
+  push:
+    branches: [qa/dashboard-surface-r154]
+permissions:
+  contents: read
+jobs:
+  layout:
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.51.1-noble
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install --no-save --package-lock=false playwright@1.51.1
+      - run: node tests/dashboard-surface-qa.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dashboard-preview
+          path: qa-*.png
+          retention-days: 1
