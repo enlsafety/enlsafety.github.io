@@ -1,0 +1,25 @@
+name: Incident workflow card checks
+on:
+  push:
+    branches: [qa/accident-cards-r153]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [incident-stages-browser, attention-workflow-browser, workspace-tabs-browser]
+    container: mcr.microsoft.com/playwright:v1.51.1-noble
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install --no-save --package-lock=false playwright@1.51.1
+      - name: Verify original workspace regression on r152
+        if: matrix.suite == 'workspace-tabs-browser'
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git fetch --depth=1 origin 465aa63fb30e0c24e8478161608c3ff380e7acef
+          git checkout --detach FETCH_HEAD
+      - run: node tests/${{ matrix.suite }}.cjs
