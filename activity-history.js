@@ -178,7 +178,7 @@
         const r=await api({action:first?(ack?'activity_open':'activity_list'):'activity_page',before,feed,...filters});
         if(userId()!==id)return;
         if(ack&&token===serial){counts[feed]=0;checked=Date.now();paint();}
-        if(!host.isConnected||seq!==request)return;
+        if(!(host.isConnected||window.enlWorkspaceNodeAlive?.(host))||seq!==request)return;
         if(first)list.replaceChildren();
         for(const row of r.rows){
           const item=document.createElement('li'),button=document.createElement('button');button.type='button';
@@ -191,7 +191,7 @@
           list.append(item);before=row.id;
         }
         more.hidden=!r.more;status.textContent=list.childElementCount?'최신순 / 한국시간':'조건에 맞는 기록이 없습니다.';
-      }catch{if(host.isConnected&&seq===request)status.textContent='기록을 불러오지 못했습니다. 다시 시도해 주세요.';}
+      }catch{if((host.isConnected||window.enlWorkspaceNodeAlive?.(host))&&seq===request)status.textContent='기록을 불러오지 못했습니다. 다시 시도해 주세요.';}
       finally{if(opening===token)opening=0;if(seq===request){busy=false;more.disabled=false;}}
     }
     host.querySelector('[data-refresh]').onclick=()=>load(true,true);more.onclick=()=>load(false,false);load(true,mark);
@@ -221,7 +221,7 @@
       status.textContent='로그인 기록을 조회하는 중입니다.';
       try{
         const r=await api({action:'activity_login_list',before:cursor,...filters});
-        if(!host.isConnected||userId()!==id||call!==seq)return;
+        if(!(host.isConnected||window.enlWorkspaceNodeAlive?.(host))||userId()!==id||call!==seq)return;
         for(const row of r.rows||[]){
           const item=document.createElement('li'),details=document.createElement('div');
           details.className='login-event';
@@ -233,7 +233,7 @@
         more.hidden=!r.more;
         status.textContent=list.children.length?'최신 로그인 순서로 표시합니다.':'해당 조건의 로그인 기록이 없습니다.';
       }catch(err){
-        if(host.isConnected&&call===seq)status.textContent=err?.message==='forbidden'?'로그인 기록 조회 권한이 없습니다.':'조회하지 못했습니다. 연결 상태를 확인하고 다시 시도해 주세요.';
+        if((host.isConnected||window.enlWorkspaceNodeAlive?.(host))&&call===seq)status.textContent=err?.message==='forbidden'?'로그인 기록 조회 권한이 없습니다.':'조회하지 못했습니다. 연결 상태를 확인하고 다시 시도해 주세요.';
       }finally{busy=false;more.disabled=false;}
     }
     form.onsubmit=e=>{e.preventDefault();

@@ -274,7 +274,7 @@
       panel.replaceChildren(el('h2','안전보건조직'),layout);
       try{
         const result=await readList(admin);
-        if(!onScreen()||token!==sequence)return;
+        if(!sameUser()||token!==sequence)return;
         folders=result.sites;available=result.candidates||[];listingPeriod=shownPeriod=result.period;
         if(admin){
           const tools=el('div',null,'org-manage-tools');
@@ -303,7 +303,7 @@
         paintRail();
         if(shownSite){const selected=folders.find(s=>s.site_id===shownSite);if(selected)paintDocuments(selected);else paintSites();}
         else paintSites();
-      }catch(err){if(onScreen()&&token===sequence)failure(err,()=>open(),main)}
+      }catch(err){if(sameUser()&&token===sequence)failure(err,()=>open(),main)}
     }
     async function folder(siteId,version){
       if(!canLeave())return;
@@ -311,11 +311,11 @@
       main.replaceChildren(status('조직도를 불러오는 중입니다.'));
       try{
         const result=await api({action:'platform_org_open',siteId,revision:version,includeTemplate:!template});
-        if(onScreen()&&token===sequence){
+        if(sameUser()&&token===sequence){
           if(result.template)template=result.template;
           renderFolder(result);
         }
-      }catch(err){if(onScreen()&&token===sequence)failure(err,()=>folder(siteId,version),main)}
+      }catch(err){if(sameUser()&&token===sequence)failure(err,()=>folder(siteId,version),main)}
     }
     function renderFolder({site,history,document:doc,period,state,confirmedPeriods=[]}){
       shownPeriod=period;shownSite=site.site_id;
@@ -425,7 +425,7 @@
     }
     const focus=()=>{if(sameUser()){refresh();schedule()}else{clearTimeout(refreshTimer);window.removeEventListener('focus',focus);document.removeEventListener('visibilitychange',focus)}};
     window.addEventListener('focus',focus);document.addEventListener('visibilitychange',focus);
-    return {catalog,badges,open,leave,canLeave};
+    return {catalog,badges,open,leave,canLeave,canSuspend:()=>!busy};
   }
   window.enlOrganization=controller;
 })();

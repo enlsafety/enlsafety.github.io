@@ -51,6 +51,8 @@
         if(modalBusy()||transientViewBusy())return root;
         window.enlEnsureWorkspace?.(root,u)?.syncWorkView(root,u);
         syncNavState();
+        const retained=shell.enlWorkspaceFrame?.restoreTabView?.(root);
+        if(retained)return retained;
         try{
           if(typeof window.renderCurrentView==='function')return window.renderCurrentView(u)||root;
         }catch(e){console.warn('stable view render fallback',e)}

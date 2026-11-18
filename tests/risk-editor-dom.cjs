@@ -11,7 +11,7 @@ const until=async(fn,label)=>{for(let n=0;n<300;n++){if(fn())return;await new Pr
   const w=dom.window,d=w.document;let confirm=true,fail=false;
   w.structuredClone=structuredClone;w.confirm=()=>confirm;w.HTMLElement.prototype.scrollIntoView=()=>{};w.print=()=>{};
   Object.defineProperty(w,'crypto',{value:crypto.webcrypto});
-  for(const p of ['risk-editor.js','risk-assessment.js'])w.eval(fs.readFileSync(p,'utf8'));
+  for(const p of ['risk-paper-templates.js','risk-paper.js','risk-editor.js','risk-assessment.js'])w.eval(fs.readFileSync(p,'utf8'));
   const user={role,id:'qa-'+role,siteId:'qa-site'};
   const api=async body=>{if(fail&&body.action==='platform_risk_save')throw Error('network_failure');const r=await f.call(role,body);if(r.status!==200)throw Error(r.body.message);return r.body;};
   const mount=w.enlRiskAssessment(d.querySelector('#host'),user,api,()=>true);mount.catalog({enabled:true,state:'live'});await mount.open();
@@ -20,6 +20,7 @@ const until=async(fn,label)=>{for(let n=0;n<300;n++){if(fn())return;await new Pr
   d.querySelector('[data-risk-kind="regular"]').click();await until(()=>d.querySelector('[data-risk-template]'),'five books');assert.equal(d.querySelectorAll('[data-risk-template]').length,5);
   const year=d.querySelector('[data-risk-year]');year.value='2027';year.dispatchEvent(new w.Event('change'));await until(()=>d.querySelector('[data-risk-year]')?.value==='2027'&&d.querySelector('[data-risk-template]'),'year');
   d.querySelector('[data-risk-template="office"]').click();await until(()=>d.querySelector('.risk-editor'),'editor');assert.equal(d.querySelectorAll('.risk-row').length,14);
+  assert.ok(d.querySelector('.risk-paper [data-cell="B2"]'));assert.equal(d.querySelector('.risk-paper [data-cell="D8"] input'),null,'fixed task label');assert.equal(d.querySelectorAll('.risk-paper-scroll').length,4,'one assessment sheet plus three improvement sheets');
   const editorField=d.querySelector('[data-risk-field="evaluator"]');assert.equal(editorField.disabled,!['field','safety'].includes(role));
   if(['field','safety'].includes(role)){
    editorField.value='QA '+role;editorField.dispatchEvent(new w.Event('input',{bubbles:true}));confirm=false;assert.equal(mount.canLeave(),false,'unsaved guard');confirm=true;
@@ -30,7 +31,7 @@ const until=async(fn,label)=>{for(let n=0;n<300;n++){if(fn())return;await new Pr
    [...d.querySelectorAll('.risk-remove')].find(b=>b.textContent==='추가 작업 삭제').click();assert.equal(d.querySelectorAll('.risk-row').length,14);
    const first=d.querySelector('.risk-row input[type=checkbox]');first.checked=true;first.dispatchEvent(new w.Event('change'));assert.ok(d.querySelector('[data-risk-field="excludeReason"]'));
   }else{assert.equal(d.querySelector('.risk-save-actions'),null);assert.ok([...d.querySelectorAll('.risk-fields input,.risk-fields select,.risk-fields textarea')].every(c=>c.disabled));}
-  assert.deepEqual(errors,[]);mount.leave();dom.window.close();
+  [...d.querySelectorAll('.risk-editor button')].find(b=>b.textContent==='인쇄 / PDF').click();assert.equal(d.querySelectorAll('#risk-print-page .risk-paper').length,4);assert.equal(d.querySelectorAll('#risk-print-page input,#risk-print-page textarea').length,0,'print renders saved/input text, not editable fields');assert.deepEqual(errors,[]);mount.leave();dom.window.close();
   console.log('PASS risk DOM '+role+': type cards, five templates, annual selection, editor, role controls, dirty/save error guards');
  }
  }finally{await f.db.close();}

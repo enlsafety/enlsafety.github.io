@@ -422,15 +422,17 @@
   }
   const org=window.enlOrganization?.(host,u,api,sameUser);
   const risk=window.enlRiskAssessment?.(host,u,api,sameUser);
-  function canLeave(){
+  function canLeave(preserve=false,key=active){
     if(window.ENLProcessing?.active())return false;
-    if(active==='organization'&&org&&!org.canLeave())return false;
-    if(active==='risk'&&risk&&!risk.canLeave())return false;
-    const changed=document.querySelector('#view [data-worktab-edited],#view [data-wf440-dirty="1"]');
+    if(window.enlUiModalBusy?.())return false;
+    if(key==='organization'&&org&&!(preserve?org.canSuspend():org.canLeave()))return false;
+    if(key==='risk'&&risk&&!(preserve?risk.canSuspend():risk.canLeave()))return false;
+    const target=key===active?document.querySelector('#view'):retainedTabs.get(key)?.root;
+    const changed=target?.querySelector('[data-worktab-edited],[data-wf440-dirty="1"]');
     if(window.enlIncidentSaveInProgress?.()){
       alert('저장 중입니다. 저장이 끝나면 탭을 이동해 주세요.');return false;
     }
-    return !changed||confirm('작성 중인 내용이 있어요. 현재 화면을 벗어날까요?');
+    return preserve||!changed||confirm('저장하지 않은 내용이 있습니다. 이 탭을 닫을까요?');
   }
   function placeFrame(view){
     const atHome=active==='home';
@@ -447,20 +449,48 @@
     if(!preview.hidden)preview.querySelector('h2').textContent=tabTitle(active);
     paintTabs();
   }
-  function showTab(key,historyScope='all'){
+  // Retain the real DOM and its handlers, including File inputs and editor closures.
+  // The map belongs to this actor's shell only; nothing is shared across logins.
+  const retainedTabs=new Map();
+  let restoringTab=null;
+  host.disposeWorkTabs=()=>{restoringTab=null;retainedTabs.clear();org?.leave();risk?.leave();};
+  host.ownsRetainedNode=node=>sameUser()&&[...retainedTabs.values()].some(saved=>saved.root===node||saved.root.contains(node));
+  function retainTab(){
     const view=host.closest('.app-shell').querySelector('#view');
-    if(active==='organization'&&key!==active)org?.leave();
-    if(active==='risk'&&key!==active)risk?.leave();
+    const scrolls=[view,...view.querySelectorAll('*'),...host.querySelectorAll('[data-list-workspace="'+active+'"] *')]
+      .filter(n=>n.scrollTop||n.scrollLeft).map(n=>[n,n.scrollTop,n.scrollLeft]);
+    retainedTabs.set(active,{root:view,route:currentView,x:window.scrollX,y:window.scrollY,scrolls,
+      incidentPhotos:active==='incident'?[...incidentPhotos]:null,actionPhotos:active==='incident'?[...actionPhotos]:null});
+    if(view.contains(host))view.before(host);
+    const next=document.createElement('div');next.id='view';view.replaceWith(next);
+    return next;
+  }
+  host.restoreTabView=root=>{
+    const saved=restoringTab;restoringTab=null;
+    if(!saved||!sameUser())return null;
+    if(root.contains(host))root.before(host);
+    root.replaceWith(saved.root);retainedTabs.delete(active);
+    if(saved.incidentPhotos){incidentPhotos=saved.incidentPhotos;actionPhotos=saved.actionPhotos;}
+    placeFrame(saved.root);
+    requestAnimationFrame(()=>{if(sameUser()&&saved.root.isConnected){
+      for(const [node,top,left] of saved.scrolls){node.scrollTop=top;node.scrollLeft=left;}
+      window.scrollTo(saved.x,saved.y);
+    }});
+    return saved.root;
+  };
+  function showTab(key,historyScope='all'){
     if(active==='incident')incidentView=currentView;
     if(key==='inquiry')inquiryOrigin=active;
+    const saved=retainedTabs.get(key),view=retainTab();
     if(!opened.includes(key))opened.push(key);
     active=key;host.classList.remove('hub-menu-open','hub-editing');
-    host.querySelector('.hub-edit-toggle')?.replaceChildren('편집');
-    status.textContent='';
+    host.querySelector('.hub-edit-toggle')?.replaceChildren('편집');status.textContent='';
     placeFrame(view);
     const native={home:'platform',system:'system-admin',history:'common-history',recent:'history',inquiry:['field','worker'].includes(u.role)?'field-inquiry':'inquiry',notices:'notice-center',incident:incidentView||(['field','worker'].includes(u.role)?'home':'stats')};
-    if(key==='history'||key==='recent')window.enlRequestHistory?.(historyScope);
-    go(native[key]||'platform-tool');
+    restoringTab=saved||null;
+    if(!saved&&(key==='history'||key==='recent'))window.enlRequestHistory?.(historyScope);
+    go(saved?.route||native[key]||'platform-tool');
+    if(saved)return;
     if(key==='organization')org.open();
     if(key==='risk')risk.open();
     if(key==='approvals')approvalWorkspace();
@@ -479,18 +509,21 @@
       if(!closing)return false;
       key='home';
     }
-    if(token!==request||!sameUser()||!canLeave())return false;
+    if(token!==request||!sameUser()||!canLeave(true))return false;
     showTab(key,historyScope);return true;
   }
   async function closeTab(key){
     if(key==='home')return;
-    const index=opened.indexOf(key);if(index<0)return;
+    const index=opened.indexOf(key);if(index<0||!canLeave(false,key))return;
     if(key===active){
       const next=key==='inquiry'&&opened.includes(inquiryOrigin)?inquiryOrigin:key==='recent'?'home':opened[index-1];
       if(!await selectTab(next,true))return;
     }else ++request;
     const remove=opened.indexOf(key);if(remove<0||active===key)return;
-    opened.splice(remove,1);
+    opened.splice(remove,1);retainedTabs.delete(key);
+    if(key==='organization')org?.leave();
+    if(key==='risk')risk?.leave();
+    if(boards[key]||key==='schedule'){host.querySelector('[data-list-workspace="'+key+'"]')?.remove();boardPages.delete(key);}
     if(key==='incident')incidentView='';
     paintTabs();strip.querySelector('[aria-current]')?.focus({preventScroll:true});
   }
@@ -722,7 +755,7 @@
       const state={enlBoardPost:{owner:userKey,key:view,id:x.id,kind:x.kind}};
       if(history.state?.enlBoardPost)history.replaceState(state,'');else history.pushState(state,'');
     }
-    const current=()=>post.isConnected&&active===view&&!panel.hidden&&sameUser();
+    const current=()=>post.isConnected&&sameUser();
     window.scrollTo(0,0);
     let files;try{const r=await api({action:'platform_board_detail',id:x.id});if(!current())return;x=r.item;files=r.files||[]}
     catch{if(current())post.querySelector('[role=status]').textContent='게시글을 불러오지 못했습니다. 목록에서 다시 열어 주세요.';return}

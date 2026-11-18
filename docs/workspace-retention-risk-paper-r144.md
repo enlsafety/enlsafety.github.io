@@ -1,0 +1,11 @@
+# r144: retained workspaces and fixed risk-assessment worksheets
+
+Switching an upper workspace tab keeps its live DOM, input values, handlers, attachment selections, selected document and scroll offsets. Returning uses the retained route before the normal renderer runs. Closing a tab checks for unsaved work and releases its state. Logout and actor replacement release all retained tabs. Saving remains explicit, and server revision checks still reject stale writes.
+
+Organization and risk document responses may finish while their tab is hidden. History and notification reads recognize retained views without enabling mutations on detached views. Saving and modal operations continue to block conflicting navigation.
+
+Risk assessment now uses the five original November 17 XLSX files. Their SHA-256 values match the existing backend templates. `scripts/extract-risk-paper.py` extracts all 27 print areas, merged cells, column proportions, row heights, text and styles; styles are deduplicated in `risk-paper-templates.js`. The 204 existing assessment rows retain their server IDs and content. Site and evaluation type are automatic; date, evaluator, target, risk level, improvement measures, deadlines, completion dates and owner are entered within red cells. Existing exclusions and additional work remain available. Three improvement-record worksheets per book contain the original photo locations. Printing uses the same worksheet layout with values instead of edit controls.
+
+Validation: four-role full-app DOM retention regression (including asynchronous loading, unsaved input, attachment state, scroll, disclosure state, shell rebuilds, close cancellation and logout); four-role editor/save/error/print DOM regression; original risk record authorization, history, concurrency, photo ownership and RLS suite; organization suite; 44 incident lifecycle checks; existing sidebar and analysis navigation regressions; JavaScript syntax and diff whitespace checks.
+
+No production records or database schema were modified. The browser preview could not open because the cloud browser returned `Storage.setCookies: Invalid cookie fields`. Pixel rendering, Safari/iPhone behavior and actual print/PDF appearance remain visually unverified; DOM print checks are not equivalent to a printer/browser review.

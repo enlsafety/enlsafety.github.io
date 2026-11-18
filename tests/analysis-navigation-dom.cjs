@@ -190,7 +190,7 @@ function loadScript(file){
  assert.equal(w.__fixtureCalls.filter(x=>x==='platform_enter').length,calls,'document entry uses its authorized list endpoint only');
  assert.equal(d.querySelectorAll('.risk-panel [data-folder-action]').length,role==='safety'?3:0,'folder edit permission');
  checkMobileManagement(d.querySelector('.risk-panel'));
- await frame.activateWorkTab('organization');await until(()=>d.querySelector('.org-panel:not(.risk-panel) .org-site-card'),'return to organization');
+ await frame.activateWorkTab('organization');await until(()=>d.querySelector('.org-panel:not(.risk-panel) .org-document-card'),'return to retained organization');
  assert.equal(d.querySelectorAll('.org-panel:not(.risk-panel) [data-folder-action]').length,role==='safety'?3:0);
  checkMobileManagement(d.querySelector('.org-panel:not(.risk-panel)'));
  assert.deepEqual(errors,[],'no script errors '+role);console.log('PASS DOM '+role+': cost ratios/sorting/unknowns, inline month and report links, map ranking/select/outside-reset, roles and existing navigation');

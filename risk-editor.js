@@ -63,9 +63,16 @@
     documentData=result;content=structuredClone(result.document.content);revision=result.document.revision;latest=result.latestRevision;history=result.history;template=result.template;photos=new Map((result.photos||[]).map(p=>[p.id,p]));dirty=false;draw();if(success)note.textContent=success;
    }catch(e){if(current()&&seq===token)host.replaceChildren(el('p','평가서를 불러오지 못했습니다.','org-status'),btn('다시 불러오기',()=>load(selectedRevision)),btn('평가서 목록',()=>{if(canLeave())onBack();}));}
   }
+  function paper(sheet,printing=false){return window.enlRiskPaper(sheet,{content,site,kind,writable:writable(),changed,photoControl,print:printing});}
   function drawRows(){
    tab=sectionSelect.value;rowsHost.replaceChildren();
-   for(const row of content.rows.filter(r=>r.section===tab)){
+   const sheet=window.ENLRiskPaperTemplates[templateId].sheets.find(s=>s.name===tab);
+   if(sheet)rowsHost.append(paper(sheet));
+   drawAdditionalRows();
+  }
+  function drawAdditionalRows(){
+
+   for(const row of content.rows.filter(r=>r.section===tab&&r.id.startsWith('custom-'))){
     const card=el('article',null,'risk-row');card.dataset.riskRow=row.id;card.dataset.level=row.level;card.classList.toggle('risk-excluded',row.excluded);
     const head=el('div',null,'risk-row-head');head.append(el('strong',row.number+'. '+(row.task||'추가 작업')));
     const excluded=el('label',null,'risk-exclude'),checkbox=el('input');checkbox.type='checkbox';checkbox.checked=row.excluded;checkbox.disabled=!writable();checkbox.setAttribute('aria-label',row.number+'번 평가 제외');
@@ -95,10 +102,8 @@
    }
    if(revision!==latest)editor.append(el('p','이전 저장본은 조회만 가능합니다. 최신 저장본을 선택하면 수정할 수 있습니다.','risk-message'));
    else if(!writable())editor.append(el('p','조회 전용입니다. 해당 사업장 현장 계정과 안전관리자가 수정할 수 있습니다.','org-status'));
-   const meta=el('div',null,'risk-meta');meta.append(field('평가일',content,'assessmentDate','date'),field('평가자',content,'evaluator'),field('평가대상',content,'target'));
-   if(kind==='initial')meta.append(field('사업장 오픈 예정일',content,'openingDate','date'));
-   editor.append(meta);
-   editor.append(el('p','판단기준: 상 = 사망 또는 중대재해 가능, 안전조치 미흡 / 중 = 휴업재해 가능, 일부 개선 필요 / 하 = 경미한 재해 가능, 안전조치 적정','risk-guide'));
+   if(kind==='initial')editor.append(field('사업장 오픈 예정일',content,'openingDate','date'));
+   editor.append(el('p','제공된 엑셀 양식입니다. 사업장명과 평가구분은 자동 표시되며, 빨간 테두리 안에 평가일자, 평가대상, 평가자와 평가결과를 입력하세요. 표는 좌우로 이동할 수 있습니다.','risk-guide'));
    summary=el('p','','risk-summary');editor.append(summary);updateSummary();
    const nav=el('div',null,'risk-section-nav'),sectionLabel=el('label','작업 구분');sectionSelect=el('select');sectionSelect.dataset.riskSection='';
    for(const s of [...new Set(content.rows.map(r=>r.section))])sectionSelect.add(new Option(s,s));if([...sectionSelect.options].some(o=>o.value===tab))sectionSelect.value=tab;
@@ -107,18 +112,15 @@
    editor.append(nav);rowsHost=el('div',null,'risk-rows');editor.append(rowsHost);drawRows();
    editor.append(field('평가 메모',content,'notes','textarea'));
    const improvements=el('details',null,'risk-improvements');improvements.append(el('summary','개선 전후 기록 (3건)'),el('p','사진은 문서 표시용으로 크기를 조정해 저장합니다. 원본 사진은 별도로 보관해 주세요.','org-status'));
-   content.improvements.forEach((r,i)=>{
-    const card=el('article',null,'risk-improvement');card.append(el('h4','개선 전후 기록 '+(i+1)));
-    const fields=el('div',null,'risk-fields');for(const [key,label,type] of [['number','관련 평가번호'],['process','공정'],['task','작업'],['hazard','위험요인','textarea'],['measure','개선내용','textarea'],['date','개선일자','date'],['reviewer','확인자']])fields.append(field(label,r,key,type||'text'));
-    card.append(fields);const pictures=el('div',null,'risk-photos');for(const [key,label] of [['beforePhoto','개선 전 사진'],['afterPhoto','개선 후 사진']])pictures.append(photoControl(r,key,label));card.append(pictures);improvements.append(card);
-   });editor.append(improvements,note);
+   for(const sheet of window.ENLRiskPaperTemplates[templateId].sheets.filter(s=>s.improvement))improvements.append(paper(sheet));
+   editor.append(improvements,note);
    if(writable()){const actions=el('div',null,'risk-save-actions');actions.append(btn('저장',()=>save('draft'),'org-primary'),btn('평가완료로 저장',()=>save('completed')));editor.append(actions);}
    host.replaceChildren(editor);
   }
-  function photoControl(row,key,label){
+  function photoControl(row,key,label,printing=false){
    const box=el('div',null,'risk-photo');box.append(el('strong',label));const preview=el('div');box.append(preview);
    const paint=()=>{preview.replaceChildren();const p=photos.get(row[key]);if(p){const img=el('img');img.alt=label;img.src='data:'+p.mime+';base64,'+p.base64;preview.append(img);}else preview.append(el('p','등록된 사진 없음','org-status'));};paint();
-   if(writable()){
+   if(writable()&&!printing){
     const input=el('input');input.type='file';input.accept='image/jpeg,image/png,image/webp,image/heic,image/heif';input.setAttribute('aria-label',label+' 선택');
     input.onchange=async()=>{
      if(busy||!input.files[0])return;busy=true;const end=window.ENLProcessing?.begin();
@@ -142,23 +144,25 @@
    return {id,mime:'image/jpeg',base64:data.split(',')[1]};
   }
   function print(){
-   const root=el('div');root.id='risk-print-page';root.append(el('h1',site.site_name+' '+caption[kind]),el('p',(kind==='regular'?period+'년 / ':'')+template.name+' / 평가일 '+(content.assessmentDate||'미입력')+' / 평가자 '+(content.evaluator||'미입력')));
-   if(dirty||!revision)root.append(el('p','저장 전 작성본'));
-   for(const section of [...new Set(content.rows.map(r=>r.section))]){
-    const block=el('section');block.append(el('h2',section));const table=el('table'),head=el('thead'),hr=el('tr');for(const label of ['번호','공정 / 작업','위험요인','등급','개선대책','기한 / 완료','담당'])hr.append(el('th',label));head.append(hr);table.append(head);const body=el('tbody');
-    for(const r of content.rows.filter(r=>r.section===section)){const tr=el('tr');for(const v of [r.number,r.process+'\n'+r.task,r.hazard,r.excluded?'제외':r.level,r.excluded?'제외 사유: '+r.excludeReason:r.measure,r.dueDate+'\n'+r.doneDate,r.owner])tr.append(el('td',String(v)));body.append(tr);}table.append(body);block.append(table);root.append(block);
+   const root=el('div');root.id='risk-print-page';root.className='risk-fixed-print';
+   for(const sheet of window.ENLRiskPaperTemplates[templateId].sheets){
+    const page=el('section',null,'risk-print-sheet');
+    if(dirty||!revision)page.append(el('small','저장 전 작성본'));
+    page.append(paper(sheet,true));root.append(page);
    }
-   if(content.notes)root.append(el('p','평가 메모: '+content.notes));
-   for(const [i,r] of content.improvements.entries()){
-    if(!Object.values(r).some(Boolean))continue;
-    const block=el('section',null,'risk-print-improvement');block.append(el('h2','개선 전후 기록 '+(i+1)));
-    for(const [k,l] of [['number','평가번호'],['process','공정'],['task','작업'],['hazard','위험요인'],['measure','개선내용'],['date','개선일자'],['reviewer','확인자']])block.append(el('p',l+': '+r[k]));
-    for(const [k,l] of [['beforePhoto','개선 전'],['afterPhoto','개선 후']]){block.append(el('h3',l));const p=photos.get(r[k]);if(p){const img=el('img');img.src='data:'+p.mime+';base64,'+p.base64;img.alt=l;block.append(img);}}root.append(block);
+   const extra=content.rows.filter(r=>r.id.startsWith('custom-'));
+   if(extra.length||content.notes||content.openingDate){
+    const page=el('section',null,'risk-print-sheet');page.append(el('h2','추가 기록'));
+    if(content.openingDate)page.append(el('p','사업장 오픈 예정일: '+content.openingDate));
+    for(const r of extra)page.append(el('p',[r.number,r.section,r.process,r.task,r.hazard,r.excluded?'제외: '+r.excludeReason:r.level,r.measure,r.dueDate,r.doneDate,r.owner].join(' / ')));
+    if(content.notes)page.append(el('p','평가 메모: '+content.notes));root.append(page);
    }
    document.getElementById('risk-print-page')?.remove();document.body.append(root);
-   const cleanup=()=>root.remove();window.addEventListener('afterprint',cleanup,{once:true});window.print();
+   const rules=el('style','@page {size:A4 portrait;margin:7mm}');document.head.append(rules);
+   const cleanup=()=>{root.remove();rules.remove();};window.addEventListener('afterprint',cleanup,{once:true});
+   try{window.print();}catch(e){cleanup();throw e;}
   }
-  load();return {canLeave,destroy};
+  load();return {canLeave,canSuspend:()=>!busy,destroy};
  }
  window.enlRiskEditor=mount;
 })();

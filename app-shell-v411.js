@@ -142,6 +142,8 @@
   function renderReaderHome(root,u){return renderSafetyHome(root,u)}
 
   function route(root,u){
+    const retained=root.closest('.app-shell')?.enlWorkspaceFrame?.restoreTabView?.(root);
+    if(retained)return retained;
     if(currentView==='platform-tool'&&!root.closest('.app-shell').enlWorkspaceFrame)currentView='platform';
     window.enlEnsureWorkspace?.(root,u)?.syncWorkView(root,u);
     if(currentView==='platform-tool'){root.replaceChildren();return root;}
