@@ -44,7 +44,7 @@ async function check(browser, role, width) {
     await page.locator('.hub-inquiry').click();await active('inquiry');
     await page.getByRole('button',{name:(role==='safety'?'문의함':'안전관리자 문의')+' 탭 닫기'}).click();await active('home');
     await page.locator('[data-hub=recent]').click();await active('recent');
-    await page.locator('.activity-history[data-feed=incident]').waitFor();
+    await page.locator('.activity-history[data-feed=all]').waitFor();
     await page.getByRole('button',{name:'최근 작업 탭 닫기'}).click();await active('home');
     const editor=page.locator('.hub-sidebar-editor [data-edit]');
     if(role==='safety'){
@@ -122,10 +122,13 @@ async function check(browser, role, width) {
       const dashboardTiles=await tileBoxes('.stats426-card');
       await page.locator('[data-shell-view=home]').click();
       const [reference]=await tileBoxes('[data-safety-status=all]');
-      assert.ok(dashboardTiles.every(([w])=>w>reference[0]),'dashboard keeps its own card width');
+      assert.equal(await page.locator('[data-safety-status]').count(),8);
+      assert.ok(reference[0]>0,'status cards are visible');
       await page.locator('[data-shell-view=report]').click();
-      assert.ok((await tileBoxes('.report-type-card')).every(([w])=>w>2*reference[0]),'report choices restore their larger card layout');
+      const choices=await tileBoxes('.report-type-card');
+      assert.ok(choices.length>=2&&choices.every(([w])=>w>reference[0]),'report choices retain their larger card layout');
       await page.locator('[data-shell-view=stats]').click();
+      assert.deepEqual(await tileBoxes('.stats426-card'),dashboardTiles,'dashboard dimensions survive switching views');
     }
     await side('feature:incident');
     assert.equal(await tab('incident').count(), 1);
