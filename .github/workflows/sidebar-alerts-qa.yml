@@ -1,0 +1,17 @@
+name: Sidebar confirmation checks
+on:
+  push:
+    branches: [qa/sidebar-confirmed-r152]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.51.1-noble
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install --no-save --package-lock=false playwright@1.51.1
+      - run: node tests/organization-badges-browser.cjs
+      - run: node tests/attention-workflow-browser.cjs
+      - run: node tests/newsroom-browser.cjs
