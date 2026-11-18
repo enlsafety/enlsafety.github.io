@@ -23,6 +23,28 @@ for(const m of config.modules)if(documentNames[m.key])m.displayName=documentName
    const usage=d.querySelector('.hub-storage-usage');assert.ok(usage);assert.ok(usage.previousElementSibling.classList.contains('hub-inquiry'));assert.ok(usage.nextElementSibling.classList.contains('hub-sidebar-editor'));
    assert.equal(w.__fixtureCalls.filter(x=>x==='platform_storage_usage').length,1);
   }else{assert.equal(d.querySelector('.hub-storage-usage'),null);assert.equal(w.__fixtureCalls.filter(x=>x==='platform_storage_usage').length,0);}
+  const topMenus=()=>[...nav.querySelectorAll(':scope > [data-hub], :scope > .hub-sidebar-row > [data-hub]')].map(b=>b.dataset.hub);
+  assert.deepEqual(topMenus().slice(0,3),['home','safetyCard','boards']);
+  const card=()=>nav.querySelector('[data-hub="safetyCard"]');
+  card().click();await until(()=>!d.querySelector('.hub-module-preview').hidden,'safety card opens');
+  assert.equal(d.querySelector('.hub-module-preview h2').textContent,'안전관리카드');
+  assert.equal(card().getAttribute('aria-current'),'page');
+  nav.querySelector('[data-hub="boards"]').click();await until(()=>hub.dataset.workspace==='boardAll','board still opens');
+  nav.querySelector('[data-hub="home"]').click();await until(()=>hub.dataset.workspace==='home','back from board');
+  if(role==='safety'){
+    const edit=d.querySelector('.hub-sidebar-editor [data-edit]');
+    const up=key=>nav.querySelector('[data-hub="'+key+'"]').parentElement.querySelector('.hub-order-step');
+    const before=topMenus();
+    edit.click();assert.equal(up('safetyCard').disabled,true);up('boards').click();
+    assert.deepEqual(topMenus().slice(0,3),['home','boards','safetyCard']);
+    d.querySelector('.hub-sidebar-editor [data-cancel]').click();assert.deepEqual(topMenus(),before);
+    edit.click();up('boards').click();edit.click();
+    await until(()=>edit.getAttribute('aria-pressed')==='false'&&!edit.disabled,'save order');
+    await hub.reloadCatalog();assert.deepEqual(topMenus().slice(0,3),['home','boards','safetyCard']);
+    edit.click();up('safetyCard').click();edit.click();
+    await until(()=>edit.getAttribute('aria-pressed')==='false'&&!edit.disabled,'restore order');
+    assert.deepEqual(topMenus(),before);
+  }
   const keys=[...nav.querySelectorAll('[data-hub]')].map(n=>n.dataset.hub);
   let group=d.querySelector('.hub-document-menus');assert.equal(group.open,true);group.querySelector('summary').click();await until(()=>!group.open,'collapse');
   await hub.reloadCatalog();group=d.querySelector('.hub-document-menus');assert.equal(group.open,false,'collapse retained on catalog refresh');group.querySelector('summary').click();await until(()=>group.open,'expand');
