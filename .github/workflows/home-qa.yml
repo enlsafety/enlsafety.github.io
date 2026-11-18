@@ -23,16 +23,11 @@ jobs:
         suite: [dashboard-browser,system-admin-workspace]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    container: mcr.microsoft.com/playwright:v1.51.1-noble
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
       - run: npm install --no-save --package-lock=false playwright@1.51.1
-      - run: |
-          for source in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
-            [ -f "$source" ] || continue
-            sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source"
-          done
-          npx playwright install --with-deps chromium webkit
       - run: node tests/${{ matrix.suite }}.cjs
