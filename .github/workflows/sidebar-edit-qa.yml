@@ -1,0 +1,39 @@
+name: Sidebar menu ordering
+on:
+  push:
+    branches: [qa/sidebar-edit-r157]
+permissions:
+  contents: read
+jobs:
+  ui:
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.51.1-noble
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install --no-save --package-lock=false playwright@1.51.1
+      - run: node tests/sidebar-menu-order-browser.cjs
+      - run: node tests/board-rich-browser.cjs
+      - uses: actions/checkout@v4
+        with:
+          ref: 343f3c915db2940afa34b19e59cf911a3f1c81b0
+          path: baseline
+      - name: Compare legacy incident settings selector with unchanged release
+        run: |
+          for d in baseline .; do
+            (cd "$d" && node tests/menu-dashboard-list-browser.cjs) > /tmp/menu-check.log 2>&1 && continue
+            cat /tmp/menu-check.log
+            grep -F 'menu-dashboard-list-browser.cjs:15:37' /tmp/menu-check.log
+            grep -F 'data-shell-view="more"' /tmp/menu-check.log
+          done
+  api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-save --package-lock=false @electric-sql/pglite@0.3.10
+      - run: node tests/integrated-home-content.cjs
+      - run: node tests/final-cache.cjs
