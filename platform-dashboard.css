@@ -645,3 +645,39 @@
 .hub-document-menus>.hub-sidebar-row{position:relative;padding-left:8px;margin-top:1px}.hub-document-menus>.hub-sidebar-row:before{content:'';position:absolute;left:8px;top:0;bottom:0;width:1px;background:#547a9b55}.hub-document-menus>.hub-sidebar-row:after{content:'';position:absolute;left:7px;top:50%;width:3px;height:3px;border-radius:50%;background:#8cb3d369}.hub-document-menus>.hub-sidebar-row:last-child:before{bottom:50%}
 .platform-hub .hub-document-menus button{min-height:32px;font-size:12px;padding:6px 9px;gap:8px}.platform-hub .hub-document-menus button:disabled{color:#aabed2;cursor:default}
 @media(hover:none) and (pointer:coarse){.platform-hub .hub-sidebar nav button,.platform-hub .hub-document-menus>summary{min-height:44px}.platform-hub .hub-sidebar .hub-favorites button{min-height:44px}}
+
+/* Home content below the existing banner. Other workspaces hide the home wrapper. */
+.platform-hub .hub-home-content {
+ grid-template-columns:minmax(0,1fr);
+ gap:18px;
+}
+.hub-newsroom {
+ display:grid;
+ grid-template-columns:minmax(0,7fr) minmax(290px,3fr);
+ gap:14px;
+}
+.platform-hub .hub-newsroom .hub-right {grid-template-columns:minmax(0,1fr)}
+.hub-newsroom .hub-panel>header {flex-wrap:wrap}
+.hub-newsroom .hub-panel>header button {margin-left:auto}
+.hub-newsroom .hub-schedule h2 {flex-wrap:wrap}
+.hub-newsroom .hub-schedule [data-list] {padding-right:0}
+.hub-newsroom .hub-schedule:after {width:70px;height:70px;opacity:.12}
+.platform-hub .hub-newsroom .hub-notice-lead {
+ display:grid;
+ grid-template-columns:auto minmax(0,1fr);
+ gap:6px 10px;
+ padding:12px 2px 15px;
+}
+.hub-newsroom .hub-notice-lead time {grid-row:1;grid-column:2}
+.hub-newsroom .hub-notice-lead strong {
+ grid-row:2;
+ grid-column:1 / -1;
+ font-size:clamp(20px,1.65vw,28px);
+ line-height:1.35;
+ white-space:normal;
+ overflow-wrap:anywhere;
+}
+.hub-home-content .hub-recent .hub-empty {min-height:0;padding:12px}
+@media(max-width:1100px) {
+ .hub-newsroom {grid-template-columns:minmax(0,1fr)}
+}
