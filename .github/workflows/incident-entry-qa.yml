@@ -1,0 +1,23 @@
+name: Incident dashboard entry
+on:
+  push:
+    branches: [qa/incident-entry-r158]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.51.1-noble
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [incident-dashboard-entry-browser,executive-closure-browser]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-save --package-lock=false playwright@1.51.1 @electric-sql/pglite@0.3.10
+      - run: node tests/${{ matrix.suite }}.cjs
+      - run: node tests/final-cache.cjs
