@@ -1,0 +1,19 @@
+name: Incident workflow card checks
+on:
+  push:
+    branches: [qa/accident-cards-r153]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [incident-stages-browser, attention-workflow-browser, workspace-tabs-browser]
+    container: mcr.microsoft.com/playwright:v1.51.1-noble
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install --no-save --package-lock=false playwright@1.51.1
+      - run: node tests/${{ matrix.suite }}.cjs
