@@ -13,9 +13,11 @@ const until=async(fn,label)=>{for(let i=0;i<400;i++){if(fn())return;await new Pr
   html=html.replace(/<script src="([^"]+)"><\/script>/g,(_,url)=>{
    const file=url.split('?')[0];let source=fs.readFileSync(file,'utf8');
    if(file==='tests/integrated-home-fixture.js')source=source.replaceAll("['incident','history','notices','system'].includes(key)","['incident','organization','risk','history','notices','system'].includes(key)");
+   if(file==='tests/integrated-home-fixture.js')source=source.replace("if(b.action==='platform_catalog')","if(b.action==='platform_risk_list')out=await window.qaRiskList(b);if(b.action==='platform_catalog')");
    return '<script>'+source.replace(/<\/script/gi,'<\\/script')+'</script>';
   }).replace(/<link[^>]*>/g,'');
   const dom=new JSDOM(html,{url:'https://isolated.test/stable412.html?role='+role,runScripts:'dangerously',pretendToBeVisual:true,virtualConsole:vc,beforeParse(w){
+   w.qaRiskList=async body=>(await f.call(role,{action:'platform_risk_list',manageFolders:body.manageFolders,includeTasks:body.includeTasks})).body;
    Object.assign(w,{TextEncoder,TextDecoder,structuredClone,Response,Request,Headers,AbortController,fetch:async()=>new Response('{}'),scrollTo:(x,y)=>{w.scrollX=x;w.scrollY=y;},confirm:()=>{confirms++;return answer;},alert:()=>{}});
    w.ResizeObserver=class{observe(){}disconnect(){}};w.HTMLElement.prototype.scrollIntoView=()=>{};w.matchMedia=()=>({matches:false,addEventListener(){},removeEventListener(){}});w.URL.createObjectURL=()=>'';w.URL.revokeObjectURL=()=>{};
   }});

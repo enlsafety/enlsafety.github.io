@@ -23,4 +23,6 @@ jobs:
             sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source"
           done
           npx playwright install --with-deps chromium webkit
-      - run: node tests/system-admin-workspace.cjs && node tests/dashboard-browser.cjs
+      - run: node tests/system-admin-workspace.cjs
+      - if: ${{ !cancelled() }}
+        run: node tests/dashboard-browser.cjs
