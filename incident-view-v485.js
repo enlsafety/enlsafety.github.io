@@ -24,8 +24,10 @@
      if(result?.ok!==true)throw Error('view_not_saved');
      v.done=true;confirmed.add(v.key);
      if(actor()?.id===v.actor.id){
-       if(['manager','final'].includes(v.actor.role))window.dispatchEvent(new CustomEvent('enl-report-view-saved',{detail:{incidentId:v.id}}));
-       if(['manager','executive','final'].includes(v.actor.role))window.enlPushFlush?.();
+       if(['manager','executive','final'].includes(v.actor.role)){
+         window.dispatchEvent(new CustomEvent('enl-report-view-saved',{detail:{incidentId:v.id,actorId:v.actor.id}}));
+         window.enlPushFlush?.();
+       }
        window.dispatchEvent(new Event('enl-activity-changed'));
      }
    }catch{

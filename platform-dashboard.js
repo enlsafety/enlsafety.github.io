@@ -610,7 +610,7 @@
   const taskCounts=new Map();
   host.setTaskCount=(key,count)=>{
     taskCounts.set(key,count);
-    const selector=key==='support'?'[data-hub="support"]':'[data-hub="feature:'+key+'"]';
+    const selector='[data-hub="feature:'+key+'"]';
     const button=sidebar.querySelector(selector);
     if(!button)return;
     let dot=button.querySelector('.hub-task-dot');
@@ -723,15 +723,14 @@
     const readable=moduleAvailable(entry('incident'));
     let tasks=0;
     if(readable){
-      if(u.role==='safety')tasks=window.enlSafetyActionCounts?.(u)?.total||pending.length;
+      if(u.role==='safety')tasks=window.enlSafetyActionCounts?.(u)?.total||0;
       else if(u.role==='field')tasks=window.enlFieldAttentionCount?.(u)||0;
       else if(['manager','executive'].includes(u.role)){
         const decisions=new Set(pending);
-        tasks=scopedIncidents().filter(i=>['reported','supplement','supplement_submitted'].includes(i.status)||decisions.has(i)).length;
+        tasks=scopedIncidents().filter(i=>window.enlNeedsReportView?.(i.id)||decisions.has(i)).length;
       }
     }
     host.setTaskCount('incident',tasks);
-    host.setTaskCount('support',moduleAvailable(entry('approvals'))?pending.length:0);
     showFeedCount('[data-approval-count]',pending.length);
     approvalBody(host.querySelector('[data-list=approvals]'),true,pending);
     const box=host.querySelector('[data-list-workspace=approvals] [data-approval-list]');
@@ -1004,7 +1003,9 @@
       const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=async()=>{const already=active==='history';if(!await selectTab('history',false,key))return;if(already){window.enlRequestHistory?.(key);window.enlRenderHistory?.(host.closest('.app-shell').querySelector('#view'),key)}};nav.append(b);
     }
   }
-  const refresh=()=>{if(sameUser())paintApprovals();else window.removeEventListener('enl-incidents-pulled',refresh)};window.addEventListener('enl-incidents-pulled',refresh);
+  const workEvents=['enl-incidents-pulled','enl-incident-saved','enl-report-view-saved'];
+  const refresh=()=>{if(sameUser())paintApprovals();else for(const event of workEvents)window.removeEventListener(event,refresh);};
+  for(const event of workEvents)window.addEventListener(event,refresh);
   if(!window.enlHistoryAvailable)window.addEventListener('enl-history-ready',()=>{if(sameUser())loadRecent()},{once:true});
   const openBannerNotice=id=>{if(sameUser()&&active==='home')readContent({id,kind:'notice'})};
   async function loadBanners(){try{const config=await api({action:'platform_banners'});if(!sameUser())return;

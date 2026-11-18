@@ -10,6 +10,8 @@ async function managerHome(engine){
     await page.evaluate(()=>{
       window.app=document.getElementById('app');
       window.__u={id:'u-manager-real',name:'김관리',role:'manager',position:'차장',active:true};
+      window.unread=new Set(['inc-reader-pending']);
+      window.enlNeedsReportView=id=>unread.has(id);
       window.currentUser=()=>window.__u;
       window.currentView='home';window.session={};window.enlPlatformSection='hub';window.ENL_PLATFORM_SECTION_KEY='qa';
       window.data={sites:[{id:'s01',name:'테스트 사업장'}],users:[],incidents:[
@@ -31,6 +33,9 @@ async function managerHome(engine){
     await page.waitForTimeout(60);
     assert.equal(await page.locator('[data-shell-view="incidents"] > .enl424-nav-dot').count(),1,'reader simple-confirmation event should remain a red dot');
     assert.equal(await page.locator('[data-shell-view="incidents"] > .enl424-nav-count').count(),0,'reader simple-confirmation event must not become a number');
+    await page.evaluate(()=>{unread.clear();window.dispatchEvent(new Event('enl-report-view-saved'));});
+    await page.locator('[data-shell-view="incidents"] > .enl424-nav-dot').waitFor({state:'detached'});
+    assert.equal(await page.locator('[data-unread-report]').count(),0);
     await page.locator('[data-safety-inc="inc-approved"]').click();
     assert.equal(await page.evaluate(()=>window.__opened),'inc-approved');
 

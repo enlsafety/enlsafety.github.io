@@ -20,9 +20,16 @@
     let lastList=null,listedAt=0;
     function readList(force=false){
       if(!force&&lastList&&Date.now()-listedAt<30000)return Promise.resolve(lastList);
+      if(force)listFlight=null;
       if(!listFlight){
         const flight=api({action:'platform_risk_list',manageFolders:admin,includeTasks:admin||user.role==='field'}).then(result=>{
-          if(sameUser()&&enabled){lastList=result;listedAt=Date.now();host.setTaskCount?.('risk',result.sites.reduce((n,s)=>n+(s.tasks||0),0));}
+          if(listFlight!==flight)return listFlight||lastList||result;
+          if(sameUser()&&enabled){
+            lastList=result;listedAt=Date.now();sites=result.sites.sort((a,b)=>sortKo.compare(a.folder_name||a.site_name,b.folder_name||b.site_name));
+            host.setTaskCount?.('risk',sites.reduce((n,s)=>n+(s.tasks||0),0));
+            if(main?.querySelector('.org-site-grid'))drawSites();
+            if(railBody)drawRail();
+          }
           return result;
         }).finally(()=>{if(listFlight===flight)listFlight=null;});
         listFlight=flight;
@@ -72,7 +79,7 @@
       const grid=$('div',null,'org-site-grid');
       for(const site of sites){
         const row=button('',()=>choose(site.site_id),'org-site-card');
-        row.append($('strong',site.folder_name||site.site_name),$('span',site.active===false?'종료 사업장':'위험성평가 메뉴','org-status'));
+        row.append($('strong',site.folder_name||site.site_name),$('span',site.tasks?'처리 필요 '+site.tasks:site.active===false?'종료 사업장':'위험성평가 메뉴',site.tasks?'org-state pending':'org-status'));
         row.setAttribute('aria-label',(site.folder_name||site.site_name)+' 위험성평가 메뉴 열기');
         grid.append(row);
       }
@@ -180,7 +187,7 @@
       try{
         const result=await readList();
         if(!sameUser()||token!==sequence)return;
-        sites=Array.isArray(result.sites)?result.sites.sort((a,b)=>sortKo.compare(a.folder_name||a.site_name,b.folder_name||b.site_name)):[];
+        sites=result.sites;
         candidates=Array.isArray(result.candidates)?result.candidates:[];
         if(admin){
           const tools=$('div',null,'org-manage-tools');

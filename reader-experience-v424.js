@@ -22,6 +22,7 @@
       .shell411-nav button{position:relative}
       .enl424-nav-dot{position:absolute;top:5px;right:5px;width:9px;height:9px;border-radius:50%;background:#d93636;border:2px solid #fff;box-shadow:0 0 0 1px rgba(173,36,36,.12);pointer-events:none}
       .enl424-nav-count{position:absolute;top:-8px;right:-7px;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:#c93434;color:#fff!important;border:2px solid #fff;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:950;line-height:1;box-shadow:0 3px 9px rgba(172,36,36,.28);pointer-events:none;z-index:2}
+      #view [data-unread-report]{position:relative}
       .wf412-own-delete{background:#fff0f0!important;color:#9d3737!important;border:1px solid #e7b5b5!important}
       .wf412-own-delete:disabled{opacity:.55}
       @media(max-width:560px){.enl424-nav-dot{top:4px;right:4px;width:9px;height:9px}.enl424-nav-count{top:-7px;right:-5px;min-width:21px;height:21px;font-size:9.5px}.wf412-own-delete{width:auto!important}}
@@ -58,9 +59,14 @@
 
   function readerIncidentDots(u){
     const arr=[...(data?.incidents||[])];
-    const pending=arr.filter(i=>!historicalClosed(i)&&['reported','supplement','supplement_submitted'].includes(String(i.status||'')));
-    dot(document.querySelector('[data-shell-view="home"]'),pending.length>0,'새 사고보고 또는 보완 진행 건이 있습니다');
-    dot(document.querySelector('[data-shell-view="incidents"]'),pending.length>0,'즉시보고·보완 진행 건이 있습니다');
+    const pending=new Set(arr.filter(i=>window.enlNeedsReportView?.(i.id)).map(i=>i.id));
+    for(const row of document.querySelectorAll('#view button[data-inc-id],#view button[data-safety-inc],#view button[data-reader-open]')){
+      const unread=pending.has(row.dataset.incId||row.dataset.safetyInc||row.dataset.readerOpen);
+      row.toggleAttribute('data-unread-report',unread);
+      dot(row,unread,'아직 열람하지 않은 사고보고');
+    }
+    dot(document.querySelector('[data-shell-view="home"]'),pending.size>0,'새 사고보고 또는 보완 진행 건이 있습니다');
+    dot(document.querySelector('[data-shell-view="incidents"]'),pending.size>0,'즉시보고·보완 진행 건이 있습니다');
     dot(document.querySelector('[data-lifecycle-closed]'),false);
   }
   function safetyHasOwnApproval(i,u){
@@ -172,6 +178,7 @@
   },true);
   const root=document.getElementById('app')||document.body,mo=new MutationObserver(schedule);mo.observe(root,{childList:true,subtree:true});
   setInterval(()=>{const u=currentUser?.();if(u&&document.visibilityState!=='hidden'){refreshNav();decorateOwnComments()}},30000);
+  for(const event of ['enl-incidents-pulled','enl-report-view-saved'])window.addEventListener(event,schedule);
   window.addEventListener('pageshow',()=>setTimeout(schedule,80));
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')setTimeout(schedule,80)});
   window.enlSafetyActionCounts=u=>safetyActionCounts(u||currentUser?.());

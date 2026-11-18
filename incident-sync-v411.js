@@ -21,7 +21,8 @@
   // base of a draft silently; only this tab's confirmed writes can be rebased.
   const authoritative=new Map(),history=new Map(),ownWrites=new Map();
   const queues=new Map(),inflight=new Map(),retryWrites=new Map(),failures=new Map(),drafts=new Map();
-  const notices=new Map(),deleted=new Set();
+  const notices=new Map(),deleted=new Set(),confirmedViews=new Set();
+  let unreadReports=new Set();
   let applyingRemote=false,syncing=false,pending=false,serverReady=false,dirty=false,syncTimer=null,pullSequence=0;
   let sessionKey='',lastPersisted='';
   const baseSaveData=saveData;
@@ -35,7 +36,7 @@
   const same=(a,b)=>contentSignature(a)===contentSignature(b);
   const find=id=>(data.incidents||[]).find(i=>String(i.id)===String(id));
   const key=a=>a?[a.id,a.role,a.siteId].join('|'):'';
-  function scope(){const k=key(actor());if(k!==sessionKey){sessionKey=k;deleted.clear();authoritative.clear();history.clear();ownWrites.clear();retryWrites.clear();failures.clear();drafts.clear();notices.clear();serverReady=false;for(const i of data.incidents||[])remember(i);}return k;}
+  function scope(){const k=key(actor());if(k!==sessionKey){sessionKey=k;unreadReports.clear();confirmedViews.clear();deleted.clear();authoritative.clear();history.clear();ownWrites.clear();retryWrites.clear();failures.clear();drafts.clear();notices.clear();serverReady=false;for(const i of data.incidents||[])remember(i);}return k;}
   function remember(i){
     if(!i?.id||deleted.has(String(i.id)))return false;const id=String(i.id),old=authoritative.get(id);
     if(old&&version(old)>version(i))return false;
@@ -103,7 +104,7 @@
   function scopedRemote(items,a){return (Array.isArray(items)?items:[]).filter(i=>i?.id&&(['safety','manager','executive'].includes(a?.role)||['field','worker'].includes(a?.role)&&String(i.siteId)===String(a.siteId)));}
   async function pull(renderIfChanged=true){
     const a=actor();if(!a)return false;const owner=scope(),sequence=++pullSequence,started=new Map([...authoritative].map(([id,i])=>[id,version(i)]));
-    const res=await call({action:'pull',actor:a,role:a.role,siteId:a.siteId});
+    const res=await call({action:'pull',actor:a,role:a.role,siteId:a.siteId,includeUnreadReports:['manager','executive','final'].includes(a.role)});
     if(owner!==key(actor())||owner!==sessionKey)return false;
     let changed=forgetDeleted(Array.isArray(res.deletedIds)?res.deletedIds:[]);
     const remote=scopedRemote(res.incidents,a).filter(i=>!deleted.has(String(i.id))),busy=uiWriteBusy();
@@ -115,8 +116,14 @@
     }
     // Only the newest complete snapshot may remove records from the visible list.
     if(!busy&&!refreshDirty()&&sequence===pullSequence){const ids=new Set(remote.map(i=>String(i.id)));data.incidents=(data.incidents||[]).filter(i=>{const id=String(i.id);if(ids.has(id)||hasDraft(id)||started.get(id)!==version(authoritative.get(id)))return true;authoritative.delete(id);history.delete(id);changed=true;return false;});}
+    let unreadChanged=false;
+    if(sequence===pullSequence&&Array.isArray(res.unreadReportIds)){
+      const next=new Set(res.unreadReportIds.filter(id=>!confirmedViews.has(id)));
+      unreadChanged=next.size!==unreadReports.size||[...next].some(id=>!unreadReports.has(id));
+      unreadReports=next;
+    }
     serverReady=true;refreshDirty();persistConfirmed();
-    if(changed)window.dispatchEvent(new CustomEvent('enl-incidents-pulled'));
+    if(changed||unreadChanged)window.dispatchEvent(new CustomEvent('enl-incidents-pulled'));
     if(changed&&renderIfChanged&&canAutoRender())setTimeout(()=>{if(canAutoRender())try{renderShell(currentUser())}catch(e){}},0);
     return changed;
   }
@@ -250,6 +257,13 @@
   window.enlIncidentApi=api;window.enlIncidentAuthProof=authProof;
   window.enlIncidentSyncNow=()=>syncNow();window.enlIncidentPullNow=pull;
   window.enlIncidentAcknowledge=async(incidentId,u=currentUser(),documentType='incident_report')=>call({action:'acknowledge',actor:actor(),incidentId,documentType});
+  window.enlNeedsReportView=id=>sessionKey===key(actor())&&unreadReports.has(id);
+  window.addEventListener('enl-report-view-saved',event=>{
+    if(event.detail?.actorId!==actor()?.id)return;
+    scope();
+    confirmedViews.add(event.detail.incidentId);
+    unreadReports.delete(event.detail.incidentId);
+  });
   window.enlIncidentServerReady=()=>serverReady;
   window.enlIncidentAnalysisRecords=()=>{scope();return ['safety','manager','executive'].includes(actor()?.role)?clone([...authoritative.values()].filter(i=>!deleted.has(String(i.id)))):[];};
   window.enlIncidentPendingWrites=()=>queues.size;

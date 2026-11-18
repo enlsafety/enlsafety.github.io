@@ -24,8 +24,9 @@ async function check(engine,width) {
           window.records[0]={active:true,state,checked:state==='approved'};
           window.dispatchEvent(new Event('focus'));
         },state);
-        await org.waitFor({state:state==='approved'?'detached':'visible'});
-        if(state!=='approved')assert.match(await org.getAttribute('aria-label'),/1개 사업장/);
+        const actionable=state!=='approved'&&(role==='safety'||state!=='pending');
+        await org.waitFor({state:actionable?'visible':'detached'});
+        if(actionable)assert.match(await org.getAttribute('aria-label'),/1개 사업장/);
       }
       const centers=await page.locator('.hub-sidebar button>.org-dot').evaluateAll(dots=>dots.map(dot=>{
         const b=dot.getBoundingClientRect(),row=dot.parentElement.getBoundingClientRect();
@@ -36,11 +37,9 @@ async function check(engine,width) {
       for(const closed of [true,false]){
         await page.locator('summary').click();
         assert.equal(await page.locator('details').evaluate(el=>el.open),!closed);
-        const marker=await page.locator('summary').evaluate(el=>{
-          const css=getComputedStyle(el,'::before');
-          return {present:css.content==='""',x:el.getBoundingClientRect().right-parseFloat(css.right)};
-        });
-        assert.ok(marker.present && Math.abs(marker.x-centers[0].x)<1);
+        const marker=await page.locator('summary').evaluate(el=>getComputedStyle(el,'::before').content);
+        assert.ok(['none','normal'].includes(marker),marker);
+        assert.equal(await org.count(),1);
       }
     }
     console.log('PASS organization work states, role scope, disclosure and badge geometry',engine.name(),width);

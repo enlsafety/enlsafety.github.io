@@ -84,6 +84,12 @@
     let main,rail,railBody,folders=[],available=[],listingPeriod,managerForm;
     const admin=u.role==='safety';
     const onScreen=()=>sameUser()&&host.dataset.workspace==='organization';
+    function workState(site,state=site.state){
+      if(site.active===false)return '';
+      if(state==='approved')return 'approved';
+      if(admin||u.role==='field'&&['empty','draft'].includes(state))return 'pending';
+      return '';
+    }
     function badges(){
       for(const node of host.querySelectorAll('[data-module="organization"],[data-hub="feature:organization"]')){
         let dot=node.querySelector('.org-dot');
@@ -101,10 +107,7 @@
       if(!flight){flight=api({action:'platform_org_list',manageFolders:key}).finally(()=>{if(listFlights.get(key)===flight)listFlights.delete(key);});listFlights.set(key,flight);}
       const result=await flight;
       if(token===listRequest && sameUser() && allowed){
-        // Submission hands the next action to safety. Both sides track the cycle through final approval.
-        pending=admin||u.role==='field'
-          ? result.sites.filter(site=>site.active!==false&&!site.checked).length
-          : 0;
+        pending=result.sites.filter(site=>workState(site)==='pending').length;
         badges();
       }
       return result;
@@ -156,7 +159,7 @@
         const card=button('',()=>selectFolder(site.site_id,true),'org-site-card');
         const name=el('strong',site.folder_name||site.site_name);
         const condition=site.active===false?'종료':stages[site.state]||'미작성';
-        const small=el('span',condition,'org-state '+(site.active===false?'':site.checked?'approved':'pending'));
+        const small=el('span',condition,'org-state '+workState(site));
         card.append(name,small);card.setAttribute('aria-label',(site.folder_name||site.site_name)+' 서류 메뉴 열기');
         grid.append(card);
       }
@@ -210,7 +213,7 @@
         b.dataset.siteId=s.site_id;
         b.setAttribute('aria-expanded',String(expanded));
         const state=s.active===false?'종료':stages[s.state]||'미작성';
-        b.append(el('span',s.folder_name||s.site_name),el('small',state,'org-state '+(s.active===false?'':s.checked?'approved':'pending')));
+        b.append(el('span',s.folder_name||s.site_name),el('small',state,'org-state '+workState(s)));
         railBody.append(b);
         if(expanded){
           const children=el('div',null,'org-submenu');
@@ -331,7 +334,7 @@
       const mayDelete=!!doc&&(admin||u.role==='field'&&!confirmedPeriods.includes(period)&&!confirmedPeriods.includes(doc.period));
       let chart=structuredClone(doc?.chart||defaults());
       const head=el('div',null,'org-head'),title=el('div'),tools=el('div',null,'org-actions'),note=status('');
-      title.append(el('h2',site.site_name+' 안전보건조직도'),el('span',periodName(period)+'　'+(site.active===false?'종료 사업장':stages[state]||'미작성'),'org-state '+(site.active===false?'':locked?'approved':'pending')));
+      title.append(el('h2',site.site_name+' 안전보건조직도'),el('span',periodName(period)+'　'+(site.active===false?'종료 사업장':stages[state]||'미작성'),'org-state '+workState(site,state)));
 
       head.append(title,tools);
       const back=button('← '+(site.folder_name||site.site_name)+' 서류 목록',()=>selectFolder(site.site_id,true),'org-back');

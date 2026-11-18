@@ -412,7 +412,16 @@ Deno.serve(async(req:Request)=>{
       const deleted=await sql`select incident_id from private.enl_incident_deletions where (${'worker'===actor.role||'field'===actor.role} = false or site_id=${actor.siteId})`;
       const deletedIds=deleted.map((r:any)=>r.incident_id);
       if(actor.role==="worker"){const incidents:any[]=[];for(const i of raw){if(isMine(i,actor)){const mine={...i};if(reportApproved(i)&&(clean(i.approvedAt)||isBulkImported(i)))mine.workerPublic=publicSummary(i);incidents.push(mine);}else{const pub=publicIncident(i);if(pub)incidents.push(pub);}}incidents.sort((a,b)=>new Date(b.occurredAt||0).getTime()-new Date(a.occurredAt||0).getTime());return json({ok:true,incidents,deletedIds,workerPublicMode:true});}
-      if(["manager","executive"].includes(actor.role))return json({ok:true,incidents:raw.map(readerIncident).filter(Boolean),deletedIds});
+      if(["manager","executive"].includes(actor.role)){
+        const incidents=raw.map(readerIncident).filter(Boolean);
+        if(body.includeUnreadReports!==true)return json({ok:true,incidents,deletedIds});
+        const candidates=incidents.filter(i=>["reported","supplement","supplement_submitted"].includes(i.status)).map(i=>i.id);
+        const unread=candidates.length?await sql`select id from jsonb_array_elements_text(${sql.json(candidates)}::jsonb) ids(id)
+          where exists(select 1 from private.enl_incident_report_reader_targets where user_id=${actor.id})
+          and not exists(select 1 from public.enl_document_views v where v.incident_id=ids.id
+            and v.viewer_id=${actor.id} and v.document_type='incident_report')`:[];
+        return json({ok:true,incidents,deletedIds,unreadReportIds:unread.map(r=>r.id)});
+      }
       return json({ok:true,incidents:raw,deletedIds});
     }
 

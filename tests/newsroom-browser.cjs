@@ -40,6 +40,9 @@ async function check(browser, role) {
     const wrapper=page.locator('.hub-home-content');
     const rows=wrapper.locator('.hub-notice-row strong');
     await rows.first().waitFor();
+    const supportMenu=page.locator('.hub-sidebar [data-hub="support"]');
+    assert.equal(await supportMenu.count(),1);
+    assert.equal(await supportMenu.locator('.org-dot').count(),0,'support must not inherit incident approvals');
     assert.deepEqual(await rows.allTextContents(),[notices[lead],...notices.filter((_,i)=>i!==lead).slice(0,3)].map(x=>x.title));
     if(role==='safety'){
       await wrapper.locator('[data-list=recent] .hub-data-row').first().waitFor();
@@ -133,6 +136,7 @@ async function check(browser, role) {
     await home();
     await grid.locator('[data-hub=support]').click();
     await page.locator('.hub-support [data-service=history]').waitFor();
+    assert.equal(await supportMenu.locator('.org-dot').count(),0);
     await home();
     await wrapper.locator('.hub-notice-lead').click();
     await page.getByRole('heading',{name:notices[lead].title,exact:true}).waitFor();
