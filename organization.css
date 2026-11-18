@@ -97,4 +97,23 @@
 
 .org-evidence img{display:block;max-width:100%;max-height:65vh;object-fit:contain;margin-block:8px}.org-evidence label{display:inline-flex;align-items:center;gap:6px}.org-actions button:disabled,.org-manage-tools button:disabled{opacity:.55;cursor:default}
 
-.hub-sidebar nav button:has(.org-dot),.hub-sidebar .hub-document-menus>summary{position:relative}.hub-document-menus:not([open]):has(.org-dot)>summary:after{content:'';width:9px;height:9px;border-radius:50%;background:#d73740;position:absolute;right:10px;top:9px}
+/* Keep the disclosure arrow and the work indicator in separate columns. */
+.platform-hub .hub-sidebar{--work-dot-axis:16px;--work-dot-size:9px}
+.platform-hub .hub-sidebar button:has(>.org-dot,>.enl424-nav-dot,>.wf412-nav-badge),
+.platform-hub .hub-document-menus:has(.org-dot)>summary{padding-right:32px}
+.platform-hub .hub-document-menus>summary{position:relative}
+.platform-hub .hub-sidebar button>:is(.org-dot,.enl424-nav-dot,.wf412-nav-badge),
+.platform-hub .hub-document-menus:has(.org-dot)>summary::before{
+  position:absolute;top:50%;right:calc(var(--work-dot-axis) - 1px);transform:translate(50%,-50%);
+  margin:0;pointer-events:none
+}
+.platform-hub .hub-sidebar button>:is(.org-dot,.enl424-nav-dot),
+.platform-hub .hub-document-menus:has(.org-dot)>summary::before{
+  width:var(--work-dot-size);height:var(--work-dot-size);border:0;border-radius:50%;
+  background:#d73740;box-shadow:0 0 0 1px #fff
+}
+.platform-hub .hub-document-menus:has(.org-dot)>summary::before{content:"";right:var(--work-dot-axis)}
+.platform-hub .hub-sidebar-row.is-editing{position:relative;padding-right:30px}
+.platform-hub .hub-sidebar-row.is-editing>button:first-child:has(>.org-dot){position:static;padding-right:9px}
+.org-rail-list .org-folder>.org-state:is(.pending,.approved){display:inline-flex;flex-direction:row-reverse;align-items:center;gap:4px}
+.org-rail-list .org-folder>.org-state:is(.pending,.approved)::before{margin:0;flex:none}

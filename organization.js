@@ -90,7 +90,7 @@
         if(!allowed||!pending){dot?.remove();continue}
         if(!dot){dot=el('span',null,'org-dot');node.append(dot)}
         dot.setAttribute('role','img');
-        dot.setAttribute('aria-label','조직도 처리 필요 '+pending+'개 사업장');dot.title=dot.getAttribute('aria-label');
+        dot.setAttribute('aria-label','이번 반기 조직도 확인 미완료 '+pending+'개 사업장');dot.title=dot.getAttribute('aria-label');
       }
     }
     const listFlights=new Map();
@@ -101,7 +101,10 @@
       if(!flight){flight=api({action:'platform_org_list',manageFolders:key}).finally(()=>{if(listFlights.get(key)===flight)listFlights.delete(key);});listFlights.set(key,flight);}
       const result=await flight;
       if(token===listRequest && sameUser() && allowed){
-        pending=result.sites.filter(s=>s.active!==false&&(admin?s.state==='pending':u.role==='field'&&['empty','draft'].includes(s.state))).length;
+        // Submission hands the next action to safety. Both sides track the cycle through final approval.
+        pending=admin||u.role==='field'
+          ? result.sites.filter(site=>site.active!==false&&!site.checked).length
+          : 0;
         badges();
       }
       return result;
