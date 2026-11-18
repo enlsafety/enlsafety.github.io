@@ -1,0 +1,27 @@
+name: Sidebar menu ordering
+on:
+  push:
+    branches: [qa/sidebar-edit-r157]
+permissions:
+  contents: read
+jobs:
+  ui:
+    runs-on: ubuntu-latest
+    container: mcr.microsoft.com/playwright:v1.51.1-noble
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install --no-save --package-lock=false playwright@1.51.1
+      - run: node tests/sidebar-menu-order-browser.cjs
+      - run: node tests/menu-dashboard-list-browser.cjs
+  api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-save --package-lock=false @electric-sql/pglite@0.3.10
+      - run: node tests/integrated-home-content.cjs
+      - run: node tests/final-cache.cjs
