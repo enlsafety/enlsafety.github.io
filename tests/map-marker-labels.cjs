@@ -24,6 +24,8 @@ async function check(engine,width,height){
   const panel=p.locator('[data-sd450-map]'),viewport=panel.locator('.sd450-map-viewport');
   await p.waitForFunction(()=>document.querySelectorAll('.sd450-marker.high').length===2);
   assert.deepEqual(await visible(),[]);
+  assert.equal(await panel.locator('[data-map-scale]').innerText(),'120%');
+  assert.equal(await panel.locator('.sd450-marker[hidden]').count(),0);
   const ids=await panel.locator('[data-sd450-map-site]').evaluateAll(bs=>bs.map(b=>b.dataset.sd450MapSite));
   assert.equal(ids.length,33);
   for(const id of ids){
@@ -63,7 +65,9 @@ async function check(engine,width,height){
       await marker(id).click();
       const neighbor=marker(id==='s22'?'s26':'s22');
       await neighbor.hover();
-      await neighbor.focus();
+      assert.deepEqual(new Set(await visible()),new Set([id,await neighbor.getAttribute('data-sd450-map-site')]));
+      assert.equal(await p.locator('#sd450Site').inputValue(),id,'hover must not change selection');
+      await p.mouse.move(0,0);
     }
     assert.deepEqual(await visible(),[id],'only the clicked name stays visible '+id);
     await redraw();
