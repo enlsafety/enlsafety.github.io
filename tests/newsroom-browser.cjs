@@ -13,6 +13,7 @@ async function check(browser, role) {
     pinned:i===6 && role==='safety', label:i===5 && role==='manager'?'important':'general',
     created_at:new Date(Date.now()-i*86400000).toISOString()
   }));
+  const approvalsOpen = ['safety','executive'].includes(role);
   const lead = role==='safety'?6:role==='manager'?5:0;
   const records = [...notices,{id:'event',kind:'event',title:'검증 일정',body:'일정 내용',starts_at:now,ends_at:now}];
   const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp'};
@@ -24,7 +25,10 @@ async function check(browser, role) {
       if(!fs.existsSync(file)||!fs.statSync(file).isFile())return route.fulfill({status:404,body:''});
       let body=fs.readFileSync(file);
       if(url.pathname==='/stable412.html')body=body.toString().replace('<head>','<head><script src="tests/integrated-home-fixture.js"></script>');
-      if(url.pathname==='/tests/integrated-home-fixture.js')body=body.toString().replace('let records=[]','let records='+JSON.stringify(records));
+      if(url.pathname==='/tests/integrated-home-fixture.js'){
+        body=body.toString().replace('let records=[]','let records='+JSON.stringify(records));
+        if(approvalsOpen)body=body.replaceAll("['incident','history','notices','system'].includes(key)","['incident','history','notices','system','approvals'].includes(key)");
+      }
       return route.fulfill({body,contentType:mime[path.extname(file)]||'application/octet-stream'});
     });
     await page.goto(origin+'/stable412.html?role='+role);
@@ -54,6 +58,7 @@ async function check(browser, role) {
         assert.ok(schedule.x>notice.right && notice.width/(notice.width+schedule.width)>=0.64);
       }else assert.ok(schedule.y>=notice.bottom);
     }
+    await page.setViewportSize({width:approvalsOpen?1440:390,height:900});
     const home=async()=>{await page.locator('[data-worktab=home]').click();await wrapper.waitFor()};
     await wrapper.locator('.hub-notice-lead').click();
     await page.getByRole('heading',{name:notices[lead].title,exact:true}).waitFor();
@@ -67,8 +72,14 @@ async function check(browser, role) {
     await page.locator('[data-list-workspace=schedule]').waitFor();
     await home();
     await wrapper.locator('[data-hub=approvals]').click();
-    await page.locator('[data-approval-list]').waitFor();
-    await home();
+    if(approvalsOpen){
+      await page.locator('[data-approval-list]').waitFor();
+      await home();
+    }else{
+      await page.locator('.hub-status').waitFor();
+      assert.ok(await wrapper.isVisible());
+      assert.equal(await page.locator('[data-worktab=approvals]').count(),0);
+    }
     const recent=wrapper.locator('[data-list=recent] button').first();
     if(await recent.count()){
       await recent.click();
