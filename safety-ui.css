@@ -50,9 +50,9 @@ body.safety-ui {background:var(--canvas);color:var(--ink)}
 .safety-ui :is([data-shell-view="incidents"],[data-field-task="records"],.shell411-filter-head h2) {--glyph:var(--icon-list)}
 .safety-ui :is([data-stats-filter="person"],.report-type-card.person,[data-sa415-tab="hq"]) {--glyph:var(--icon-users);--tile:var(--sky)}
 .safety-ui :is([data-stats-filter="property"],.report-type-card.property,.site-heading h2,[data-sa415-tab="sites"]) {--glyph:var(--icon-site)}
-.safety-ui :is([data-stats-filter="unresolved"],#safetyActionMissing411,[data-safety-status="supplement_any"]) {--glyph:var(--icon-alert);--tile:var(--cream)}
+.safety-ui :is([data-stats-filter="unresolved"],[data-safety-status="plan_missing"],[data-safety-status="supplement_any"]) {--glyph:var(--icon-alert);--tile:var(--cream)}
 .safety-ui :is([data-safety-status="reported"],[data-safety-status="action_progress"]) {--glyph:var(--icon-clock)}
-.safety-ui :is(#safetyActionReview411,[data-safety-status="approved"],[data-executive-queue] h3) {--glyph:var(--icon-approve)}
+.safety-ui :is([data-safety-status="action_review"],[data-safety-status="approval"],[data-executive-queue] h3) {--glyph:var(--icon-approve)}
 .safety-ui :is(.enl418-head h2,#enlPwaTop418) {--glyph:var(--icon-bell)}
 .safety-ui :is(.shell411-nav button,.sa415-tabs button,.enl418-head h2,.shell411-head h2,.stats426-head h2,.site-heading h2,.wf412-page h2,.report-type-picker h2,.incident410-form h2,.sa415-head h2,.shell411-filter-head h2,[data-executive-queue] h3)::before {
   content:"";display:inline-block;flex:0 0 auto;width:1.25em;height:1.25em;vertical-align:-.22em;background:var(--glyph,var(--icon-report)) center/contain no-repeat
@@ -252,8 +252,8 @@ body.safety-ui {background:var(--canvas);color:var(--ink)}
 .safety-ui #app .report-type-no {display:none}
 .safety-ui #app .field-six-btn[data-field-task="records"] {--tile:var(--sky)}
 .safety-ui #app :is([data-field-task="inquiry"],[data-wf-inquiry-nav]) {--tile:var(--sky)}
-.safety-ui #app :is([data-field-task="accident_action"],[data-safety-status="closed"],[data-safety-status="approved"]) {--edge:#459f80;--tile:var(--mint)}
-.safety-ui #app :is([data-stats-filter="unresolved"],[data-safety-status="supplement_any"],#safetyActionMissing411) {--edge:#dd923a;--tile:var(--cream)}
+.safety-ui #app :is([data-field-task="accident_action"],[data-safety-status="closed"],[data-safety-status="approval"]) {--edge:#459f80;--tile:var(--mint)}
+.safety-ui #app :is([data-stats-filter="unresolved"],[data-safety-status="supplement_any"],[data-safety-status="plan_missing"]) {--edge:#dd923a;--tile:var(--cream)}
 .safety-ui #app .tone-slate {--accent:#75a8d0;--tile:var(--sky)}
 .safety-ui #app .site-quiet-card {display:flex;flex-wrap:nowrap;min-height:58px;gap:10px}
 .safety-ui #app .site-quiet-card>span {display:flex;align-items:center;gap:5px;color:var(--green);white-space:nowrap}
@@ -437,3 +437,10 @@ dialog.draft-resume-dialog{position:fixed;inset:0;box-sizing:border-box;width:mi
   .safety-ui #app .report-type-picker .report-type-grid {grid-template-columns:minmax(0,1fr)}
   .safety-ui #app .report-type-picker .report-type-card[data-report-type] {min-height:156px!important}
 }
+
+.overview-categories{display:flex;flex-wrap:wrap;gap:6px}
+.overview-categories button{min-height:44px;padding:6px 19px;border:1px solid #bbcede;border-radius:10px;background:white;color:#365576;font:inherit;font-weight:700;cursor:pointer}
+.overview-categories button[aria-pressed="true"]{background:#1e5d91;border-color:#1e5d91;color:white}
+.overview-categories button:focus-visible{outline:3px solid #699dc7;outline-offset:2px}
+.safety-ui #app .shell411-safety-home>.shell411-stat{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+@media(max-width:720px){.safety-ui #app .shell411-safety-home>.shell411-stat{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
