@@ -732,8 +732,8 @@
 /* Size each card row to its longest title and description. */
 .platform-hub .hub-features .platform-grid {row-gap:7px}
 .platform-hub .hub-features .hub-section-heading {margin-bottom:6px}
-.platform-hub .hub-features .feature-card-wrap {height:auto;min-height:78px}
-.platform-hub .hub-features .platform-card {
+.platform-hub .hub-features .feature-card-wrap {height:auto;min-height:78px;container-type:inline-size}
+.platform-hub .hub-features .feature-card-wrap>.platform-card {
  --art-width:min(33%,78px);
  display:grid;
  grid-template-columns:auto minmax(0,1fr);
@@ -750,3 +750,11 @@
 .platform-hub .hub-features .hub-card-arrow svg {width:14px;height:14px}
 .platform-hub .hub-features .platform-card>small {position:static;grid-area:3 / 2;justify-self:end;max-width:100%;margin:0}
 .platform-hub.hub-editing .hub-features .platform-card {padding-top:39px}
+
+.platform-hub .hub-features :is(.hub-card-title,.hub-card-description) {justify-self:stretch;text-align:center}
+.platform-hub .hub-features .hub-boards-art {background:none;color:#275d91;text-align:center}
+.hub-features .hub-boards-art svg {width:70%;height:70%}
+@container (min-width:260px) {
+ .platform-hub .hub-features .feature-card-wrap>.platform-card {--art-width:min(23%,72px);padding-inline:calc(var(--art-width) + 8px)}
+}
+.hub-other-settings>summary {cursor:pointer;margin-block:12px}

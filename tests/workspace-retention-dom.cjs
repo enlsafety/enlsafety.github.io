@@ -21,7 +21,7 @@ const until=async(fn,label)=>{for(let i=0;i<400;i++){if(fn())return;await new Pr
   }});
   const w=dom.window,d=w.document;
   try{
-   await until(()=>d.querySelector('[data-module=risk]'),'catalog');await until(()=>w.enlIncidentServerReady?.(),'data ready');
+   await until(()=>d.querySelector('.hub-sidebar [data-hub="feature:risk"]'),'catalog');await until(()=>w.enlIncidentServerReady?.(),'data ready');
    const original=w.enlIncidentApi;
    w.enlIncidentApi=async body=>{
     if(/^platform_(risk|org)_/.test(body.action)){
