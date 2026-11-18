@@ -331,7 +331,12 @@
   const sameUser=()=>{const a=currentUser?.();return a&&JSON.stringify([a.id||a.personnelId,a.role,a.siteId||''])===userKey&&host.isConnected};
   const action=(key,label,cls='')=>'<button type="button" class="'+cls+'" data-hub="'+key+'"'+(key==='notifications'?' aria-label="알림센터"':key==='menu'?' aria-label="메뉴 열기"':key==='search'?' aria-label="통합검색"':'')+'>'+label+'</button>';
   const panel=(key,title,icon,more)=>'<section class="hub-panel hub-'+key+'"><header><h2>'+svg(icon,icons)+title+'</h2>'+action(key,more||'더보기 ›')+'</header><div data-list="'+key+'"><p class="hub-empty">불러오는 중입니다.</p></div></section>';
-  host.innerHTML='<aside class="hub-sidebar"><div class="hub-logo"><span class="hub-wordmark" role="img" aria-label="이앤엘 E&amp;L"><span aria-hidden="true">E<span class="hub-wordmark-amp">&amp;</span>L</span><i aria-hidden="true"></i></span></div><nav aria-label="통합시스템 메뉴"></nav><section class="hub-favorites"><header><h2>'+sidebarIcon('favorites')+'즐겨찾기</h2>'+action('favorites','＋')+'</header><div></div></section><div class="hub-sidebar-wave" aria-hidden="true"></div></aside><button class="hub-sidebar-backdrop" type="button" data-hub="close-menu" aria-label="메뉴 닫기"></button><section class="hub-hero"><div class="hub-hero-image" role="img" aria-label="골프장 풍경과 이앤엘 문구: 안전이 일상이 되는 안전보건관리 통합시스템"></div><div class="hub-original-slogan"><b>E&amp;L</b><div><span>안전이 일상이 되는</span><strong>안전보건관리 통합시스템</strong></div></div></section><div class="hub-middle"><section class="hub-features"><header class="hub-section-heading"><h2>'+svg('grid')+'주요 업무기능</h2><p>안전보건 업무를 한 곳에서 통합 관리하세요.</p>'+action('guide','ⓘ 모듈 안내')+(admin?action('manage-cards','카드 관리','hub-card-manager')+action('edit','편집','hub-edit-toggle'):'')+'</header><div class="platform-modules feature-list"></div></section><div class="hub-right">'+panel('recent','최근 업무 기록','clock')+panel('approvals','통합결재 대기 <span data-approval-count></span>','approvals')+'</div></div><div class="hub-bottom">'+panel('bulletins','공지사항','notice')+panel('schedule','오늘의 일정 <small>'+safe(new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',weekday:'short'}).format(new Date()))+'</small>','calendar','전체 일정 ›')+'</div><p class="hub-status" role="status" aria-live="polite"></p><section class="hub-support hub-tool-panel" hidden><h2>공통업무지원서비스</h2><section class="platform-services feature-list"><div class="platform-grid"></div></section></section><section class="hub-module-preview hub-tool-panel" hidden><h2></h2><p>이 업무의 세부 기능은 구현 중입니다.</p></section>';
+  host.innerHTML='<aside class="hub-sidebar"><div class="hub-logo"><span class="hub-wordmark" role="img" aria-label="이앤엘 E&amp;L"><span aria-hidden="true">E<span class="hub-wordmark-amp">&amp;</span>L</span><i aria-hidden="true"></i></span></div><nav aria-label="통합시스템 메뉴"></nav><section class="hub-favorites"><header><h2>'+sidebarIcon('favorites')+'즐겨찾기</h2>'+action('favorites','＋')+'</header><div></div></section><div class="hub-sidebar-wave" aria-hidden="true"></div></aside><button class="hub-sidebar-backdrop" type="button" data-hub="close-menu" aria-label="메뉴 닫기"></button><section class="hub-hero"><div class="hub-hero-image" role="img" aria-label="골프장 풍경과 이앤엘 문구: 안전이 일상이 되는 안전보건관리 통합시스템"></div><div class="hub-original-slogan"><b>E&amp;L</b><div><span>안전이 일상이 되는</span><strong>안전보건관리 통합시스템</strong></div></div></section><div class="hub-middle hub-home-content">'+
+    '<div class="hub-newsroom">'+panel('bulletins','공지사항','notice')+
+      '<div class="hub-right">'+panel('schedule','오늘의 일정 <small>'+safe(new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',weekday:'short'}).format(new Date()))+'</small>','calendar','전체 일정 ›')+
+      panel('approvals','통합결재 대기 <span data-approval-count></span>','approvals')+'</div></div>'+
+    '<section class="hub-features"><header class="hub-section-heading"><h2>'+svg('grid')+'주요 업무기능</h2><p>안전보건 업무를 한 곳에서 통합 관리하세요.</p>'+action('guide','ⓘ 모듈 안내')+(admin?action('manage-cards','카드 관리','hub-card-manager')+action('edit','편집','hub-edit-toggle'):'')+'</header><div class="platform-modules feature-list"></div></section>'+
+    panel('recent','최근 업무 기록','clock')+'</div><p class="hub-status" role="status" aria-live="polite"></p><section class="hub-support hub-tool-panel" hidden><h2>공통업무지원서비스</h2><section class="platform-services feature-list"><div class="platform-grid"></div></section></section><section class="hub-module-preview hub-tool-panel" hidden><h2></h2><p>이 업무의 세부 기능은 구현 중입니다.</p></section>';
   const area=host.querySelector('.platform-modules'),services=host.querySelector('.platform-services .platform-grid'),status=host.querySelector('.hub-status');
   const recentLink=host.querySelector('[data-hub=recent]');
   recentLink.hidden=!window.enlHistoryAvailable?.(u);
@@ -693,9 +698,31 @@
   function paintRecent(){const box=host.querySelector('[data-list=recent]');box.replaceChildren();for(const r of recent.slice(0,5))rowButton(box,r.sentence||r.incident_title,relative(r.happened_at),()=>openActivity(r));if(!recent.length)box.innerHTML='<p class="hub-empty">'+safe(recentError||'최근 업무 기록이 없습니다.')+'</p>'}
   function openActivity(r){const d=dialog(host,'작업 기록'),box=d.querySelector('.hub-dialog-body');box.innerHTML='<p>'+safe(r.sentence)+'</p><p>'+safe(r.actor_name||'')+' / '+safe(date(r.happened_at))+' '+safe(time(r.happened_at))+'</p>';if(r.module_key==='incident'&&scopedIncidents().some(i=>i.id===r.incident_id)){const b=document.createElement('button');b.textContent='사고 내용 보기';b.onclick=()=>openIncident(r.incident_id);box.append(b)}}
   async function loadRecent(){recentLink.hidden=!window.enlHistoryAvailable?.(u);if(recentLink.hidden){recentError='조회 가능한 작업 기록이 없습니다.';paintRecent();return}try{const r=await api({action:'activity_list',feed:'all',recentOnly:true});if(!sameUser())return;recent=r.rows||[];recentError=''}catch{recentError='작업 기록을 불러오지 못했습니다.'}if(sameUser())paintRecent()}
-  function paintContent(){for(const [kind,rows] of [['bulletins',content.notices],['schedule',content.events.filter(x=>day(new Date(x.starts_at))<=day()&&day(new Date(x.ends_at||x.starts_at))>=day())]]){const box=host.querySelector('[data-list='+kind+']');box.replaceChildren();for(const x of rows.slice(0,kind==='bulletins'?5:4)){const b=rowButton(box,x.title,kind==='bulletins'?date(x.created_at):time(x.starts_at)+' ~ '+time(x.ends_at),()=>readContent(x),kind==='bulletins'?'notice':'calendar');if(kind==='bulletins'){b.classList.add('hub-notice-row');b.querySelector('svg').outerHTML='<span class="hub-tag '+safe(x.label)+'">'+({important:'중요',info:'안내',general:'일반'}[x.label]||'안내')+'</span>'}else b.classList.add('hub-event-row')}
-   if(!rows.length)box.innerHTML='<p class="hub-empty">'+safe(contentError||(loaded?(kind==='bulletins'?'등록된 공지사항이 없습니다.':'오늘 등록된 일정이 없습니다.'):'불러오는 중입니다.'))+'</p>';
-  }paintFavorites()}
+  function paintContent(){
+   const noticeList=host.querySelector('[data-list=bulletins]');
+   const scheduleList=host.querySelector('[data-list=schedule]');
+   noticeList.replaceChildren();scheduleList.replaceChildren();
+   const newest=[...content.notices].sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at));
+   const lead=newest.find(boardPinned)||newest.find(x=>x.label==='important')||newest[0];
+   if(lead){
+    for(const item of [lead,...newest.filter(x=>x!==lead).slice(0,4)]){
+     const row=rowButton(noticeList,item.title,date(item.created_at),()=>readContent(item),'notice');
+     row.classList.add('hub-notice-row');
+     if(item===lead)row.classList.add('hub-notice-lead');
+     row.querySelector('svg').outerHTML='<span class="hub-tag '+safe(item.label)+'">'+({important:'중요',info:'안내',general:'일반'}[item.label]||'안내')+'</span>';
+    }
+   }
+   const today=day();
+   const events=content.events.filter(x=>day(new Date(x.starts_at))<=today&&day(new Date(x.ends_at||x.starts_at))>=today);
+   for(const item of events.slice(0,4)){
+    const row=rowButton(scheduleList,item.title,time(item.starts_at)+' ~ '+time(item.ends_at),()=>readContent(item),'calendar');
+    row.classList.add('hub-event-row');
+   }
+   for(const [list,empty] of [[noticeList,'등록된 공지사항이 없습니다.'],[scheduleList,'오늘 등록된 일정이 없습니다.']]){
+    if(!list.childElementCount)list.innerHTML='<p class="hub-empty">'+safe(contentError||(loaded?empty:'불러오는 중입니다.'))+'</p>';
+   }
+   paintFavorites();
+  }
   async function loadContent(){try{const r=await api({action:'platform_hub',includePublicationSites:admin});if(!sameUser())return;content={publicationSites:r.publicationSites,notices:r.notices||[],events:r.events||[],favorites:r.favorites||[]};loaded=true;contentError='';
    host.availableNoticeIds=content.notices.length<250?new Set(content.notices.map(n=>n.id)):null;syncBannerNoticeLinks(host);
   }catch{contentError='자료를 불러오지 못했습니다. 더보기에서 다시 시도하세요.'}if(sameUser())paintContent()}
