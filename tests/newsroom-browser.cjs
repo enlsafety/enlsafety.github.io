@@ -15,7 +15,7 @@ async function check(browser, role) {
   }));
   const approvalsOpen = ['safety','executive'].includes(role);
   const lead = role==='safety'?6:role==='manager'?5:0;
-  const events=Array.from({length:8},(_,i)=>({id:'event-'+i,kind:'event',title:'검증 일정 '+i,body:'일정 내용',starts_at:now,ends_at:now}));
+  const events=Array.from({length:12},(_,i)=>({id:'event-'+i,kind:'event',title:'검증 일정 '+i,body:'일정 내용',starts_at:now,ends_at:now}));
   let feedCount=8;
   const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp'};
   try {
@@ -63,13 +63,22 @@ async function check(browser, role) {
             for(const r of range.getClientRects())if(r.width && (r.top<bounds.top-1 || r.bottom>bounds.bottom+1 || r.left<bounds.left-1 || r.right>bounds.right+1))bad.push(node.textContent);
           }
         }
+        for(const card of document.querySelectorAll('.hub-features .feature-card-wrap')){
+          if(!card.offsetWidth)continue;
+          const bounds=card.getBoundingClientRect();
+          for(const el of card.querySelectorAll('.hub-card-title,.hub-card-description,.platform-card>small')){
+            if(!el.textContent.trim())continue;
+            const range=document.createRange();range.selectNodeContents(el);
+            for(const r of range.getClientRects())if(r.width && (r.top<bounds.top-1 || r.bottom>bounds.bottom+1 || r.left<bounds.left-1 || r.right>bounds.right+1))bad.push(el.textContent);
+          }
+        }
         const list=document.querySelector('.hub-bulletins');
         const lead=getComputedStyle(list.querySelector('.hub-notice-lead strong'));
         const regular=getComputedStyle(list.querySelector('.hub-notice-row:nth-child(2) strong'));
         const card=document.querySelector('.platform-modules [data-key=incident]');
         return {bad,height:banner.offsetHeight,cardHeight:card.offsetHeight,sameSize:lead.fontSize===regular.fontSize,color:lead.color,weight:lead.fontWeight};
       });
-      assert.deepEqual(density.bad,[],'banner text at '+width);
+      assert.deepEqual(density.bad,[],'banner or card text at '+width);
       assert.ok(density.sameSize&&density.color==='rgb(170, 36, 60)'&&Number(density.weight)>=700);
       console.log('layout',role,width,density.height,density.cardHeight);
       const {notice,schedule,approvals,features,recent}=boxes;
@@ -115,7 +124,7 @@ async function check(browser, role) {
     }
     if(role==='safety'){
       let firstTop;
-      for(feedCount of [0,1,5,8]){
+      for(feedCount of [0,1,5,8,12]){
         await page.goto(origin+'/stable412.html?role=safety&count='+feedCount);
         await page.waitForFunction(()=>currentUser() && window.enlReturnToPlatform);
         await page.evaluate(()=>window.enlReturnToPlatform(currentUser()));

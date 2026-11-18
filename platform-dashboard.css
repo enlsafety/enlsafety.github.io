@@ -682,7 +682,10 @@
 }
 .hub-newsroom .hub-right .hub-data-row strong {display:block;white-space:nowrap}
 .hub-newsroom .hub-right .hub-empty {height:100%;box-sizing:border-box}
-.hub-newsroom .hub-right .hub-panel>header button {display:inline-flex;align-items:center;gap:4px}
+.hub-newsroom .hub-right .hub-panel>header {display:grid;grid-template-columns:minmax(0,1fr) auto}
+.hub-newsroom .hub-right .hub-panel>header button {
+ display:inline-flex;align-items:center;justify-content:flex-end;gap:4px;min-width:7.5em;
+}
 .hub-feed-count:not([hidden]) {
  display:inline-grid;
  place-items:center;
