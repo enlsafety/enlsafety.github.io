@@ -13,6 +13,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - run: npm install --no-save --package-lock=false playwright@1.51.1 jsdom@26
+      - run: npm install --no-save --package-lock=false playwright@1.51.1 jsdom@31.0.1
       - run: node tests/final-cache.cjs && node tests/sidebar-dom.cjs
       - run: PW_CHANNEL=chrome node tests/newsroom-browser.cjs
