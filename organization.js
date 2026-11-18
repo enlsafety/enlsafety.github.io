@@ -406,7 +406,7 @@
         image.onload=()=>{photoLoaded=true;update();};
         image.src=doc.photo;
         const label=el('label');review=el('input');review.type='checkbox';
-        review.disabled=!admin||historic||state!=='pending';review.onchange=update;
+        review.checked=doc.review_event==='approve';review.disabled=!admin||historic||state!=='pending';review.onchange=update;
         label.append(review,' 조직도와 출력물 사진을 대조했습니다.');
         evidence.append(el('h3','제출된 출력물 사진'),image,label);main.append(evidence);
       }

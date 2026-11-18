@@ -6,7 +6,7 @@ const {tab,noOverflow}=require('./field-entry-table-browser.cjs');
  for(const [engine,width,roles] of [[chromium,1365,['safety','field','manager','executive']],[chromium,320,['safety']],[webkit,390,['safety']],[webkit,820,['safety']]]){
   const browser=await engine.launch();
   try{for(const role of roles){
-   const {p,c}=await tab(browser,width,role);
+   const {p,c}=await tab(browser,width,role);p.setDefaultTimeout(20000);
    let enabled=true,modules=[{key:'incident',state:'live'}],services=[{key:'system',state:'live'}];const gates=[],savedUsers=[],personnel=[];
    await c.route('**/*',async route=>{
     const req=route.request(),b=req.method()==='POST'?req.postDataJSON():null;
@@ -33,6 +33,8 @@ const {tab,noOverflow}=require('./field-entry-table-browser.cjs');
     await p.evaluate(()=>{currentView='system-admin';renderShell(currentUser())});
     await p.locator('[data-module=incident]').waitFor();assert.equal(await p.locator('.system-admin').count(),0);
    }else{
+    await p.bringToFront();
+    await p.locator('[data-hub=edit]').scrollIntoViewIfNeeded();
     await p.locator('[data-hub=edit]').click();
     await p.locator('[data-key=incident] .feature-pencil').click();await p.getByLabel('업무기능 이름',{exact:true}).fill('사고 <보고>');
     await p.locator('.feature-name-form [type=submit]').click();await p.locator('[data-key=incident]').getByRole('button',{name:'사고 <보고>',exact:true}).waitFor();assert.equal(modules[0].displayName,'사고 <보고>');

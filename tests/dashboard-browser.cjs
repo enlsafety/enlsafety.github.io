@@ -7,12 +7,12 @@ let activePage;try{for(const profile of [{engine:'chromium',width:1280,touch:fal
  await page.route('**/*',async route=>{
   const req=route.request();assert.equal(req.method(),'GET','No network mutation in QA');
   const path=new URL(req.url()).pathname.slice(1);
-  if(path==='fixture')return route.fulfill({contentType:'text/html',body:'<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><div id="app"></div></body></html>'});
+  if(path==='fixture')return route.fulfill({contentType:'text/html',body:'<!doctype html><html lang="ko"><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body class="safety-ui"><div id="app"></div></body></html>'});
   if(path==='korea-map-natural-earth-10m.svg')return route.fulfill({contentType:'image/svg+xml',body:fs.readFileSync(path)});
   return route.abort();
  });
  await page.goto('http://enl-qa.test/fixture');
- for(const path of ['style.css','v3.css','responsive-v432.css','platform-dashboard.css','incident-analysis.css'])await page.addStyleTag({content:fs.readFileSync(path,'utf8')});
+ for(const path of ['style.css','v3.css','safety-ui.css','responsive-v432.css','platform-dashboard.css','incident-analysis.css'])await page.addStyleTag({content:fs.readFileSync(path,'utf8')});
  await page.evaluate(()=>{
   window.app=document.getElementById('app');window.currentView='home';window.qaUser={id:'qa-safety',role:'safety',name:'안전관리자'};window.currentUser=()=>qaUser;
   window.data={sites:[],incidents:[]};window.roleName=x=>x;window.siteById=id=>data.sites.find(s=>s.id===id);window.fmt=x=>String(x).slice(0,10);window.statusBadge=x=>x;window.priorityBadge=x=>x||'';
