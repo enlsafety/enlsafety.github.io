@@ -29,6 +29,7 @@ async function check(browser, role) {
       if(url.pathname==='/tests/integrated-home-fixture.js'){
         body=body.toString().replace('let records=[]','let records='+JSON.stringify([...notices,...events.slice(0,feedCount)]));
         body=body.replace('const moduleKeys=', 'incidents.splice(0,1,...Array.from({length:'+feedCount+'},(_,i)=>({...incidents[0],id:"sample-"+i,corrective:{status:"submitted"}}))); const moduleKeys=');
+        body=body.replace('return new Response(JSON.stringify(out)',"if(b.action==='activity_list')out.rows=Array.from({length:7},(_,i)=>({...out.rows[0],id:String(i),sentence:'검증 업무 기록 '+i}));return new Response(JSON.stringify(out)");
         if(approvalsOpen)body=body.replaceAll("['incident','history','notices','system'].includes(key)","['incident','history','notices','system','approvals'].includes(key)");
       }
       return route.fulfill({body,contentType:mime[path.extname(file)]||'application/octet-stream'});
@@ -39,7 +40,11 @@ async function check(browser, role) {
     const wrapper=page.locator('.hub-home-content');
     const rows=wrapper.locator('.hub-notice-row strong');
     await rows.first().waitFor();
-    assert.deepEqual(await rows.allTextContents(),[notices[lead],...notices.filter((_,i)=>i!==lead).slice(0,4)].map(x=>x.title));
+    assert.deepEqual(await rows.allTextContents(),[notices[lead],...notices.filter((_,i)=>i!==lead).slice(0,3)].map(x=>x.title));
+    if(role==='safety'){
+      await wrapper.locator('[data-list=recent] .hub-data-row').first().waitFor();
+      assert.deepEqual(await wrapper.locator('[data-list=recent] strong').allTextContents(),[0,1,2,3].map(i=>'검증 업무 기록 '+i));
+    }
     const grid=wrapper.locator('.platform-modules > .platform-grid');
     await grid.locator('[data-module=incident]').waitFor();
     assert.equal(await wrapper.locator('[data-hub=edit]').count(),role==='safety'?1:0);
@@ -96,6 +101,12 @@ async function check(browser, role) {
             const range=document.createRange();range.selectNodeContents(el);
             for(const r of range.getClientRects())if(r.width && (r.top<bounds.top-1 || r.bottom>bounds.bottom+1 || r.left<bounds.left-1 || r.right>bounds.right+1))bad.push(el.textContent);
           }
+        }
+        for(const title of document.querySelectorAll('.hub-newsroom .hub-data-row strong')){
+          const row=title.parentElement,b=row.getBoundingClientRect(),t=title.getBoundingClientRect();
+          const delta=parseFloat(getComputedStyle(title).fontSize)-parseFloat(getComputedStyle(row).fontSize);
+          if(Math.abs(delta-2*96/72)>0.05||t.width<=0||t.left<b.left-1||t.right>b.right+1||t.top<b.top-1||t.bottom>b.bottom+1)
+            bad.push('feed title '+title.textContent);
         }
         const list=document.querySelector('.hub-bulletins');
         const lead=getComputedStyle(list.querySelector('.hub-notice-lead strong'));
@@ -160,13 +171,18 @@ async function check(browser, role) {
     }
     if(role==='safety'){
       let firstTop;
-      for(feedCount of [0,1,5,8,12]){
+      for(feedCount of [0,1,4,5,8,12]){
         await page.goto(origin+'/stable412.html?role=safety&count='+feedCount);
         await page.waitForFunction(()=>currentUser() && window.enlReturnToPlatform);
         await page.evaluate(()=>window.enlReturnToPlatform(currentUser()));
         await page.waitForFunction(n=>['[data-event-count]','[data-approval-count]'].every(s=>document.querySelector(s)?.textContent===String(n)),feedCount);
-        assert.equal(await wrapper.locator('.hub-event-row').count(),Math.min(5,feedCount));
-        assert.equal(await wrapper.locator('.hub-approval-row').count(),Math.min(5,feedCount));
+        assert.equal(await wrapper.locator('.hub-event-row').count(),Math.min(4,feedCount));
+        assert.equal(await wrapper.locator('.hub-approval-row').count(),Math.min(4,feedCount));
+        await page.waitForFunction(()=>document.querySelectorAll('.hub-home-content [data-list=recent] .hub-data-row').length===4);
+        for(const panel of ['schedule','approvals']){
+          const list=wrapper.locator('[data-list='+panel+']');
+          assert.ok(await list.evaluate(e=>Math.abs(e.getBoundingClientRect().height-4*parseFloat(getComputedStyle(e).getPropertyValue('--feed-row')))<1));
+        }
         const top=await wrapper.locator('.hub-features').evaluate(e=>e.getBoundingClientRect().top+scrollY);
         if(firstTop===undefined)firstTop=top;
         assert.ok(Math.abs(top-firstTop)<=1,'stable features top '+top+' vs '+firstTop);

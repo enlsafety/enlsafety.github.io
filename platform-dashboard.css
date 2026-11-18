@@ -673,8 +673,9 @@
  .hub-newsroom {grid-template-columns:minmax(0,1fr)}
 }
 
+.hub-newsroom .hub-data-row strong {font-size:calc(1em + 2pt)}
 .hub-newsroom .hub-right {--feed-row:26px}
-.hub-newsroom .hub-right [data-list] {block-size:calc(5 * var(--feed-row))}
+.hub-newsroom .hub-right [data-list] {block-size:calc(4 * var(--feed-row))}
 .platform-hub .hub-newsroom .hub-right .hub-data-row {
  box-sizing:border-box;
  height:var(--feed-row);

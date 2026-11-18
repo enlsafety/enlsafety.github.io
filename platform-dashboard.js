@@ -1,6 +1,7 @@
 /* Integrated home: transparent illustration atlas, vector pictograms and existing scoped routes. */
 (()=>{
  'use strict';
+ const homeFeedLimit=4;
  const safe=v=>esc(String(v??''));
  const api=(body,timeout)=>window.enlIncidentApi({...body,actor:window.enlCurrentActor()},timeout);
 
@@ -689,7 +690,7 @@
     }
     const rows=document.createElement('div');box.append(rows);
     if(!['all','incident'].includes(selected)){rows.innerHTML='<p class="hub-empty">'+safe(approvalCategories[selected])+' 결재 기능은 준비 중입니다.</p>';return;}
-    for(const i of (compact?pending.slice(0,5):pending)){
+    for(const i of (compact?pending.slice(0,homeFeedLimit):pending)){
       const documentName=(siteById(i.siteId)?.name||'')+' '+(i.eventType||'사고')+' '+(i.corrective?.status==='submitted'?'재발방지조치 보고서':'사고보고서');
       const row=rowButton(rows,documentName.trim(),relative(i.updatedAt),()=>openIncident(i.id));row.classList.add('hub-approval-row');row.title=documentName.trim();
       row.querySelector('svg').outerHTML='<span class="hub-approval-badge">사고보고</span>';
@@ -711,7 +712,7 @@
   }
   function approvalWorkspace(){let panel=host.querySelector('[data-list-workspace=approvals]');if(!panel){panel=document.createElement('section');panel.className='hub-tool-panel';panel.dataset.listWorkspace='approvals';panel.innerHTML='<div class="section-head"><h2>통합결재 대기</h2><button type="button">새로고침</button></div><p>본인에게 배정된 결재를 업무별로 확인합니다.</p><div data-approval-list></div>';host.append(panel);panel.querySelector('button').onclick=async()=>{const b=panel.querySelector('button');b.disabled=true;try{await window.enlIncidentPullNow?.(false);if(sameUser())paintApprovals()}finally{b.disabled=false}}}panel.hidden=false;approvalBody(panel.querySelector('[data-approval-list]'))}
   function openApprovalList(){return selectTab('approvals')}
-  function paintRecent(){const box=host.querySelector('[data-list=recent]');box.replaceChildren();for(const r of recent.slice(0,5))rowButton(box,r.sentence||r.incident_title,relative(r.happened_at),()=>openActivity(r));if(!recent.length)box.innerHTML='<p class="hub-empty">'+safe(recentError||'최근 업무 기록이 없습니다.')+'</p>'}
+  function paintRecent(){const box=host.querySelector('[data-list=recent]');box.replaceChildren();for(const r of recent.slice(0,homeFeedLimit))rowButton(box,r.sentence||r.incident_title,relative(r.happened_at),()=>openActivity(r));if(!recent.length)box.innerHTML='<p class="hub-empty">'+safe(recentError||'최근 업무 기록이 없습니다.')+'</p>'}
   function openActivity(r){const d=dialog(host,'작업 기록'),box=d.querySelector('.hub-dialog-body');box.innerHTML='<p>'+safe(r.sentence)+'</p><p>'+safe(r.actor_name||'')+' / '+safe(date(r.happened_at))+' '+safe(time(r.happened_at))+'</p>';if(r.module_key==='incident'&&scopedIncidents().some(i=>i.id===r.incident_id)){const b=document.createElement('button');b.textContent='사고 내용 보기';b.onclick=()=>openIncident(r.incident_id);box.append(b)}}
   async function loadRecent(){recentLink.hidden=!window.enlHistoryAvailable?.(u);if(recentLink.hidden){recentError='조회 가능한 작업 기록이 없습니다.';paintRecent();return}try{const r=await api({action:'activity_list',feed:'all',recentOnly:true});if(!sameUser())return;recent=r.rows||[];recentError=''}catch{recentError='작업 기록을 불러오지 못했습니다.'}if(sameUser())paintRecent()}
   function paintContent(){
@@ -721,7 +722,7 @@
    const newest=[...content.notices].sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at));
    const lead=newest.find(boardPinned)||newest.find(x=>x.label==='important')||newest[0];
    if(lead){
-    for(const item of [lead,...newest.filter(x=>x!==lead).slice(0,4)]){
+    for(const item of [lead,...newest.filter(x=>x!==lead)].slice(0,homeFeedLimit)){
      const row=rowButton(noticeList,item.title,date(item.created_at),()=>readContent(item),'notice');
      row.classList.add('hub-notice-row');
      if(item===lead)row.classList.add('hub-notice-lead');
@@ -732,7 +733,7 @@
    const today=day();
    const events=content.events.filter(x=>day(new Date(x.starts_at))<=today&&day(new Date(x.ends_at||x.starts_at))>=today);
    if(loaded)showFeedCount('[data-event-count]',events.length);
-   for(const item of events.slice(0,5)){
+   for(const item of events.slice(0,homeFeedLimit)){
     const row=rowButton(scheduleList,item.title,time(item.starts_at)+' ~ '+time(item.ends_at),()=>readContent(item),'calendar');
     row.classList.add('hub-event-row');
    }
