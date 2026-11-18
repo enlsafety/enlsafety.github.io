@@ -153,14 +153,18 @@
         if(err.message==='catalog_changed')await load();return false;
       }finally{saving=false;area.inert=services.inert=false;}
     }
+    const homeModules=new Set(['incident','tbm']);
     function homeOrder(){return config.homeOrder||[...config.modules.map(m=>m.key),'support',...(admin?['system']:[])];}
     function manageCards(){
       if(!admin||!config||saving)return;
       const d=window.ENLHub.dialog(host,'주요 업무기능 카드 관리'),box=d.querySelector('.hub-dialog-body');
       const modules=new Map([...config.modules,...config.services].map(m=>[m.key,m]));
       const revision=config.revision;
-      box.innerHTML='<form class="hub-form"><fieldset class="hub-placement"><legend>메인에 표시할 카드</legend></fieldset><details><summary>새 카드 만들기</summary><label>카드 이름<input name="title" maxlength="30" autocomplete="off"></label><label>아이콘<select name="icon"></select></label></details><button type="submit">저장</button><p role="status"></p></form>';
+      box.innerHTML='<form class="hub-form"><fieldset class="hub-placement"><legend>표시할 메뉴</legend></fieldset><details><summary>새 카드 만들기</summary><label>카드 이름<input name="title" maxlength="30" autocomplete="off"></label><label>아이콘<select name="icon"></select></label></details><button type="submit">저장</button><p role="status"></p></form>';
       const form=box.querySelector('form'),list=form.querySelector('fieldset');
+      box.insertAdjacentHTML('beforeend','<details class="hub-other-settings"><summary>그 밖의 메뉴 설정</summary><div class="feature-list"><div class="platform-grid" data-other-menu-settings></div></div></details>');
+      const details=box.querySelector('.hub-other-settings');
+      details.ontoggle=()=>{if(details.open)drawOtherSettings(details.querySelector('[data-other-menu-settings]'))};
       for(const key of homeOrder()){
         const label=document.createElement('label'),input=document.createElement('input');
         label.className='hub-check';input.type='checkbox';input.name='placed';input.value=key;input.checked=!config.omitted?.includes(key);
@@ -207,7 +211,11 @@
       const modules=[...itemsFor(key)],i=modules.findIndex(m=>m.key===key),j=modules.findIndex(m=>m.key===destination);
       if(i<0||j<0||i===j)return;modules.splice(j,0,modules.splice(i,1)[0]);return save(modules);
     }
-    function neighbors(key){return homeOrder().includes(key)?homeOrder().filter(k=>!config.omitted?.includes(k)):itemsFor(key).map(m=>m.key);}
+    function neighbors(key){
+      if(!homeOrder().includes(key))return itemsFor(key).map(m=>m.key);
+      const isShortcut=k=>homeModules.has(k)||k==='support';
+      return homeOrder().filter(k=>isShortcut(k)===isShortcut(key)&&!config.omitted?.includes(k));
+    }
     function supportOrder(grip){
       const dialog=document.createElement('dialog');dialog.className='feature-settings';
       dialog.innerHTML='<h3>공통업무지원서비스 순서</h3><div class="feature-actions"><button type="button">앞으로</button><button type="button">뒤로</button><button type="button">닫기</button></div>';
@@ -307,7 +315,7 @@
         if(!g.active){
           if(Math.hypot(g.x-g.startX,g.y-g.startY)<6)return;
           const base=grid.getBoundingClientRect();
-          g.slots=Array.from(grid.querySelectorAll('.feature-card-wrap:not([hidden])'),el=>{
+          g.slots=Array.from(grid.querySelectorAll('.feature-card-wrap:not([hidden]):has(.feature-grip)'),el=>{
             const r=el.getBoundingClientRect(),top=r.top-base.top;
             return {row:el,top,left:r.left-base.left,width:r.width,height:r.height};
           });
@@ -323,20 +331,29 @@
       };
       grip.onpointercancel=grip.onlostpointercapture=ev=>{if(gesture?.id===ev.pointerId)cancel()};
     }
+    function drawOtherSettings(grid){
+      grid.replaceChildren();
+      draw(grid,config.modules.filter(m=>!homeModules.has(m.key)),false);
+      draw(grid,config.services.filter(m=>m.key==='system'),true);
+    }
     function cards(){
       const grid=document.createElement('div');grid.className='platform-grid';area.replaceChildren(grid);services.replaceChildren();
-      draw(grid,config.modules,false);
-      const supportRow=dashboard.addSupportCard(grid);
+      draw(grid,config.modules.filter(m=>homeModules.has(m.key)),false);
+      const supportRow=dashboard.addShortcut(grid,'support');
       if(admin){
         const tools=document.createElement('div');tools.className='feature-controls';
         tools.innerHTML='<button type="button" class="feature-grip" aria-haspopup="dialog" aria-label="공통업무지원서비스 순서 이동">☰</button>';
         supportRow.append(tools);bindGrip(tools.firstElementChild,supportRow,{key:'support'},grid);
         tools.firstElementChild.title='눌러서 순서 선택, 끌어서 순서 변경';
       }
-      draw(grid,config.services.filter(m=>m.key==='system'),true);
       draw(services,config.services.filter(m=>m.key!=='system'),true);
       const rows=new Map(Array.from(grid.children,r=>[r.dataset.key,r]));
       for(const key of homeOrder()){const row=rows.get(key);if(row){row.hidden=config.omitted?.includes(key)===true;grid.append(row);}}
+      const board=dashboard.addShortcut(grid,'boardAll');
+      const first=grid.querySelector('.feature-card-wrap:not([hidden])');
+      if(first!==board)first.after(board);
+      const other=host.querySelector('.hub-other-settings[open] [data-other-menu-settings]');
+      if(other)drawOtherSettings(other);
       dashboard.afterCards({...config,homeOrder:homeOrder()});
       window.enlRefreshHistoryCount?.(true);
     }
@@ -373,7 +390,8 @@
           const control=ev.target.closest('button,form');
           if(!row.contains(button)||(control&&control!==button))return;
           if(!isOn(m)||m.canEnter===false){status.textContent='현재 진입할 수 없는 '+(support?'서비스':'모듈')+'입니다.';return;}
-          await dashboard.selectTab(m.key);
+          const panel=grid.closest('dialog');
+          if(await dashboard.selectTab(m.key))panel?.close();
         };
         if(!admin)continue;
         addNameEditor(row,button,m,support);

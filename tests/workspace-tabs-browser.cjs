@@ -134,7 +134,7 @@ async function check(browser, role, width) {
     await active('notices');
     await page.locator('.notice-center').waitFor();
     await tab('home').click();
-    await page.locator('[data-module=risk]').click();
+    await side('feature:risk');
     assert.equal(await tab('risk').count(), 0);
     await tab('support').click();
     await active('support');

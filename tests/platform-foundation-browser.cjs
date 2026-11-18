@@ -24,16 +24,16 @@ const {tab,noOverflow}=require('./field-entry-table-browser.cjs');
     };
     document.querySelector('.platform-hub')?.remove();currentView='platform';window.enlRenderApp(currentUser());
    };await p.evaluate(mountHub);
-   const card=p.locator('[data-module]');await card.first().waitFor();assert.equal(await card.count(),6);await noOverflow(p);
-   assert.equal(await p.locator('.platform-modules .hub-art').count(),role==='safety'?8:7);
+   const card=p.locator('[data-module]');await card.first().waitFor();assert.equal(await card.count(),2);await noOverflow(p);
+   assert.equal(await p.locator('.platform-modules .hub-art').count(),4);
    await p.getByRole('button',{name:'알림센터',exact:true}).click();
    const push=p.getByRole('switch',{name:'사고보고 앱 푸시',exact:true});await push.click();await p.waitForFunction(()=>document.querySelector('.notice-row [role=switch]')?.getAttribute('aria-checked')==='false');
    await p.locator('[data-platform-home]').click();await card.first().waitFor();
-   assert.equal(await p.locator('.shell411-nav:visible').count(),0);assert.equal(await p.locator('.platform-edit').count(),0);assert.equal(await p.locator('.feature-grip').count(),role==='safety'?12:0);
-   await p.locator('[data-module=risk]').click();await p.getByText('현재 진입할 수 없는 모듈입니다.').waitFor();
+   assert.equal(await p.locator('.shell411-nav:visible').count(),0);assert.equal(await p.locator('.platform-edit').count(),0);assert.equal(await p.locator('.hub-features .feature-grip').count(),role==='safety'?3:0);
+   await p.locator('[data-module=tbm]').click();await p.getByText('현재 진입할 수 없는 모듈입니다.').waitFor();
    if(role==='safety'){
     await p.screenshot({path:'qa-output/platform-'+width+'.png',fullPage:true});
-    await p.locator('[data-hub=edit]').click();await p.locator('.hub-support-card button').click();
+    await p.locator('[data-hub=edit]').click();await p.locator('.hub-support-card .platform-card').click();
     const serviceRow=p.locator('[data-key=approvals]'),serviceToggle=serviceRow.getByRole('switch');
     await serviceToggle.click();await p.waitForFunction(()=>document.querySelector('[data-key=approvals] [role=switch]').getAttribute('aria-checked')==='true');
     await serviceRow.locator('.feature-grip').click();const servicePanel=p.locator('.feature-settings');
@@ -49,8 +49,8 @@ const {tab,noOverflow}=require('./field-entry-table-browser.cjs');
     }else{await p.mouse.move(sx,sy);await p.mouse.down();await p.mouse.move(sx,ty,{steps:8});await p.mouse.up();}
     await p.waitForFunction(()=>document.querySelector('.platform-services [data-service]').dataset.service==='approvals');
     await p.locator('[data-hub=close-support]').click();
-    const risk=p.locator('[data-key=risk]'),toggle=risk.getByRole('switch');
-    await toggle.click();await p.waitForFunction(()=>document.querySelector('[data-key=risk] [role=switch]').getAttribute('aria-checked')==='true');
+    const risk=p.locator('[data-key=tbm]'),toggle=risk.getByRole('switch');
+    await toggle.click();await p.waitForFunction(()=>document.querySelector('[data-key=tbm] [role=switch]').getAttribute('aria-checked')==='true');
     await risk.locator('.feature-grip').click();const panel=p.locator('.feature-settings');
     await panel.locator('[data-role=field]').uncheck();await panel.locator('[type=submit]').click();await panel.waitFor({state:'detached'});
     const grip=risk.locator('.feature-grip');await grip.scrollIntoViewIfNeeded();
@@ -67,15 +67,15 @@ const {tab,noOverflow}=require('./field-entry-table-browser.cjs');
       assert.ok(await risk.evaluate(n=>n.classList.contains('moving')&&!!n.style.transform));
       await p.mouse.up();
     }
-    await p.waitForFunction(()=>document.querySelector('[data-module]').dataset.module==='risk');
+    await p.waitForFunction(()=>document.querySelector('[data-module]').dataset.module==='tbm');
     assert.equal(await panel.count(),0);await p.reload();await p.waitForFunction(()=>!!currentUser()&&!!window.enlPlatformHome);
-    await p.evaluate(mountHub);await p.waitForFunction(()=>document.querySelector('[data-module]')?.dataset.module==='risk');
+    await p.evaluate(mountHub);await p.waitForFunction(()=>document.querySelector('[data-module]')?.dataset.module==='tbm');
     assert.equal(await p.locator('.platform-services [data-service]').first().getAttribute('data-service'),'approvals');
     await p.evaluate(()=>openUserModal(null,currentUser()));const box=p.locator('#hqUserForm422 .platform-duties');await box.waitFor();
     await box.locator('[value=health]').check();await box.locator('[value=safety]').check();assert.equal(await box.locator(':checked').count(),2);await p.evaluate(()=>closeModal());
    }
    await p.locator('[data-module=incident]').click();await p.waitForFunction(()=>currentView!=='platform');await p.locator('[data-platform-home]').click();await card.first().waitFor();
-   await p.locator('.hub-support-card button').click();await p.getByRole('button',{name:'통합 히스토리',exact:true}).click();await p.locator('.activity-history').waitFor();await noOverflow(p);
+   await p.locator('.hub-support-card .platform-card').click();await p.getByRole('button',{name:'통합 히스토리',exact:true}).click();await p.locator('.activity-history').waitFor();await noOverflow(p);
    let warned=false;p.once('dialog',async d=>{warned=true;await d.dismiss()});await p.locator('[data-platform-home]').click();await card.first().waitFor();assert.equal(warned,false,'history returns without prompting');
    await c.close();
   }

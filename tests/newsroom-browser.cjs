@@ -43,8 +43,9 @@ async function check(browser, role) {
     const grid=wrapper.locator('.platform-modules > .platform-grid');
     await grid.locator('[data-module=incident]').waitFor();
     assert.equal(await wrapper.locator('[data-hub=edit]').count(),role==='safety'?1:0);
-    assert.equal(await grid.locator('[data-key=system]').count(),role==='safety'?1:0);
-    for(const width of [1440,1280,1024,768,390,320]){
+    assert.deepEqual(await grid.locator(':scope > [data-key]').evaluateAll(rows=>rows.map(r=>r.dataset.key)),['incident','boardAll','tbm','support']);
+    assert.equal(await page.locator('.hub-sidebar [data-hub="feature:system"]').count(),role==='safety'?1:0);
+    for(const width of [2560,1920,1440,1280,1024,768,390,320]){
       await page.setViewportSize({width,height:900});
       const boxes=await wrapper.evaluate(el=>{
         const rect=selector=>el.querySelector(selector).getBoundingClientRect().toJSON();
@@ -64,6 +65,10 @@ async function check(browser, role) {
           }
         }
         for(const card of document.querySelectorAll('.hub-features .feature-card-wrap')){
+          for(const el of card.querySelectorAll('.hub-card-title,.hub-card-description')){
+            const r=el.getBoundingClientRect(),b=card.getBoundingClientRect();
+            if(getComputedStyle(el).textAlign!=='center'||(b.width>=260&&Math.abs((r.left+r.right-b.left-b.right)/2)>1))bad.push('misaligned '+el.textContent);
+          }
           if(!card.offsetWidth)continue;
           const bounds=card.getBoundingClientRect();
           for(const el of card.querySelectorAll('.hub-card-title,.hub-card-description,.platform-card>small')){
@@ -91,6 +96,12 @@ async function check(browser, role) {
     }
     await page.setViewportSize({width:approvalsOpen?1440:390,height:900});
     const home=async()=>{await page.locator('[data-worktab=home]').click();await wrapper.waitFor()};
+    await grid.locator('[data-hub=boardAll]').click();
+    await page.locator('[data-list-workspace=boardAll] .hub-board-list').waitFor();
+    await home();
+    await grid.locator('[data-hub=support]').click();
+    await page.locator('.hub-support [data-service=history]').waitFor();
+    await home();
     await wrapper.locator('.hub-notice-lead').click();
     await page.getByRole('heading',{name:notices[lead].title,exact:true}).waitFor();
     assert.ok(await wrapper.isHidden());
@@ -120,6 +131,10 @@ async function check(browser, role) {
     if(role==='safety'){
       await wrapper.locator('[data-hub=edit]').click();
       await page.locator('.hub-editing .hub-features').waitFor();
+      await wrapper.locator('[data-hub=manage-cards]').click();
+      await page.locator('.hub-other-settings>summary').click();
+      await page.locator('[data-other-menu-settings] [data-key=risk] .feature-grip').waitFor();
+      await page.locator('dialog[open]>header button').click();
       await wrapper.locator('[data-hub=edit]').click();
     }
     if(role==='safety'){
@@ -136,7 +151,7 @@ async function check(browser, role) {
         assert.ok(Math.abs(top-firstTop)<=1,'stable features top '+top+' vs '+firstTop);
       }
     }
-    console.log('PASS',role,'six viewport widths, notice priority, detail links, schedule, approvals and card visibility');
+    console.log('PASS',role,'eight viewport widths, notice priority, detail links, schedule, approvals and card visibility');
   }finally{await page.close()}
 }
 (async()=>{

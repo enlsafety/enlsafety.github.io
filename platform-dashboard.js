@@ -372,7 +372,17 @@
   }
   function clickFeature(key){return selectTab(key);}
   function support(){return selectTab('support');}
-  function addSupportCard(grid){const r=document.createElement('article');r.className='hub-support-card feature-card-wrap';r.dataset.key='support';r.dataset.state='live';r.dataset.on='true';r.innerHTML=action('support','<span class="hub-art hub-art-support" aria-hidden="true"></span><strong class="hub-card-title">공통업무지원<wbr>서비스</strong><span class="hub-card-description">'+descriptions.support+'</span><small>운영중</small><span class="hub-card-arrow" aria-hidden="true">'+svg('arrow')+'</span>','platform-card');r.firstElementChild.onclick=support;grid.append(r);return r}
+  function addShortcut(grid,key){
+   const supportCard=key==='support',row=document.createElement('article');
+   row.className='feature-card-wrap '+(supportCard?'hub-support-card':'hub-boards-card');
+   row.dataset.key=key;row.dataset.state='live';row.dataset.on='true';
+   const art=supportCard?'<span class="hub-art hub-art-support" aria-hidden="true"></span>':'<span class="hub-art hub-boards-art" aria-hidden="true">'+sidebarIcon('bulletins')+'</span>';
+   const title=supportCard?'공통업무지원<wbr>서비스':'게시판';
+   const description=supportCard?descriptions.support:'공지사항, 사고알리미,<br>안전뉴스와 자료실';
+   row.innerHTML=action(key,art+'<strong class="hub-card-title">'+title+'</strong><span class="hub-card-description">'+description+'</span><small>운영중</small><span class="hub-card-arrow" aria-hidden="true">'+svg('arrow')+'</span>','platform-card');
+   row.firstElementChild.onclick=supportCard?support:()=>selectTab('boardAll');
+   grid.append(row);return row;
+  }
   // Tab membership belongs to this signed-in dashboard and disappears with it on logout.
   const opened=['home'];
   const boards={
@@ -982,7 +992,7 @@
   const bannerRenew=setInterval(()=>{if(!sameUser()){clearInterval(bannerRenew);window.removeEventListener('enl-banners-changed',bannerRefresh)}else if(active==='home')loadBanners()},3600000);
   const recentRefresh=()=>{if(sameUser())loadRecent();else window.removeEventListener('enl-activity-changed',recentRefresh)};window.addEventListener('enl-activity-changed',recentRefresh);
   navigation();loadContent();loadRecent();
-  return {area,services,status,addSupportCard,afterCards,selectTab};
+  return {area,services,status,addShortcut,afterCards,selectTab};
  }
  document.addEventListener('input',ev=>{
   const el=ev.target;
