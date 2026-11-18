@@ -1,0 +1,46 @@
+.safety-card-panel{min-width:0}
+.safety-card-panel>h2{margin:0 0 14px}
+.safety-card-panel input[type=search]{width:min(100%,380px);min-height:42px;margin-bottom:14px}
+.safety-card-sites{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.safety-card-sites>button{display:flex;flex-direction:column;gap:8px;padding:18px;text-align:left;background:#fff;border:1px solid #c8d9e7;border-radius:10px;color:#173b66;box-shadow:0 3px 8px #173b6610;cursor:pointer}
+.safety-card-sites>button:hover{background:#eef6fd;border-color:#3271a5}
+.safety-card-sites>button strong{font-size:16px}.safety-card-sites>button span{font-size:12px;color:#5e7285}
+.safety-card-editor{min-width:0;border:0;padding:0;margin:0}
+.safety-card-tools{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.safety-card-tools button,.safety-card-tools select{min-height:40px;margin:0;max-width:100%}
+.safety-card-tools button{padding:8px 12px}.safety-card-tools select{width:auto;min-width:150px}
+.safety-card-status{margin:8px 0 12px;color:#435f78;overflow-wrap:anywhere}
+.safety-card-scroll{max-width:100%;overflow:auto;border:1px solid #c1d1df;border-radius:6px;background:#fff;padding:14px;overscroll-behavior-x:contain}
+.safety-card-paper{width:1050px;min-width:1050px;border-collapse:collapse;table-layout:fixed;font-family:inherit;line-height:1.45;background:#fff}
+.safety-card-paper td{border:1px solid #cbd5df;vertical-align:middle;padding:5px 6px;overflow-wrap:anywhere;position:relative;white-space:pre-wrap}
+.safety-card-paper td:empty{border:0}
+.safety-card-paper .safety-card-title{padding:10px;font-size:23px!important}
+.safety-card-paper td:has(.safety-card-note-link){padding-bottom:23px}
+.safety-card-paper :is(textarea,select){display:block;width:100%;min-width:0;max-width:100%;box-sizing:border-box;margin:0;padding:4px 2px;min-height:30px;border:1px solid transparent;border-radius:3px;background:transparent;color:inherit;font:inherit;font-weight:400;line-height:1.45}
+.safety-card-paper textarea{resize:none;overflow:hidden;white-space:pre-wrap}
+.safety-card-paper :is(textarea,select):focus{outline:2px solid #2675b3;background:#fff}
+.safety-card-paper textarea:not([readonly]):hover,.safety-card-paper select:not(:disabled):hover{border-color:#82acd0;background:#ffffff80}
+.safety-card-paper :is(textarea[readonly],select:disabled){opacity:1;color:inherit;-webkit-text-fill-color:currentColor;cursor:default}
+.safety-card-paper .safety-card-note-link{position:absolute;right:4px;bottom:2px;min-height:18px;padding:0 4px;margin:0;font-size:10px;line-height:18px;background:#fff;color:#205b8b;border:1px solid #9ab5ca;border-radius:3px}
+.safety-card-paper .safety-card-back{border:0;background:transparent;color:#205e94;text-decoration:underline;padding:0;min-height:30px;font-size:12px}
+.safety-card-note{width:min(680px,calc(100vw - 24px));max-height:85dvh;box-sizing:border-box;overflow:auto;border:1px solid #bbcfe0;border-radius:12px;padding:20px;color:#173b66;background:#fff;box-shadow:0 16px 50px #123b6440}
+.safety-card-note::backdrop{background:#142d4766}.safety-card-note h3{margin:0 0 12px}
+.safety-card-note textarea{width:100%;min-height:240px;max-height:55dvh;resize:vertical;box-sizing:border-box;font-family:inherit;font-size:14px;line-height:1.6;padding:10px;margin-bottom:14px;white-space:pre-wrap}
+#safety-card-print{display:none}
+@media(max-width:700px){
+ .safety-card-panel{padding:12px!important}.safety-card-scroll{padding:6px}
+ .safety-card-tools button,.safety-card-tools select{min-height:44px}
+ .safety-card-paper :is(textarea,select){font-size:16px;min-height:38px}
+ .safety-card-note textarea{font-size:16px}.safety-card-sites{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .safety-card-sites>button{padding:14px 10px}
+}
+@media print{
+ html:has(#safety-card-print),body:has(#safety-card-print){background:#fff!important;margin:0!important;padding:0!important}
+ body:has(#safety-card-print)>:not(#safety-card-print){display:none!important}
+ #safety-card-print{display:block!important;width:100%;margin:0}
+ #safety-card-print .safety-card-paper{width:100%;min-width:0;font-size:8.5pt;line-height:1.2;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+ #safety-card-print .safety-card-paper tr{height:var(--card-print-height)!important;break-inside:avoid}
+ #safety-card-print .safety-card-paper td{padding:3px 2px!important;font-size:8.5pt!important;white-space:pre-wrap;overflow-wrap:anywhere;border-color:#8294a5}
+ #safety-card-print .safety-card-paper .safety-card-title{font-size:13pt!important;padding:6px!important}
+ #safety-card-print .safety-card-print-value{display:block;min-height:10px}
+}
