@@ -656,6 +656,7 @@
  grid-template-columns:minmax(0,7fr) minmax(290px,3fr);
  gap:14px;
 }
+.hub-newsroom-main {display:grid;align-content:start;gap:12px;min-width:0}
 .platform-hub .hub-newsroom .hub-right {grid-template-columns:minmax(0,1fr)}
 .hub-newsroom .hub-panel>header {flex-wrap:wrap}
 .hub-newsroom .hub-panel>header button {margin-left:auto}
@@ -737,23 +738,28 @@
  --art-width:min(33%,78px);
  display:grid;
  grid-template-columns:auto minmax(0,1fr);
- grid-template-rows:auto 1fr auto;
+ grid-template-rows:auto 1fr;
  align-content:center;
  align-items:center;
  gap:2px 4px;
- padding:7px 8px 6px calc(var(--art-width) + 8px);
+ padding:7px 8px 30px calc(var(--art-width) + 8px);
 }
-.platform-hub .hub-features .hub-art {width:var(--art-width);left:4px;top:50%}
+.hub-features .hub-shortcut-art {
+ width:var(--art-width);left:7px;top:50%;transform:translateY(-50%);
+ background-image:url("assets/home-shortcuts-r148.webp");background-size:400% 100%;background-repeat:no-repeat;
+}
+.hub-features [data-key=incident] .hub-shortcut-art {background-position:0% center}
+.hub-features [data-key=boardAll] .hub-shortcut-art {background-position:33.333333% center}
+.hub-features [data-key=tbm] .hub-shortcut-art {background-position:66.666667% center}
+.hub-features [data-key=support] .hub-shortcut-art {background-position:100% center}
 .platform-hub .hub-features .hub-card-title {grid-area:1 / 1 / 2 / -1;margin:0}
 .platform-hub .hub-features .hub-card-description {grid-area:2 / 1 / 3 / -1;align-self:start;line-height:1.35}
-.platform-hub .hub-features .hub-card-arrow {position:static;grid-area:3 / 1;width:21px;height:21px}
+.platform-hub .hub-features .hub-card-arrow {position:absolute;left:50%;right:auto;bottom:5px;transform:translateX(-50%);width:21px;height:21px}
 .platform-hub .hub-features .hub-card-arrow svg {width:14px;height:14px}
-.platform-hub .hub-features .platform-card>small {position:static;grid-area:3 / 2;justify-self:end;max-width:100%;margin:0}
+.platform-hub .hub-features .platform-card>small {position:absolute;right:6px;bottom:5px;left:auto;max-width:calc(50% - 20px);margin:0}
 .platform-hub.hub-editing .hub-features .platform-card {padding-top:39px}
 
 .platform-hub .hub-features :is(.hub-card-title,.hub-card-description) {justify-self:stretch;text-align:center}
-.platform-hub .hub-features .hub-boards-art {background:none;color:#275d91;text-align:center}
-.hub-features .hub-boards-art svg {width:70%;height:70%}
 @container (min-width:260px) {
  .platform-hub .hub-features .feature-card-wrap>.platform-card {--art-width:min(23%,72px);padding-inline:calc(var(--art-width) + 8px)}
 }

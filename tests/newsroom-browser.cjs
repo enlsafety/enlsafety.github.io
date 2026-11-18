@@ -45,6 +45,14 @@ async function check(browser, role) {
     assert.equal(await wrapper.locator('[data-hub=edit]').count(),role==='safety'?1:0);
     assert.deepEqual(await grid.locator(':scope > [data-key]').evaluateAll(rows=>rows.map(r=>r.dataset.key)),['incident','boardAll','tbm','support']);
     assert.equal(await page.locator('.hub-sidebar [data-hub="feature:system"]').count(),role==='safety'?1:0);
+    const imageSize=await grid.evaluate(async el=>{
+      const image=new Image();
+      const background=getComputedStyle(el.querySelector('.hub-shortcut-art')).backgroundImage;
+      image.src=background.slice(4,-1).replace(/^"|"$/g,'');
+      await image.decode();
+      return [image.naturalWidth,image.naturalHeight];
+    });
+    assert.deepEqual(imageSize,[1536,384]);
     for(const width of [2560,1920,1440,1280,1024,768,390,320]){
       await page.setViewportSize({width,height:900});
       const boxes=await wrapper.evaluate(el=>{
@@ -71,6 +79,18 @@ async function check(browser, role) {
           }
           if(!card.offsetWidth)continue;
           const bounds=card.getBoundingClientRect();
+          const button=card.querySelector('.platform-card').getBoundingClientRect();
+          const art=card.querySelector('.hub-shortcut-art').getBoundingClientRect();
+          const arrow=card.querySelector('.hub-card-arrow').getBoundingClientRect();
+          const badge=card.querySelector('.platform-card>small').getBoundingClientRect();
+          const close=(a,b)=>Math.abs(a-b)<=1.1;
+          if(!close(art.left-button.left,7)||!close(art.top+art.height/2,button.top+button.height/2)||
+             !close(art.width,art.height)||!art.width)bad.push('art '+card.dataset.key);
+          if(!close(arrow.left+arrow.width/2,button.left+button.width/2)||!close(button.bottom-arrow.bottom,5)||
+             !close(button.right-badge.right,6)||!close(button.bottom-badge.bottom,5)||arrow.right>badge.left)
+            bad.push('footer '+card.dataset.key);
+          if(card.querySelector('.hub-card-description').getBoundingClientRect().bottom>Math.min(arrow.top,badge.top)+1)
+            bad.push('description overlaps footer '+card.dataset.key);
           for(const el of card.querySelectorAll('.hub-card-title,.hub-card-description,.platform-card>small')){
             if(!el.textContent.trim())continue;
             const range=document.createRange();range.selectNodeContents(el);
@@ -88,11 +108,12 @@ async function check(browser, role) {
       console.log('layout',role,width,density.height,density.cardHeight);
       const {notice,schedule,approvals,features,recent}=boxes;
       for(const rect of [notice,schedule,approvals,features,recent])assert.ok(rect.left>=0&&rect.right<=width+1,JSON.stringify({width,rect}));
-      assert.ok(!boxes.wide && approvals.y>=schedule.bottom && features.y>=Math.max(notice.bottom,approvals.bottom) && recent.y>=features.bottom);
+      assert.ok(!boxes.wide && recent.y>=notice.bottom && Math.abs(recent.x-notice.x)<=1 && Math.abs(recent.width-notice.width)<=1);
+      assert.ok(approvals.y>=schedule.bottom && features.y>=Math.max(recent.bottom,approvals.bottom));
       if(width>1100){
         assert.equal(boxes.firstRow,4);
         assert.ok(schedule.x>notice.right && notice.width/(notice.width+schedule.width)>=0.64);
-      }else assert.ok(schedule.y>=notice.bottom);
+      }else assert.ok(schedule.y>=recent.bottom);
     }
     await page.setViewportSize({width:approvalsOpen?1440:390,height:900});
     const home=async()=>{await page.locator('[data-worktab=home]').click();await wrapper.waitFor()};

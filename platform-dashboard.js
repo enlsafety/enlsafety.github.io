@@ -191,7 +191,7 @@
  }
  function renderArtwork(host){
   stopArtwork();let stopped=false,frame=0,observer,ratioQuery;
-  const nodes=Array.from(host.querySelectorAll('.hub-art'));
+  const nodes=Array.from(host.querySelectorAll('.hub-art:not(.hub-shortcut-art)'));
   const schedule=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(paint)};
   function watchRatio(){ratioQuery?.removeEventListener('change',onRatio);ratioQuery=matchMedia('(resolution: '+(window.devicePixelRatio||1)+'dppx)');ratioQuery.addEventListener('change',onRatio)}
   function onRatio(){watchRatio();schedule()}
@@ -225,6 +225,7 @@
  }
  function decorateCard(row,m,support){if(support&&m.key!=='system')return;
   const b=row.querySelector('.platform-card'),icon=b.querySelector('.platform-icon');icon.className='hub-art hub-art-'+m.key;icon.replaceChildren();
+  if(m.key==='incident'||m.key==='tbm')icon.classList.add('hub-shortcut-art');
   const art=m.iconKey||m.key;
   if(Object.hasOwn(safetyIcons,art)){
    row.classList.add('hub-safety-card');
@@ -332,11 +333,10 @@
   const action=(key,label,cls='')=>'<button type="button" class="'+cls+'" data-hub="'+key+'"'+(key==='notifications'?' aria-label="알림센터"':key==='menu'?' aria-label="메뉴 열기"':key==='search'?' aria-label="통합검색"':'')+'>'+label+'</button>';
   const panel=(key,title,icon,more)=>'<section class="hub-panel hub-'+key+'"><header><h2>'+svg(icon,icons)+title+'</h2>'+action(key,more||'더보기 ›')+'</header><div data-list="'+key+'"><p class="hub-empty">불러오는 중입니다.</p></div></section>';
   host.innerHTML='<aside class="hub-sidebar"><div class="hub-logo"><span class="hub-wordmark" role="img" aria-label="이앤엘 E&amp;L"><span aria-hidden="true">E<span class="hub-wordmark-amp">&amp;</span>L</span><i aria-hidden="true"></i></span></div><nav aria-label="통합시스템 메뉴"></nav><section class="hub-favorites"><header><h2>'+sidebarIcon('favorites')+'즐겨찾기</h2>'+action('favorites','＋')+'</header><div></div></section><div class="hub-sidebar-wave" aria-hidden="true"></div></aside><button class="hub-sidebar-backdrop" type="button" data-hub="close-menu" aria-label="메뉴 닫기"></button><section class="hub-hero"><div class="hub-hero-image" role="img" aria-label="골프장 풍경과 이앤엘 문구: 안전이 일상이 되는 안전보건관리 통합시스템"></div><div class="hub-original-slogan"><b>E&amp;L</b><div><span>안전이 일상이 되는</span><strong>안전보건관리 통합시스템</strong></div></div></section><div class="hub-middle hub-home-content">'+
-    '<div class="hub-newsroom">'+panel('bulletins','공지사항','notice')+
+    '<div class="hub-newsroom"><div class="hub-newsroom-main">'+panel('bulletins','공지사항','notice')+panel('recent','최근 업무 기록','clock')+'</div>'+
       '<div class="hub-right">'+panel('schedule','오늘의 일정 <small>'+safe(new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',weekday:'short'}).format(new Date()))+'</small>','calendar','전체 일정 <span class="hub-feed-count" data-event-count hidden></span> ›')+
       panel('approvals','통합결재 대기','approvals','더보기 <span class="hub-feed-count" data-approval-count hidden></span> ›')+'</div></div>'+
-    '<section class="hub-features"><header class="hub-section-heading"><h2>'+svg('grid')+'주요 업무기능</h2><p>안전보건 업무를 한 곳에서 통합 관리하세요.</p>'+action('guide','ⓘ 모듈 안내')+(admin?action('manage-cards','카드 관리','hub-card-manager')+action('edit','편집','hub-edit-toggle'):'')+'</header><div class="platform-modules feature-list"></div></section>'+
-    panel('recent','최근 업무 기록','clock')+'</div><p class="hub-status" role="status" aria-live="polite"></p><section class="hub-support hub-tool-panel" hidden><h2>공통업무지원서비스</h2><section class="platform-services feature-list"><div class="platform-grid"></div></section></section><section class="hub-module-preview hub-tool-panel" hidden><h2></h2><p>이 업무의 세부 기능은 구현 중입니다.</p></section>';
+    '<section class="hub-features"><header class="hub-section-heading"><h2>'+svg('grid')+'주요 업무기능</h2><p>안전보건 업무를 한 곳에서 통합 관리하세요.</p>'+action('guide','ⓘ 모듈 안내')+(admin?action('manage-cards','카드 관리','hub-card-manager')+action('edit','편집','hub-edit-toggle'):'')+'</header><div class="platform-modules feature-list"></div></section></div><p class="hub-status" role="status" aria-live="polite"></p><section class="hub-support hub-tool-panel" hidden><h2>공통업무지원서비스</h2><section class="platform-services feature-list"><div class="platform-grid"></div></section></section><section class="hub-module-preview hub-tool-panel" hidden><h2></h2><p>이 업무의 세부 기능은 구현 중입니다.</p></section>';
   const area=host.querySelector('.platform-modules'),services=host.querySelector('.platform-services .platform-grid'),status=host.querySelector('.hub-status');
   const recentLink=host.querySelector('[data-hub=recent]');
   recentLink.hidden=!window.enlHistoryAvailable?.(u);
@@ -376,7 +376,7 @@
    const supportCard=key==='support',row=document.createElement('article');
    row.className='feature-card-wrap '+(supportCard?'hub-support-card':'hub-boards-card');
    row.dataset.key=key;row.dataset.state='live';row.dataset.on='true';
-   const art=supportCard?'<span class="hub-art hub-art-support" aria-hidden="true"></span>':'<span class="hub-art hub-boards-art" aria-hidden="true">'+sidebarIcon('bulletins')+'</span>';
+   const art='<span class="hub-art hub-shortcut-art" aria-hidden="true"></span>';
    const title=supportCard?'공통업무지원<wbr>서비스':'게시판';
    const description=supportCard?descriptions.support:'공지사항, 사고알리미,<br>안전뉴스와 자료실';
    row.innerHTML=action(key,art+'<strong class="hub-card-title">'+title+'</strong><span class="hub-card-description">'+description+'</span><small>운영중</small><span class="hub-card-arrow" aria-hidden="true">'+svg('arrow')+'</span>','platform-card');
