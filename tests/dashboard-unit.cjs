@@ -1,6 +1,6 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 let code=fs.readFileSync('site-dashboard-v450.js','utf8');
-code=code.slice(0,code.indexOf('const base=window.renderShell'))+'window.test={mapHtml,summary,marker,color,spreadPoints,canDashboard,risk,pos,rows,dashboardRows,master,cnt,mapXY,info,setMasters:v=>{masters=v;loaded=true;window.ENLContracts.setSites(v)}};})();';
+code=code.slice(0,code.indexOf('const base=window.renderShell'))+'window.test={mapHtml,ranking,summary,marker,color,spreadPoints,canDashboard,risk,pos,rows,dashboardRows,master,cnt,mapXY,info,setMasters:v=>{masters=v;loaded=true;window.ENLContracts.setSites(v)}};})();';
 const ctx={data:{sites:[],incidents:[]},Date,console};ctx.window=ctx;vm.createContext(ctx);vm.runInContext(fs.readFileSync('site-contract-v451.js','utf8'),ctx);vm.runInContext(code,ctx);
 const t=ctx.window.test,y=new Date().getFullYear();
 const incident=(extra={})=>({siteId:'s01',occurredAt:`${y}-05-01`,status:'reported',...extra});
@@ -67,3 +67,15 @@ for(const [n,level,color] of [[0,'안전','#219653'],[1,'일반','#20252b'],[2,'
 console.log('PASS: 0 green; 1/2 black; 3/4 orange; 5/6 red; open urgent status is independent of the map color');
 
 ctx.data.incidents=Array.from({length:6},()=>incident({siteId:'s34',priority:'urgent'}));assert.equal(t.risk('s34').high,false);assert.equal(t.color('s34'),'#89939d');assert.equal(t.dashboardRows('all').length,2);console.log('PASS: closed sites never enter current high risk, even with 6 incidents or urgent records');
+
+const location=ctx.ENL_SITE_LOCATIONS.s01;
+t.setMasters([{site_id:'s01',site_name:'사고 사업장',address:location.address,active:true},{site_id:'zero',site_name:'무사고 사업장',active:true}]);
+for(const [n,color] of [[0,'#219653'],[1,'#20252b'],[3,'#e88918'],[5,'#d83f45']]){
+ ctx.data.incidents=Array.from({length:n},()=>incident());
+ assert.ok(t.marker({site_id:'s01',site_name:'사고 사업장',address:location.address}).includes('--sd-risk-color:'+color));
+ const html=t.ranking();
+ assert.equal(html.includes('data-sd450-select="s01"'),n>0);
+ assert.ok(!html.includes('data-sd450-select="zero"'));
+ if(!n)assert.ok(html.includes('올해 발생한 사고가 없습니다.'));
+}
+console.log('PASS: name labels inherit risk colors; zero-accident sites excluded only from ranking; empty ranking message');

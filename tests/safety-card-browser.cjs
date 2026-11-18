@@ -25,11 +25,13 @@ async function verify(engine,mobile) {
    await p.locator('[data-card-site="qa-site"]').click();
    const field=key=>p.locator('[data-card-field="'+key+'"]');
    await field('C9').waitFor();
+   assert.ok(!await p.locator('.safety-card-panel').innerText().then(t=>t.includes('엑셀 원본을 반영한 카드입니다.')));
+   assert.ok(await p.locator('[data-cell="C9"]').evaluate(el=>parseFloat(getComputedStyle(el).fontSize)>=14.6));
    assert.equal(await field('D6').inputValue(),'검수 골프장');
    assert.equal(await p.locator('[data-card-result="G9"]').innerText(),'22');
    await p.getByRole('button',{name:'원본 확인사항 셀 메모 보기'}).click();
    assert.equal(await p.locator('.safety-card-note textarea').inputValue(),'검수 원본 메모');
-   await p.locator('.safety-card-note').getByRole('button',{name:'닫기',exact:true}).click();
+   await p.locator('.safety-card-note').getByRole('button',{name:'안전관리카드로 뒤로가기',exact:true}).click();
    if(['safety','field'].includes(role)){
     await field('C9').fill('18');await field('E9').fill('0');
     assert.equal(await p.locator('[data-card-result="G9"]').innerText(),'18');
@@ -49,7 +51,7 @@ async function verify(engine,mobile) {
     await field('C9').waitFor();assert.equal(await field('C9').inputValue(),'18');
     await p.getByRole('button',{name:'종합 관리의견 셀 메모 보기'}).click();
     assert.equal(await p.locator('.safety-card-note textarea').inputValue(),'확인 내용과 증빙 위치');
-    await p.locator('.safety-card-note').getByRole('button',{name:'닫기',exact:true}).click();
+    await p.locator('.safety-card-note').getByRole('button',{name:'안전관리카드로 뒤로가기',exact:true}).click();
     await p.evaluate(()=>{window.__cardApi=window.enlIncidentApi;window.enlIncidentApi=body=>body.action==='platform_safety_card_save'?Promise.reject(Error('card_changed')):window.__cardApi(body)});
     await field('C9').fill('19');await p.locator('[data-card-save]').click();
     await p.locator('.safety-card-status').filter({hasText:'다른 사용자가 먼저 저장했습니다.'}).waitFor();
@@ -71,6 +73,10 @@ async function verify(engine,mobile) {
     if(!mobile)await p.pdf({path:'qa-output/safety-card.pdf',format:'A4',printBackground:true,preferCSSPageSize:true});
     await p.evaluate(()=>window.dispatchEvent(new Event('afterprint')));
    }
+   await p.getByRole('button',{name:'사업장 목록으로 뒤로가기',exact:true}).click();
+   await p.locator('[data-card-site="qa-site"]').waitFor();
+   await p.getByRole('button',{name:'통합 홈으로 뒤로가기',exact:true}).click();
+   assert.equal(await p.locator('[data-worktab="home"]').getAttribute('aria-current'),'page');
    assert.deepEqual(errors,[]);
    await p.close();
    console.log('PASS card template, source notes, live totals, saves, tab retention, conflicts, print and role access',role,engine.name());

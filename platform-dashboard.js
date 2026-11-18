@@ -439,7 +439,7 @@
     if(picked){const a=picked.parentElement.getBoundingClientRect(),b=strip.getBoundingClientRect();if(a.right>b.right)strip.scrollLeft+=a.right-b.right+8;else if(a.left<b.left)strip.scrollLeft+=a.left-b.left-8;}
   }
   const org=window.enlOrganization?.(host,u,api,sameUser);
-  const safetyCards=window.enlSafetyCards?.(host,u,api,sameUser);
+  const safetyCards=window.enlSafetyCards?.(host,u,api,sameUser,()=>selectTab('home'));
   const risk=window.enlRiskAssessment?.(host,u,api,sameUser);
   function canLeave(preserve=false,key=active){
     if(window.ENLProcessing?.active())return false;
@@ -800,6 +800,7 @@
     window.scrollTo(0,Number(detail.dataset.listScroll)||0);
   }
   host.boardHistory=state=>{
+    if(active==='safetyCard'&&state?.enlHub===userKey&&safetyCards?.hasDetail()){safetyCards.back();history.pushState({enlModuleEntry:userKey},'');return true;}
     if(active==='safetyCard'&&state?.enlHub===userKey&&safetyCards&&!safetyCards.canLeave()){history.pushState({enlModuleEntry:userKey},'');return true;}
     if(active==='organization'&&state?.enlHub===userKey&&org&&!org.canLeave()){history.pushState({enlModuleEntry:userKey},'');return true;}
     if(!boards[active]||!sameUser())return false;

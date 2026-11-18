@@ -80,6 +80,8 @@
       const button = modal.querySelector('[data-close]:not(:disabled)');
       return button && (() => button.click());
     }
+    const cardBack=document.querySelector('.safety-card-panel:not([hidden]) [data-card-back]');
+    if(cardBack?.getClientRects().length)return ()=>cardBack.click();
     const boardBack=document.querySelector('.hub-board:not([hidden]) .hub-board-post [data-board-back]');
     if(boardBack?.getClientRects().length)return ()=>boardBack.click();
     const withinView = document.getElementById('view');
