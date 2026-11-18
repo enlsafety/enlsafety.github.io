@@ -1,0 +1,18 @@
+name: Verify pending sidebar indicators
+on:
+  push:
+    branches: [qa/organization-badges-r151]
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-24.04
+    container: mcr.microsoft.com/playwright:v1.51.1-noble
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-save --package-lock=false playwright@1.51.1
+      - run: node tests/organization-badges-browser.cjs
