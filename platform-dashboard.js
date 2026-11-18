@@ -333,8 +333,8 @@
   const panel=(key,title,icon,more)=>'<section class="hub-panel hub-'+key+'"><header><h2>'+svg(icon,icons)+title+'</h2>'+action(key,more||'더보기 ›')+'</header><div data-list="'+key+'"><p class="hub-empty">불러오는 중입니다.</p></div></section>';
   host.innerHTML='<aside class="hub-sidebar"><div class="hub-logo"><span class="hub-wordmark" role="img" aria-label="이앤엘 E&amp;L"><span aria-hidden="true">E<span class="hub-wordmark-amp">&amp;</span>L</span><i aria-hidden="true"></i></span></div><nav aria-label="통합시스템 메뉴"></nav><section class="hub-favorites"><header><h2>'+sidebarIcon('favorites')+'즐겨찾기</h2>'+action('favorites','＋')+'</header><div></div></section><div class="hub-sidebar-wave" aria-hidden="true"></div></aside><button class="hub-sidebar-backdrop" type="button" data-hub="close-menu" aria-label="메뉴 닫기"></button><section class="hub-hero"><div class="hub-hero-image" role="img" aria-label="골프장 풍경과 이앤엘 문구: 안전이 일상이 되는 안전보건관리 통합시스템"></div><div class="hub-original-slogan"><b>E&amp;L</b><div><span>안전이 일상이 되는</span><strong>안전보건관리 통합시스템</strong></div></div></section><div class="hub-middle hub-home-content">'+
     '<div class="hub-newsroom">'+panel('bulletins','공지사항','notice')+
-      '<div class="hub-right">'+panel('schedule','오늘의 일정 <small>'+safe(new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',weekday:'short'}).format(new Date()))+'</small>','calendar','전체 일정 ›')+
-      panel('approvals','통합결재 대기 <span data-approval-count></span>','approvals')+'</div></div>'+
+      '<div class="hub-right">'+panel('schedule','오늘의 일정 <small>'+safe(new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',weekday:'short'}).format(new Date()))+'</small>','calendar','전체 일정 <span class="hub-feed-count" data-event-count hidden></span> ›')+
+      panel('approvals','통합결재 대기','approvals','더보기 <span class="hub-feed-count" data-approval-count hidden></span> ›')+'</div></div>'+
     '<section class="hub-features"><header class="hub-section-heading"><h2>'+svg('grid')+'주요 업무기능</h2><p>안전보건 업무를 한 곳에서 통합 관리하세요.</p>'+action('guide','ⓘ 모듈 안내')+(admin?action('manage-cards','카드 관리','hub-card-manager')+action('edit','편집','hub-edit-toggle'):'')+'</header><div class="platform-modules feature-list"></div></section>'+
     panel('recent','최근 업무 기록','clock')+'</div><p class="hub-status" role="status" aria-live="polite"></p><section class="hub-support hub-tool-panel" hidden><h2>공통업무지원서비스</h2><section class="platform-services feature-list"><div class="platform-grid"></div></section></section><section class="hub-module-preview hub-tool-panel" hidden><h2></h2><p>이 업무의 세부 기능은 구현 중입니다.</p></section>';
   const area=host.querySelector('.platform-modules'),services=host.querySelector('.platform-services .platform-grid'),status=host.querySelector('.hub-status');
@@ -686,9 +686,15 @@
     }
     if(!pending.length)rows.innerHTML='<p class="hub-empty">본인에게 배정된 결재 대기 업무가 없습니다.</p>';
   }
+  function showFeedCount(selector,count){
+    const badge=host.querySelector(selector);
+    badge.textContent=String(count);
+    badge.setAttribute('aria-label',count+'건');
+    badge.hidden=false;
+  }
   function paintApprovals(){
     const pending=approvals();
-    host.querySelector('[data-approval-count]').textContent=pending.length+'건';
+    showFeedCount('[data-approval-count]',pending.length);
     approvalBody(host.querySelector('[data-list=approvals]'),true,pending);
     const box=host.querySelector('[data-list-workspace=approvals] [data-approval-list]');
     if(box)approvalBody(box,false,pending);
@@ -709,12 +715,14 @@
      const row=rowButton(noticeList,item.title,date(item.created_at),()=>readContent(item),'notice');
      row.classList.add('hub-notice-row');
      if(item===lead)row.classList.add('hub-notice-lead');
+     if(item.label==='important')row.classList.add('hub-notice-important');
      row.querySelector('svg').outerHTML='<span class="hub-tag '+safe(item.label)+'">'+({important:'중요',info:'안내',general:'일반'}[item.label]||'안내')+'</span>';
     }
    }
    const today=day();
    const events=content.events.filter(x=>day(new Date(x.starts_at))<=today&&day(new Date(x.ends_at||x.starts_at))>=today);
-   for(const item of events.slice(0,4)){
+   if(loaded)showFeedCount('[data-event-count]',events.length);
+   for(const item of events.slice(0,5)){
     const row=rowButton(scheduleList,item.title,time(item.starts_at)+' ~ '+time(item.ends_at),()=>readContent(item),'calendar');
     row.classList.add('hub-event-row');
    }

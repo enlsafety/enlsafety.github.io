@@ -15,7 +15,8 @@ async function check(browser, role) {
   }));
   const approvalsOpen = ['safety','executive'].includes(role);
   const lead = role==='safety'?6:role==='manager'?5:0;
-  const records = [...notices,{id:'event',kind:'event',title:'검증 일정',body:'일정 내용',starts_at:now,ends_at:now}];
+  const events=Array.from({length:12},(_,i)=>({id:'event-'+i,kind:'event',title:'검증 일정 '+i,body:'일정 내용',starts_at:now,ends_at:now}));
+  let feedCount=8;
   const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.json':'application/json','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp'};
   try {
     await page.route('**/*',async route=>{
@@ -26,7 +27,8 @@ async function check(browser, role) {
       let body=fs.readFileSync(file);
       if(url.pathname==='/stable412.html')body=body.toString().replace('<head>','<head><script src="tests/integrated-home-fixture.js"></script>');
       if(url.pathname==='/tests/integrated-home-fixture.js'){
-        body=body.toString().replace('let records=[]','let records='+JSON.stringify(records));
+        body=body.toString().replace('let records=[]','let records='+JSON.stringify([...notices,...events.slice(0,feedCount)]));
+        body=body.replace('const moduleKeys=', 'incidents.splice(0,1,...Array.from({length:'+feedCount+'},(_,i)=>({...incidents[0],id:"sample-"+i,corrective:{status:"submitted"}}))); const moduleKeys=');
         if(approvalsOpen)body=body.replaceAll("['incident','history','notices','system'].includes(key)","['incident','history','notices','system','approvals'].includes(key)");
       }
       return route.fulfill({body,contentType:mime[path.extname(file)]||'application/octet-stream'});
@@ -50,6 +52,35 @@ async function check(browser, role) {
         return {notice:rect('.hub-bulletins'),schedule:rect('.hub-schedule'),approvals:rect('.hub-approvals'),features:rect('.hub-features'),recent:rect('.hub-recent'),
           firstRow:cards.filter(r=>r.top===cards[0].top).length,wide:cards.some(r=>r.x<0||r.right>innerWidth+1)};
       });
+      const density=await page.evaluate(()=>{
+        const banner=document.querySelector('.hub-hero'), bad=[];
+        for(const slide of banner.querySelectorAll('.hub-banner-slide')){
+          const bounds=slide.getBoundingClientRect();
+          const walker=document.createTreeWalker(slide,NodeFilter.SHOW_TEXT);
+          for(let node;node=walker.nextNode();){
+            if(!node.textContent.trim())continue;
+            const range=document.createRange();range.selectNodeContents(node);
+            for(const r of range.getClientRects())if(r.width && (r.top<bounds.top-1 || r.bottom>bounds.bottom+1 || r.left<bounds.left-1 || r.right>bounds.right+1))bad.push(node.textContent);
+          }
+        }
+        for(const card of document.querySelectorAll('.hub-features .feature-card-wrap')){
+          if(!card.offsetWidth)continue;
+          const bounds=card.getBoundingClientRect();
+          for(const el of card.querySelectorAll('.hub-card-title,.hub-card-description,.platform-card>small')){
+            if(!el.textContent.trim())continue;
+            const range=document.createRange();range.selectNodeContents(el);
+            for(const r of range.getClientRects())if(r.width && (r.top<bounds.top-1 || r.bottom>bounds.bottom+1 || r.left<bounds.left-1 || r.right>bounds.right+1))bad.push(el.textContent);
+          }
+        }
+        const list=document.querySelector('.hub-bulletins');
+        const lead=getComputedStyle(list.querySelector('.hub-notice-lead strong'));
+        const regular=getComputedStyle(list.querySelector('.hub-notice-row:nth-child(2) strong'));
+        const card=document.querySelector('.platform-modules [data-key=incident]');
+        return {bad,height:banner.offsetHeight,cardHeight:card.offsetHeight,sameSize:lead.fontSize===regular.fontSize,color:lead.color,weight:lead.fontWeight};
+      });
+      assert.deepEqual(density.bad,[],'banner or card text at '+width);
+      assert.ok(density.sameSize&&density.color==='rgb(170, 36, 60)'&&Number(density.weight)>=700);
+      console.log('layout',role,width,density.height,density.cardHeight);
       const {notice,schedule,approvals,features,recent}=boxes;
       for(const rect of [notice,schedule,approvals,features,recent])assert.ok(rect.left>=0&&rect.right<=width+1,JSON.stringify({width,rect}));
       assert.ok(!boxes.wide && approvals.y>=schedule.bottom && features.y>=Math.max(notice.bottom,approvals.bottom) && recent.y>=features.bottom);
@@ -64,9 +95,9 @@ async function check(browser, role) {
     await page.getByRole('heading',{name:notices[lead].title,exact:true}).waitFor();
     assert.ok(await wrapper.isHidden());
     await home();
-    await wrapper.locator('.hub-event-row').click();
+    await wrapper.locator('.hub-event-row').first().click();
     const dialog=page.locator('dialog[open]');
-    await dialog.getByRole('heading',{name:'검증 일정'}).waitFor();
+    await dialog.getByRole('heading',{name:'검증 일정 0'}).waitFor();
     await dialog.locator('header button').first().click();
     await wrapper.locator('[data-hub=schedule]').click();
     await page.locator('[data-list-workspace=schedule]').waitFor();
@@ -90,6 +121,20 @@ async function check(browser, role) {
       await wrapper.locator('[data-hub=edit]').click();
       await page.locator('.hub-editing .hub-features').waitFor();
       await wrapper.locator('[data-hub=edit]').click();
+    }
+    if(role==='safety'){
+      let firstTop;
+      for(feedCount of [0,1,5,8,12]){
+        await page.goto(origin+'/stable412.html?role=safety&count='+feedCount);
+        await page.waitForFunction(()=>currentUser() && window.enlReturnToPlatform);
+        await page.evaluate(()=>window.enlReturnToPlatform(currentUser()));
+        await page.waitForFunction(n=>['[data-event-count]','[data-approval-count]'].every(s=>document.querySelector(s)?.textContent===String(n)),feedCount);
+        assert.equal(await wrapper.locator('.hub-event-row').count(),Math.min(5,feedCount));
+        assert.equal(await wrapper.locator('.hub-approval-row').count(),Math.min(5,feedCount));
+        const top=await wrapper.locator('.hub-features').evaluate(e=>e.getBoundingClientRect().top+scrollY);
+        if(firstTop===undefined)firstTop=top;
+        assert.ok(Math.abs(top-firstTop)<=1,'stable features top '+top+' vs '+firstTop);
+      }
     }
     console.log('PASS',role,'six viewport widths, notice priority, detail links, schedule, approvals and card visibility');
   }finally{await page.close()}
