@@ -726,7 +726,8 @@
       if(u.role==='safety')tasks=window.enlSafetyActionCounts?.(u)?.total||pending.length;
       else if(u.role==='field')tasks=window.enlFieldAttentionCount?.(u)||0;
       else if(['manager','executive'].includes(u.role)){
-        tasks=scopedIncidents().filter(i=>['reported','supplement','supplement_submitted'].includes(i.status)||pending.includes(i)).length;
+        const decisions=new Set(pending);
+        tasks=scopedIncidents().filter(i=>['reported','supplement','supplement_submitted'].includes(i.status)||decisions.has(i)).length;
       }
     }
     host.setTaskCount('incident',tasks);
