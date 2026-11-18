@@ -169,7 +169,45 @@
 .analysis-strategy .strategy-goals{border-left:3px solid #347d9e;padding:12px 15px;position:relative}.strategy-goal-metrics{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin:10px 0 5px}.strategy-goal-metrics>div{padding:9px 12px;background:#f0f7fa;border-radius:7px;min-width:0}.strategy-goal-metrics span,.strategy-goal-metrics small{display:block;font-size:12px;color:#567589}.strategy-goal-metrics strong{display:block;font-size:20px;line-height:1.4;margin:3px 0;color:#164f70;overflow-wrap:anywhere}.strategy-goal-metrics i{font-style:normal;font-weight:400;color:#7093a7;margin:0 5px}.analysis-strategy .strategy-goal-actual{font-size:13px;margin:7px 0}.analysis-strategy .strategy-goal-basis,.analysis-strategy .strategy-goal-help,.analysis-strategy .strategy-goal-note{font-size:12px;margin:5px 0;color:#607889}.strategy-goal-controls{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin-top:10px}.strategy-goal-controls label{display:grid;gap:4px;font-size:12px;color:#365970}.strategy-goal-controls input,.strategy-goal-controls select{font:inherit;font-size:14px;min-height:36px;border:1px solid #abc6d8;border-radius:6px;padding:6px 8px;color:#214a65;background:white;max-width:190px;width:100%}.strategy-goals button{font:inherit;font-size:13px;min-height:36px;padding:6px 12px;border:1px solid #aac5d8;border-radius:6px;background:#fff;color:#245775;cursor:pointer}.strategy-goals button.primary{background:#20688f;color:white}.strategy-goals button:disabled{opacity:.5;cursor:wait}.strategy-goals .strategy-goal-reload{font-size:11px;min-height:28px;border:0;padding:3px 0;background:transparent;text-decoration:underline}.strategy-goals input:focus-visible,.strategy-goals button:focus-visible{outline:3px solid #2375a7;outline-offset:2px}@media(max-width:700px){.strategy-goal-metrics{grid-template-columns:minmax(0,1fr);gap:7px}.strategy-goal-metrics strong{font-size:19px}.strategy-goal-controls label{flex:1 1 140px}.strategy-goal-controls input,.strategy-goal-controls select{max-width:none;min-height:40px}.strategy-goals button{min-height:40px}}
 
 @media screen {
- .stats426 :is(.stats426-head,.stats426-card,.sd450-map-panel,.sd450-ranking,.sd450-compact-info,.management-points,.analysis-dashboard-context,.analysis-card) {
+ .stats426 :is(.stats426-head,.stats426-card,.sd450-compact-info,.management-points,.analysis-card) {
   box-shadow:inset 0 0 0 1px #7896b666,inset 0 2px 1px #ffffffcf,0 3px 5px #203f621f,0 6px 14px #203f6217;
  }
+ .safety-ui #app .stats426 .sd450-map-panel {
+  border-color:#a9c0d5;
+  background:linear-gradient(145deg,#fff 38%,#f1f6fb);
+  box-shadow:0 2px 3px #183c5e24,0 7px 14px -5px #18466f55;
+ }
+ .stats426 .sd450-map-frame {
+  box-shadow:0 2px 5px #21496c26;
+ }
+ .stats426 .sd450-map-side [data-sd450-summary]:has(>.sd450-ranking) {
+  box-sizing:border-box;
+  border:1px solid #bccddd;
+  border-radius:12px;
+  padding:clamp(10px,1vw,16px);
+  scrollbar-gutter:stable;
+  background:#f6f9fc;
+ }
+ .stats426 .sd450-ranking>p {margin:5px 0 12px}
+ .stats426 .sd450-ranked-list {gap:8px}
+ .stats426 .sd450-ranked-list>button {
+  padding-inline:12px;
+  box-shadow:0 2px 4px #2549681a;
+ }
+ .stats426 .sd450-ranked-list>button:is(:hover,:focus-visible) {
+  border-color:#688eae;
+  box-shadow:0 3px 7px #25496830;
+ }
+ .stats426 .analysis-dashboard-context {
+  min-width:0;
+  padding:clamp(12px,1.2vw,20px) clamp(14px,1.5vw,24px);
+  border:1px solid #bacddd;
+  border-radius:12px;
+  background:linear-gradient(135deg,#fff,#f1f7fc);
+  box-shadow:0 2px 4px #23476524,0 5px 10px -5px #23476538;
+ }
+ .stats426 .analysis-dashboard-context h3 {margin:0 0 6px}
+ .stats426 .analysis-dashboard-context p {margin:0}
+ .stats426 .analysis-dashboard-context p+p {margin-top:4px}
+
 }
