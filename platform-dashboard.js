@@ -439,12 +439,14 @@
     if(picked){const a=picked.parentElement.getBoundingClientRect(),b=strip.getBoundingClientRect();if(a.right>b.right)strip.scrollLeft+=a.right-b.right+8;else if(a.left<b.left)strip.scrollLeft+=a.left-b.left-8;}
   }
   const org=window.enlOrganization?.(host,u,api,sameUser);
+  const safetyCards=window.enlSafetyCards?.(host,u,api,sameUser);
   const risk=window.enlRiskAssessment?.(host,u,api,sameUser);
   function canLeave(preserve=false,key=active){
     if(window.ENLProcessing?.active())return false;
     if(window.enlUiModalBusy?.())return false;
     if(key==='organization'&&org&&!(preserve?org.canSuspend():org.canLeave()))return false;
     if(key==='risk'&&risk&&!(preserve?risk.canSuspend():risk.canLeave()))return false;
+    if(key==='safetyCard'&&safetyCards&&!(preserve?safetyCards.canSuspend():safetyCards.canLeave()))return false;
     const target=key===active?document.querySelector('#view'):retainedTabs.get(key)?.root;
     const changed=target?.querySelector('[data-worktab-edited],[data-wf440-dirty="1"]');
     if(window.enlIncidentSaveInProgress?.()){
@@ -462,11 +464,11 @@
     else if(host.nextElementSibling!==view)view.before(host);
     host.querySelector('.hub-support').hidden=active!=='support';
     const preview=host.querySelector('.hub-module-preview');
-    preview.hidden=(Object.hasOwn(builtins,active)&&active!=='safetyCard')||['incident','system','history','notices','approvals','organization','risk'].includes(active);
+    preview.hidden=Object.hasOwn(builtins,active)||['incident','system','history','notices','approvals','organization','risk'].includes(active);
     for(const panel of host.querySelectorAll('[data-list-workspace]'))panel.hidden=panel.dataset.listWorkspace!==active;
     if(!preview.hidden){
       preview.querySelector('h2').textContent=tabTitle(active);
-      preview.querySelector('p').textContent=active==='safetyCard'?'안전관리카드 기능은 준비 중입니다.':'이 업무의 세부 기능은 구현 중입니다.';
+      preview.querySelector('p').textContent='이 업무의 세부 기능은 구현 중입니다.';
     }
     paintTabs();
   }
@@ -476,7 +478,7 @@
   const trackScroll=e=>{const n=e.target;if(n instanceof Element&&(n.closest('#view')||host.contains(n)))scrolled.add(n);};
   document.addEventListener('scroll',trackScroll,true);
   let restoringTab=null;
-  host.disposeWorkTabs=()=>{document.removeEventListener('scroll',trackScroll,true);scrolled.clear();restoringTab=null;retainedTabs.clear();org?.leave();risk?.leave();};
+  host.disposeWorkTabs=()=>{document.removeEventListener('scroll',trackScroll,true);scrolled.clear();restoringTab=null;retainedTabs.clear();org?.leave();risk?.leave();safetyCards?.leave();};
   host.ownsRetainedNode=node=>sameUser()&&[...retainedTabs.values()].some(saved=>saved.root===node||saved.root.contains(node));
   function retainTab(){
     const view=host.closest('.app-shell').querySelector('#view');
@@ -517,6 +519,7 @@
     if(saved)return;
     if(key==='organization')org.open();
     if(key==='risk')risk.open();
+    if(key==='safetyCard')safetyCards.open();
     if(key==='approvals')approvalWorkspace();
     if(boards[key])listBoard(key);
     if(key==='schedule')listSchedule();
@@ -524,6 +527,7 @@
     window.scrollTo(0,0);
   }
   async function selectTab(key,closing=false,historyScope='all'){
+    if(key==='safetyCard'&&!safetyCards){status.textContent='안전관리카드를 불러오지 못했습니다. 새로고침해 주세요.';return false;}
     if(key==='organization'&&!org){status.textContent='조직도 화면을 불러오지 못했습니다. 새로고침해 주세요.';return false;}
     if(key==='risk'&&!risk){status.textContent='위험성평가 화면을 불러오지 못했습니다. 새로고침해 주세요.';return false;}
     if(key==='recent'&&!window.enlHistoryAvailable?.(u))return false;
@@ -547,6 +551,7 @@
     opened.splice(remove,1);retainedTabs.delete(key);
     if(key==='organization')org?.leave();
     if(key==='risk')risk?.leave();
+    if(key==='safetyCard')safetyCards?.leave();
     if(boards[key]||key==='schedule'){host.querySelector('[data-list-workspace="'+key+'"]')?.remove();boardPages.delete(key);}
     if(key==='incident')incidentView='';
     paintTabs();strip.querySelector('[aria-current]')?.focus({preventScroll:true});
@@ -795,6 +800,7 @@
     window.scrollTo(0,Number(detail.dataset.listScroll)||0);
   }
   host.boardHistory=state=>{
+    if(active==='safetyCard'&&state?.enlHub===userKey&&safetyCards&&!safetyCards.canLeave()){history.pushState({enlModuleEntry:userKey},'');return true;}
     if(active==='organization'&&state?.enlHub===userKey&&org&&!org.canLeave()){history.pushState({enlModuleEntry:userKey},'');return true;}
     if(!boards[active]||!sameUser())return false;
     const entry=state?.enlBoardPost;

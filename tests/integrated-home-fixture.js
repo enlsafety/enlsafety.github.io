@@ -11,6 +11,7 @@
  const additions={policy:'안전보건 경영방침 및 목표',law:'산업안전보건법령 요지',voice:'종사자 의견 청취',emergency:'비상사태 대비 및 대응',ppe:'보호구 지급 및 관리',ergonomics:'근골격계 유해위험요인조사',rules:'안전보건관리규정'};
  config.homeOrder=[...moduleKeys,'support',...(role==='safety'?['system']:[]),...Object.keys(additions)];
  config.modules.push(...Object.entries(additions).map(([key,displayName])=>({...make(key),enabled:false,displayName})));
+ const safetyCards=new Map();
  const realFetch=window.fetch.bind(window);window.__fixtureCalls=[];
  window.fetch=async(input,init={})=>{const url=new URL(typeof input==='string'?input:input.url,location.href);if(url.origin===location.origin)return realFetch(input,init);let b={};try{b=JSON.parse(init.body||'{}')}catch{}window.__fixtureCalls.push(b.action||url.pathname);
   let out={ok:true,epoch:1,incidents,sites,metrics:incidents,inquiries:[],count:0,users:[actor],readers:[],unread:0};let status=200;
@@ -18,6 +19,14 @@
   if(b.action==='platform_analysis_target_get'){const baseline=window.ENLTargetPolicy.baseline(incidents,b.year,b.siteId||'');out={ok:true,baseline,baselineKey:JSON.stringify(baseline),targetYear:b.year+1,record:null};}
   if(b.action==='platform_storage_usage')out={ok:true,fileBytes:120984794,databaseBytes:12886016,projectDatabaseBytes:99056437,quota:{plan:'free',verifiedAt:'2026-11-17',fileBytes:1073741824,databaseBytes:524288000},fileCount:132,unknownFiles:0,checkedAt:'2026-11-17T07:00:00Z'};
   if(b.action==='platform_catalog')out={ok:true,...config};
+  if(b.action==='platform_safety_card_list')out={ok:true,sites:sites.map(s=>({...s,revision:safetyCards.get(s.site_id)?.revision||1,source:safetyCards.get(s.site_id)?.source||'import',saved_at:new Date().toISOString()}))};
+  if(b.action==='platform_safety_card_open'||b.action==='platform_safety_card_save'){
+   const template=window.ENLSafetyCardModel.template;
+   if(!safetyCards.has(b.siteId))safetyCards.set(b.siteId,{revision:1,template_version:template.version,source:'import',actor_name:'엑셀 원본',saved_at:new Date().toISOString(),content:{values:{...Object.fromEntries(Object.keys(template.fields).map(k=>[k,''])),D6:'검수 골프장',C9:'12',E9:'10',P41:'미확인'},notes:{D43:'검수 원본 메모'},provenance:{}}});
+   if(b.action==='platform_safety_card_save'){const prev=safetyCards.get(b.siteId);safetyCards.set(b.siteId,{...prev,content:structuredClone(b.content),revision:prev.revision+1,source:'edit',actor_name:actor.name,saved_at:new Date().toISOString()});}
+   out={ok:true,site:sites.find(s=>s.site_id===b.siteId),document:structuredClone(safetyCards.get(b.siteId)),canEdit:['safety','field'].includes(role)};
+  }
+
   if(b.action==='platform_enter'){const m=[...config.modules,...config.services].find(x=>x.key===b.key);if(!m||m.enabled===false||m.state==='hidden'||m.state!=='live'&&!m.preview){out={ok:false,message:'module_unavailable'};status=403}else out={ok:true,key:b.key,state:m.state}}
   if(b.action==='platform_home_cards'){
    config.omitted=b.omitted;

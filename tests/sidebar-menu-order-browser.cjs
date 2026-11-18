@@ -38,12 +38,12 @@ async function verify(engine,mobile) {
     assert.deepEqual(await menus(),before);
    }else assert.equal(await edit.count(),0);
    await nav.locator('[data-hub="safetyCard"]').click();
-   await p.locator('.hub-module-preview').getByRole('heading',{name:'안전관리카드'}).waitFor();
+   await p.locator('.safety-card-panel').getByRole('heading',{name:'안전관리카드',exact:true}).waitFor();
    assert.equal(await nav.locator('[data-hub="safetyCard"]').getAttribute('aria-current'),'page');
    await drawer();await nav.locator('[data-hub="boards"]').click();
    await p.locator('[data-list-workspace="boardAll"]').waitFor();
    await p.locator('[data-worktab="safetyCard"]').click();
-   await p.locator('.hub-module-preview').getByText('안전관리카드 기능은 준비 중입니다.').waitFor();
+   await p.locator('.safety-card-sites button').first().waitFor();
    assert.deepEqual(errors,[]);
    await p.close();
    console.log('PASS sidebar order, access and navigation',role,engine.name());
