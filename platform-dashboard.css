@@ -733,7 +733,7 @@
 .platform-hub .hub-features .platform-grid {row-gap:7px}
 .platform-hub .hub-features .hub-section-heading {margin-bottom:6px}
 .platform-hub .hub-features .feature-card-wrap {height:auto;min-height:78px;container-type:inline-size}
-.platform-hub .hub-features .platform-card {
+.platform-hub .hub-features .feature-card-wrap>.platform-card {
  --art-width:min(33%,78px);
  display:grid;
  grid-template-columns:auto minmax(0,1fr);
@@ -755,6 +755,6 @@
 .platform-hub .hub-features .hub-boards-art {background:none;color:#275d91;text-align:center}
 .hub-features .hub-boards-art svg {width:70%;height:70%}
 @container (min-width:260px) {
- .platform-hub .hub-features .platform-card {--art-width:min(23%,72px);padding-inline:calc(var(--art-width) + 8px)}
+ .platform-hub .hub-features .feature-card-wrap>.platform-card {--art-width:min(23%,72px);padding-inline:calc(var(--art-width) + 8px)}
 }
 .hub-other-settings>summary {cursor:pointer;margin-block:12px}
