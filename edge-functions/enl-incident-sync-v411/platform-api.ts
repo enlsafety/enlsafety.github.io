@@ -2,6 +2,7 @@ import { storageUsageRequest } from "./storage-usage.ts";
 import { analysisTargetRequest } from "./analysis-targets.ts";
 import { organizationRequest } from "./organization.ts";
 import { riskRequest } from "./risk-assessment.ts";
+import { safetyCardRequest } from "./safety-card.ts";
 const moduleKeys=['incident','risk','tbm','organization','training','msds'];
 const systemRoles=['worker','field','manager','executive','safety'];
 const safetyArt=['policy','law','voice','emergency','ppe','ergonomics','rules'];
@@ -122,6 +123,7 @@ function boardAttachment(f:any){
 }
 export async function platformRequest(sql:any,actor:any,body:any,reply:any){
   const admin=actor.role==='safety',action=body.action;
+  if(action.startsWith('platform_safety_card_'))return safetyCardRequest(sql,actor,body,reply);
   if(action==='platform_storage_usage')return storageUsageRequest(sql,actor,reply);
   if(action.startsWith('platform_analysis_target_'))return analysisTargetRequest(sql,actor,body,reply);
   if(action.startsWith('platform_risk_')){
