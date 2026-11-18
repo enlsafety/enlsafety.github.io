@@ -29,6 +29,7 @@ const until=async(fn,label)=>{for(let i=0;i<400;i++){if(fn())return;await new Pr
   };
   try{
    await until(()=>d.querySelector('.hub-sidebar [data-hub="feature:risk"]'),'catalog');await until(()=>w.enlIncidentServerReady?.(),'data ready');
+   assert.equal(w.ENLRiskPaperTemplates,undefined,'do not parse report templates at login');
    const original=w.enlIncidentApi;
    w.enlIncidentApi=async body=>{
     if(/^platform_(risk|org)_/.test(body.action)){
@@ -41,6 +42,8 @@ const until=async(fn,label)=>{for(let i=0;i<400;i++){if(fn())return;await new Pr
    d.querySelector('.risk-panel [data-site-id="qa-site"]').click();d.querySelector('[data-risk-kind=initial]').click();
    await until(()=>d.querySelector('[data-risk-template=office]'),'books');d.querySelector('[data-risk-template=office]').click();
    await frame.activateWorkTab('home');await until(()=>d.querySelector('.risk-paper'),'background document loading');await frame.activateWorkTab('risk');
+   assert.equal(d.head.querySelectorAll('script[src*="risk-paper-templates"]').length,1);
+   assert.equal(!!d.querySelector('.hub-sidebar [data-hub="feature:risk"] .hub-task-dot'),['field','safety'].includes(role));
    const evaluator=d.querySelector('[data-risk-field=evaluator]'),paper=d.querySelector('.risk-paper-scroll'),improvements=d.querySelector('.risk-improvements');
    if(['field','safety'].includes(role)){evaluator.value='유지 '+role;evaluator.dispatchEvent(new w.Event('input',{bubbles:true}));}
    improvements.open=true;paper.scrollLeft=250;w.scrollTo(0,420);const before=confirms;
