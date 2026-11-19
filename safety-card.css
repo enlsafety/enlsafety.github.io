@@ -57,6 +57,7 @@
  body:has(#safety-card-print)>:not(#safety-card-print){display:none!important}
  #safety-card-print{display:block!important;width:100%;margin:0}
  #safety-card-print .safety-card-paper{width:100%;min-width:0;font-size:8.5pt;line-height:1.2;print-color-adjust:exact;-webkit-print-color-adjust:exact}
+ #safety-card-print .safety-card-section-row{break-after:avoid}
  #safety-card-print .safety-card-paper tr{height:var(--card-print-height)!important;break-inside:avoid}
  #safety-card-print .safety-card-paper td{padding:3px 2px!important;font-size:8.5pt!important;white-space:pre-wrap;overflow-wrap:anywhere;border-color:#8294a5}
  #safety-card-print .safety-card-paper .safety-card-title{font-size:13pt!important;padding:6px!important}

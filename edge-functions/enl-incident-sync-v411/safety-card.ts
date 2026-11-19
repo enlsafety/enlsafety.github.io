@@ -36,6 +36,7 @@ export async function safetyCardRequest(sql:any, actor:any, body:any, reply:any)
   const model=(globalThis as any).ENLSafetyCardModel;
   if(body.templateVersion!==model.template.version||!Number.isInteger(body.expectedRevision)||body.expectedRevision<1)
     return reply({ok:false,message:'invalid_card_version'},400);
+  if(body.content?.authority!=='card-v1')return reply({ok:false,message:'card_source_changed'},409);
   const problem=model.validate(body.content);
   if(problem)return reply({ok:false,message:'invalid_card',detail:problem},400);
   return sql.begin(async(tx:any)=>{
@@ -45,12 +46,17 @@ export async function safetyCardRequest(sql:any, actor:any, body:any, reply:any)
     if(!previous)return reply({ok:false,message:'card_unavailable'},404);
     if(previous.revision!==body.expectedRevision)return reply({ok:false,message:'card_changed'},409);
     if(previous.template_version!==body.templateVersion)return reply({ok:false,message:'invalid_card_version'},409);
-    const content={values:{...body.content.values,...Object.fromEntries(linkedCardKeys.map(key=>[key,previous.content.values[key]]))},overrides:body.content.overrides===undefined?previous.content.overrides||{}:body.content.overrides,notes:body.content.notes,provenance:previous.content.provenance};
+    const [masterBefore]=await tx`select * from public.enl_site_master where site_id=${site.site_id} for update`;
+    const overrides=body.content.overrides===undefined?previous.content.overrides||{}:body.content.overrides;
+    const masterValues={...previous.content.masterValues,...Object.fromEntries(model.masterKeys.filter((key:string)=>Object.hasOwn(overrides,key)).map((key:string)=>[key,overrides[key]]))};
+    const content={authority:'card-v1',masterValues,values:{...body.content.values,...Object.fromEntries(linkedCardKeys.map(key=>[key,previous.content.values[key]]))},overrides:Object.fromEntries(Object.entries(overrides).filter(([key])=>!model.masterKeys.includes(key))),notes:body.content.notes,provenance:previous.content.provenance};
     const savedProblem=model.validate(content);
     if(savedProblem)return reply({ok:false,message:'invalid_card',detail:savedProblem},400);
     const [document]=await tx`insert into private.enl_safety_cards(site_id,revision,template_version,content,source,actor_id,actor_name)
       values(${site.site_id},${previous.revision+1},${body.templateVersion},${sql.json(content)}::jsonb,'edit',${actor.id},${actor.name})
       returning revision,template_version,content,source,saved_at,actor_name`;
-    return reply({ok:true,site,document,canEdit,linked:await loadSafetyCardLinks(tx,site.site_id,actor.role)});
+    const [masterAfter]=await tx`update public.enl_site_master set updated_at=now(),updated_by_id=${actor.id},updated_by_name=${actor.name},updated_by_role=${actor.role} where site_id=${site.site_id} returning *`;
+    await tx`insert into public.enl_site_audit(site_id,action,editor_id,editor_name,editor_role,changed_at,before_payload,after_payload) values(${site.site_id},'update',${actor.id},${actor.name},${actor.role},now(),${sql.json(masterBefore)}::jsonb,${sql.json(masterAfter)}::jsonb)`;
+    return reply({ok:true,site:{...site,site_name:masterAfter.site_name},document,canEdit,linked:await loadSafetyCardLinks(tx,site.site_id,actor.role)});
   });
 }

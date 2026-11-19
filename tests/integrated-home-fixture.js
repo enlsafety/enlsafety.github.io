@@ -24,8 +24,8 @@
   if(b.action==='platform_safety_card_links')out={ok:true,linked:cardLinked()};
   if(b.action==='platform_safety_card_open'||b.action==='platform_safety_card_save'){
    const template=window.ENLSafetyCardModel.template;
-   if(!safetyCards.has(b.siteId))safetyCards.set(b.siteId,{revision:1,template_version:template.version,source:'import',actor_name:'엑셀 원본',saved_at:new Date().toISOString(),content:{values:{...Object.fromEntries(Object.keys(template.fields).map(k=>[k,''])),D6:'검수 골프장',C9:'12',E9:'10',P41:'미확인'},overrides:{},notes:{D43:'검수 원본 메모'},provenance:{}}});
-   if(b.action==='platform_safety_card_save'){const prev=safetyCards.get(b.siteId);safetyCards.set(b.siteId,{...prev,content:structuredClone(b.content),revision:prev.revision+1,source:'edit',actor_name:actor.name,saved_at:new Date().toISOString()});}
+   if(!safetyCards.has(b.siteId))safetyCards.set(b.siteId,{revision:1,template_version:template.version,source:'import',actor_name:'엑셀 원본',saved_at:new Date().toISOString(),content:{authority:'card-v1',masterValues:Object.fromEntries(window.ENLSafetyCardModel.masterKeys.map(k=>[k,cardLinked().values[k]||''])),values:{...Object.fromEntries(Object.keys(template.fields).map(k=>[k,''])),D6:'검수 골프장',C9:'12',E9:'10',P41:'미확인'},overrides:{},notes:{D43:'검수 원본 메모'},provenance:{}}});
+   if(b.action==='platform_safety_card_save'){const prev=safetyCards.get(b.siteId),next=structuredClone(b.content);for(const key of window.ENLSafetyCardModel.masterKeys)if(Object.hasOwn(next.overrides||{},key)){next.masterValues[key]=next.overrides[key];delete next.overrides[key];}safetyCards.set(b.siteId,{...prev,content:next,revision:prev.revision+1,source:'edit',actor_name:actor.name,saved_at:new Date().toISOString()});}
    out={ok:true,linked:cardLinked(),site:sites.find(s=>s.site_id===b.siteId),document:structuredClone(safetyCards.get(b.siteId)),canEdit:['safety','field'].includes(role)};
   }
 

@@ -26,6 +26,7 @@
     }
     function markDirty(){dirty=true;status.textContent='저장하지 않은 변경사항이 있습니다.';saveButton.disabled=!allowed||busy;paintCalculated();}
     function message(error){
+      if(error?.message==='card_source_changed')return '안전관리카드가 원본 기준으로 변경됐습니다. 입력 내용을 보관한 뒤 앱을 새로고침해 주세요.';
       if(error?.message==='card_changed')return '다른 사용자가 먼저 저장했습니다. 입력 내용은 유지됩니다. 필요한 내용을 복사한 뒤 최신 내용 불러오기를 눌러 다시 작성해 주세요.';
       if(error?.message==='forbidden')return '이 사업장의 카드를 수정할 권한이 없습니다.';
       return '처리하지 못했습니다. 입력 내용을 확인하고 다시 시도해 주세요.';
@@ -36,16 +37,16 @@
         const node=main.querySelector('[data-card-result="'+key+'"]');if(node)node.textContent=value;
       }
     }
-    const linkInfo='연동 항목도 수정할 수 있습니다. 수정값은 카드에만 저장되며 연동값 복원으로 원본을 다시 반영할 수 있습니다.';
+    const linkInfo='안전관리카드가 사업장 정보의 기준 원본입니다. 저장하면 시스템관리의 기본정보, 인원, 연락망, 안전관리위탁 정보에 반영됩니다.';
     function paintLinked(key,refreshInput=false){
       const td=main.querySelector('[data-cell="'+key+'"]');if(!td)return;
-      const custom=Object.hasOwn(content.overrides||{},key),input=td.querySelector('[data-card-field]');
+      const custom=Object.hasOwn(content.overrides||{},key),primary=model.masterKeys.includes(key),input=td.querySelector('[data-card-field]');
       td.classList.toggle('safety-card-overridden',custom);
-      const badge=td.querySelector('.safety-card-source-badge');if(badge)badge.textContent=custom?'카드 수정':'연동';
+      const badge=td.querySelector('.safety-card-source-badge');if(badge)badge.textContent=primary?'원본':custom?'원본 입력':'자료 연동';
       const reset=td.querySelector('[data-card-reset]');if(reset)reset.hidden=!custom;
       td.title=(linked.sources[key]||'통합앱 연동')+' / 원본: '+(linked.values[key]||'빈칸');
-      const sourceOption=input?.querySelector('[data-linked-option]');if(sourceOption)sourceOption.textContent='연동: '+(linked.values[key]||'빈칸');
-      if(refreshInput&&input&&!custom){input.value=input.tagName==='SELECT'?'__linked__':linked.values[key]??'';if(input.tagName==='TEXTAREA'){input.style.height='auto';input.style.height=Math.max(30,input.scrollHeight)+'px';}}
+      const sourceOption=input?.querySelector('[data-linked-option]');if(sourceOption&&!primary)sourceOption.textContent='연동: '+(linked.values[key]||'빈칸');
+      if(refreshInput&&input&&!custom&&!primary){input.value=input.tagName==='SELECT'?'__linked__':linked.values[key]??'';if(input.tagName==='TEXTAREA'){input.style.height='auto';input.style.height=Math.max(30,input.scrollHeight)+'px';}}
     }
     function note(key){
       if(!content||busy)return;
@@ -77,22 +78,22 @@
       const cols=el('colgroup');for(const width of model.template.columns){const col=el('col');col.style.width=(width/model.template.columns.reduce((a,b)=>a+b,0)*100)+'%';cols.append(col)}table.append(cols);
       const body=el('tbody');table.append(body);
       const calculated=model.cardResults(content,linked),values=model.effectiveValues(content,linked);
-      for(let r=1;r<=model.template.heights.length;r++){
-        const row=el('tr');row.style.height=model.template.heights[r-1]+'px';row.style.setProperty('--card-print-height',model.template.heights[r-1]*.4375+'pt');body.append(row);
-        for(const cell of model.template.cells.filter(c=>c.row===r)){
+      for(let r=1;r<=model.layout.heights.length;r++){
+        const row=el('tr');row.style.height=model.layout.heights[r-1]+'px';row.style.setProperty('--card-print-height',model.layout.heights[r-1]*.4375+'pt');body.append(row);if(model.layout.cells.some(c=>c.row===r&&c.style==='100'))row.classList.add('safety-card-section-row');
+        for(const cell of model.layout.cells.filter(c=>c.row===r)){
           const td=el('td');td.colSpan=cell.cols;td.rowSpan=cell.rows;td.dataset.cell=cell.key;
           const style=model.template.styles[cell.style];
           Object.assign(td.style,{fontWeight:style.bold?'700':'400',textAlign:style.align,fontSize:'calc('+Math.max(12,style.size)+'px + 2pt)'});
-          const field=model.template.fields[cell.key]||model.linkedFields[cell.key],isLinked=Object.hasOwn(linked?.values||{},cell.key),custom=Object.hasOwn(content.overrides||{},cell.key);
+          const field=model.template.fields[cell.key]||model.linkedFields[cell.key],isLinked=Object.hasOwn(linked?.values||{},cell.key),custom=Object.hasOwn(content.overrides||{},cell.key),primary=model.masterKeys.includes(cell.key);
           if(cell.key==='B2'){td.textContent=(values.D6||site.site_name)+'  안전관리카드';td.classList.add('safety-card-title');}
           else if(cell.key==='B3')td.textContent='';
-          else if(linked?.labels?.[cell.key]){td.textContent=cell.key==='J33'?'카드 수정 상태는 원본 서류의 승인 결과를 변경하지 않습니다.':linked.labels[cell.key];td.classList.add('safety-card-help');}
+          else if(linked?.labels?.[cell.key]){td.textContent=cell.key==='J33'?'관리상태 입력과 실제 서류의 승인 기록은 구분하여 관리합니다.':linked.labels[cell.key];td.classList.add('safety-card-help');}
           else if(Object.hasOwn(calculated,cell.key)){
             const value=el('output',calculated[cell.key]);value.dataset.cardResult=cell.key;td.classList.add('safety-card-calculated');td.title='자동 계산 결과';td.append(value);
           }else if(field){
             let input;
             if(field.choices){
-              input=el('select');if(isLinked){const option=new Option('연동: '+(linked.values[cell.key]||'빈칸'),'__linked__');option.dataset.linkedOption='';input.append(option);}input.append(new Option('선택 안 함', ''));
+              input=el('select');if(isLinked){const option=new Option((primary?'저장값: ':'연동: ')+(primary?values[cell.key]||'빈칸':linked.values[cell.key]||'빈칸'),'__linked__');option.dataset.linkedOption='';input.append(option);}input.append(new Option('선택 안 함', ''));
               for(const value of field.choices)input.append(new Option(value,value));
               input.disabled=!allowed;
             }else{
@@ -112,10 +113,10 @@
             input.onchange=input.oninput;
             input.onfocus=()=>{activeCell=cell.key;noteButton.disabled=busy;noteButton.title=field.label+' 메모';noteButton.setAttribute('aria-label',field.label+' 메모');};
             td.append(input);
-            if(isLinked){
+            if(isLinked&&!primary){
               td.classList.add('safety-card-linked');td.classList.toggle('safety-card-overridden',custom);
-              const meta=el('div',null,'safety-card-source');meta.append(el('span',custom?'카드 수정':'연동','safety-card-source-badge'));
-              if(allowed){const reset=button('연동값 복원',()=>{if(busy)return;delete content.overrides[cell.key];paintLinked(cell.key,true);markDirty();});reset.dataset.cardReset=cell.key;reset.setAttribute('aria-label',field.label+' 연동값 복원');reset.hidden=!custom;meta.append(reset);}
+              const meta=el('div',null,'safety-card-source');meta.append(el('span',custom?'원본 입력':'자료 연동','safety-card-source-badge'));
+              if(allowed){const reset=button('연동자료 적용',()=>{if(busy)return;delete content.overrides[cell.key];paintLinked(cell.key,true);markDirty();});reset.dataset.cardReset=cell.key;reset.setAttribute('aria-label',field.label+' 연동자료 적용');reset.hidden=!custom;meta.append(reset);}
               td.title=(linked.sources[cell.key]||'통합앱 연동')+' / 원본: '+(linked.values[cell.key]||'빈칸');td.append(meta);
             }
           }else {td.append(el('span',content.provenance?.[cell.key]??cell.text??''));if(cell.text)td.classList.add(cell.style==='100'?'safety-card-section':'safety-card-label');}
@@ -155,9 +156,9 @@
       try{
         const result=await api({action:'platform_safety_card_save',siteId:site.site_id,expectedRevision:record.revision,templateVersion:record.template_version,content});
         if(!current(token))return;
-        record=result.document;content=structuredClone(record.content);content.overrides??={};linked=result.linked;dirty=false;renderPaper();
+        record=result.document;site={...site,...result.site};heading.textContent=site.site_name+' 안전관리카드';const titlePicker=headerTools.querySelector('select');if(titlePicker){const option=[...titlePicker.options].find(o=>o.value===site.site_id);if(option)option.textContent=site.site_name;}content=structuredClone(record.content);content.overrides??={};linked=result.linked;dirty=false;renderPaper();
         status.textContent='저장했습니다. '+when(record.saved_at)+' / '+record.actor_name;
-        const summary=sites.find(s=>s.site_id===site.site_id);if(summary)Object.assign(summary,{revision:record.revision,source:record.source,saved_at:record.saved_at});
+        const summary=sites.find(s=>s.site_id===site.site_id);if(summary)Object.assign(summary,{site_name:site.site_name,revision:record.revision,source:record.source,saved_at:record.saved_at});
       }catch(error){if(current(token))status.textContent=message(error);}
       finally{if(current(token)){busy=false;headerTools.disabled=false;main.querySelector('.safety-card-editor').disabled=false;saveButton.disabled=!dirty||!allowed;}}
     }
@@ -169,7 +170,7 @@
         if(!current(token)||busy||!result.linked)return;
         linked=result.linked;
         for(const key of Object.keys(linked.values))paintLinked(key,true);
-        const info=main.querySelector('.safety-card-link-status');if(info)info.textContent=allowed?linkInfo:'조회 전용입니다. 카드 수정 표시가 있는 값은 원본과 별도로 저장된 값입니다.';
+        const info=main.querySelector('.safety-card-link-status');if(info)info.textContent=allowed?linkInfo:'조회 전용입니다. 사업장 정보는 안전관리카드에 저장된 원본을 표시합니다.';
         paintCalculated();
       }catch(error){if(current(token)){const info=main.querySelector('.safety-card-link-status');if(info)info.textContent='연동값을 갱신하지 못했습니다. 마지막 조회값입니다. 새로고침해 주세요.';}}
     }
@@ -183,7 +184,7 @@
         const result=await api({action:'platform_safety_card_open',siteId:id});
         if(!current(token))return;
         if(result.document.template_version!==model.template.version)throw Error('invalid_card_version');
-        record=result.document;content=structuredClone(record.content);content.overrides??={};linked=result.linked;allowed=result.canEdit===true&&['safety','field'].includes(user.role);activeCell='';
+        record=result.document;site={...site,...result.site};heading.textContent=site.site_name+' 안전관리카드';const titlePicker=headerTools.querySelector('select');if(titlePicker){const option=[...titlePicker.options].find(o=>o.value===site.site_id);if(option)option.textContent=site.site_name;}content=structuredClone(record.content);content.overrides??={};linked=result.linked;allowed=result.canEdit===true&&['safety','field'].includes(user.role);activeCell='';
         const tools=headerTools;tools.disabled=false;
         const picker=el('select');picker.setAttribute('aria-label','안전관리카드 사업장 선택');
         for(const item of sites)picker.append(new Option(item.site_name,item.site_id));picker.value=id;
@@ -196,7 +197,7 @@
         if(!allowed)status.textContent+=(status.textContent?' / ':'')+'조회 전용';
         const fieldset=el('fieldset',null,'safety-card-editor');
         if(!linked)throw Error('linked_data_unavailable');
-        const info=el('p',allowed?linkInfo:'조회 전용입니다. 카드 수정 표시가 있는 값은 원본과 별도로 저장된 값입니다.','safety-card-link-status');
+        const info=el('p',allowed?linkInfo:'조회 전용입니다. 사업장 정보는 안전관리카드에 저장된 원본을 표시합니다.','safety-card-link-status');
         const legend=el('div',null,'safety-card-legend');legend.setAttribute('aria-label','안전관리카드 색상 안내');
         for(const [cls,label] of [['label','항목 구분'],['input-cell','직접 입력'],['select-cell','드롭다운 선택'],['calculated','자동 계산']])legend.append(el('span',label,'safety-card-'+cls));
         main.replaceChildren(status,legend,info,fieldset);renderPaper();
