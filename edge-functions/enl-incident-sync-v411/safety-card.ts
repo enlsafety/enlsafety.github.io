@@ -1,4 +1,5 @@
 import "../../safety-card-model.js";
+import {loadSafetyCardLinks,linkedCardKeys} from "./safety-card-links.ts";
 
 export async function safetyCardRequest(sql:any, actor:any, body:any, reply:any) {
   if(!['safety','field','worker','manager','executive'].includes(actor.role))
@@ -19,11 +20,12 @@ export async function safetyCardRequest(sql:any, actor:any, body:any, reply:any)
   const [site]=await sql`select site_id,site_name,active from public.enl_site_master s where s.site_id=${body.siteId} and ${visible}`;
   if(!site)return reply({ok:false,message:'site_unavailable'},404);
   const canEdit=actor.role==='safety'||actor.role==='field';
+  if(body.action==='platform_safety_card_links')return reply({ok:true,linked:await loadSafetyCardLinks(sql,site.site_id,actor.role)});
   if(body.action==='platform_safety_card_open'){
     const [document]=await sql`select revision,template_version,content,source,saved_at,actor_name
       from private.enl_safety_cards where site_id=${site.site_id} order by revision desc limit 1`;
     if(!document)return reply({ok:false,message:'card_unavailable'},404);
-    return reply({ok:true,site,document,canEdit});
+    return reply({ok:true,site,document,canEdit,linked:await loadSafetyCardLinks(sql,site.site_id,actor.role)});
   }
   if(body.action!=='platform_safety_card_save')return reply({ok:false,message:'unknown_action'},400);
   if(!canEdit)return reply({ok:false,message:'forbidden'},403);
@@ -39,10 +41,10 @@ export async function safetyCardRequest(sql:any, actor:any, body:any, reply:any)
     if(!previous)return reply({ok:false,message:'card_unavailable'},404);
     if(previous.revision!==body.expectedRevision)return reply({ok:false,message:'card_changed'},409);
     if(previous.template_version!==body.templateVersion)return reply({ok:false,message:'invalid_card_version'},409);
-    const content={values:{...body.content.values,D6:previous.content.values.D6},notes:body.content.notes,provenance:previous.content.provenance};
+    const content={values:{...body.content.values,...Object.fromEntries(linkedCardKeys.map(key=>[key,previous.content.values[key]]))},notes:body.content.notes,provenance:previous.content.provenance};
     const [document]=await tx`insert into private.enl_safety_cards(site_id,revision,template_version,content,source,actor_id,actor_name)
       values(${site.site_id},${previous.revision+1},${body.templateVersion},${sql.json(content)}::jsonb,'edit',${actor.id},${actor.name})
       returning revision,template_version,content,source,saved_at,actor_name`;
-    return reply({ok:true,site,document,canEdit});
+    return reply({ok:true,site,document,canEdit,linked:await loadSafetyCardLinks(tx,site.site_id,actor.role)});
   });
 }

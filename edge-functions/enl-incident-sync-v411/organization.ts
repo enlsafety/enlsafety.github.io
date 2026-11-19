@@ -41,7 +41,7 @@ function validPrintPhoto(data:unknown){
   return false;
 }
 
-function reviewState(row:any, period:string, tip:number) {
+export function reviewState(row:any, period:string, tip:number) {
   if(!row?.revision)return 'empty';
   // Deleting a newer version must not silently reapprove an earlier snapshot.
   if(row.period!==period || row.revision!==tip)return 'draft';

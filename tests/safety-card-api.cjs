@@ -1,15 +1,19 @@
 'use strict';
-const assert=require('node:assert/strict'),fs=require('node:fs'),{fixture}=require('./final-lifecycle.cjs');
+const assert=require('node:assert/strict'),fs=require('node:fs'),{orgFixture}=require('./organization.cjs');
 require('../safety-card-model.js');
 const model=globalThis.ENLSafetyCardModel;
 (async()=>{
- const f=await fixture();
+ const f=await orgFixture();
  try{
-  await f.db.exec(fs.readFileSync('supabase/migrations/20261118083845_safety_cards.sql','utf8'));
+  for(const name of ['20261117000000_risk_assessment_folders','20261117000100_open_risk_assessment_module','20261117042933_risk_assessment_records','20261118083845_safety_cards'])await f.db.exec(fs.readFileSync('supabase/migrations/'+name+'.sql','utf8'));
+  await f.db.exec("alter table enl_site_master add column manager_phone text,add column part_phone text,add column clerk_phone text,add column course_holes text,add column headcount_basis text,add column safety_agency text");
   const content={values:Object.fromEntries(Object.keys(model.template.fields).map(k=>[k,''])),notes:{D43:'원본 메모'},provenance:{F3:'원본 표시'}};
-  content.values.D6='검수 사업장';content.values.C9='12';content.values.E9='10';
-  await f.db.query("insert into public.enl_site_master(site_id,site_name,active) values('other-site','다른 현장',true)");
+  content.values.N6='원본 법인';content.values.D6='검수 사업장';content.values.C9='12';content.values.E9='10';
+
   for(const id of ['qa-site','other-site'])await f.db.query("insert into private.enl_safety_cards values($1,1,$2,$3,'import','import','엑셀 원본',now())",[id,model.template.version,JSON.stringify(content)]);
+  await f.db.exec(fs.readFileSync('supabase/migrations/20261119004348_safety_card_master_profile.sql','utf8'));
+  assert.equal((await f.db.query("select safety_card_profile->>'corporation' as name from enl_site_master where site_id='qa-site'")).rows[0].name,'원본 법인','migration preserves imported source values');
+  await f.db.exec("update enl_site_master set regular_count=20,daily_count=3,manager_name='연동 소장',manager_phone='010-0000-0000',safety_card_profile=jsonb_build_object('corporation','변경된 법인') where site_id='qa-site'");
   const call=(who,action,extra={})=>f.call(who,{action:'platform_safety_card_'+action,...extra});
   assert.equal((await call('safety','list')).body.sites.length,2);
   assert.equal((await call('field','list')).body.sites.length,1);
@@ -19,10 +23,10 @@ const model=globalThis.ENLSafetyCardModel;
     assert.equal((await call(role,'save',{siteId:'qa-site'})).status,403);
   }
   const edit={siteId:'qa-site',expectedRevision:1,templateVersion:model.template.version,content:structuredClone(content)};
-  edit.content.values.C9='24';edit.content.values.D6='다른 이름';edit.content.notes.D43+='\n추가 확인';
+  edit.content.values.C9='24';edit.content.values.D42='직접 작성한 의견';edit.content.values.D6='다른 이름';edit.content.notes.D43+='\n추가 확인';
   assert.equal((await call('safety','save',edit)).status,200);
   const saved=(await call('field','open',{siteId:'qa-site'})).body.document;
-  assert.equal(saved.content.values.C9,'24');assert.equal(saved.content.values.D6,'검수 사업장');
+  assert.equal(saved.content.values.C9,'12','linked source snapshots cannot be overwritten');assert.equal(saved.content.values.D42,'직접 작성한 의견');assert.equal(saved.content.values.D6,'검수 사업장');
   assert.equal(saved.content.notes.D43,'원본 메모\n추가 확인');
   assert.equal(saved.content.provenance.F3,'원본 표시');
   assert.equal((await call('field','save',edit)).status,409,'stale revision never overwrites');
@@ -39,6 +43,19 @@ const model=globalThis.ENLSafetyCardModel;
   values.P41='확인완료';assert.equal(model.calculate(values).N40,'없음');
   values.B37='위험요인';values.N37='진행 중';assert.equal(model.calculate(values).N40,'미조치·진행 1건');
   values.N37='조치완료';assert.equal(model.calculate(values).N40,'조치완료');
+  const linked=(await call('safety','open',{siteId:'qa-site'})).body.linked;
+  assert.equal(linked.values.C9,'20');assert.equal(linked.values.E9,'3');assert.equal(linked.values.D14,'연동 소장');assert.equal(linked.values.N6,'변경된 법인');
+  assert.equal(linked.values.P32,'승인자료 없음');assert.equal(linked.values.L13,'0');
+  const year=new Date().getFullYear(),period=linked.organization.period;
+  await f.db.query("insert into private.enl_org_charts(site_id,revision,site_name,chart,period,confirmed,actor_id,actor_name,review_event) values('qa-site',1,'QA',$1,$2,true,'qa-safety','QA','approve')",[JSON.stringify({lead:'조직도 책임자',supervisor:'관리감독자',teams:[]}),period]);
+  await f.db.exec("update private.enl_org_folders set deleted=false where site_id='qa-site';update private.enl_risk_folders set deleted=false where site_id='qa-site'");
+  for(const kind of ['initial','regular'])await f.db.query("insert into private.enl_risk_records(site_id,kind,period,template_id,revision,template_version,content,state,actor_id,actor_name) values('qa-site',$1,$2,'course',1,'test','{}','completed','qa-field','QA')",[kind,kind==='initial'?'initial':String(year)]);
+  await f.seedLegacy({id:'qa-linked',siteId:'qa-site',category:'person',status:'reported',occurredAt:new Date().toISOString(),summary:'연동 시험',photos:[]});
+  const refreshed=(await call('field','links',{siteId:'qa-site'}));assert.equal(refreshed.status,200,JSON.stringify(refreshed));
+  assert.equal(refreshed.body.linked.values.P32,'승인완료');assert.equal(refreshed.body.linked.values.P23,'작성완료 / 승인 전');assert.equal(refreshed.body.linked.values.L13,'1');assert.equal(refreshed.body.linked.values.M16,'연동 시험');assert.match(refreshed.body.linked.values.H14,/조직도 책임자/);
+  assert.equal((await call('field','links',{siteId:'other-site'})).status,403);
+  await f.db.exec("insert into enl_site_personnel(personnel_id,site_id,name,job_title,access_role,active) values('qa-worker','qa-site','QA','일반근로자','worker',true)");
+  const worker=await f.raw({actor:{id:'qa-worker',role:'worker',siteId:'qa-site'},action:'platform_safety_card_links',siteId:'qa-site'});assert.equal(worker.status,200,JSON.stringify(worker));assert.equal(worker.body.linked.values.L13,'미확인');assert.equal(worker.body.linked.values.M16,'');
   console.log('PASS site-scoped reads, role-protected saves, revision conflicts, preserved source notes, immutable site identity, workbook calculations');
  }finally{await f.db.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});

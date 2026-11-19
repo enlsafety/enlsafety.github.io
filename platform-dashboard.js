@@ -498,6 +498,7 @@
     root.replaceWith(saved.root);retainedTabs.delete(active);
     if(saved.incidentPhotos){incidentPhotos=saved.incidentPhotos;actionPhotos=saved.actionPhotos;}
     placeFrame(saved.root);
+    if(active==='safetyCard')safetyCards?.refreshLinked();
     requestAnimationFrame(()=>{if(sameUser()&&saved.root.isConnected){
       for(const [node,top,left] of saved.scrolls){node.scrollTop=top;node.scrollLeft=left;scrolled.add(node);}
       window.scrollTo(saved.x,saved.y);

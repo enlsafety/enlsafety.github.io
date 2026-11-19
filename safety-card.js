@@ -5,7 +5,7 @@
   const button=(text,run,cls)=>{const b=el('button',text,cls);b.type='button';b.onclick=run;return b;};
   const when=value=>new Date(value).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'});
   window.enlSafetyCards=(host,user,api,sameUser,onHome)=>{
-    let panel,main,status,sites=[],site=null,record=null,content=null,allowed=false;
+    let panel,main,status,sites=[],site=null,record=null,content=null,allowed=false,linked=null,headerTools;
     let sequence=0,busy=false,dirty=false,activeCell='',noteButton,saveButton,backButton,heading,closeNote=null;
     let searchQuery='';
     const current=token=>sameUser()&&token===sequence;
@@ -17,6 +17,7 @@
       backButton.setAttribute('aria-label',site?'사업장 목록으로 뒤로가기':'통합 홈으로 뒤로가기');
       backButton.title=site?'사업장 목록으로':'통합 홈으로';
       heading.textContent=site?site.site_name+' 안전관리카드':'안전관리카드';
+      headerTools.replaceChildren(backButton);
     }
     function back(){
       if(closeNote){closeNote();return;}
@@ -30,7 +31,7 @@
       return '처리하지 못했습니다. 입력 내용을 확인하고 다시 시도해 주세요.';
     }
     function paintCalculated(){
-      for(const [key,value] of Object.entries(model.calculate(content.values))){
+      for(const [key,value] of Object.entries({...model.calculate({...content.values,...linked?.values}),...linked?.calculated})){
         const node=main.querySelector('[data-card-result="'+key+'"]');if(node)node.textContent=value;
       }
     }
@@ -63,7 +64,7 @@
       const table=el('table',null,'safety-card-paper');table.setAttribute('aria-label',site.site_name+' 안전관리카드');
       const cols=el('colgroup');for(const width of model.template.columns){const col=el('col');col.style.width=(width/model.template.columns.reduce((a,b)=>a+b,0)*100)+'%';cols.append(col)}table.append(cols);
       const body=el('tbody');table.append(body);
-      const calculated=model.calculate(content.values);
+      const calculated={...model.calculate({...content.values,...linked?.values}),...linked?.calculated};
       for(let r=1;r<=model.template.heights.length;r++){
         const row=el('tr');row.style.height=model.template.heights[r-1]+'px';row.style.setProperty('--card-print-height',model.template.heights[r-1]*.4375+'pt');body.append(row);
         for(const cell of model.template.cells.filter(c=>c.row===r)){
@@ -71,8 +72,12 @@
           const style=model.template.styles[cell.style];
           Object.assign(td.style,{background:style.background,color:style.color,fontWeight:style.bold?'700':'400',textAlign:style.align,fontSize:'calc('+Math.max(12,style.size)+'px + 2pt)'});
           const field=model.template.fields[cell.key];
-          if(cell.key==='B2'){td.textContent=(content.values.D6||site.site_name)+'  안전관리카드';td.classList.add('safety-card-title');}
+          if(cell.key==='B2'){td.textContent=(linked?.values.D6||content.values.D6||site.site_name)+'  안전관리카드';td.classList.add('safety-card-title');}
           else if(cell.key==='B3')td.textContent='';
+          else if(linked?.labels?.[cell.key])td.textContent=linked.labels[cell.key];
+          else if(Object.hasOwn(linked?.values||{},cell.key)){
+            const value=el('output',linked.values[cell.key]);value.dataset.cardLinked=cell.key;value.setAttribute('aria-label',field?.label||cell.text||'연동값');td.title=linked.sources[cell.key]||'통합앱 연동';td.classList.add('safety-card-linked');td.append(value);
+          }
           else if(Object.hasOwn(calculated,cell.key)){
             const value=el('output',calculated[cell.key]);value.dataset.cardResult=cell.key;td.append(value);
           }else if(field){
@@ -109,7 +114,7 @@
       if(busy||!record)return;
       const paper=main.querySelector('.safety-card-paper').cloneNode(true);
       for(const node of paper.querySelectorAll('textarea,select')){
-        const value=el('span',content.values[node.dataset.cardField]||'');value.className='safety-card-print-value';node.replaceWith(value);
+        const value=el('span',node.value||'');value.className='safety-card-print-value';node.replaceWith(value);
       }
       paper.querySelectorAll('button').forEach(node=>node.remove());
       const page=el('div');page.id='safety-card-print';page.append(paper);
@@ -124,16 +129,29 @@
     async function save(){
       if(busy||!allowed||!dirty)return;
       const problem=model.validate(content);if(problem){status.textContent=problem;return;}
-      busy=true;saveButton.disabled=true;
+      busy=true;saveButton.disabled=true;headerTools.disabled=true;
       const token=sequence;main.querySelector('.safety-card-editor').disabled=true;status.textContent='저장 중입니다.';
       try{
         const result=await api({action:'platform_safety_card_save',siteId:site.site_id,expectedRevision:record.revision,templateVersion:record.template_version,content});
         if(!current(token))return;
-        record=result.document;content=structuredClone(record.content);dirty=false;
+        record=result.document;content=structuredClone(record.content);linked=result.linked;dirty=false;renderPaper();
         status.textContent='저장했습니다. '+when(record.saved_at)+' / '+record.actor_name;
         const summary=sites.find(s=>s.site_id===site.site_id);if(summary)Object.assign(summary,{revision:record.revision,source:record.source,saved_at:record.saved_at});
       }catch(error){if(current(token))status.textContent=message(error);}
-      finally{if(current(token)){busy=false;main.querySelector('.safety-card-editor').disabled=false;saveButton.disabled=!dirty||!allowed;}}
+      finally{if(current(token)){busy=false;headerTools.disabled=false;main.querySelector('.safety-card-editor').disabled=false;saveButton.disabled=!dirty||!allowed;}}
+    }
+    async function refreshLinked(){
+      if(!record||!site||busy)return;
+      const token=sequence;
+      try{
+        const result=await api({action:'platform_safety_card_links',siteId:site.site_id});
+        if(!current(token)||busy||!result.linked)return;
+        linked=result.linked;
+        for(const node of main.querySelectorAll('[data-card-linked]'))node.textContent=linked.values[node.dataset.cardLinked]??'';
+        const title=main.querySelector('[data-cell="B2"]');if(title)title.textContent=(linked.values.D6||site.site_name)+'  안전관리카드';
+        const info=main.querySelector('.safety-card-link-status');if(info)info.textContent='사업장 정보, 조직도, 사고 이력, 서류 승인상태 자동 반영';
+        paintCalculated();
+      }catch(error){if(current(token)){const info=main.querySelector('.safety-card-link-status');if(info)info.textContent='연동값을 갱신하지 못했습니다. 마지막 조회값입니다. 새로고침해 주세요.';}}
     }
     async function choose(id,force=false){
       if(!force&&!canLeave())return;
@@ -145,8 +163,8 @@
         const result=await api({action:'platform_safety_card_open',siteId:id});
         if(!current(token))return;
         if(result.document.template_version!==model.template.version)throw Error('invalid_card_version');
-        record=result.document;content=structuredClone(record.content);allowed=result.canEdit===true&&['safety','field'].includes(user.role);activeCell='';
-        const tools=el('div',null,'safety-card-tools');
+        record=result.document;content=structuredClone(record.content);linked=result.linked;allowed=result.canEdit===true&&['safety','field'].includes(user.role);activeCell='';
+        const tools=headerTools;tools.disabled=false;
         const picker=el('select');picker.setAttribute('aria-label','안전관리카드 사업장 선택');
         for(const item of sites)picker.append(new Option(item.site_name,item.site_id));picker.value=id;
         picker.onchange=()=>{const next=picker.value;picker.value=site.site_id;choose(next);};
@@ -156,13 +174,15 @@
         tools.append(picker,saveButton,noteButton,button('인쇄 / PDF',print),reload);
         status=el('p',record.source==='import'?'':'마지막 저장 '+when(record.saved_at)+' / '+record.actor_name,'safety-card-status');status.setAttribute('role','status');
         if(!allowed)status.textContent+=(status.textContent?' / ':'')+'조회 전용';
-        const fieldset=el('fieldset',null,'safety-card-editor');fieldset.append(tools);
-        main.replaceChildren(status,fieldset);renderPaper();
+        const fieldset=el('fieldset',null,'safety-card-editor');
+        if(!linked)throw Error('linked_data_unavailable');
+        const info=el('p','사업장 정보, 조직도, 사고 이력, 서류 승인상태 자동 반영','safety-card-link-status');
+        main.replaceChildren(status,info,fieldset);renderPaper();
         fieldset.append(main.querySelector('.safety-card-scroll'));
       }catch(error){if(current(token))main.replaceChildren(el('p','카드를 불러오지 못했습니다.'),button('다시 시도',()=>choose(id,true)),button('사업장 목록',showList));}
     }
     function showList(){
-      sequence++;dirty=false;site=null;record=null;content=null;navigation();
+      sequence++;dirty=false;site=null;record=null;content=null;linked=null;navigation();
       const search=el('input');search.type='search';search.value=searchQuery;search.placeholder='사업장 검색';search.setAttribute('aria-label','안전관리카드 사업장 검색');
       const grid=el('div',null,'safety-card-sites');
       const paint=()=>{
@@ -180,11 +200,11 @@
       panel.hidden=false;main=el('div');
       const header=el('header',null,'safety-card-header');
       backButton=button('뒤로가기',back,'safety-card-back');backButton.dataset.cardBack='';
-      heading=el('h2','안전관리카드');header.append(backButton,heading);panel.replaceChildren(header,main);navigation();
+      heading=el('h2','안전관리카드');headerTools=el('fieldset',null,'safety-card-tools safety-card-header-tools');header.append(heading,headerTools);panel.replaceChildren(header,main);navigation();
       const token=++sequence;main.append(el('p','사업장 목록을 불러오는 중입니다.'));
       try{const result=await api({action:'platform_safety_card_list'});if(!current(token))return;sites=result.sites;showList();}
       catch(error){if(current(token))main.replaceChildren(el('p','사업장 목록을 불러오지 못했습니다.'),button('다시 시도',open));}
     }
-    return {open,leave,back,hasDetail:()=>!!site,canLeave,canSuspend:()=>!busy};
+    return {open,leave,back,refreshLinked,hasDetail:()=>!!site,canLeave,canSuspend:()=>!busy};
   };
 })();

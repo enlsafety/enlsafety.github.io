@@ -49,6 +49,7 @@ async function fixture({hubNotices=false,fetchMock}={}){
  vm.runInContext(read('edge-functions/enl-incident-sync-v411/site-contract-v451.js'),ctx);
  vm.runInContext(read('executive-approval-v482.js'),ctx);
  vm.runInContext(read('safety-card-model.js'),ctx);
+ vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/safety-card-links.ts').replace(/^import .*;\r?\n/gm,'').replace(/export /g,'')),ctx);
  vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/safety-card.ts').replace(/^import .*;\r?\n/gm,'').replace(/export /g,'')),ctx);
  vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/lifecycle-policy.ts').replace(/export /g,'')),ctx);
  vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/organization.ts').replace(/export /g,'')),ctx);
