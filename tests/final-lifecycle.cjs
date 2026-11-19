@@ -19,6 +19,7 @@ async function fixture({hubNotices=false,fetchMock}={}){
  insert into enl_site_personnel values('qa-field','qa-site','QA 현장','현장소장','field',true,'qa-proof'),('qa-other','other-site','QA 타현장','현장소장','field',true,'qa-proof');
  insert into enl_site_master(site_id,site_name,active,start_date) values('qa-site','QA 가상 사업장',true,'2020-01-01');
  `);
+ await db.exec(read('supabase/migrations/20261119015826_account_form_drafts.sql'));
  for(const name of ['enl_incident_optimistic_sync_guard','enl_email_from_push_trigger'])await db.exec(read('tests/fixtures/final-lifecycle/'+name+'.sql'));
  await db.exec(read('supabase/migrations/20261013052400_final_safety_lifecycle.sql'));
  await db.exec(read('tests/fixtures/evidence-storage-schema.sql'));
@@ -59,6 +60,7 @@ async function fixture({hubNotices=false,fetchMock}={}){
  vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/analysis-targets.ts').replace(/^import .*;\r?\n/gm,'').replace(/export /g,'')),ctx);
  vm.runInContext('{'+stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/storage-usage.ts').replace(/export /g,''))+'globalThis.storageUsageRequest=storageUsageRequest;}',ctx);
  vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/platform-api.ts').replace(/^import .*;\r?\n/gm,'').replace(/export /g,'')),ctx);
+ vm.runInContext('{'+stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/form-drafts.ts').replace(/export /g,''))+'globalThis.formDraftRequest=formDraftRequest;globalThis.consumeFormDraft=consumeFormDraft;}',ctx);
  // Put the endpoint in an inner scope because each imported file has its own module scope.
  vm.runInContext('{'+stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/index.ts').replace(/^import .*;\r?\n/gm,''))+'}',ctx);
  const actors={safety:{id:'qa-safety',role:'safety'},manager:{id:'qa-manager',role:'manager'},executive:{id:'qa-executive',role:'executive'},field:{id:'qa-field',role:'field',siteId:'qa-site'},other:{id:'qa-other',role:'field',siteId:'other-site'}};

@@ -1,4 +1,5 @@
 import { hasHealth as Deno } from "../_shared/device-runtime.ts";
+import { formDraftRequest, consumeFormDraft } from "./form-drafts.ts";
 import { platformRequest, serviceAllowed } from "./platform-api.ts";
 import "./site-contract-v451.js";
 import "./executive-approval-v482.js";
@@ -207,6 +208,8 @@ Deno.serve(async(req:Request)=>{
   const now=new Date().toISOString(),sql=postgres(dbUrl,{prepare:false,max:4,connect_timeout:5,idle_timeout:2});
   try{
     let actor=await verifyActor(sql,body,true);if(!actor)return json({ok:false,message:"auth_proof_required"},403);
+
+    if(action.startsWith("draft_"))return await formDraftRequest(sql,actor,body,json);
 
     // Only the verified safety administrator may read the separate login audit.
     if(action==="activity_login_list"){
@@ -558,6 +561,7 @@ Deno.serve(async(req:Request)=>{
             next.siteContractSnapshot=contracts.snapshot(master,day,actor,needsConfirmation&&body.contractConfirmed===true);
             result.diff.push({field:"siteContractSnapshot",before:oldSnapshot,after:next.siteContractSnapshot});
           }
+          await consumeFormDraft(sql,actor,body.formDraft,incidentId,clean(row.site_id));
           await sql`insert into public.enl_incident_revisions(incident_id,revision,mutation_id,reason,editor_id,editor_name,created_at,changes,before_payload,after_payload) values(${incidentId},${result.revision},${mutationId},${clean(body.reason)},${actor.id},${actor.name},${now},${sql.json(result.diff)}::jsonb,${sql.json(prev)}::jsonb,${sql.json(next)}::jsonb)`;
         }else{
           const record=body.record||{},reason=clean(body.reason);
@@ -582,7 +586,8 @@ Deno.serve(async(req:Request)=>{
       return await sql.begin(async(sql:any)=>{
       await sql`select set_config('enl.actor',${JSON.stringify({id:actor.id,role:actor.role})},true)`;
       let pushed=0,ignored=0;const savedIncidents:any[]=[];
-      for(const raw0 of incoming){
+      for(const input of incoming){
+        const {_formDraft:formDraft,...raw0}=input||{};
         if(!raw0||typeof raw0!=="object")continue;const id=clean(raw0.id),siteId=clean(raw0.siteId);if(!id||!siteId)continue;if(["worker","field"].includes(actor.role)&&siteId!==actor.siteId)continue;
         const incomingHistorical=isHistoricalTransfer(raw0);
         await sql`select pg_advisory_xact_lock(hashtextextended(${id},0))`;
@@ -593,13 +598,14 @@ Deno.serve(async(req:Request)=>{
         }
         const rr=await sql`select incident_id,site_id,payload,created_at from public.enl_incident_active where incident_id=${id} limit 1 for update`,row=rr[0],prev=parsePayload(row?.payload);
         if(prev&&clean(raw0._syncMutationId)&&clean(raw0._syncMutationId)===clean(prev._syncMutationId)){savedIncidents.push(prev);ignored++;continue;}
+        await consumeFormDraft(sql,actor,formDraft,id,siteId);
         if(prev&&comparableIncident(raw0)===comparableIncident(prev)){savedIncidents.push(prev);ignored++;continue;}
         // Check the locked row's version before comparing server-managed fields.
         // Otherwise an ordinary stale draft is misreported as record tampering.
         const baseVersion=Object.prototype.hasOwnProperty.call(raw0,"_syncBaseVersion")?versionOf(raw0._syncBaseVersion):versionOf(raw0._syncVersion);
         if(baseVersion!==versionOf(prev?._syncVersion))rejectWrite("enl_sync_conflict_version",409);
         const policy=validateLifecycle(prev,raw0,actor,now);
-        if(bulkInactive(prev)){ignored++;continue;} // A stale client may still hold a now-invalidated incident.
+        if(bulkInactive(prev)){if(formDraft)rejectWrite("draft_incident_changed");ignored++;continue;} // A stale client may still hold a now-invalidated incident.
         if(!prev&&isBulkImported(raw0))rejectWrite("bulk_registration_requires_import_api",409);
         if(prev&&isBulkImported(prev)){
           if(legacyUnverified(prev)){
@@ -610,7 +616,7 @@ Deno.serve(async(req:Request)=>{
           if(prev.corrective&&!raw0.corrective)rejectWrite("bulk_followup_preservation_required",409);
           if(!isBulkImported(raw0)||["historicalOrigin","externalInitialApproval","bulkInvalidation"].some(k=>JSON.stringify(canonicalValue(prev[k]??null))!==JSON.stringify(canonicalValue(raw0[k]??null))))rejectWrite("bulk_record_scope_locked",409);
         }
-        if(actor.role==="worker"&&prev&&!isMine(prev,actor)){ignored++;continue;}
+        if(actor.role==="worker"&&prev&&!isMine(prev,actor)){if(formDraft)rejectWrite("forbidden",403);ignored++;continue;}
         if(prev&&isHistoricalTransfer(prev)&&actor.role!=="safety")rejectWrite("historical_transfer_locked",403);
         if(prev&&isHistoricalTransfer(prev)&&!incomingHistorical)rejectWrite("historical_transfer_locked",409);
         let next={...raw0,id,siteId};

@@ -29,7 +29,7 @@
   const version=i=>Number(i?._syncVersion||0);
   const clone=v=>structuredClone(v);
   const stable=v=>Array.isArray(v)?v.map(stable):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().filter(k=>v[k]!==undefined).map(k=>[k,stable(v[k])])):v;
-  const metadata=['_pendingCommitId','_syncBaseVersion','_syncVersion','_syncMutationId','updatedAt','lastModifiedAt','lastModifiedBy','lastModifiedRole','lastModifiedPosition'];
+  const metadata=['_formDraft','_pendingCommitId','_syncBaseVersion','_syncVersion','_syncMutationId','updatedAt','lastModifiedAt','lastModifiedBy','lastModifiedRole','lastModifiedPosition'];
   function comparable(i){const x=clone(i||{});for(const k of metadata)delete x[k];if(x.corrective)for(const k of metadata.filter(k=>k.startsWith('lastModified')))delete x.corrective[k];return x;}
   const signature=v=>JSON.stringify(stable(v));
   const contentSignature=i=>signature(comparable(i));
@@ -59,6 +59,7 @@
   const isConflict=e=>String(e?.message||'').includes('enl_sync_conflict');
   function errorMessage(e){
     const m=String(e?.message||'');
+    if(m==='draft_conflict'||m==='draft_submit_required')return '다른 기기에서 초안이 변경됐습니다. 초안의 지금 저장 버튼을 눌러 최신 내용과 비교한 뒤 제출해 주세요.';
     if(m==='incident_deleted')return '삭제된 사고입니다. 목록을 새로고침해 주세요.';
     if(isConflict(e))return '서버 자료 버전이 변경되어 저장하지 못했습니다. 작성 내용은 유지했습니다. 변경사항을 비교한 뒤 다시 검토해 주세요.';
     if(m==='session_auth_expired'||m==='session_changed')return '로그인 인증을 다시 확인해야 합니다. 작성 내용은 현재 화면에 유지했습니다. 다시 로그인한 뒤 저장을 재시도해 주세요.';
@@ -193,9 +194,9 @@
           if(same(wanted,uncertain.sent)){acceptSaved(saved,wanted,visibleBefore);return saved;}
         }
         let candidate=clone(wanted);const latest=authoritative.get(id);
-        if(latest&&same(candidate,latest)){failures.delete(id);drafts.delete(id);return acceptSaved(latest,wanted,visibleBefore);}
-        if(latest&&version(candidate)!==version(latest))candidate=rebase(id,candidate,base||history.get(id)?.get(version(candidate)),latest);
-        if(latest&&same(candidate,latest)){failures.delete(id);drafts.delete(id);return acceptSaved(latest,wanted,visibleBefore);}
+        if(!candidate._formDraft&&latest&&same(candidate,latest)){failures.delete(id);drafts.delete(id);return acceptSaved(latest,wanted,visibleBefore);}
+        if(latest&&version(candidate)!==version(latest)){if(candidate._formDraft)throw errorOf('enl_sync_conflict_version',409);candidate=rebase(id,candidate,base||history.get(id)?.get(version(candidate)),latest);}
+        if(!candidate._formDraft&&latest&&same(candidate,latest)){failures.delete(id);drafts.delete(id);return acceptSaved(latest,wanted,visibleBefore);}
         candidate._syncBaseVersion=version(candidate);candidate._syncMutationId=crypto.randomUUID();delete candidate._pendingCommitId;
         if(!history.has(id))history.set(id,new Map());if(!history.get(id).has(version(wanted)))history.get(id).set(version(wanted),clone(wanted));
         retryWrites.set(id,{sent:clone(candidate)});

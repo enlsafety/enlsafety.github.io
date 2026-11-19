@@ -352,9 +352,10 @@
   function buildSummary(type,siteId){const when=formatOccurred(value('occurredDate410'),value('occurredTime410')),site=currentSiteName(siteId),place=value('incidentPlace410'),work=value('workAction410'),how=value('incidentHow410'),prevention=value('preventionPlan410'),special=value('specialNote410');let damage='';if(type==='person'){const cost=money(value('medicalCost410'));damage=[`${value('injuredName')||'피해 직원'}: ${value('injuryDetail410')}`,value('diagnosis410')&&`진단명: ${value('diagnosis410')}`,value('doctorOpinion410')&&`의사 소견: ${value('doctorOpinion410')}`,cost&&`진료비: ${moneyText(cost)}`].filter(Boolean).join(' / ')}else{const raw=value('repairCost410'),cost=money(raw),costText=raw===PENDING_COST||!cost?PENDING_COST:moneyText(cost);damage=[value('propertyWorker410')&&`작업자: ${value('propertyWorker410')}`,`${value('damagedItem410')}: ${value('damageDetail410')}`,`복구 예상비용: ${costText}`,value('repairCostDetail410')&&`견적 상세: ${value('repairCostDetail410')}`].filter(Boolean).join(' / ')}return [`[사고 개요] ${when} ${site} ${place}`,`[사고 경위] ${work} 중 ${how}`,`[피해 상황] ${damage}`,prevention&&`[재발 방지 대책] ${prevention}`,special&&`[특이사항] ${special}`].filter(Boolean).join('  ')}
 
   async function submitIncident410(e,u,type,existing=null){
-    const draftStore=window.ENLFormDrafts?.forForm(e.currentTarget);
+    const form=e.currentTarget,draftStore=window.ENLFormDrafts?.forForm(form);
     if(existing)existing=structuredClone(existing);
     e.preventDefault();
+    const formDraft=await draftStore?.prepare();if(draftStore&&!formDraft)return;
     if(window.enlValidateOccurrenceInputs&&!window.enlValidateOccurrenceInputs())return;
     if(existing&&accepted(existing)&&u?.role!=='safety')return alert('승인된 사고는 안전관리자만 정정할 수 있습니다.');if(!canCreate(u))return alert('사고보고 등록 권한이 없습니다.');
     for(const [id,label] of [['reportSite','사업장'],['occurredDate410','발생 날짜'],['occurredTime410','발생 시간'],['incidentPlace410','사고 장소'],['workAction410','사고 직전 작업'],['incidentHow410','사고 발생 과정'],['immediateAction','사고 직후 조치']])if(!required(id,label))return;
@@ -371,7 +372,7 @@
     const siteId=value('reportSite'),date=value('occurredDate410'),time=value('occurredTime410'),severity=value('severity')||'minor',leaveEstimate=type==='person'?value('leaveEstimate'):'none',potentialMajor=!!document.getElementById('potentialMajor')?.checked,summary=buildSummary(type,siteId),eventType=value('eventType'),autoPriority=computePriority(type,severity,eventType,potentialMajor,leaveEstimate),priorityChoice=u?.role==='safety'?(value('priorityManual411')||'auto'):'auto',priority=priorityChoice==='auto'?autoPriority:priorityChoice,prioritySource=priorityChoice==='auto'?'auto':'manual',details={...(existing?.reportDetails||{}),templateVersion:'v411',reportType:type,place:value('incidentPlace410'),workAction:value('workAction410'),incidentHow:value('incidentHow410'),preventionPlan:existing?.reportDetails?.preventionPlan||'',specialNote:value('specialNote410'),generatedSummary:summary,recordedAt:existing?.reportDetails?.recordedAt||nowISO()};
     if(type==='person')Object.assign(details,{injuredName:value('injuredName'),job:value('job'),injuryDetail:value('injuryDetail410'),diagnosis:value('diagnosis410'),doctorOpinion:value('doctorOpinion410'),medicalCost:money(value('medicalCost410')),medicalCostPending:!value('medicalCost410'),medicalCostDetail:value('medicalCostDetail410')});else{const repairRaw=value('repairCost410'),repairValue=money(repairRaw),repairPending=!repairRaw||repairRaw===PENDING_COST||repairValue<=0,repairDetail=value('repairCostDetail410')||PENDING_COST;Object.assign(details,{workerName:value('propertyWorker410'),job:value('job'),damagedItem:value('damagedItem410'),damageDetail:value('damageDetail410'),repairCost:repairPending?0:repairValue,repairCostPending:repairPending,repairCostDetail:repairDetail})}
     const common={siteId,category:type,eventType,severity,leaveEstimate,potentialMajor,injuredName:type==='person'?value('injuredName'):'',job:value('job'),summary,immediateAction:value('immediateAction'),photos:[...incidentPhotos].map(persistAttachment),occurredAt:time?new Date(`${date}T${time}:00+09:00`).toISOString():date,updatedAt:nowISO(),priority,prioritySource,prioritySetBy:prioritySource==='manual'?u.name:'',prioritySetAt:prioritySource==='manual'?nowISO():null,legalReview:computeLegalReview(type,severity,leaveEstimate),reportDetails:details};
-    if(u.role==='safety'&&(!existing||existing.pastReport)&&e.currentTarget.querySelector('#pastReportMode:checked')){
+    if(u.role==='safety'&&(!existing||existing.pastReport)&&form.querySelector('#pastReportMode:checked')){
       if(!required('pastReportDrafter','담당 기안자')||!required('pastReportSafety','담당 안전관리자'))return;
       common.pastReport={drafterName:value('pastReportDrafter'),safetyManagerName:value('pastReportSafety')};
     }
@@ -384,7 +385,7 @@
     }
     if(existing){
       // Defaults help first-time entry; opening an existing report must never persist them as new facts.
-      const initial=e.currentTarget._initialValues||{},unchanged=id=>{const el=e.currentTarget.querySelector('#'+id);return !el||(el.type==='checkbox'?el.checked:el.value)===initial[id];};
+      const initial=form._initialValues||{},unchanged=id=>{const el=form.querySelector('#'+id);return !el||(el.type==='checkbox'?el.checked:el.value)===initial[id];};
       const preserve=(object,previous,key)=>{if(Object.hasOwn(previous||{},key))object[key]=previous[key];else delete object[key];};
       const fields={place:'incidentPlace410',workAction:'workAction410',incidentHow:'incidentHow410',specialNote:'specialNote410',job:'job',injuredName:'injuredName',injuryDetail:'injuryDetail410',diagnosis:'diagnosis410',doctorOpinion:'doctorOpinion410',medicalCost:'medicalCost410',medicalCostPending:'medicalCost410',medicalCostDetail:'medicalCostDetail410',workerName:'propertyWorker410',damagedItem:'damagedItem410',damageDetail:'damageDetail410',repairCost:'repairCost410',repairCostPending:'repairCost410',repairCostDetail:'repairCostDetail410'};
       for(const [key,id] of Object.entries(fields))if(unchanged(id))preserve(details,existing.reportDetails,key);
@@ -399,16 +400,16 @@
 
       if(accepted(existing)){
         const changes={};
-        const review=e.currentTarget.querySelector('#safetyReviewNote410');
+        const review=form.querySelector('#safetyReviewNote410');
         if(review&&review.value!==initial.safetyReviewNote410&&review.value.trim()!==String(existing.safetyNote||''))changes.safetyNote=review.value.trim();
         const top=[...(common.pastReport?['pastReport']:[]),'occurredAt','eventType','summary','injuredName','job','severity','potentialMajor','leaveEstimate','immediateAction','photos'];
         for(const k of top)if(JSON.stringify(existing[k]??null)!==JSON.stringify(common[k]??null))changes[k]=common[k];
         const allowed=['place','workAction','incidentHow','preventionPlan','specialNote','job','injuredName','injuryDetail','diagnosis','doctorOpinion','medicalCost','medicalCostPending','medicalCostDetail','workerName','damagedItem','damageDetail','repairCost','repairCostPending','repairCostDetail','environmentCause','behaviorCause','causeAnalysisNote','causeAnalysisStatus'];
         for(const k of allowed)if(JSON.stringify(details[k]??'')!==JSON.stringify(existing.reportDetails?.[k]??'')){(changes.reportDetails||(changes.reportDetails={}))[k]=details[k];}
-        if(window.enlIsHistoricalCorrectionSupported?.(existing))Object.assign(changes,window.enlCollectHistoricalMetadata?.(existing,e.currentTarget)||{});
+        if(window.enlIsHistoricalCorrectionSupported?.(existing))Object.assign(changes,window.enlCollectHistoricalMetadata?.(existing,form)||{});
         if(!Object.keys(changes).length)return alert('변경된 내용이 없습니다.');
-        const form=e.currentTarget,button=form.querySelector('[type=submit]');if(button.disabled)return;button.disabled=true;
-        try{await window.enlSaveReportCorrection(existing,changes,safetyReason,{...editOptions,requestState:form});draftStore?.clear();incidentPhotos=[];activeType=null;activeEditId=null;editSnapshot=null;currentView='incidents';renderShell(u);alert('정정사항이 저장되었습니다. 승인·종결 정보와 변경 전후 이력은 보존됩니다.');}catch(err){alert(window.enlCorrectionError?.(err)||err.message);}finally{button.disabled=false;}
+        const button=form.querySelector('[type=submit]');if(button.disabled)return;button.disabled=true;
+        try{await window.enlSaveReportCorrection(existing,changes,safetyReason,{...editOptions,requestState:form,formDraft});draftStore?.clear();incidentPhotos=[];activeType=null;activeEditId=null;editSnapshot=null;currentView='incidents';renderShell(u);alert('정정사항이 저장되었습니다. 승인·종결 정보와 변경 전후 이력은 보존됩니다.');}catch(err){alert(window.enlCorrectionError?.(err)||err.message);}finally{button.disabled=false;}
         return;
       }
       const previousStatus=existing.status,bySafety=u?.role==='safety';
@@ -422,14 +423,14 @@
         existing.resubmittedBy=u.name;existing.resubmittedById=u.personnelId||u.id||'';existing.resubmittedAt=nowISO();
         existing.reviewHistory.push({action:previousStatus==='reported'?'withdrawn_and_resubmitted':'resubmitted',by:u.name,at:existing.resubmittedAt});
       }
-      const attempt=window.enlStableSaveAttempt?.(e.currentTarget,existing,['prioritySetAt','resubmittedAt','reviewHistory.'+(existing.reviewHistory.length-1)+'.at'])||existing;
-      if(!await window.enlCommitOrNotify(attempt))return;
+      const attempt=window.enlStableSaveAttempt?.(form,existing,['prioritySetAt','resubmittedAt','reviewHistory.'+(existing.reviewHistory.length-1)+'.at'])||existing;
+      if(!await window.enlCommitOrNotify({...attempt,_formDraft:formDraft}))return;
       draftStore?.clear();
       incidentPhotos=[];activeType=null;activeEditId=null;
       alert(bySafety?'안전관리자 수정사항이 저장되었습니다. 기존 검토상태는 유지됩니다.':'수정된 사고보고서가 다시 제출되었습니다.');
       currentView='incidents';return renderShell(u);
     }
-    const form=e.currentTarget,submissionKey=JSON.stringify({...common,updatedAt:undefined,reportDetails:{...details,recordedAt:undefined}});form._draftIncidentId=form._draftIncidentId||uid('inc');const incident=form._pendingIncident&&form._submissionKey===submissionKey?form._pendingIncident:{id:form._draftIncidentId,...common,reporterName:u.name,reporterId:u.personnelId||u.id||'',createdAt:nowISO(),status:'reported',safetyNote:'',approvedBy:'',approvedAt:null,closedAt:null,corrective:null,readReceipts:[]};form._pendingIncident=incident;form._submissionKey=submissionKey;draftStore?.capture();if(!await window.enlCommitOrNotify(incident))return;draftStore?.clear();incidentPhotos=[];activeType=null;activeEditId=null;alert(`${type==='person'?'대인사고':'대물사고'} 경위서가 접수되었습니다.`);currentView='incidents';renderShell(u)
+    const submissionKey=JSON.stringify({...common,updatedAt:undefined,reportDetails:{...details,recordedAt:undefined}});form._draftIncidentId=form._draftIncidentId||uid('inc');const incident=form._pendingIncident&&form._submissionKey===submissionKey?form._pendingIncident:{id:form._draftIncidentId,...common,reporterName:u.name,reporterId:u.personnelId||u.id||'',createdAt:nowISO(),status:'reported',safetyNote:'',approvedBy:'',approvedAt:null,closedAt:null,corrective:null,readReceipts:[]};form._pendingIncident=incident;form._submissionKey=submissionKey;draftStore?.capture();if(!await window.enlCommitOrNotify({...incident,_formDraft:formDraft}))return;draftStore?.clear();incidentPhotos=[];activeType=null;activeEditId=null;alert(`${type==='person'?'대인사고':'대물사고'} 경위서가 접수되었습니다.`);currentView='incidents';renderShell(u)
   }
 
   function renderReport(root,u){if(!root)return;if(!canCreate(u)){root.innerHTML='<div class="panel permission-empty"><div class="lock-icon">🔒</div><h2>사고보고 등록 권한이 없습니다.</h2></div>';return}const edit=activeEdit();if(edit){activeType=edit.category;return renderTypeForm(root,u,activeType,edit)}if(activeType)return renderTypeForm(root,u,activeType,null);return renderTypePicker(root,u)}

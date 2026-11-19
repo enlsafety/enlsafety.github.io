@@ -1,9 +1,9 @@
 {
   "version": "4.8.13",
-  "build": "stable-4813-r167",
+  "build": "stable-4813-r168",
   "autoUpdate": false,
   "loginAutoUpdate": false,
   "stableEntry": "stable412.html",
   "currentStableVersion": "4.8.13",
-  "updatedAt": "2026-11-19T01:33:53.231777Z"
+  "updatedAt": "2026-11-19T02:04:39.340618+00:00"
 }

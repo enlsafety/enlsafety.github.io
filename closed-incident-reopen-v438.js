@@ -28,7 +28,7 @@
   return '서버 저장을 확인하지 못했습니다. 저장 오류: '+(msg&&/^[a-z0-9_ -]{1,100}$/i.test(msg)?msg:'연결·서버 처리 실패');
  }
  async function operation(i,action,extra){const r=await window.enlIncidentApi({action,incidentId:i.id,expectedVersion:Number(i._syncVersion||0),actor:actor(),...extra},22000);if(!r?.incident)throw Error('save_not_confirmed');window.enlAcceptSavedIncident?.(r.incident);return r;}
- async function saveReportCorrection(i,changes,reason,{reauthTicket,expiresAt,requestState={}}={}){
+ async function saveReportCorrection(i,changes,reason,{reauthTicket,expiresAt,requestState={},formDraft}={}){
   if(currentUser()?.role!=='safety')throw Error('forbidden');
   if(expiresAt&&Date.now()>=Number(expiresAt))throw Error('historical_reauth_required');
   let contractConfirmed=false;
@@ -41,7 +41,7 @@
   }
   const signature=JSON.stringify({changes,reason,contractConfirmed});
   if(requestState.correctionSignature!==signature){requestState.correctionSignature=signature;requestState.correctionMutationId=crypto.randomUUID();}
-  return operation(i,'correct_closed',{changes,reason,contractConfirmed,reauthTicket,mutationId:requestState.correctionMutationId});
+  return operation(i,'correct_closed',{changes,reason,contractConfirmed,reauthTicket,formDraft,mutationId:requestState.correctionMutationId});
  }
  window.enlSaveReportCorrection=saveReportCorrection;
  window.enlCorrectionError=failure;

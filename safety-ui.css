@@ -444,3 +444,17 @@ dialog.draft-resume-dialog{position:fixed;inset:0;box-sizing:border-box;width:mi
 .overview-categories button:focus-visible{outline:3px solid #699dc7;outline-offset:2px}
 .safety-ui #app .shell411-safety-home>.shell411-stat{grid-template-columns:repeat(4,minmax(0,1fr))!important}
 @media(max-width:720px){.safety-ui #app .shell411-safety-home>.shell411-stat{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+
+/* Account draft status and a readable conflict comparison on phones and desktops. */
+.draft-save-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px;padding:10px 0;border-top:1px solid #d7e4ee}
+.draft-save-actions .draft-save-status{flex:1 1 240px;margin:0;color:#245477;font-size:13px;line-height:1.5}
+.draft-save-actions button{min-height:38px;padding:7px 12px;font-size:13px}
+.draft-save-actions button[hidden]{display:none}
+.draft-conflict-dialog{width:min(760px,calc(100vw - 28px));max-height:85dvh;overflow:auto;box-sizing:border-box}
+.draft-conflict-dialog fieldset{border:1px solid #c8d9e8;border-radius:8px;margin:12px 0;padding:10px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.draft-conflict-dialog legend{font-weight:700;color:#16496f;padding:0 5px}
+.draft-conflict-dialog fieldset label{min-width:0;display:block;background:#f1f7fc;border-radius:6px;padding:10px;color:#173e5c}
+.draft-conflict-dialog fieldset input{width:auto;min-width:0;margin-right:6px}
+.draft-conflict-dialog pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:14px;line-height:1.6;margin:8px 0}
+.draft-conflict-dialog button{min-height:42px}
+@media(max-width:600px){.draft-conflict-dialog fieldset{grid-template-columns:minmax(0,1fr)}.draft-list-row{flex-wrap:wrap}.draft-list-row>span{flex-basis:100%;overflow-wrap:anywhere}}
