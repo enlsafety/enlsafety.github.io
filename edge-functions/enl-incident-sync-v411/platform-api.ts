@@ -158,6 +158,7 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
     const validDate=(v:string)=>!v||/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v))&&new Date(v).toISOString().slice(0,10)===v;
     if(query.length>100||!validDate(from)||!validDate(to)||from&&to&&from>to)return reply({ok:false,message:'invalid_filter'},400);
     const rows=await sql`select c.*,s.site_name,f.name as file_name,count(*) over()::int as total_count,
+      (select coalesce(jsonb_agg(a.id),'[]'::jsonb) from private.enl_board_assets a where a.content_id=c.id and a.active) as asset_ids,
       coalesce((select a.actor_name from private.enl_hub_content_audit a where a.content_id=c.id and a.action='create' order by a.id limit 1),u.name) as author_name from private.enl_hub_content c
       left join public.enl_hq_users u on u.user_id=c.created_by
       left join public.enl_site_master s on s.site_id=c.site_id left join private.enl_board_files f on f.content_id=c.id

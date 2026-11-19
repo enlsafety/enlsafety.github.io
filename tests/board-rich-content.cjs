@@ -11,6 +11,7 @@ const assert=require('node:assert/strict'),{boardFixture}=require('./integrated-
  assert.deepEqual((await detail('field')).body.item.document,doc);
  const all=who=>f.call(who,{action:'platform_board_list',kind:'all',pageSize:1});
  const scoped=await all('field');assert.equal(scoped.body.total,1);assert.equal(scoped.body.items[0].author_name,'QA 안전');assert.equal((await all('other')).body.total,0);
+ assert.deepEqual(scoped.body.items[0].asset_ids,[file.id],'list exposes active asset IDs without downloading file bytes');
  assert.equal((await f.call('field',{action:'platform_board_list',kind:'all',pageSize:0})).status,400);
  const get=who=>f.call(who,{action:'platform_board_file',id,assetId:file.id});
  assert.equal((await get('other')).status,404);assert.equal((await get('field')).body.file.base64.replace(/\n/g,''),file.base64);
@@ -25,6 +26,7 @@ const assert=require('node:assert/strict'),{boardFixture}=require('./integrated-
  const loaded=(await get('field')).body.file;
  assert.equal((await save('safety',{...post,id,revision:1,attachments:[{...file,base64:loaded.base64.replace(/\s/g,'')}]})).status,200);
  assert.equal((await save('safety',{...post,id,revision:2,document:[],attachments:[]})).status,200);
+ assert.deepEqual((await all('field')).body.items[0].asset_ids,[],'removed assets must not leave an attachment icon');
  assert.equal((await get('field')).status,404);assert.equal((await f.db.query('select count(*)::int n from private.enl_board_assets')).rows[0].n,1,'removed asset retained');
  assert.equal((await f.call('field',{action:'platform_board_list',kind:'news',query:'난방기'})).body.items.length,1);
  assert.equal((await f.call('field',{action:'platform_board_list',kind:'news',query:'%'})).body.items.length,0);

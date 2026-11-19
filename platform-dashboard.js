@@ -8,6 +8,20 @@
  // Board rich text is serialized to an allowlisted document, never stored as raw HTML.
  const boardTags=new Set('p div br strong b em i u s h1 h2 h3 hr ul ol li a img table tbody tr td th span'.split(' '));
  const boardPinned=x=>x.pinned??(x.label==='important');
+ function boardMediaIcons(item,files){
+  const inline=new Set();
+  function scan(nodes){for(const n of Array.isArray(nodes)?nodes:[]){
+   if(typeof n.text==='string'||!boardTags.has(n.tag))continue;
+   if(n.tag==='img'&&n.assetId)inline.add(n.assetId);scan(n.children);
+  }}
+  scan(item.document);
+  const assetIds=files?files.map(f=>f.id):(item.asset_ids||[]);
+  const attached=!!item.file_name||assetIds.some(id=>!inline.has(id));
+  const icon=(kind,label,path)=>'<span class="hub-post-indicator" data-post-media="'+kind+'" role="img" aria-label="'+label+'" title="'+label+'"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+path+'</svg></span>';
+  const images=inline.size?icon('image','본문 이미지 있음','<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="1.5"/><path d="m3 17 5-5 4 4 4-6 5 7"/>'):'';
+  const disk=attached?icon('attachment','첨부파일 있음','<path d="M5 3h12l4 4v14H3V3h2Z"/><path d="M7 3v6h10V3M7 21v-8h10v8M14 5v2"/>'):'';
+  return images||disk?'<span class="hub-post-indicators">'+images+disk+'</span>':'';
+ }
  function boardColor(value){
   if(/^#[0-9a-f]{6}$/i.test(value))return value.toLowerCase();
   const rgb=(value||'').match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
@@ -831,7 +845,7 @@
     post.dataset.listScroll=old?.dataset.listScroll||String(window.scrollY);
     if(old)old.replaceWith(post);else list.after(post);
     list.hidden=true;
-    post.innerHTML='<header><button type="button" data-board-back aria-label="목록으로 돌아가기">← 목록</button><h3 tabindex="-1">게시글</h3></header><p role="status">불러오는 중입니다.</p>';
+    post.innerHTML='<div class="hub-post-heading"><header><button type="button" data-board-back aria-label="목록으로 돌아가기">← 목록</button><h3 tabindex="-1">게시글</h3></header></div><p role="status">불러오는 중입니다.</p>';
     const back=post.querySelector('[data-board-back]');back.onclick=()=>{
       if(history.state?.enlBoardPost?.id===x.id&&history.state.enlBoardPost.owner===userKey)history.back();else backToBoardList(panel);
     };
@@ -844,7 +858,7 @@
     let files;try{const r=await api({action:'platform_board_detail',id:x.id});if(!current())return;x=r.item;files=r.files||[]}
     catch{if(current())post.querySelector('[role=status]').textContent='게시글을 불러오지 못했습니다. 목록에서 다시 열어 주세요.';return}
     post.querySelector('[role=status]').remove();
-    const title=post.querySelector('h3');title.textContent=x.title;title.focus({preventScroll:true});
+    const title=post.querySelector('h3');title.innerHTML=safe(x.title)+boardMediaIcons(x,files);title.focus({preventScroll:true});
     const meta=document.createElement('div');meta.className='hub-post-meta';
     meta.innerHTML='<span class="hub-board-badge">'+safe(boards[key].title)+'</span><span>작성자 '+safe(x.author_name||'미상')+'</span><time>'+safe(date(x.created_at)+' '+time(x.created_at))+'</time><span>'+safe(x.shared_sites?.length>1?(x.site_name||'선택 사업장')+' 외 '+(x.shared_sites.length-1)+'곳':x.site_name||'전체 사업장')+'</span>'+(boardPinned(x)?'<span class="hub-board-pin">상단 고정</span>':'')+(x.label==='important'?'<span class="board-important">중요</span>':'')+(x.expires_at?'<span>만료 '+safe(date(x.expires_at)+' '+time(x.expires_at))+'</span>':'');
     if(admin){
@@ -852,7 +866,10 @@
      meta.querySelector('[data-hub=edit-content]').onclick=()=>editContent({...x,_files:files});
      meta.querySelector('[data-hub=delete-content]').onclick=()=>deleteBoardPost(x);
     }
-    const body=document.createElement('div');body.className='hub-detail-body';post.append(meta,body);renderPostBody(x,body);
+    post.querySelector('.hub-post-heading').append(meta);
+    const bodySection=document.createElement('section');bodySection.className='hub-post-content';bodySection.setAttribute('aria-label','게시글 내용');
+    bodySection.innerHTML='<h4 class="hub-post-section-label">본문</h4>';
+    const body=document.createElement('div');body.className='hub-detail-body';bodySection.append(body);post.append(bodySection);renderPostBody(x,body);
     const attachments=document.createElement('section');attachments.className='hub-post-files';
     for(const file of [...files,...(x.file_name?[{name:x.file_name}]:[])]){
       const get=async()=>{const r=await api({action:'platform_board_file',id:x.id,assetId:file.id},60000);return current()?r.file:null};
@@ -862,8 +879,8 @@
         .catch(()=>{for(const img of imgs)img.alt='이미지를 불러오지 못했습니다.'});
         continue;
       }
-      if(!attachments.isConnected){attachments.innerHTML='<h4>첨부파일</h4>';post.append(attachments)}
-      const b=document.createElement('button');b.type='button';b.dataset.hub='download';b.textContent=file.name;b.setAttribute('aria-label','첨부 다운로드 '+file.name);attachments.append(b);
+      if(!attachments.isConnected){attachments.innerHTML='<h4 class="hub-post-section-label">첨부파일</h4><ul class="hub-post-file-list"></ul>';post.append(attachments)}
+      const row=document.createElement('li'),b=document.createElement('button');b.type='button';b.className='hub-file-link';b.dataset.hub='download';b.textContent=file.name;b.setAttribute('aria-label','첨부 다운로드 '+file.name);row.append(b);attachments.querySelector('ul').append(row);
       b.onclick=async()=>{b.disabled=true;try{const f=await get();if(!f)return;const url=boardBlob(f);const a=document.createElement('a');a.href=url;a.download=f.name;post.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000)}catch{b.textContent='다시 다운로드: '+file.name}finally{b.disabled=false}};
     }
   }
@@ -970,7 +987,7 @@
         list.replaceChildren();
         for(const [index,x] of r.items.entries()){
           const row=list.insertRow(),pinned=boardPinned(x);
-          row.innerHTML='<td>'+(pinned?'<span class="hub-board-pin">고정</span>':String(total-state.offset-index))+'</td><td><span class="hub-board-badge">'+safe(boards[boardKey(x.kind)]?.title||board.title)+'</span></td><td><button type="button" data-post-id="'+safe(x.id)+'">'+(x.label==='important'?'<span class="board-important">중요</span> ':'')+safe(x.title)+'</button></td><td>'+safe(x.author_name||'미상')+'</td><td>'+safe(date(x.created_at))+'</td>';
+          row.innerHTML='<td>'+(pinned?'<span class="hub-board-pin">고정</span>':String(total-state.offset-index))+'</td><td><span class="hub-board-badge">'+safe(boards[boardKey(x.kind)]?.title||board.title)+'</span></td><td><button type="button" data-post-id="'+safe(x.id)+'">'+(x.label==='important'?'<span class="board-important">중요</span> ':'')+safe(x.title)+'</button>'+boardMediaIcons(x)+'</td><td>'+safe(x.author_name||'미상')+'</td><td>'+safe(date(x.created_at))+'</td>';
           const open=()=>readContent(x,key);row.querySelector('button').onclick=open;row.onclick=e=>{if(!e.target.closest('button'))open()};
         }
         note.textContent=total?'':'등록된 게시글이 없습니다.';

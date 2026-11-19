@@ -37,9 +37,17 @@ async function dropDocuments(target,names){
  assert.equal(await page.locator('.hub-editor-content').innerText(),'불을 끄고 퇴근하세요');
  await page.locator('[data-board-files]').setInputFiles({name:'카드.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jFZkAAAAASUVORK5CYII=','base64')});
  await page.getByRole('button',{name:'본문에 넣기'}).click();assert.equal(await page.locator('.hub-editor-content img').count(),1);fs.mkdirSync('qa-output',{recursive:true});await page.screenshot({path:`qa-output/board-editor-${width}.png`,fullPage:true});
- await page.locator('.hub-form button[type=submit]').click();await page.locator('.hub-board:visible [data-content-list] button').filter({hasText:'난방기 안전'}).click();
+ await page.locator('.hub-form button[type=submit]').click();
+ const mixedRow=page.locator('.hub-board:visible [data-content-list] tr').filter({hasText:'난방기 안전'});
+ await mixedRow.locator('[data-post-media=image]').waitFor();assert.equal(await mixedRow.locator('[data-post-media=attachment]').count(),1);
+ await mixedRow.locator('button').click();
  assert.equal(await page.locator('dialog[open]').count(),0);await page.locator('.hub-board-post .hub-rich-body img').waitFor();await page.waitForFunction(()=>document.querySelector('.hub-rich-body img')?.naturalWidth>0);assert.ok((await page.locator('.hub-detail-body').innerText()).includes('불을 끄고'));await page.screenshot({path:`qa-output/board-detail-${width}.png`,fullPage:true});
  assert.equal(await page.locator('.hub-post-files button').count(),2);
+ assert.equal(await page.locator('.hub-post-heading [data-post-media]').count(),2);
+ assert.equal(await page.locator('.hub-post-content').count(),1);
+ assert.ok(await page.locator('.hub-file-link').first().evaluate(el=>getComputedStyle(el).textDecorationLine.includes('underline')));
+ assert.equal(await page.locator('.hub-file-link').first().evaluate(el=>getComputedStyle(el).borderTopWidth),'0px');
+ const download=page.waitForEvent('download');await page.locator('.hub-file-link').first().click();assert.equal((await download).suggestedFilename(),'작업표.pdf');
  await page.getByRole('button',{name:'수정',exact:true}).click();await page.locator('.hub-editor-content img').waitFor();assert.equal(await page.locator('.hub-asset-row').count(),2);
  await dropDocuments(page.locator('.hub-file-drop'),['추가.pdf']);
  await page.getByText('첨부 3개',{exact:true}).waitFor();
@@ -60,6 +68,8 @@ async function dropDocuments(target,names){
  await page.locator('.hub-form button[type=submit]').click();await page.getByRole('button',{name:'사진만 있는 게시글',exact:true}).click();
  await page.waitForFunction(()=>document.querySelector('.hub-rich-body img')?.naturalWidth>0);
  assert.equal(await page.locator('.hub-post-files').count(),0);
+ assert.equal(await page.locator('.hub-post-heading [data-post-media=image]').count(),1);
+ assert.equal(await page.locator('.hub-post-heading [data-post-media=attachment]').count(),0,'inline-only image is not a download attachment');
  await page.getByRole('button',{name:'수정',exact:true}).click();await page.locator('.hub-editor-content img').waitFor();
  await page.locator('[data-board-files]').setInputFiles({...image,name:'다운로드.png'});
  await page.locator('.hub-asset-row').filter({hasText:'다운로드.png'}).waitFor();
