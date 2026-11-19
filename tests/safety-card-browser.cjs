@@ -24,17 +24,17 @@ async function verify(engine,mobile) {
    await nav.locator('[data-hub="safetyCard"]').click();
    await p.locator('[data-card-site="qa-site"]').click();
    const field=key=>p.locator('[data-card-field="'+key+'"]');
-   await p.locator('[data-card-linked="C9"]').waitFor();
+   await field('C9').waitFor();
    assert.ok(!await p.locator('.safety-card-panel').innerText().then(t=>t.includes('엑셀 원본을 반영한 카드입니다.')));
    assert.ok(await p.locator('[data-cell="C9"]').evaluate(el=>parseFloat(getComputedStyle(el).fontSize)>=14.6));
-   assert.equal(await p.locator('[data-card-linked="D6"]').innerText(),'검수 골프장');
+   assert.equal(await field('D6').inputValue(),'검수 골프장');
    assert.equal(await p.locator('[data-card-result="G9"]').innerText(),'22');
    await p.getByRole('button',{name:'원본 확인사항 셀 메모 보기'}).click();
    assert.equal(await p.locator('.safety-card-note textarea').inputValue(),'검수 원본 메모');
    await p.locator('.safety-card-note').getByRole('button',{name:'안전관리카드로 뒤로가기',exact:true}).click();
    if(['safety','field'].includes(role)){
-    assert.equal(await field('C9').count(),0);
-    assert.equal(await p.locator('[data-card-linked="P23"]').innerText(),'작성완료 / 승인 전');
+    await field('C9').fill('18');assert.equal(await p.locator('[data-card-result="G9"]').innerText(),'28');
+    assert.equal(await field('P23').inputValue(),'__linked__');await field('P23').selectOption('보완 필요');
     await field('D42').fill('현장 확인 후 작성한 종합 의견');
     await p.locator('.safety-card-tools').getByRole('button',{name:'종합 관리의견 메모',exact:true}).click();
     await p.locator('.safety-card-note textarea').fill('확인 내용과 증빙 위치');
@@ -45,7 +45,7 @@ async function verify(engine,mobile) {
     await p.locator('[data-card-save]').click();
     await p.locator('.safety-card-status').filter({hasText:'저장했습니다.'}).waitFor();
     await p.getByRole('button',{name:'최신 내용 불러오기',exact:true}).click();
-    await p.locator('[data-card-linked="C9"]').waitFor();assert.equal(await field('D42').inputValue(),'현장 확인 후 작성한 종합 의견');
+    await field('C9').waitFor();assert.equal(await field('D42').inputValue(),'현장 확인 후 작성한 종합 의견');
     await p.getByRole('button',{name:'종합 관리의견 셀 메모 보기'}).click();
     assert.equal(await p.locator('.safety-card-note textarea').inputValue(),'확인 내용과 증빙 위치');
     await p.locator('.safety-card-note').getByRole('button',{name:'안전관리카드로 뒤로가기',exact:true}).click();
@@ -57,7 +57,7 @@ async function verify(engine,mobile) {
     await p.locator('[data-card-save]').click();await p.locator('.safety-card-status').filter({hasText:'저장했습니다.'}).waitFor();
    }else{
     assert.equal(await field('D42').getAttribute('readonly'),'');
-    assert.equal(await field('P23').count(),0);
+    assert.equal(await field('P23').isDisabled(),true);
     assert.equal(await p.locator('[data-card-save]').isDisabled(),true);
    }
    if(!mobile){const h=await p.locator('.safety-card-header h2').boundingBox(),b=await p.locator('.safety-card-header-tools').boundingBox();assert.ok(b.x>=h.x+h.width&&Math.abs((b.y+b.height/2)-(h.y+h.height/2))<2,'toolbar remains to the right of title');}

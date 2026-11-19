@@ -56,6 +56,25 @@ const model=globalThis.ENLSafetyCardModel;
   assert.equal((await call('field','links',{siteId:'other-site'})).status,403);
   await f.db.exec("insert into enl_site_personnel(personnel_id,site_id,name,job_title,access_role,active) values('qa-worker','qa-site','QA','일반근로자','worker',true)");
   const worker=await f.raw({actor:{id:'qa-worker',role:'worker',siteId:'qa-site'},action:'platform_safety_card_links',siteId:'qa-site'});assert.equal(worker.status,200,JSON.stringify(worker));assert.equal(worker.body.linked.values.L13,'미확인');assert.equal(worker.body.linked.values.M16,'');
+  const overrideEdit={siteId:'qa-site',expectedRevision:3,templateVersion:model.template.version,content:structuredClone(saved.content)};
+  overrideEdit.content.overrides={C9:'35',D6:'카드 표시명',P23:'보완 필요',P32:'양호',M16:'카드 사고 요약'};
+  const changed=await call('field','save',overrideEdit);assert.equal(changed.status,200,JSON.stringify(changed));
+  let card=(await call('field','open',{siteId:'qa-site'})).body;
+  assert.equal(card.document.content.overrides.C9,'35');assert.equal(card.linked.values.C9,'20');assert.equal(model.effectiveValues(card.document.content,card.linked).D6,'카드 표시명');
+  assert.equal(model.cardResults(card.document.content,card.linked).G9,'38');assert.match(model.cardResults(card.document.content,card.linked).N31,/카드 수정/);
+  assert.equal((await f.db.query("select site_name from enl_site_master where site_id='qa-site'")).rows[0].site_name,'QA 가상 사업장');
+  const redacted=(await f.raw({actor:{id:'qa-worker',role:'worker',siteId:'qa-site'},action:'platform_safety_card_open',siteId:'qa-site'})).body.document.content;
+  assert.equal(redacted.overrides.M16,undefined);assert.equal(redacted.values.M16,'');
+  for(const invalid of [{C9:'-2'},{C9:3},{P32:'승인완료'},{N31:'조작'},{D6:'x'.repeat(4001)},null,[]]){
+    const bad=await call('safety','save',{...overrideEdit,expectedRevision:4,content:{...overrideEdit.content,overrides:invalid}});assert.equal(bad.status,400,JSON.stringify(invalid));
+  }
+  const legacy={...overrideEdit,expectedRevision:4,content:structuredClone(saved.content)};delete legacy.content.overrides;
+  assert.equal((await call('safety','save',legacy)).status,200,'old clients preserve overrides');
+  card=(await call('field','open',{siteId:'qa-site'})).body;assert.equal(card.document.content.overrides.C9,'35');
+  const reset={...overrideEdit,expectedRevision:5,content:{...overrideEdit.content,overrides:{C9:''}}};assert.equal((await call('safety','save',reset)).status,200);
+  card=(await call('field','open',{siteId:'qa-site'})).body;assert.equal(model.effectiveValues(card.document.content,card.linked).C9,'','blank override is intentional');
+  reset.expectedRevision=6;reset.content.overrides={};assert.equal((await call('safety','save',reset)).status,200);
+  card=(await call('field','open',{siteId:'qa-site'})).body;assert.equal(model.effectiveValues(card.document.content,card.linked).C9,'20','restoring link resumes source data');
   console.log('PASS site-scoped reads, role-protected saves, revision conflicts, preserved source notes, immutable site identity, workbook calculations');
  }finally{await f.db.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});

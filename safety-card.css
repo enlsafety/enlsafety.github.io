@@ -26,12 +26,30 @@
 .safety-card-note::backdrop{background:#142d4766}.safety-card-note h3{margin:0 0 12px}
 .safety-card-note textarea{width:100%;min-height:240px;max-height:55dvh;resize:vertical;box-sizing:border-box;font-family:inherit;font-size:calc(14px + 2pt);line-height:1.6;padding:10px;margin-bottom:14px;white-space:pre-wrap}
 #safety-card-print{display:none}
+/* A single palette describes interaction, independently of workbook styling. */
+.safety-card-paper{color:#173b55}
+.safety-card-paper .safety-card-title,.safety-card-paper .safety-card-section{background:#245b83;color:#fff;font-weight:700}
+.safety-card-label{background:#e4edf5;color:#29485f}
+.safety-card-input-cell{background:#eef7ff;color:#153d60}
+.safety-card-select-cell{background:#e8f5ed;color:#1c5137}
+.safety-card-calculated,.safety-card-readonly{background:#f0f2f5;color:#49586a}
+.safety-card-paper .safety-card-help{background:#f8fafc;color:#52687a;font-size:13px!important}
+.safety-card-paper .safety-card-input-cell textarea{border:1px solid #9fc4e1;background:#fff;font-weight:400}
+.safety-card-paper .safety-card-select-cell select{border:1px solid #86b99b;background:#fafffc;font-weight:400;cursor:pointer}
+.safety-card-paper :is(.safety-card-input-cell textarea,.safety-card-select-cell select):focus{outline:2px solid #23699d;outline-offset:1px}
+.safety-card-legend{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px;font-size:13px}
+.safety-card-legend>span{padding:5px 10px;border:1px solid #c5d4df;border-radius:4px;font-weight:600}
+.safety-card-source{display:none;gap:4px;align-items:center;flex-wrap:wrap;margin-top:3px;font-size:12px;line-height:1.4}
+.safety-card-overridden .safety-card-source{display:flex}
+.safety-card-source-badge{font-weight:600;color:#38566e}
+.safety-card-paper .safety-card-source button{width:auto;min-height:24px;padding:2px 4px;margin:0;border:1px solid #99b7cc;border-radius:3px;background:#fff;color:#245b83;font:inherit;cursor:pointer}
+.safety-card-paper .safety-card-source button[hidden]{display:none}
 @media(max-width:700px){
  .safety-card-panel .safety-card-header{grid-template-columns:1fr}.safety-card-panel .safety-card-header-tools{justify-content:flex-start;max-width:100%}.safety-card-panel{padding:12px!important}.safety-card-scroll{padding:6px}
  .safety-card-panel .safety-card-tools :is(button,select),.safety-card-panel .safety-card-back{min-height:44px}
  .safety-card-panel .safety-card-tools select{max-width:100%}
  .safety-card-paper :is(textarea,select){font-size:16px;min-height:38px}
- .safety-card-note textarea{font-size:16px}.safety-card-sites{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .safety-card-paper .safety-card-source button{min-height:44px}.safety-card-note textarea{font-size:16px}.safety-card-sites{grid-template-columns:repeat(2,minmax(0,1fr))}
  .safety-card-sites>button{padding:14px 10px}
 }
 @media print{
@@ -42,5 +60,6 @@
  #safety-card-print .safety-card-paper tr{height:var(--card-print-height)!important;break-inside:avoid}
  #safety-card-print .safety-card-paper td{padding:3px 2px!important;font-size:8.5pt!important;white-space:pre-wrap;overflow-wrap:anywhere;border-color:#8294a5}
  #safety-card-print .safety-card-paper .safety-card-title{font-size:13pt!important;padding:6px!important}
+ #safety-card-print .safety-card-source{font-size:7pt;margin-top:1px}
  #safety-card-print .safety-card-print-value{display:block;min-height:10px}
 }
