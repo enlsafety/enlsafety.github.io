@@ -1,0 +1,54 @@
+{
+  "checkedAt": "2026-10-08T02:04:26.115633+00:00",
+  "scope": "isolated staging schema only",
+  "provider": "mock",
+  "liveERP": false,
+  "localTests": {
+    "passed": 7,
+    "failed": 0
+  },
+  "stagingScenarios": {
+    "passed": 11,
+    "failed": 0
+  },
+  "freshConcurrentRequests": {
+    "requests": 8,
+    "created": 1,
+    "deduplicated": 7
+  },
+  "workerOnce": {
+    "processed": 5,
+    "states": [
+      "pending",
+      "pending",
+      "pending",
+      "pending",
+      "pending"
+    ]
+  },
+  "privateSchema": {
+    "cases": 7,
+    "jobs": 7,
+    "documents": 7,
+    "duplicateDocuments": 0,
+    "invalidPayloads": 0,
+    "unattachedSubmissions": 0,
+    "allFiveTablesRLS": true,
+    "anonOrAuthenticatedReadGrant": false
+  },
+  "existingStagingCountsBeforeAndAfter": {
+    "incidents": 15,
+    "audit": 69,
+    "pushEvents": 4,
+    "pushDeliveries": 0,
+    "hqUsers": 5
+  },
+  "docx": {
+    "zipCRC": "passed",
+    "xmlParts": 3,
+    "koreanContent": "passed"
+  },
+  "browserUI": "not verified: cloud browser cannot reach local preview (connection refused)",
+  "ERP_E2E": "not run: approved integration method and isolated ERP account unavailable",
+  "CI": "skipped intentionally; not claimed passed"
+}

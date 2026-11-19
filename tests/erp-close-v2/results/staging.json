@@ -1,0 +1,59 @@
+{
+  "testedAt": "2026-10-08T01:58:17.655Z",
+  "endpoint": "https://zgwxzfvvpqgdedyobwmg.supabase.co/functions/v1/enl-erp-close-v2-staging",
+  "provider": "mock",
+  "liveERP": false,
+  "results": [
+    {
+      "name": "missing and expired credentials rejected",
+      "passed": true
+    },
+    {
+      "name": "roles, run isolation and real-provider blocker",
+      "passed": true
+    },
+    {
+      "name": "manual close denied before and during ERP processing",
+      "passed": true
+    },
+    {
+      "name": "eight concurrent requests return a single durable job",
+      "passed": true
+    },
+    {
+      "name": "concurrent worker claims submit once and retain pending state",
+      "passed": true
+    },
+    {
+      "name": "ambiguous 처리완료 result does not close incident",
+      "passed": true
+    },
+    {
+      "name": "explicit provider approval closes atomically; repeated result is harmless",
+      "passed": true
+    },
+    {
+      "name": "rejection requests corrective supplementation, retains history and permits a new revision only after recheck",
+      "passed": true
+    },
+    {
+      "name": "timeout_after_submit: durable error and safe recovery without a second document",
+      "passed": true
+    },
+    {
+      "name": "transient_before_submit: durable error and safe recovery without a second document",
+      "passed": true
+    },
+    {
+      "name": "attachment_failure: durable error and safe recovery without a second document",
+      "passed": true
+    }
+  ],
+  "caseIds": [
+    "qa-3e8f667f-88e9-48d1-a2ed-87977ead5ada",
+    "qa-bc25263f-f237-446c-ae04-f088776aad96",
+    "qa-e20611d5-b258-49ec-a620-cdab220b68b5",
+    "qa-7bcac2f4-782b-4b8d-a941-6204e156b8cb",
+    "qa-e19db4d5-5aae-4d75-acc7-bd7c2a05126a"
+  ]
+}

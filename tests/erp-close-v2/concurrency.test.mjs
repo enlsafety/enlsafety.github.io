@@ -1,0 +1,12 @@
+import fs from 'node:fs';import assert from 'node:assert/strict';
+import {STAGING_ENDPOINT} from '../../erp-close-v2/panel.mjs';
+const {tokens}=JSON.parse(fs.readFileSync(process.env.ERP_V2_TEST_CREDENTIALS,'utf8'));
+const api=async(role,body)=>{const r=await fetch(STAGING_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${tokens[role]}`},body:JSON.stringify(body),signal:AbortSignal.timeout(30000)});const x=await r.json();assert.equal(r.status,200,JSON.stringify(x));return x;};
+const {incident}=await api('qa',{action:'seed'});
+const results=await Promise.all(Array.from({length:8},()=>api('safety',{action:'request',id:incident.id})));
+assert.equal(new Set(results.map(x=>x.job.id)).size,1);
+assert.equal(results.filter(x=>!x.deduplicated).length,1);
+assert.equal(results.filter(x=>x.deduplicated).length,7);
+fs.mkdirSync('tests/erp-close-v2/results',{recursive:true});
+fs.writeFileSync('tests/erp-close-v2/results/concurrency.json',JSON.stringify({testedAt:new Date().toISOString(),caseId:incident.id,requests:8,created:1,deduplicated:7,passed:true},null,2)+'\n');
+console.log('PASS fresh concurrent requests: 1 created, 7 deduplicated');
