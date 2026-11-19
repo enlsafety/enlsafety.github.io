@@ -2,7 +2,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs');
 const {fixture}=require('./final-lifecycle.cjs');
 async function boardFixture(){
  const f=await fixture();
- for(const migration of ['20261104234953_integrated_home_content','20261108234822_integrated_boards','20261109000000_board_rich_prechange_backup','20261109010000_board_rich_content','20261109035645_board_publication_settings']){
+ for(const migration of ['20261104234953_integrated_home_content','20261108234822_integrated_boards','20261109000000_board_rich_prechange_backup','20261109010000_board_rich_content','20261109035645_board_publication_settings','20261119064531_safety_request_board']){
   await f.db.exec('begin;'+fs.readFileSync('supabase/migrations/'+migration+'.sql','utf8')+';commit;');
  }
  return f;

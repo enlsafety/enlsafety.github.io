@@ -92,7 +92,7 @@ async function bannerRequest(sql:any,actor:any,body:any,reply:any){
  return reply({ok:false,message:'unknown_action'},400);
 }
 
-const boardKinds=['notice','alert','news','resource'];
+const boardKinds=['notice','alert','news','resource','request'];
 const boardFileName=/^[^\x00-\x1f\x7f/\\]{1,175}\.(pdf|xlsx?|docx?|pptx?|hwpx?|zip|jpe?g|png)$/i;
 // A small typed document, not arbitrary HTML: no event handlers, CSS or remote images.
 function boardDocument(input:any,assetIds:Set<string>){
@@ -140,9 +140,10 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
   if(['platform_board_list','platform_board_file','platform_board_detail'].includes(action)){
     const hq=['safety','manager','executive'].includes(actor.role);
     const visible=sql`(${admin} or c.expires_at is null or c.expires_at>now()) and
-      (${hq} or c.site_id is null or c.site_id=${actor.siteId} or c.shared_sites ? ${actor.siteId||''})`;
+      (${hq} or c.site_id is null or c.site_id=${actor.siteId} or c.shared_sites ? ${actor.siteId||''}) and
+      (c.kind<>'request' or ${hq} or c.site_id=${actor.siteId||''})`;
     if(action==='platform_board_detail'){
-      const [item]=await sql`select c.*,s.site_name,f.name as file_name,coalesce((select a.actor_name from private.enl_hub_content_audit a where a.content_id=c.id and a.action='create' order by a.id limit 1),u.name) as author_name from private.enl_hub_content c left join public.enl_hq_users u on u.user_id=c.created_by left join public.enl_site_master s on s.site_id=c.site_id left join private.enl_board_files f on f.content_id=c.id where c.id::text=${String(body.id||'')} and c.kind in ('notice','alert','news','resource') and c.archived_at is null and ${visible}`;
+      const [item]=await sql`select c.*,s.site_name,f.name as file_name,coalesce((select a.actor_name from private.enl_hub_content_audit a where a.content_id=c.id and a.action='create' order by a.id limit 1),u.name) as author_name from private.enl_hub_content c left join public.enl_hq_users u on u.user_id=c.created_by left join public.enl_site_master s on s.site_id=c.site_id left join private.enl_board_files f on f.content_id=c.id where c.id::text=${String(body.id||'')} and c.kind in ('notice','alert','news','resource','request') and c.archived_at is null and ${visible}`;
       if(!item)return reply({ok:false,message:'content_unavailable'},404);
       const files=await sql`select id,name,mime,octet_length(bytes) as size from private.enl_board_assets where content_id=${item.id}::uuid and active order by created_at,id`;
       return reply({ok:true,item,files});
@@ -162,7 +163,7 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
       coalesce((select a.actor_name from private.enl_hub_content_audit a where a.content_id=c.id and a.action='create' order by a.id limit 1),u.name) as author_name from private.enl_hub_content c
       left join public.enl_hq_users u on u.user_id=c.created_by
       left join public.enl_site_master s on s.site_id=c.site_id left join private.enl_board_files f on f.content_id=c.id
-      where c.kind in ('notice','alert','news','resource') and (${body.kind}='all' or c.kind=${body.kind}) and c.archived_at is null and ${visible}
+      where c.kind in ('notice','alert','news','resource','request') and (${body.kind}='all' or c.kind=${body.kind}) and c.archived_at is null and ${visible}
       and (${query}='' or strpos(lower(c.title||' '||c.body),lower(${query}))>0)
       and (${from}='' or c.created_at>=(nullif(${from},'')::date::timestamp at time zone 'Asia/Seoul'))
       and (${to}='' or c.created_at<((nullif(${to},'')::date+1)::timestamp at time zone 'Asia/Seoul'))
@@ -197,13 +198,16 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
         ?await sql`select site_id,site_name from public.enl_site_master where active order by site_name,site_id`:undefined;
       return reply({ok:true,notices,events,favorites:pref?.favorites||[],publicationSites});
     }
-    if(!admin)return reply({ok:false,message:'forbidden'},403);
+    const requestWriter=actor.role==='field'&&!!actor.siteId&&['현장소장','파트장','서무'].includes(actor.position);
+    if(!admin&&!requestWriter)return reply({ok:false,message:'forbidden'},403);
+    if(!admin&&action==='platform_hub_archive')return reply({ok:false,message:'forbidden'},403);
     const id=body.id==null?'':String(body.id),uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if(id&&!uuid.test(id)||id&&(!Number.isSafeInteger(body.revision)||body.revision<1))return reply({ok:false,message:'invalid_content'},400);
     if(action==='platform_hub_archive'||action==='platform_board_delete'){
       if(!id)return reply({ok:false,message:'invalid_content'},400);
       return await sql.begin(async(tx:any)=>{
         const [before]=await tx`select * from private.enl_hub_content where id=${id}::uuid and archived_at is null for update`;
+        if(!admin&&(!before||before.kind!=='request'||before.created_by!==actor.id||before.site_id!==actor.siteId))return reply({ok:false,message:'forbidden'},403);
         if(!before||before.revision!==body.revision)return reply({ok:false,message:'content_changed'},409);
         if(action==='platform_board_delete'){
           if(!boardKinds.includes(before.kind))return reply({ok:false,message:'invalid_board'},400);
@@ -225,9 +229,12 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
         return reply({ok:true});
       });
     }
-    const kind=String(body.kind||''),title=String(body.title||'').trim(),text=String(body.body||''),label=String(body.label||'info'),site=String(body.siteId||''),start=body.startsAt||null,end=body.endsAt||null;
+    const kind=String(body.kind||''),title=String(body.title||'').trim(),text=String(body.body||''),label=String(body.label||'info'),site=String(body.siteId||(kind==='request'&&!admin?actor.siteId:'')||''),start=body.startsAt||null,end=body.endsAt||null;
     if(!(kind==='event'||boardKinds.includes(kind))||!title||title.length>150||text.length>10000||!['important','info','general'].includes(label)||site.length>150)return reply({ok:false,message:'invalid_content'},400);
-    const publication=body.publication;
+    if(!admin&&(kind!=='request'||site!==actor.siteId))return reply({ok:false,message:'forbidden'},403);
+    if(kind==='request'&&!site)return reply({ok:false,message:'site_required'},400);
+    if(kind==='request'&&body.publication&&(body.publication.pinned!==false||body.publication.expiresAt!==null||!Array.isArray(body.publication.sites)||body.publication.sites.length!==1||body.publication.sites[0]!==site))return reply({ok:false,message:'invalid_request_publication'},400);
+    const publication=kind==='request'?{pinned:false,sites:[site],expiresAt:null}:body.publication;
     if(publication!==undefined){
       if(!boardKinds.includes(kind)||!publication||typeof publication.pinned!=='boolean'||!Array.isArray(publication.sites)||
         publication.sites.length>200||publication.sites.some((v:any)=>typeof v!=='string'||!v||v.length>150)||
@@ -253,6 +260,7 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
     return await sql.begin(async(tx:any)=>{
       let before=null,after;
       if(id){[before]=await tx`select * from private.enl_hub_content where id=${id}::uuid and archived_at is null for update`;
+        if(!admin&&(!before||before.kind!=='request'||before.created_by!==actor.id||before.site_id!==actor.siteId))return reply({ok:false,message:'forbidden'},403);
         if(!before||before.revision!==body.revision||before.kind!==kind)return reply({ok:false,message:'content_changed'},409);
         if(publication===undefined&&before.shared_sites!=null&&site!==(before.site_id||''))return reply({ok:false,message:'update_required'},409);
         if(before.document&&document===undefined)return reply({ok:false,message:'rich_document_required'},400);

@@ -396,18 +396,20 @@
    const title=supportCard?'공통업무지원<wbr>서비스':'게시판';
    const description=supportCard?descriptions.support:'공지사항, 사고알리미,<br>안전뉴스와 자료실';
    row.innerHTML=action(key,art+'<strong class="hub-card-title">'+title+'</strong><span class="hub-card-description">'+description+'</span><small>운영중</small><span class="hub-card-arrow" aria-hidden="true">'+svg('arrow')+'</span>','platform-card');
-   row.firstElementChild.onclick=supportCard?support:()=>selectTab('boardAll');
+   row.firstElementChild.onclick=supportCard?support:()=>selectTab('bulletins');
    grid.append(row);return row;
   }
   // Tab membership belongs to this signed-in dashboard and disappears with it on logout.
   const opened=['home'];
   const boards={
-    boardAll:{kind:'all',title:'전체 게시글',icon:'bulletins'},
     bulletins:{kind:'notice',title:'공지사항',icon:'bulletins'},
     incidentAlerts:{kind:'alert',title:'사고알리미',icon:'incident'},
     safetyNews:{kind:'news',title:'안전뉴스',icon:'notices'},
-    resources:{kind:'resource',title:'자료실',icon:'documents'}
+    resources:{kind:'resource',title:'자료실',icon:'documents'},
+    safetyRequests:{kind:'request',title:'안전보건 요청게시판',icon:'voice'}
   };
+  const canWriteBoard=kind=>admin||(kind==='request'&&u.role==='field'&&['현장소장','파트장','서무'].includes(u.position));
+  const canManageBoard=item=>admin||(item.kind==='request'&&u.role==='field'&&['현장소장','파트장','서무'].includes(u.position)&&item.created_by===(u.id||u.personnelId)&&item.site_id===u.siteId);
   const sidebarBuiltins={safetyCard:{title:'안전관리카드',icon:'policy'},boards:{title:'게시판',icon:'bulletins'}};
   const boardKey=kind=>Object.keys(boards).find(key=>boards[key].kind===kind);
   const builtins={...Object.fromEntries(Object.entries(boards).map(([key,b])=>[key,b.title])),home:'통합 홈',safetyCard:sidebarBuiltins.safetyCard.title,support:'공통업무지원서비스',schedule:'전체 일정',recent:'최근 업무 기록',inquiry:admin?'문의함':'안전관리자 문의'};
@@ -542,6 +544,7 @@
     window.scrollTo(0,0);
   }
   async function selectTab(key,closing=false,historyScope='all'){
+    if(key==='boardAll')key='bulletins';
     if(key==='safetyCard'&&!safetyCards){status.textContent='안전관리카드를 불러오지 못했습니다. 새로고침해 주세요.';return false;}
     if(key==='organization'&&!org){status.textContent='조직도 화면을 불러오지 못했습니다. 새로고침해 주세요.';return false;}
     if(key==='risk'&&!risk){status.textContent='위험성평가 화면을 불러오지 못했습니다. 새로고침해 주세요.';return false;}
@@ -861,7 +864,7 @@
     const title=post.querySelector('h3');title.innerHTML=safe(x.title)+boardMediaIcons(x,files);title.focus({preventScroll:true});
     const meta=document.createElement('div');meta.className='hub-post-meta';
     meta.innerHTML='<span class="hub-board-badge">'+safe(boards[key].title)+'</span><span>작성자 '+safe(x.author_name||'미상')+'</span><time>'+safe(date(x.created_at)+' '+time(x.created_at))+'</time><span>'+safe(x.shared_sites?.length>1?(x.site_name||'선택 사업장')+' 외 '+(x.shared_sites.length-1)+'곳':x.site_name||'전체 사업장')+'</span>'+(boardPinned(x)?'<span class="hub-board-pin">상단 고정</span>':'')+(x.label==='important'?'<span class="board-important">중요</span>':'')+(x.expires_at?'<span>만료 '+safe(date(x.expires_at)+' '+time(x.expires_at))+'</span>':'');
-    if(admin){
+    if(canManageBoard(x)){
      meta.insertAdjacentHTML('beforeend',action('edit-content','수정')+action('delete-content','삭제'));
      meta.querySelector('[data-hub=edit-content]').onclick=()=>editContent({...x,_files:files});
      meta.querySelector('[data-hub=delete-content]').onclick=()=>deleteBoardPost(x);
@@ -884,7 +887,7 @@
       b.onclick=async()=>{b.disabled=true;try{const f=await get();if(!f)return;const url=boardBlob(f);const a=document.createElement('a');a.href=url;a.download=f.name;post.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000)}catch{b.textContent='다시 다운로드: '+file.name}finally{b.disabled=false}};
     }
   }
-  async function editContent(item){const kind=item.kind,board=boards[boardKey(kind)],d=dialog(host,(board?.title||'일정')+(item.id?' 수정':' 등록')),box=d.querySelector('.hub-dialog-body');
+  async function editContent(item){const kind=item.kind,requestBoard=kind==='request',board=boards[boardKey(kind)],d=dialog(host,(board?.title||'일정')+(item.id?' 수정':' 등록')),box=d.querySelector('.hub-dialog-body');
    if(board)d.classList.add('hub-board-edit');
    if(board&&!loaded)await loadContent();
    if(!sameUser()||!d.open)return;
@@ -892,13 +895,19 @@
    const formats='<label>내용<textarea name="body" rows="5" maxlength="10000"></textarea></label>';
    const checks='<div class="board-publish-flags"><label><input name="pinned" type="checkbox"> 상단 고정 공지</label><label><input name="important" type="checkbox"> 중요 공지</label></div>';
    const noticeType=kind==='notice'?'<label>공지 분류<select name="noticeType"><option value="info">안내</option><option value="general">일반</option></select></label>':'';
-   const settings=checks+noticeType+'<label>만료일시 (선택, 한국시간)<input name="expires" type="datetime-local"></label><fieldset class="board-sharing"><legend>공유 설정 (미선택 시 전체 사업장)</legend><details><summary>공유 대상 선택</summary><div data-sites></div></details><small data-scope></small></fieldset><section data-file-section><span class="board-field-caption">첨부파일</span></section>';
+   const settings=requestBoard?'<label>사업장<select name="requestSite" required></select></label><p class="hub-request-scope">소속 사업장의 안전 관련 의견이나 개선 요청을 작성해 주세요. 사진과 자료도 첨부할 수 있습니다.</p><section data-file-section><span class="board-field-caption">첨부파일</span></section>':checks+noticeType+'<label>만료일시 (선택, 한국시간)<input name="expires" type="datetime-local"></label><fieldset class="board-sharing"><legend>공유 설정 (미선택 시 전체 사업장)</legend><details><summary>공유 대상 선택</summary><div data-sites></div></details><small data-scope></small></fieldset><section data-file-section><span class="board-field-caption">첨부파일</span></section>';
    const legacyFile=kind==='resource'&&item.file_name?'<label>기존 첨부 교체 (선택, 최대 5MB)<input name="file" type="file"></label><small>현재 파일 '+safe(item.file_name)+'</small>':'';
    box.innerHTML='<form class="hub-form">'+(board?'<label>게시판<input name="boardTitle" readonly></label>':'')+'<label>제목<input name="title" required maxlength="150"></label>'+(board?formats+settings+legacyFile:'<label>대상 사업장<select name="site"><option value="">전체 사업장</option></select></label><label>시작<input name="start" type="datetime-local" required></label><label>종료<input name="end" type="datetime-local" required></label>'+formats)+'<p role="status"></p><div class="hub-form-actions">'+(item.id?(board?'<button type="button" data-delete-post>삭제</button>':'<button type="button" data-archive>보관 처리</button>'):'')+(board?'<button type="button" data-cancel>취소</button>':'')+'<button type="submit">'+(item.id?'수정 저장':'저장')+'</button></div></form>';
    const f=box.querySelector('form'),note=f.querySelector('[role=status]');
    f.elements.title.value=item.title||'';f.elements.body.value=item.body||'';
    if(board){
-    f.elements.boardTitle.value=board.title;f.elements.pinned.checked=boardPinned(item);f.elements.important.checked=item.label==='important';
+    f.elements.boardTitle.value=board.title;
+    if(requestBoard){
+     const select=f.elements.requestSite;
+     if(admin){select.add(new Option('사업장을 선택하세요',''));for(const site of siteOptions)select.add(new Option(site.name||site.site_name,site.id||site.site_id));select.value=item.site_id||'';}
+     else{select.add(new Option(siteOptions.find(s=>(s.id||s.site_id)===u.siteId)?.name||siteOptions.find(s=>(s.id||s.site_id)===u.siteId)?.site_name||item.site_name||'소속 사업장',u.siteId));select.value=u.siteId;select.disabled=true;}
+    }else{
+    f.elements.pinned.checked=boardPinned(item);f.elements.important.checked=item.label==='important';
     if(item.expires_at)f.elements.expires.value=new Date(Date.parse(item.expires_at)+9*3600000).toISOString().slice(0,16);
     if(f.elements.noticeType){
      const syncType=()=>{f.elements.noticeType.closest('label').hidden=f.elements.important.checked};
@@ -910,7 +919,9 @@
     const choices=f.querySelector('[data-sites]');
     for(const [id,name] of names){const label=document.createElement('label'),check=document.createElement('input');check.type='checkbox';check.name='shareSite';check.value=id;check.checked=selected.includes(id);label.append(check,' '+name);choices.append(label)}
     const scope=()=>{const picked=[...choices.querySelectorAll(':checked')];f.querySelector('[data-scope]').textContent=picked.length?picked.map(el=>names.get(el.value)).join(', '):'전체 사업장'};
-    choices.onchange=scope;scope();f.querySelector('[data-cancel]').onclick=()=>d.close();
+    choices.onchange=scope;scope();
+    }
+    f.querySelector('[data-cancel]').onclick=()=>d.close();
    }else{
     for(const s of siteOptions)f.elements.site.add(new Option(s.name||s.site_name,s.id||s.site_id));
     f.elements.site.value=item.site_id||'';
@@ -919,10 +930,10 @@
    d.addEventListener('close',()=>Object.values(urls).forEach(URL.revokeObjectURL),{once:true});
    if(board){f.inert=true;try{for(const meta of item._files||[]){const {file}=await api({action:'platform_board_file',id:item.id,assetId:meta.id},60000);if(!sameUser()||!d.open)return;const a={...meta,base64:file.base64.replace(/\s/g,'')};assets.push(a);urls[a.id]=boardBlob(a)}editor=boardEditor(f,item,assets,urls)}catch{note.textContent='첨부파일을 불러오지 못했습니다. 닫은 뒤 다시 시도하세요.';return}finally{if(editor)f.inert=false}}
    if(kind==='event'){const local=v=>v?day(new Date(v))+'T'+time(v):day()+'T09:00';f.elements.start.value=local(item.starts_at);f.elements.end.value=item.ends_at?local(item.ends_at):day()+'T10:00'}
-   f.onsubmit=async ev=>{ev.preventDefault();if(busy||f.dataset.filesPending)return;const b={action:'platform_hub_save',id:item.id||null,revision:item.revision,kind,title:f.elements.title.value,body:f.elements.body.value,siteId:f.elements.site?.value||'',label:board&&f.elements.important.checked?'important':f.elements.noticeType?.value||'info',startsAt:kind==='event'?new Date(f.elements.start.value+':00+09:00').toISOString():null,endsAt:kind==='event'?new Date(f.elements.end.value+':00+09:00').toISOString():null};if(editor){editor.applySource();b.document=boardNodes(editor.editor);b.body=editor.editor.innerText;b.attachments=editor.filesForSave();
+   f.onsubmit=async ev=>{ev.preventDefault();if(busy||f.dataset.filesPending)return;const b={action:'platform_hub_save',id:item.id||null,revision:item.revision,kind,title:f.elements.title.value,body:f.elements.body.value,siteId:f.elements.site?.value||'',label:board&&f.elements.important?.checked?'important':f.elements.noticeType?.value||'info',startsAt:kind==='event'?new Date(f.elements.start.value+':00+09:00').toISOString():null,endsAt:kind==='event'?new Date(f.elements.end.value+':00+09:00').toISOString():null};if(editor){editor.applySource();b.document=boardNodes(editor.editor);b.body=editor.editor.innerText;b.attachments=editor.filesForSave();
     if(b.attachments.length>5||b.attachments.reduce((n,f)=>n+f.size,0)>10485760){note.textContent='본문 사진과 첨부파일은 합계 5개, 10MB까지 저장할 수 있습니다.';return}
-    const sites=[...f.querySelectorAll('[name=shareSite]:checked')].map(el=>el.value);
-    b.siteId=sites[0]||'';b.publication={sites,pinned:f.elements.pinned.checked,expiresAt:f.elements.expires.value?new Date(f.elements.expires.value+':00+09:00').toISOString():null};if(b.body.length>10000){note.textContent='본문은 10,000자 이하로 작성하세요.';return}}if(kind==='event'&&b.endsAt<b.startsAt){note.textContent='종료 시각은 시작 시각 이후여야 합니다.';return}busy=true;f.inert=true;f.setAttribute('aria-busy','true');try{
+    const sites=requestBoard?[f.elements.requestSite.value]:[...f.querySelectorAll('[name=shareSite]:checked')].map(el=>el.value);
+    b.siteId=sites[0]||'';b.publication={sites,pinned:requestBoard?false:f.elements.pinned.checked,expiresAt:!requestBoard&&f.elements.expires.value?new Date(f.elements.expires.value+':00+09:00').toISOString():null};if(b.body.length>10000){note.textContent='본문은 10,000자 이하로 작성하세요.';return}}if(kind==='event'&&b.endsAt<b.startsAt){note.textContent='종료 시각은 시작 시각 이후여야 합니다.';return}busy=true;f.inert=true;f.setAttribute('aria-busy','true');try{
     const file=f.elements.file?.files[0];
     if(file){
      if(file.size>5242880||!file.size||file.name.length>180||!/[.](pdf|xlsx?|docx?|pptx?|hwpx?|zip|jpe?g|png)$/i.test(file.name)){note.textContent='지원 형식의 5MB 이하 파일을 선택하세요.';return}
@@ -949,7 +960,7 @@
   async function refreshContentList(kind){
     if(kind==='notice'||kind==='event')await loadContent();
     if(!sameUser())return;
-    if(boards[active]?.kind===kind||active==='boardAll')await listBoard(active);
+    if(boards[active]?.kind===kind)await listBoard(active);
     if(active==='schedule'&&kind==='event')await listSchedule();
   }
   const boardPages=new Map();
@@ -960,14 +971,14 @@
     let panel=host.querySelector('[data-list-workspace="'+key+'"]');
     if(!panel){panel=document.createElement('section');panel.className='hub-tool-panel hub-board';panel.dataset.listWorkspace=key;host.append(panel)}
     panel.hidden=false;
-    panel.innerHTML='<header class="hub-board-title">'+sidebarIcon('bulletins')+'<div><h2>게시판</h2><span>'+safe(board.title)+'</span></div></header><div class="hub-board-layout"><aside class="hub-board-rail"><h3>게시판 목록</h3><nav class="hub-board-categories" aria-label="게시판 분류"></nav></aside><div class="hub-board-main"><section class="hub-board-list"><form class="hub-board-filter"><label>시작일<input name="from" type="date"></label><label>종료일<input name="to" type="date"></label><input name="query" type="search" maxlength="100" placeholder="제목, 내용 검색" aria-label="게시글 검색"><button type="submit">검색</button><button type="reset">초기화</button></form><div class="hub-board-heading"><h3>'+safe(board.title)+'</h3><div class="hub-list-tools">'+action('reload','새로고침')+(admin?action('new',key==='boardAll'?'＋ 새 공지':'＋ 글쓰기'):'')+'</div></div><table class="hub-board-table"><thead><tr><th>번호</th><th>게시판</th><th>제목</th><th>작성자</th><th>작성일</th></tr></thead><tbody data-content-list></tbody></table><p role="status"></p><footer><span data-total></span><div><button type="button" data-prev aria-label="이전 페이지">‹</button><span data-page></span><button type="button" data-next aria-label="다음 페이지">›</button></div></footer></section></div></div>';
+    panel.innerHTML='<header class="hub-board-title">'+sidebarIcon('bulletins')+'<div><h2>게시판</h2><span>'+safe(board.title)+'</span></div></header><div class="hub-board-layout"><aside class="hub-board-rail"><h3>게시판 목록</h3><nav class="hub-board-categories" aria-label="게시판 분류"></nav></aside><div class="hub-board-main"><section class="hub-board-list"><form class="hub-board-filter"><label>시작일<input name="from" type="date"></label><label>종료일<input name="to" type="date"></label><input name="query" type="search" maxlength="100" placeholder="제목, 내용 검색" aria-label="게시글 검색"><button type="submit">검색</button><button type="reset">초기화</button></form><div class="hub-board-heading"><h3>'+safe(board.title)+'</h3><div class="hub-list-tools">'+action('reload','새로고침')+(canWriteBoard(board.kind)?action('new','＋ 글쓰기'):'')+'</div></div><table class="hub-board-table"><thead><tr><th>번호</th><th>게시판</th><th>제목</th><th>작성자</th><th>작성일</th></tr></thead><tbody data-content-list></tbody></table><p role="status"></p><footer><span data-total></span><div><button type="button" data-prev aria-label="이전 페이지">‹</button><span data-page></span><button type="button" data-next aria-label="다음 페이지">›</button></div></footer></section></div></div>';
     const nav=panel.querySelector('nav'),list=panel.querySelector('tbody'),note=panel.querySelector('[role=status]'),form=panel.querySelector('form');
     for(const [category,b] of Object.entries(boards)){
       const btn=document.createElement('button');btn.type='button';btn.textContent=b.title;
       if(category===key)btn.setAttribute('aria-current','page');
       btn.onclick=()=>category===active?listBoard(active):selectTab(category);nav.append(btn);
     }
-    panel.querySelector('[data-hub=new]')?.addEventListener('click',()=>editContent({kind:key==='boardAll'?'notice':board.kind}));
+    panel.querySelector('[data-hub=new]')?.addEventListener('click',()=>editContent({kind:board.kind}));
     for(const name of ['query','from','to'])form.elements[name].value=state[name];
     form.onsubmit=e=>{e.preventDefault();if(form.elements.from.value&&form.elements.to.value&&form.elements.from.value>form.elements.to.value){note.textContent='종료일을 시작일 이후로 선택해 주세요.';return}
       for(const name of ['query','from','to'])state[name]=form.elements[name].value;
@@ -1022,7 +1033,7 @@
   }
   function search(){const d=dialog(host,'통합검색'),box=d.querySelector('.hub-dialog-body');box.innerHTML='<label class="hub-search-label">검색어<input type="search" placeholder="메뉴, 사고, 공지사항, 일정 검색" maxlength="100"></label><p>조회 권한이 있는 현재 자료에서 검색합니다.</p><div data-results></div>';const input=box.querySelector('input'),out=box.querySelector('[data-results]');const paint=()=>{out.replaceChildren();const q=input.value.trim().toLocaleLowerCase();if(!q)return;let count=0;for(const m of items().filter(m=>m.state!=='hidden'&&featureName(m).toLocaleLowerCase().includes(q))){rowButton(out,featureName(m),'업무 메뉴',()=>{d.close();clickFeature(m.key)});count++}if(entry('incident')?.state==='live'&&entry('incident')?.enabled!==false&&entry('incident')?.canEnter!==false)for(const i of scopedIncidents().filter(i=>[i.eventType,i.summary,siteById(i.siteId)?.name].join(' ').toLocaleLowerCase().includes(q)).slice(0,30)){rowButton(out,i.eventType||'사고보고',siteById(i.siteId)?.name||'',()=>openIncident(i.id));count++}for(const x of [...content.notices,...content.events].filter(x=>[x.title,x.body].join(' ').toLocaleLowerCase().includes(q))){rowButton(out,x.title,x.kind==='notice'?'공지사항':'일정',()=>{d.close();readContent(x)});count++}if(!count)out.innerHTML='<p class="hub-empty">검색 결과가 없습니다.</p>'};input.oninput=paint;input.focus()}
   function guide(){const d=dialog(host,'모듈 안내');d.querySelector('.hub-dialog-body').innerHTML='<p>운영 중인 업무는 카드를 눌러 바로 이용할 수 있습니다. 구현 중인 업무는 관리자가 허용한 시험 사용자만 진입합니다.</p><p>공지사항과 일정은 안전관리자가 등록하고 대상 사업장의 사용자에게 공유합니다.</p>'+(admin?'<p>편집을 누르면 이름 수정, 접근 설정, 순서 이동 도구가 나타납니다. 손잡이를 끌거나 접근 설정의 앞으로/뒤로 버튼으로 순서를 변경하세요.</p>':'')}
-  function dispatch(key){if(key.startsWith('feature:'))return clickFeature(key.slice(8));if(key==='boards')return selectTab(boards[active]?active:'boardAll');if(key==='safetyCard')return selectTab(key);if(key==='home'){if(host.classList.contains('hub-incident-workspace'))return window.enlReturnToPlatform(u);host.classList.remove('hub-menu-open');window.scrollTo({top:0,behavior:'smooth'})}else if(key==='menu'||key==='close-menu')host.classList.toggle('hub-menu-open',key==='menu');else if(key==='support')support();else if(key==='search')search();else if(key==='notifications')clickFeature('notices');else if(key==='manage-cards'&&admin)manageCards();else if(key==='edit'){host.classList.toggle('hub-editing');host.querySelector('.hub-edit-toggle').textContent=host.classList.contains('hub-editing')?'편집 완료':'편집'}else if(key==='guide')guide();else if(key==='favorites')favorites();else if(key==='bulletins'||key==='schedule')selectTab(key);else if(key==='approvals')openApprovalList();else if(key==='recent')selectTab('recent');}
+  function dispatch(key){if(key.startsWith('feature:'))return clickFeature(key.slice(8));if(key==='boards')return selectTab('bulletins');if(key==='safetyCard')return selectTab(key);if(key==='home'){if(host.classList.contains('hub-incident-workspace'))return window.enlReturnToPlatform(u);host.classList.remove('hub-menu-open');window.scrollTo({top:0,behavior:'smooth'})}else if(key==='menu'||key==='close-menu')host.classList.toggle('hub-menu-open',key==='menu');else if(key==='support')support();else if(key==='search')search();else if(key==='notifications')clickFeature('notices');else if(key==='manage-cards'&&admin)manageCards();else if(key==='edit'){host.classList.toggle('hub-editing');host.querySelector('.hub-edit-toggle').textContent=host.classList.contains('hub-editing')?'편집 완료':'편집'}else if(key==='guide')guide();else if(key==='favorites')favorites();else if(key==='bulletins'||key==='schedule')selectTab(key);else if(key==='approvals')openApprovalList();else if(key==='recent')selectTab('recent');}
   host.querySelectorAll('[data-hub]').forEach(b=>b.onclick=()=>dispatch(b.dataset.hub));
   function afterCards(c){catalog=c;historyShortcuts();navigation();paintTabs();paintApprovals();renderArtwork(host);org?.catalog(entry('organization'));risk?.catalog(entry('risk'));}
   function historyShortcuts(){
