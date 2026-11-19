@@ -135,7 +135,7 @@
       if(busy||!record)return;
       const paper=main.querySelector('.safety-card-paper').cloneNode(true);
       for(const node of paper.querySelectorAll('textarea,select')){
-        const value=el('span',node.value==='__linked__'&&node.tagName==='SELECT'?linked.values[node.name]||'':node.value||'');value.className='safety-card-print-value';node.replaceWith(value);
+        const value=el('span',model.effectiveValues(content,linked)[node.name]??'');value.className='safety-card-print-value';node.replaceWith(value);
       }
       paper.querySelectorAll('button').forEach(node=>node.remove());
       const page=el('div');page.id='safety-card-print';page.append(paper);
