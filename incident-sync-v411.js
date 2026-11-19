@@ -122,8 +122,8 @@
       unreadChanged=next.size!==unreadReports.size||[...next].some(id=>!unreadReports.has(id));
       unreadReports=next;
     }
-    serverReady=true;refreshDirty();persistConfirmed();
-    if(changed||unreadChanged)window.dispatchEvent(new CustomEvent('enl-incidents-pulled'));
+    const becameReady=!serverReady;serverReady=true;refreshDirty();persistConfirmed();
+    if(changed||unreadChanged||becameReady)window.dispatchEvent(new CustomEvent('enl-incidents-pulled'));
     if(changed&&renderIfChanged&&canAutoRender())setTimeout(()=>{if(canAutoRender())try{renderShell(currentUser())}catch(e){}},0);
     return changed;
   }

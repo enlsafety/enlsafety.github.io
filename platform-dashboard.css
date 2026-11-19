@@ -218,7 +218,7 @@
 .stats426>#stats426Drill{order:-1}
 .incident-overview{
  display:grid;grid-template-columns:clamp(190px,16vw,245px) minmax(0,1fr);
- grid-template-areas:"title distribution" "cards distribution";grid-template-rows:auto 1fr;align-items:start;gap:12px;min-width:0
+ grid-template-areas:"title distribution" "cards distribution" "points distribution";grid-template-rows:auto auto 1fr;align-items:start;gap:12px;min-width:0
 }
 .incident-overview>*,.incident-overview .sd450-map-layout>*{min-width:0}
 .incident-overview .stats426-head{grid-area:title}
@@ -282,7 +282,7 @@
   display:grid!important;width:100%;grid-template-columns:repeat(auto-fit,minmax(min(100%,96px),1fr))!important;gap:5px;overflow:visible!important
  }
  .safety-ui #app .main>.shell411-nav button{white-space:normal;min-width:0;min-height:44px;height:auto;line-height:1.25;word-break:keep-all}
- .incident-overview{grid-template-columns:minmax(0,1fr);grid-template-areas:"title" "cards" "distribution";grid-template-rows:auto auto auto;gap:8px}
+ .incident-overview{grid-template-columns:minmax(0,1fr);grid-template-areas:"title" "cards" "points" "distribution";grid-template-rows:auto auto auto auto;gap:8px}
  .safety-ui #app .incident-overview .stats426-cards{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:5px}
  .safety-ui #app .incident-overview .stats426-card{min-width:0;padding:7px!important;gap:3px}
  .safety-ui #app .incident-overview .stats426-card::before{display:none}

@@ -9,8 +9,8 @@ const rows=[row('a'),row('b',{leaveEstimate:'3plus'}),row('c',{status:'closed',l
 const before=JSON.stringify(rows),m=point.build(rows,'2026',options);
 assert.equal(m.total,8);assert.equal(m.previous,1);assert.equal(m.change,'7건 증가 (700.0%)');assert.equal(m.unresolved,4);assert.equal(m.legalPending,1);assert.equal(m.legalUnknown,1);assert.equal(m.repeated,3);assert.equal(m.missingSite,1);assert.equal(m.missingDate,1);assert.equal(m.future,1);assert.equal(m.sites.map(s=>s.id).join(','),'A,B,C');assert.equal(JSON.stringify(rows),before,'read-only model');
 assert.doesNotMatch(point.html(m),/<details|tabindex|재발사고<\/dt>/);assert.match(point.html(m),/1건 \/ 확인 1/);assert.equal((point.html(m).match(/class="management-points-focus"/g)||[]).length,1);
-assert.equal(point.build([row('x')],'2026',options).change,'확인 필요');
-assert.equal(point.build([row('x',{occurredAt:'2025-01-01'})],'2026',options).change,'확인 필요');
+assert.equal(point.build([row('x')],'2026',options).change,'비교자료 없음');
+assert.equal(point.build([row('x',{occurredAt:'2025-01-01'})],'2026',options).change,'비교자료 없음');
 assert.equal(point.build(rows,'2027',options).total,0,'future year not counted as occurred');
 assert.equal(point.build([row('x',{occurredAt:'2024-02-29'}),row('y',{occurredAt:'2023-02-28'})],'2024',{today:'2024-02-29'}).previousEnd,'2023-02-28');
 assert.equal(point.build([row('x',{occurredAt:'2025-12-31'}),row('y',{occurredAt:'2024-12-31'})],'2025',options).previous,1,'past years compare full year');

@@ -10,7 +10,7 @@
     const end=y===nowYear?today:`${y}-12-31`,month=Number(end.slice(5,7)),day=Number(end.slice(8));
     const previousEnd=`${y-1}-${String(month).padStart(2,'0')}-${String(Math.min(day,new Date(Date.UTC(y-1,month,0)).getUTCDate())).padStart(2,'0')}`;
     const sites=new Map(),groups=new Map();
-    const m={year:String(year),end,previousEnd,total:0,previous:0,unresolved:0,legalPending:0,legalUnknown:0,repeated:0,missingDate:0,future:0,missingSite:0,missingType:0,sites:[],change:'확인 필요'};
+    const m={year:String(year),end,previousEnd,total:0,previous:0,unresolved:0,legalPending:0,legalUnknown:0,repeated:0,missingDate:0,future:0,missingSite:0,missingType:0,sites:[],change:'비교자료 없음'};
     for(const i of all){
       const d=a.dateKey(i);if(!d){m.missingDate++;continue;}if(d>today){m.future++;continue;}
       if(d>=`${y-1}-01-01`&&d<=previousEnd)m.previous++;
@@ -48,30 +48,29 @@
   let dispose=()=>{};
   function mount(root){
     dispose();const points=root.querySelector('.management-points'),stats=root.querySelector('.stats426');if(!points||!stats)return;
-    let frame=0,ro=null,watching=null,stopped=false;
-    const stop=()=>{stopped=true;cancelAnimationFrame(frame);ro?.disconnect();observer.disconnect();window.removeEventListener('resize',schedule)};
+    let frame=0,stopped=false;
+    const events=['enl-incidents-pulled','enl-incident-saved','enl-contracts-ready','enl-site-directory-synced','enl-directory-ready'];
+    const stop=()=>{stopped=true;cancelAnimationFrame(frame);observer.disconnect();for(const event of events)window.removeEventListener(event,refresh)};
     function schedule(){if(stopped)return;cancelAnimationFrame(frame);frame=requestAnimationFrame(place)}
     function place(){
       if(!points.isConnected){stop();return;}
-      const overview=stats.querySelector('.incident-overview'),cards=overview?.querySelector('.stats426-cards'),map=overview?.querySelector('[data-sd450-map]');
-      if(!overview||!cards||!map)return;
-      if(watching!==map&&typeof ResizeObserver==='function'){ro?.disconnect();ro=new ResizeObserver(schedule);for(const node of [overview,cards,map,points])ro.observe(node);watching=map;}
-      const area=overview.getBoundingClientRect(),cardBox=cards.getBoundingClientRect(),mapBox=map.getBoundingClientRect();
-      const top=cardBox.bottom-area.top+12,available=Math.floor(mapBox.bottom-cardBox.bottom-12);
-      // Fill only existing free space. Small screens keep the card in normal flow.
-      points.classList.add('management-points-rail');
-      points.style.setProperty('--points-top',top+'px');points.style.setProperty('--points-left',(cardBox.left-area.left)+'px');points.style.setProperty('--points-width',cardBox.width+'px');
-      const required=Math.max(180,Math.ceil(points.getBoundingClientRect().height));
-      const rail=window.innerWidth>900&&available>=required&&cardBox.width>=170;
-      if(rail){
-        if(points.parentElement!==overview)overview.append(points);
-      }else{
-        points.classList.remove('management-points-rail');points.removeAttribute('style');
-        if(points.parentElement!==stats)stats.insertBefore(points,stats.querySelector('#stats426Drill'));
-      }
+      const overview=stats.querySelector('.incident-overview');
+      // A permanent grid cell below the cost card, independent of map height.
+      if(overview&&points.parentElement!==overview)overview.append(points);
     }
-    const observer=new MutationObserver(()=>{if(!points.isConnected){stop();return;}if(!watching)schedule()});
-    observer.observe(root,{childList:true,subtree:true});window.addEventListener('resize',schedule);dispose=stop;schedule();
+    function refresh(){
+      if(!points.isConnected){stop();return;}
+      const year=stats.querySelector('#stats426Year')?.value;
+      if(!year||!window.enlIncidentAnalysisRecords)return;
+      const items=window.enlIncidentAnalysisRecords();
+      const template=document.createElement('template');
+      template.innerHTML=html(build(items,year),{ready:window.enlIncidentServerReady?.()===true});
+      points.replaceChildren(...template.content.firstElementChild.childNodes);
+    }
+    const observer=new MutationObserver(()=>{if(!points.isConnected){stop();return;}schedule()});
+    observer.observe(root,{childList:true,subtree:true});
+    for(const event of events)window.addEventListener(event,refresh);
+    dispose=stop;place();refresh();
   }
   window.ENLManagementPoints={build,html,mount};
 })();
