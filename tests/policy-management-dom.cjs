@@ -28,8 +28,11 @@ async function waitFor(fn){for(let i=0;i<200;i++){if(fn())return;await tick();}a
   for(const role of ['field','manager','executive','worker']){
    const {w,d}=await open(role);
    assert.equal(!!button(d,'전체 수정'),false);
-   assert.equal(!!button(d,'최신화 및 게시 사진 제출'),role==='field');
-   assert.equal(!!button(d,'확인완료'),false);
+   assert.equal(button(d,'게시 사진 제출').disabled,role!=='field');
+   assert.equal(button(d,'확인완료').disabled,true);
+   assert.equal(d.querySelectorAll('.policy-flow-steps [data-action-state=required]').length,role==='field'?2:0);
+   assert.equal(d.querySelectorAll('.policy-rail .policy-document-dot').length,role==='field'?3:0);
+   assert.equal(d.querySelector('.policy-document-layout').firstChild.className,'policy-review-panel');
    w.print=()=>{assert.ok(d.querySelector('#enl-policy-print-page svg'));const ids=[...d.querySelectorAll('svg filter')].map(n=>n.id);assert.equal(new Set(ids).size,ids.length,'screen and print filter IDs must be distinct');w.dispatchEvent(new w.Event('afterprint'));};
    button(d,'PDF 출력').click();assert.equal(d.querySelector('#enl-policy-print-page'),null);
   }
@@ -38,12 +41,18 @@ async function waitFor(fn){for(let i=0;i<200;i++){if(fn())return;await tick();}a
   Object.defineProperty(input,'files',{value:[new state.w.File(['qa'],'evidence.jpg',{type:'image/jpeg'})]});
   input.dispatchEvent(new state.w.Event('change'));
   await waitFor(()=>state.d.querySelector('.policy-proof-photo'));
-  assert.equal(!!button(state.d,'최신화 및 게시 사진 제출'),false);
+  assert.equal(button(state.d,'게시 사진 제출').disabled,true);
+  assert.equal(state.d.querySelectorAll('.policy-flow-steps [data-action-state=required]').length,0);
   state=await open('safety');assert.ok(button(state.d,'전체 수정'));
   assert.ok(button(state.d,'확인완료').disabled);
+  assert.equal(state.d.querySelector('.policy-flow-steps [data-action-state=required]').dataset.step,'3');
   const check=state.d.querySelector('.policy-check-photo input');check.checked=true;check.dispatchEvent(new state.w.Event('change'));
   button(state.d,'확인완료').click();
-  await waitFor(()=>!button(state.d,'확인완료')&&state.d.querySelector('.policy-review-panel .is-approved'));
+  await waitFor(()=>state.d.querySelector('.policy-document-heading').textContent.includes('최신화 완료'));
+  assert.equal(button(state.d,'확인완료').disabled,true);
+  assert.equal(state.d.querySelectorAll('.policy-flow-steps [data-action-state=required]').length,0);
+  assert.equal(state.d.querySelectorAll('.policy-rail-child')[0].querySelector('.policy-document-dot'),null,'approved policy clears its dot');
+  assert.ok(state.d.querySelectorAll('.policy-rail-child')[1].querySelector('.policy-document-dot'),'objectives remain incomplete');
   button(state.d,'전체 수정').click();
   let form=state.d.querySelector('dialog form');form.elements.year.value='2027';form.elements.date.value='2027-01-01';
   form.dispatchEvent(new state.w.Event('submit',{cancelable:true}));

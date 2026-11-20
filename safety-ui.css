@@ -458,3 +458,14 @@ dialog.draft-resume-dialog{position:fixed;inset:0;box-sizing:border-box;width:mi
 .draft-conflict-dialog pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:14px;line-height:1.6;margin:8px 0}
 .draft-conflict-dialog button{min-height:42px}
 @media(max-width:600px){.draft-conflict-dialog fieldset{grid-template-columns:minmax(0,1fr)}.draft-list-row{flex-wrap:wrap}.draft-list-row>span{flex-basis:100%;overflow-wrap:anywhere}}
+
+/* One notification-dot treatment across navigation, documents and required steps. */
+:root{--enl-alert-dot-color:#d73740;--enl-alert-dot-ring:0 0 0 2px #fff}
+:is(.enl424-nav-dot,.org-dot,.org-document-dot,.policy-dot,.policy-document-dot),
+.org-state.pending::before,
+.org-flow-step[data-action-state=required]>.org-flow-heading::before,
+.org-flow-legend>[data-action-state=required]::before{
+ box-sizing:content-box!important;width:9px!important;height:9px!important;min-width:9px;
+ border:0!important;border-radius:50%!important;background:var(--enl-alert-dot-color)!important;
+ box-shadow:var(--enl-alert-dot-ring)!important;flex:none;pointer-events:none
+}

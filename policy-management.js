@@ -103,8 +103,13 @@ function mount(host,u,api,sameUser){
   const admin=u.role==='safety',field=u.role==='field';
   let enabled=false,panel=null,main=null,nav=null,settings=null,sites=[],siteId=null,kind=null,request=0,busy=false,needCount=0;
   const status=(message)=>make('p',message,'policy-message');
-  const hasWork=s=>s.active&&(admin?['pending'].includes(s.policyState)||['pending'].includes(s.objectivesState):
-    field&&(s.policyState!=='approved'||s.objectivesState!=='approved'));
+  const documentWork=(s,state)=>s.active&&state!=='approved'&&(admin||field&&state!=='pending');
+  const hasWork=s=>documentWork(s,s.policyState)||documentWork(s,s.objectivesState);
+  function workDot(node,needed){
+    if(!needed)return;
+    const dot=make('span',null,'policy-document-dot');dot.setAttribute('aria-hidden','true');
+    node.setAttribute('aria-description','처리할 일이 있습니다.');node.append(dot);
+  }
   function badges(){
     for(const el of host.querySelectorAll('[data-module="policy"],[data-hub="feature:policy"]')){
       let dot=el.querySelector('.policy-dot');
@@ -148,11 +153,13 @@ function mount(host,u,api,sameUser){
       const b=btn('',()=>chooseSite(s.siteId),'policy-folder');
       b.dataset.siteId=s.siteId;
       b.append(make('strong',s.folderName),make('small',siteState(s),'policy-badge '+(s.complete?'is-approved':s.policyState==='pending'||s.objectivesState==='pending'?'is-pending':'is-empty')));
+      workDot(b,hasWork(s));
       if(s.siteId===siteId)b.setAttribute('aria-current','page');
       nav.append(b);
       if(s.siteId===siteId){
         for(const [doc,label] of Object.entries(docs)){
           const sub=btn(label,()=>chooseDocument(doc),'policy-rail-child');
+          workDot(sub,documentWork(s,s[doc==='policy'?'policyState':'objectivesState']));
           if(kind===doc)sub.setAttribute('aria-current','page');nav.append(sub);
         }
       }
@@ -166,6 +173,7 @@ function mount(host,u,api,sameUser){
     for(const s of sites){
       const b=btn('',()=>chooseSite(s.siteId),'policy-site-card');
       b.append(make('strong',s.folderName),make('small',siteState(s),'policy-badge '+(s.complete?'is-approved':s.policyState==='pending'||s.objectivesState==='pending'?'is-pending':'is-empty')));
+      workDot(b,hasWork(s));
       grid.append(b);
     }
     main.replaceChildren(heading,grid);
@@ -181,6 +189,7 @@ function mount(host,u,api,sameUser){
       const state=s[k==='policy'?'policyState':'objectivesState'];
       const card=btn('',()=>chooseDocument(k),'policy-document-card');
       card.append(make('strong',name),make('span',steps[state]||steps.empty,'policy-badge '+stateClass(state)));
+      workDot(card,documentWork(s,state));
       grid.append(card);
     }
     main.replaceChildren(back,heading,grid);
@@ -247,19 +256,34 @@ function mount(host,u,api,sameUser){
     const back=btn('← '+s.folderName+' 서류 목록',documentsPage,'policy-back');
     const heading=make('div',null,'policy-document-heading');
     const text=make('div');text.append(make('h3',s.siteName+' / '+docs[doc]),make('p',set.year+'년 · 시행일 '+date(set.date)+' · '+(steps[st]||steps.empty),'policy-message'));
-    const actions=make('div',null,'policy-doc-actions');
-    actions.append(btn('PDF 출력',()=>printPoster(doc,set,s.siteName),'policy-main-action'));
+    heading.append(text);
+    const print=btn('PDF 출력',()=>printPoster(doc,set,s.siteName),'policy-main-action');
     const upload=make('input');upload.type='file';upload.accept='image/*';upload.hidden=true;
-    const note=status(st==='empty'?'양식을 출력하여 현장에 게시한 후 실제 게시 사진을 제출해 주세요.':
-      st==='pending'?'현장에서 사진을 제출했습니다. 안전관리자 확인 대기 중입니다.':
-      st==='approved'?'안전관리자 확인이 완료된 문서입니다.':'반려 사유를 확인한 뒤 새 게시 사진을 제출해 주세요.');
-    if(field&&s.active&&!locked)actions.append(btn(st==='rejected'?'게시 사진 다시 제출':'최신화 및 게시 사진 제출',()=>upload.click(),'policy-main-action'));
-    actions.append(upload);heading.append(text,actions);
+    const note=status(st==='empty'?'출력 후 현장 게시 사진을 제출하세요.':
+      st==='pending'?'안전관리자 확인 대기 중입니다.':
+      st==='approved'?'최신화 확인이 완료됐습니다.':'사유 확인 후 게시 사진을 다시 제출하세요.');
+    const submit=btn(st==='rejected'?'게시 사진 다시 제출':'게시 사진 제출',()=>upload.click(),'policy-main-action');
+    submit.disabled=!field||!s.active||locked;
+    const approved=btn('확인완료',()=>{},'policy-main-action');approved.disabled=true;
     const paper=poster(doc,set);
     const tip=make('p','원본 양식은 고정되어 있습니다. 연도와 시행일은 안전관리자의 ‘전체 수정’에서만 변경할 수 있습니다.','policy-help');
     const left=make('div',null,'policy-paper-panel');left.append(paper,tip);
-    const right=make('aside',null,'policy-review-panel');
-    right.append(make('h4','현장 게시 여부 확인'),make('div',steps[st]||steps.empty,'policy-badge '+stateClass(st)),note);
+    const right=make('section',null,'policy-review-panel');right.setAttribute('aria-label','현장 게시 여부 확인');
+    const legend=make('div',null,'org-flow-legend');
+    for(const [state,label] of [['required','해야 할 일'],['not-needed','안 해도 됨'],['general','일반']]){const item=make('span',label);item.dataset.actionState=state;legend.append(item)}
+    const flow=make('div',null,'policy-flow-steps');
+    function step(number,title,control,role,required){
+      const card=make('div',null,'org-flow-step');card.dataset.step=number;card.dataset.kind=number;
+      card.dataset.actionState=required?'required':control.disabled?'not-needed':'general';
+      card.setAttribute('role','group');card.setAttribute('aria-label',title+' / '+role);
+      card.append(make('strong',number+'. '+title,'org-flow-heading'),control,make('small',role,'org-flow-role'));flow.append(card);
+    }
+    const fieldAction=field&&s.active&&!locked;
+    step(1,'출력',print,'전체 사용자',fieldAction);
+    step(2,'사진 제출',submit,'현장 담당자',fieldAction);
+    step(3,'확인',approved,'안전관리자',admin&&s.active&&st==='pending');
+    const reviewHead=make('div',null,'policy-review-head');reviewHead.append(make('h4','현장 게시 여부 확인'),legend);
+    right.append(reviewHead,flow,note,upload);
     if(proof){
       right.append(make('p','제출: '+proof.submittedBy+' / '+when(proof.submittedAt),'policy-help'));
       const image=make('img');image.src=proof.photo;image.alt=s.siteName+' 실제 '+docs[doc]+' 게시 사진';image.loading='lazy';image.className='policy-proof-photo';right.append(image);
@@ -269,10 +293,10 @@ function mount(host,u,api,sameUser){
     if(admin&&st==='pending'&&proof){
       const label=make('label',null,'policy-check-photo'),check=make('input');check.type='checkbox';
       label.append(check,' 출력 양식의 연도, 시행일, 현장 게시 상태를 사진으로 확인했습니다.');
-      const approved=btn('확인완료',()=>decide('approved'),'policy-main-action');
-      approved.disabled=true;check.onchange=()=>{approved.disabled=busy||!check.checked;};
+      approved.onclick=()=>decide('approved');
+      check.onchange=()=>{approved.disabled=busy||!check.checked;};
       const reject=btn('재제출 요청',()=>decide('rejected'));
-      right.append(label,approved,reject);
+      right.append(label,reject);
       async function decide(decision){
         if(busy||decision==='approved'&&!check.checked)return;
         let msg='';
@@ -303,7 +327,7 @@ function mount(host,u,api,sameUser){
       }catch(err){note.textContent=['settings_changed','review_state_changed'].includes(err.message)?'상태가 변경됐습니다. 최신본을 새로고침해 주세요.':'사진을 제출하지 못했습니다. 사진 형식이나 네트워크를 확인해 주세요.';}
       finally{busy=false;}
     };
-    const layout=make('div',null,'policy-document-layout');layout.append(left,right);
+    const layout=make('div',null,'policy-document-layout');layout.append(right,left);
     main.replaceChildren(back,heading,layout);
   }
   async function open(){
