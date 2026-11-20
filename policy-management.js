@@ -116,9 +116,19 @@ function mount(host,u,api,sameUser){
       dot.setAttribute('aria-label',dot.title);
     }
   }
+  let badgeRequest=0;
+  async function refreshBadges(){
+    if(!enabled||!sameUser())return;
+    const id=++badgeRequest;
+    try{
+      const result=await api({action:'platform_policy_list'});
+      if(id!==badgeRequest||!sameUser()||!enabled)return;
+      needCount=(result.sites||[]).filter(hasWork).length;badges();
+    }catch{/* Leave the last verified badge state unchanged during a transient outage. */}
+  }
   function catalog(m){
     enabled=!!m&&m.enabled!==false&&m.state!=='hidden'&&m.canEnter!==false&&(m.state==='live'||m.preview);
-    if(!enabled)needCount=0;badges();
+    if(!enabled)needCount=0;badges();if(enabled)refreshBadges();
   }
   function canLeave(){return !busy}
   function canSuspend(){return !busy}
