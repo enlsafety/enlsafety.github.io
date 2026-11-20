@@ -94,6 +94,8 @@ jobs:
           npm install --no-save --package-lock=false @electric-sql/pglite@0.5.17
           node tests/personnel-audit-redaction.cjs
           node tests/personnel-proof-edge.cjs
+          node tests/personnel-card-sync.cjs
+          node tests/safety-card-api.cjs
       - name: Cause draft release regression
         run: |
           node --check incident-flow-v440.js

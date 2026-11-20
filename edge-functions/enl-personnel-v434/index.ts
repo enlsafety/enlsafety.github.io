@@ -154,5 +154,5 @@ Deno.serve(async(req:Request)=>{
 
     return json({ok:false,message:"invalid_action"},400);
   }
-  try{return action==="personnel_upsert"?await connection.begin(handle):await handle(connection)}catch(e:any){return json({ok:false,message:"request_failed"},500)}finally{await connection.end({timeout:1}).catch(()=>{})}
+  try{return ["personnel_upsert","personnel_delete"].includes(action)?await connection.begin(handle):await handle(connection)}catch(e:any){return json({ok:false,message:"request_failed"},500)}finally{await connection.end({timeout:1}).catch(()=>{})}
 });

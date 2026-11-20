@@ -40,13 +40,15 @@ export async function safetyCardRequest(sql:any, actor:any, body:any, reply:any)
   const problem=model.validate(body.content);
   if(problem)return reply({ok:false,message:'invalid_card',detail:problem},400);
   return sql.begin(async(tx:any)=>{
+    // Personnel changes lock the site before updating its card source as well.
+    // Read the revision only after taking this lock, preventing stale overwrites.
+    const [masterBefore]=await tx`select * from public.enl_site_master where site_id=${site.site_id} for update`;
     await tx`select pg_advisory_xact_lock(hashtextextended(${site.site_id},2913))`;
     const [previous]=await tx`select revision,template_version,content from private.enl_safety_cards
       where site_id=${site.site_id} order by revision desc limit 1`;
     if(!previous)return reply({ok:false,message:'card_unavailable'},404);
     if(previous.revision!==body.expectedRevision)return reply({ok:false,message:'card_changed'},409);
     if(previous.template_version!==body.templateVersion)return reply({ok:false,message:'invalid_card_version'},409);
-    const [masterBefore]=await tx`select * from public.enl_site_master where site_id=${site.site_id} for update`;
     const overrides=body.content.overrides===undefined?previous.content.overrides||{}:body.content.overrides;
     const masterValues={...previous.content.masterValues,...Object.fromEntries(model.masterKeys.filter((key:string)=>Object.hasOwn(overrides,key)).map((key:string)=>[key,overrides[key]]))};
     const content={authority:'card-v1',masterValues,values:{...body.content.values,...Object.fromEntries(linkedCardKeys.map(key=>[key,previous.content.values[key]]))},overrides:Object.fromEntries(Object.entries(overrides).filter(([key])=>!model.masterKeys.includes(key))),notes:body.content.notes,provenance:previous.content.provenance};
