@@ -337,7 +337,7 @@
       tools.setAttribute('aria-label','조직도 진행 순서와 담당자');
       const flow=el('div',null,'org-flow-steps'),extra=el('div',null,'org-flow-extra'),guidance=el('p',null,'org-flow-guidance');
       guidance.setAttribute('role','status');
-      tools.append(flow,guidance,extra);
+      tools.append(flow,guidance);
       const steps=[];
       function actionCard(parent,control,heading,role,step,kind){
         const item=el('div',null,step?'org-flow-step':'org-flow-option');
@@ -349,7 +349,7 @@
       }
       title.append(el('h2',site.site_name+' 안전보건조직도'),el('span',periodName(period)+'　'+(site.active===false?'종료 사업장':stages[state]||'미작성'),'org-state '+workState(site,state)));
 
-      head.append(title);
+      head.append(title,extra);
       const back=button('← '+(site.folder_name||site.site_name)+' 서류 목록',()=>selectFolder(site.site_id,true),'org-back');
       main.replaceChildren(back,head,tools);
       if(history.length){
@@ -476,7 +476,7 @@
         const printStep=actionCard(flow,print,'2. 출력','전체 사용자',2,'print');
         flow.insertBefore(printStep,flow.querySelector('[data-step="3"]'));
       }
-      extra.append(zoom);
+      tools.append(zoom);
       preview.append(paper(chart,printedSite,form?change:null,template,!doc));update();
     }
     const focus=()=>{if(sameUser()){refresh();schedule()}else{clearTimeout(refreshTimer);window.removeEventListener('focus',focus);document.removeEventListener('visibilitychange',focus)}};

@@ -6,7 +6,8 @@
 .org-panel button.org-primary{background:#1e5d91;color:white;border-color:#1e5d91}
 .org-panel button.org-primary:hover:enabled{background:#174b75}
 .org-panel .org-head,.org-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.org-panel .org-head{justify-content:space-between;margin-bottom:14px}
+.org-panel .org-head{justify-content:space-between;align-items:flex-start;margin-bottom:14px}
+.org-panel .org-head>div:first-child{flex:1 1 240px;min-width:0}
 .org-panel .org-head h2{margin:0 0 6px}
 .org-summary,.org-state,.org-status,.org-folder small{font-size:13px;color:#537086}
 .org-status:empty{display:none}.org-status button{margin-left:8px}
@@ -107,25 +108,25 @@
 .org-flow-step.is-next{border-color:var(--org-action);box-shadow:inset 0 3px var(--org-action);background:var(--org-tint)}
 .org-flow-step.is-done .org-flow-heading{color:#286c4d}
 .org-flow-guidance{margin:12px 0 0;padding:10px 12px;border-radius:7px;background:#e6f1fa;color:#254d70;font-size:14px;line-height:1.6}
-.org-flow-extra{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid #d7e5ef}
-.org-flow-extra>.org-zoom{grid-column:1/-1;justify-self:start}
-.org-flow-option{display:grid;align-items:start;gap:5px;min-width:0}
-.org-flow-option>button{min-height:44px;justify-self:start}
+.org-flow-extra{display:grid;grid-template-columns:repeat(2,max-content);align-items:start;gap:10px;margin-left:auto;max-width:100%}
+.org-workflow>.org-zoom{margin-top:10px}
+.org-flow-option{display:grid;align-items:start;gap:5px;min-width:0;text-align:center}
+.org-flow-option>button{min-height:44px;min-width:104px;justify-self:stretch}
 .org-flow-option .org-flow-role{font-size:12px}
 @media(max-width:1050px){.org-flow-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:480px){.org-panel .org-workflow{padding:10px}.org-flow-steps{gap:8px}.org-flow-step{padding:10px 8px}.org-panel .org-flow-step>button{min-height:48px}.org-flow-role{font-size:13px}}
 
 /* Functional colors remain visible alongside the role labels. */
-.org-workflow [data-kind=save]{--org-action:#245f99;--org-tint:#edf5fd}
-.org-workflow [data-kind=print]{--org-action:#536477;--org-tint:#f1f4f7}
-.org-workflow [data-kind=submit]{--org-action:#12787b;--org-tint:#eaf8f7}
-.org-workflow [data-kind=approve]{--org-action:#347242;--org-tint:#edf7ef}
-.org-workflow [data-kind=reopen]{--org-action:#96600b;--org-tint:#fff6e8}
-.org-workflow [data-kind=delete]{--org-action:#ad3543;--org-tint:#fff0f2}
-.org-panel .org-workflow [data-kind]>button{background:var(--org-action);border-color:var(--org-action);color:#fff;font-weight:700}
-.org-panel .org-workflow [data-kind]>button:hover:enabled{background:var(--org-action);filter:brightness(.9)}
-.org-panel .org-workflow [data-kind]>button:disabled{opacity:.6}
-.org-workflow [data-kind]>.org-flow-role{color:var(--org-action)}
+.org-panel [data-kind=save]{--org-action:#245f99;--org-tint:#edf5fd}
+.org-panel [data-kind=print]{--org-action:#536477;--org-tint:#f1f4f7}
+.org-panel [data-kind=submit]{--org-action:#12787b;--org-tint:#eaf8f7}
+.org-panel [data-kind=approve]{--org-action:#347242;--org-tint:#edf7ef}
+.org-panel [data-kind=reopen]{--org-action:#96600b;--org-tint:#fff6e8}
+.org-panel [data-kind=delete]{--org-action:#ad3543;--org-tint:#fff0f2}
+.org-panel [data-kind]>button{background:var(--org-action);border-color:var(--org-action);color:#fff;font-weight:700}
+.org-panel [data-kind]>button:hover:enabled{background:var(--org-action);filter:brightness(.9)}
+.org-panel [data-kind]>button:disabled{opacity:.6}
+.org-panel [data-kind]>.org-flow-role{color:var(--org-action)}
 
 /* Only actionable menu rows own a work indicator. */
 .platform-hub .hub-sidebar{--work-dot-axis:16px;--work-dot-size:9px}
