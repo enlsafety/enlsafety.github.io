@@ -337,11 +337,16 @@
       tools.setAttribute('aria-label','조직도 진행 순서와 담당자');
       const flow=el('div',null,'org-flow-steps'),extra=el('div',null,'org-flow-extra'),guidance=el('p',null,'org-flow-guidance');
       guidance.setAttribute('role','status');
-      tools.append(flow,guidance);
-      const steps=[];
+      const legend=el('div',null,'org-flow-legend');
+      for(const [key,label] of [['required','해야 할 일'],['not-needed','안 해도 됨'],['general','일반']]){
+        const tag=el('span',label);tag.dataset.actionState=key;legend.append(tag);
+      }
+      tools.append(legend,flow,guidance);
+      const actions=[];
       function actionCard(parent,control,heading,role,step,kind){
         const item=el('div',null,step?'org-flow-step':'org-flow-option');
-        if(step){item.dataset.step=String(step);steps.push(item);}
+        if(step)item.dataset.step=String(step);
+        actions.push({item,control,step,heading});item.setAttribute('role','group');
         item.dataset.kind=kind;
         if(heading)item.append(el('strong',heading,'org-flow-heading'));
         item.append(control,el('span',role,'org-flow-role'));
@@ -387,10 +392,13 @@
         if(reopen)reopen.disabled=busy||!writer||historic||!locked;
         if(print)print.disabled=busy||dirty||!doc;
         if(remove)remove.disabled=busy||dirty||!mayDelete;
-        for(const item of steps){
-          const n=Number(item.dataset.step);
-          item.classList.toggle('is-done',!historic&&!dirty&&!!doc&&(n===1||state==='approved'||state==='pending'&&n<4));
-          item.classList.toggle('is-next',!historic&&(dirty||!doc?n===1:state==='draft'?n===2||n===3:state==='pending'?n===4:false));
+        for(const {item,control,step,heading} of actions){
+          const fieldSubmission=u.role==='field'&&site.active!==false&&!!doc&&!dirty&&state==='draft';
+          const required=!historic&&!locked&&(step===1&&writer&&(!doc||dirty)||
+            (step===2||step===3)&&fieldSubmission||step===4&&admin&&!dirty&&state==='pending');
+          const actionState=required?'required':control.disabled?'not-needed':'general';
+          item.dataset.actionState=actionState;
+          item.setAttribute('aria-label',(heading||control.textContent)+' / '+({required:'해야 할 일','not-needed':'안 해도 됨',general:'일반'}[actionState]));
         }
         guidance.textContent=historic?'이전 저장본입니다.':
           dirty?'변경사항을 먼저 저장하세요.':

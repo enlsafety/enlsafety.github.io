@@ -105,8 +105,6 @@
 .org-flow-heading{font-size:14px;line-height:1.5;color:#254a68}
 .org-panel .org-flow-step>button{width:100%;min-height:48px;padding:8px 5px;white-space:normal;line-height:1.45;font-size:14px;font-weight:700}
 .org-flow-role{font-size:14px;line-height:1.5;font-weight:700;color:#1e567e}
-.org-flow-step.is-next{border-color:var(--org-action);box-shadow:inset 0 3px var(--org-action);background:var(--org-tint)}
-.org-flow-step.is-done .org-flow-heading{color:#286c4d}
 .org-flow-guidance{margin:12px 0 0;padding:10px 12px;border-radius:7px;background:#e6f1fa;color:#254d70;font-size:14px;line-height:1.6}
 .org-flow-extra{display:grid;grid-template-columns:repeat(2,max-content);align-items:start;gap:10px;margin-left:auto;max-width:100%}
 .org-workflow>.org-zoom{margin-top:10px}
@@ -116,17 +114,21 @@
 @media(max-width:1050px){.org-flow-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:480px){.org-panel .org-workflow{padding:10px}.org-flow-steps{gap:8px}.org-flow-step{padding:10px 8px}.org-panel .org-flow-step>button{min-height:48px}.org-flow-role{font-size:13px}}
 
-/* Functional colors remain visible alongside the role labels. */
-.org-panel [data-kind=save]{--org-action:#245f99;--org-tint:#edf5fd}
-.org-panel [data-kind=print]{--org-action:#536477;--org-tint:#f1f4f7}
-.org-panel [data-kind=submit]{--org-action:#12787b;--org-tint:#eaf8f7}
-.org-panel [data-kind=approve]{--org-action:#347242;--org-tint:#edf7ef}
-.org-panel [data-kind=reopen]{--org-action:#96600b;--org-tint:#fff6e8}
-.org-panel [data-kind=delete]{--org-action:#ad3543;--org-tint:#fff0f2}
+/* Three states reflect the current user's responsibilities, not button type. */
+.org-panel [data-action-state=required]{--org-action:#b72f3a;--org-tint:#fff3f3;--org-border:#d33742}
+.org-panel [data-action-state=not-needed]{--org-action:#66717d;--org-tint:#f3f5f7;--org-border:#d6dce2}
+.org-panel [data-action-state=general]{--org-action:#245f99;--org-tint:#edf5fd;--org-border:#b7cee5}
+.org-flow-step[data-action-state]{border-color:var(--org-border);background:var(--org-tint)}
+.org-flow-step[data-action-state=required]{box-shadow:inset 0 0 0 1px var(--org-border)}
+.org-flow-step[data-action-state=required]>.org-flow-heading::before,
+.org-flow-legend>[data-action-state=required]::before{content:"";display:inline-block;width:9px;height:9px;margin-right:6px;border-radius:50%;background:#d33742;vertical-align:middle}
 .org-panel [data-kind]>button{background:var(--org-action);border-color:var(--org-action);color:#fff;font-weight:700}
 .org-panel [data-kind]>button:hover:enabled{background:var(--org-action);filter:brightness(.9)}
-.org-panel [data-kind]>button:disabled{opacity:.6}
-.org-panel [data-kind]>.org-flow-role{color:var(--org-action)}
+.org-panel [data-kind]>button:disabled{opacity:.65}
+.org-panel [data-action-state=not-needed]>button:disabled{opacity:1;background:#e4e8ed;border-color:#d5dce3;color:#66717d}
+.org-panel [data-kind]>.org-flow-role,.org-panel [data-kind]>.org-flow-heading{color:var(--org-action)}
+.org-flow-legend{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px;font-size:12px;font-weight:700;line-height:1.4}
+.org-flow-legend>span{display:inline-flex;align-items:center;border:1px solid var(--org-border);border-radius:5px;background:var(--org-tint);color:var(--org-action);padding:4px 8px}
 
 /* Only actionable menu rows own a work indicator. */
 .platform-hub .hub-sidebar{--work-dot-axis:16px;--work-dot-size:9px}
