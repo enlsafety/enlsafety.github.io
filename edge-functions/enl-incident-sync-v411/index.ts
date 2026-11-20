@@ -219,14 +219,15 @@ Deno.serve(async(req:Request)=>{
       if(cursor&&!/^\d{1,18}$/.test(cursor)||!validDay(from)||!validDay(to)||(from&&to&&from>to))
         return json({ok:false,message:"invalid_login_history_filter"},400);
       const rows=await sql`select id::text,logged_at,display_name,role_label,affiliation
-        from private.enl_login_history
-        where id<coalesce(nullif(${cursor},'')::bigint,9223372036854775807)
+        from private.enl_login_history h
+        where (nullif(${cursor},'') is null or (logged_at,id) <
+          (select logged_at,id from private.enl_login_history where id=nullif(${cursor},'')::bigint))
           and logged_at >= now()-interval '90 days'
           and (${from}='' or logged_at >= (nullif(${from},'')::timestamp at time zone 'Asia/Seoul'))
           and (${to}='' or logged_at < ((nullif(${to},'')::timestamp+interval '1 day') at time zone 'Asia/Seoul'))
           and (${term}='' or display_name ilike '%'||${term}||'%'
             or affiliation ilike '%'||${term}||'%' or role_label ilike '%'||${term}||'%')
-        order by id desc limit 51`;
+        order by h.logged_at desc,h.id desc limit 51`;
       return json({ok:true,rows:rows.slice(0,50),more:rows.length>50});
     }
 

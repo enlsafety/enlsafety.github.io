@@ -76,5 +76,32 @@ const assert=require('node:assert/strict'),{fixture}=require('./final-lifecycle.
    assert.equal((await q(who,'activity_document',{incidentId:rejected.id})).status,404);
  }
  assert.equal((await ok('field','activity_document',{incidentId:rejected.id})).archived,false);
+ // Registration IDs may differ from event time; ties and page boundaries must stay stable.
+ await f.db.exec(require('node:fs').readFileSync('supabase/migrations/20261116083500_successful_login_history.sql','utf8').split('create or replace function')[0]);
+ await f.db.exec('alter sequence private.enl_login_history_id_seq restart with 90');
+ await f.db.exec(`insert into private.enl_login_history(account_key,display_name,role_label,affiliation,logged_at)
+   select 'qa:'||n,'QA 정렬 '||n,'현장','QA 사업장',now()-((n*17)%23)*interval '1 minute' from generate_series(1,65) n;
+   insert into enl_site_audit(site_id,action,editor_name,editor_role,changed_at)
+   select 'qa-site','update','QA 정렬 '||n,'safety',now()-((n*17)%23)*interval '1 minute' from generate_series(1,65) n;`);
+ for(const [action,pageAction,table,time] of [
+   ['activity_login_list','activity_login_list','private.enl_login_history','logged_at'],
+   ['activity_list','activity_page','private.enl_platform_history','happened_at']
+ ]){
+   const filters={search:'QA 정렬',feed:'all'};
+   const first=await ok('safety',action,filters);
+   assert.equal(first.rows.length,50);assert.equal(first.more,true);
+   const second=await ok('safety',pageAction,{...filters,before:first.rows.at(-1).id});
+   assert.equal(second.rows.length,15);assert.equal(second.more,false);
+   const combined=[...first.rows,...second.rows];
+   assert.equal(new Set(combined.map(r=>r.id)).size,65);
+   const expected=await f.db.query(`select id::text from ${table} e where ${action==='activity_login_list'?'display_name':'actor_name'} like 'QA 정렬 %' order by e.${time} desc,e.id desc`);
+   assert.deepEqual(combined.map(r=>r.id),expected.rows.map(r=>r.id));
+   assert.deepEqual((await ok('safety',action,filters)).rows,first.rows);
+   assert.equal((await ok('safety',action,{...filters,search:'없는 정렬 기록'})).rows.length,0);
+ }
+ for(const who of ['manager','executive','field','other'])assert.equal((await q(who,'activity_login_list')).status,403);
+ assert.equal((await q('safety','activity_login_list',{before:'invalid'})).status,400);
+ assert.equal((await q('safety','activity_login_list',{fromDate:'2026-02-31'})).status,400);
+ console.log('PASS login and activity chronological order, timestamp ties, 50-row pagination, search, refresh and login permissions');
  console.log('PASS scoped history, audit/visit idempotency, per-user reads, new unread, pagination and deleted document');
 }finally{await f.db.close();}})().catch(e=>{console.error(e);process.exitCode=1;});
