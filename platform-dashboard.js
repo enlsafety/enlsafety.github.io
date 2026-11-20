@@ -482,7 +482,7 @@
     else if(host.nextElementSibling!==view)view.before(host);
     host.querySelector('.hub-support').hidden=active!=='support';
     const preview=host.querySelector('.hub-module-preview');
-    preview.hidden=Object.hasOwn(builtins,active)||['incident','system','history','notices','approvals','organization','risk'].includes(active);
+    preview.hidden=Object.hasOwn(builtins,active)||['incident','system','history','notices','approvals','organization','risk','policy'].includes(active);
     for(const panel of host.querySelectorAll('[data-list-workspace]'))panel.hidden=panel.dataset.listWorkspace!==active;
     if(!preview.hidden){
       preview.querySelector('h2').textContent=tabTitle(active);
