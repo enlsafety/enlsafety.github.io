@@ -4,7 +4,7 @@ const {stripTypeScriptTypes}=require('node:module'),{PGlite}=require('@electric-
 (async()=>{const db=new PGlite();await db.exec(fs.readFileSync('tests/fixtures/login-proof-schema.sql','utf8'));await db.exec('create schema private;'+fs.readFileSync('supabase/migrations/20261104080927_platform_foundation.sql','utf8').split('create table private.enl_platform_catalog')[0]);let handler,passed=0;
  await db.exec('create role anon; create role authenticated;');
  for(const migration of ['20261110024000_redact_personnel_audit_credentials','20261120004518_personnel_audit_null_safe_redaction'])await db.exec(fs.readFileSync('supabase/migrations/'+migration+'.sql','utf8'));
- const tag=conn=>async(parts,...args)=>(await conn.query(parts.reduce((s,p,i)=>s+(i?'$'+i:'')+p,''),args)).rows;const sql=tag(db);sql.begin=fn=>db.transaction(t=>fn(Object.assign(tag(t),{json:JSON.stringify})));sql.json=JSON.stringify;sql.end=async()=>{};
+ const tag=require('./fixtures/personnel-json-sql.cjs').tag;const sql=tag(db);sql.begin=fn=>db.transaction(t=>fn(Object.assign(tag(t),{json:value=>({__jsonParameter:true,value})})));sql.json=value=>({__jsonParameter:true,value});sql.end=async()=>{};
  const ctx={Deno:{env:{get:()=> 'isolated'},serve:h=>handler=h},postgres:()=>sql,Request,Response,TextEncoder,crypto};vm.createContext(ctx);
  vm.runInContext(stripTypeScriptTypes(fs.readFileSync('edge-functions/enl-personnel-v434/index.ts','utf8').replace(/^import .*;\r?\n/gm,'')),ctx);
  const call=async b=>{const r=await handler(new Request('https://isolated.test',{method:'POST',headers:{'content-type':'application/json','x-enl-app':'incident-report-v2',origin:'https://enlsafety.github.io'},body:JSON.stringify(b)}));return {status:r.status,body:await r.json()};};

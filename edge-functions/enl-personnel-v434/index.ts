@@ -53,8 +53,9 @@ Deno.serve(async(req:Request)=>{
       const r=rows[0]||{};return {activeTotal:Number(r.active_total||0),activeWorkers:Number(r.active_workers||0),activeField:Number(r.active_field||0),inactiveTotal:Number(r.inactive_total||0)};
     }
     async function audit(saved:any,prev:any,v:any,actionName:string){
+      // Pass objects to the driver's JSON serializer; pre-stringifying turns snapshots into JSON strings.
       await sql`insert into public.enl_personnel_audit(personnel_id,site_id,action,editor_id,editor_name,editor_role,editor_position,changed_at,before_payload,after_payload)
-        values(${saved?.personnel_id||prev?.personnel_id||null},${saved?.site_id||prev?.site_id},${actionName},${v.id},${v.name},${v.role},${v.position},${now},${prev?JSON.stringify(prev):null}::jsonb,${saved?JSON.stringify(saved):null}::jsonb)`;
+        values(${saved?.personnel_id||prev?.personnel_id||null},${saved?.site_id||prev?.site_id},${actionName},${v.id},${v.name},${v.role},${v.position},${now},${prev?sql.json(prev):null}::jsonb,${saved?sql.json(saved):null}::jsonb)`;
     }
     async function clearMasterIfOwned(prev:any){
       if(!prev||!isFieldTitle(prev.job_title))return;

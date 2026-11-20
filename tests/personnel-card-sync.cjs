@@ -12,8 +12,8 @@ const {primaryFixture}=require('./safety-card-api.cjs');
   await db.exec("alter table enl_site_personnel alter column personnel_id set default gen_random_uuid()::text; alter table enl_personnel_audit add column editor_position text; create table enl_push_subscriptions(id text,user_id text);");
   for(const file of ['20261110024000_redact_personnel_audit_credentials','20261120004518_personnel_audit_null_safe_redaction'])await db.exec(fs.readFileSync('supabase/migrations/'+file+'.sql','utf8'));
   let handler;
-  const tag=conn=>async(parts,...args)=>(await conn.query(parts.reduce((s,p,i)=>s+(i?'$'+i:'')+p,''),args)).rows;
-  const sql=tag(db);sql.begin=fn=>db.transaction(t=>fn(Object.assign(tag(t),{json:JSON.stringify})));sql.json=JSON.stringify;sql.end=async()=>{};
+  const tag=require('./fixtures/personnel-json-sql.cjs').tag;
+  const sql=tag(db);sql.begin=fn=>db.transaction(t=>fn(Object.assign(tag(t),{json:value=>({__jsonParameter:true,value})})));sql.json=value=>({__jsonParameter:true,value});sql.end=async()=>{};
   const ctx={Deno:{env:{get:()=> 'isolated'},serve:h=>handler=h},postgres:()=>sql,Request,Response,TextEncoder,crypto};vm.createContext(ctx);
   vm.runInContext(stripTypeScriptTypes(fs.readFileSync('edge-functions/enl-personnel-v434/index.ts','utf8').replace(/^import .*;\r?\n/gm,'')),ctx);
   const call=async b=>{const r=await handler(new Request('https://isolated.test',{method:'POST',headers:{'content-type':'application/json','x-enl-app':'incident-report-v2',origin:'https://enlsafety.github.io'},body:JSON.stringify({actor:{id:'qa-safety',role:'safety'},actorPasswordHash:'qa-proof',...b})}));return {status:r.status,body:await r.json()};};
@@ -74,6 +74,15 @@ const {primaryFixture}=require('./safety-card-api.cjs');
   check((await upsert({...person,personnelId:undefined,siteId:'qa-no-card',name:'QA 카드 전 서무',jobTitle:'서무',expectedHolder:''})).status===200,'new sites without a card still accept registration');
   check((await db.query("select clerk_name from enl_site_master where site_id='qa-no-card'")).rows[0].clerk_name==='QA 카드 전 서무','sites without a card still receive contacts');
   const privileges=(await db.query("select has_function_privilege('anon','private.enl_apply_personnel_contacts(text,jsonb,text,text,text)','EXECUTE') a,has_function_privilege('authenticated','private.enl_apply_personnel_contacts(text,jsonb,text,text,text)','EXECUTE') b")).rows[0];check(!privileges.a&&!privileges.b,'contact helper is not callable by client roles');
+  // Reproduce the reported blank contact and verify the narrowly scoped, repeatable repair.
+  await db.query('update enl_site_personnel set name=$1 where personnel_id=$2',['홍전희',newClerk.body.person.personnel_id]);
+  card=await open();const repairContent=structuredClone(card.document.content);repairContent.overrides={D6:'비콘힐스',D16:'',F16:''};
+  assert.equal((await f.call('safety',{...stale,expectedRevision:card.document.revision,content:repairContent})).status,200);
+  const repairSQL=fs.readFileSync('supabase/migrations/20261120025120_repair_beacon_clerk_contact.sql','utf8');
+  await db.exec(repairSQL);
+  check((await master()).clerk_name==='홍전희'&&(await open()).document.content.masterValues.D16==='홍전희','repair restores both views from the existing account');
+  const repairedRevision=(await open()).document.revision;await db.exec(repairSQL);
+  check((await open()).document.revision===repairedRevision,'repeating repair does not create duplicate revisions');
   console.log(JSON.stringify({suite:'personnel-card-sync',passed,failed:0,productionWrites:0}));
  }finally{await db.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});
