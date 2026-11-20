@@ -333,12 +333,23 @@
       const editable=writer&&!locked;
       const mayDelete=!!doc&&(admin||u.role==='field'&&!confirmedPeriods.includes(period)&&!confirmedPeriods.includes(doc.period));
       let chart=structuredClone(doc?.chart||defaults());
-      const head=el('div',null,'org-head'),title=el('div'),tools=el('div',null,'org-actions'),note=status('');
+      const head=el('div',null,'org-head'),title=el('div'),tools=el('section',null,'org-actions org-workflow'),note=status('');
+      tools.setAttribute('aria-label','조직도 진행 순서와 담당자');
+      const flow=el('div',null,'org-flow-steps'),extra=el('div',null,'org-flow-extra'),guidance=el('p',null,'org-flow-guidance');
+      guidance.setAttribute('role','status');
+      tools.append(el('h3','진행 순서'),el('p','현장 담당자: 현장소장, 파트장, 서무','org-flow-legend'),flow,guidance,extra);
+      const steps=[];
+      function actionCard(parent,control,heading,role,description,step){
+        const item=el('div',null,step?'org-flow-step':'org-flow-option');
+        if(step){item.dataset.step=String(step);steps.push(item);}
+        item.append(el('strong',heading,'org-flow-heading'),control,el('span',role,'org-flow-role'),el('small',description,'org-flow-help'));
+        parent.append(item);return item;
+      }
       title.append(el('h2',site.site_name+' 안전보건조직도'),el('span',periodName(period)+'　'+(site.active===false?'종료 사업장':stages[state]||'미작성'),'org-state '+workState(site,state)));
 
-      head.append(title,tools);
+      head.append(title);
       const back=button('← '+(site.folder_name||site.site_name)+' 서류 목록',()=>selectFolder(site.site_id,true),'org-back');
-      main.replaceChildren(back,head);
+      main.replaceChildren(back,head,tools);
       if(history.length){
         const label=el('label','저장 이력　','org-versions'),pick=el('select');label.append(pick);
         for(const v of history){
@@ -374,6 +385,18 @@
         if(reopen)reopen.disabled=busy||!writer||historic||!locked;
         if(print)print.disabled=busy||dirty||!doc;
         if(remove)remove.disabled=busy||dirty||!mayDelete;
+        for(const item of steps){
+          const n=Number(item.dataset.step);
+          item.classList.toggle('is-done',!historic&&!dirty&&!!doc&&(n===1||state==='approved'||state==='pending'&&n<4));
+          item.classList.toggle('is-next',!historic&&(dirty||!doc?n===1:state==='draft'?n===2||n===3:state==='pending'?n===4:false));
+        }
+        guidance.textContent=historic?'이전 저장본을 보고 있습니다. 최신 저장본을 선택해 진행해 주세요.':
+          dirty?'입력한 내용이 바뀌었습니다. 1단계에서 먼저 저장해 주세요.':
+          !doc?'현장 담당자가 아래 조직도를 작성한 뒤 1단계부터 진행해 주세요.':
+          state==='approved'?'이번 반기 확인이 완료됐습니다. 내용이 바뀌면 아래 ‘최신화 수정’으로 다시 시작하세요.':
+          state==='pending'?'안전관리자가 아래 출력물 사진을 확인하고 대조 확인에 체크한 뒤 4단계 ‘확인완료’를 눌러 주세요.':
+          '현장 담당자가 2단계에서 출력해 현장에 게시한 뒤, 3단계에서 게시된 조직도 사진을 첨부해 주세요.';
+        if(!writer)guidance.textContent+=' 현재 계정은 조회와 PDF 출력만 가능합니다.';
       }
       async function write(op,photo){
         if(busy)return;
@@ -405,7 +428,10 @@
       save=button('조직도 저장',()=>write('save'),'org-primary');
       check=button('최신화 및 출력했습니다',()=>upload.click());
       approve=button('확인완료',()=>write('approve'),'org-primary');
-      tools.append(save,check,approve,reopen);
+      actionCard(flow,save,'1. 작성 후 저장','현장 담당자 / 안전관리자','담당자와 인원을 입력한 뒤 저장합니다.',1);
+      actionCard(flow,check,'3. 게시 사진 제출','현장소장 / 파트장 / 서무','게시된 조직도를 촬영해 첨부합니다.',3);
+      actionCard(flow,approve,'4. 사진 확인 후 완료','안전관리자','사진 대조 확인에 체크한 뒤 누릅니다.',4);
+      actionCard(extra,reopen,'완료 후 다시 수정','현장 담당자 / 안전관리자','수정 후 출력물 사진 제출과 확인을 다시 진행합니다.');
       if(doc?.photo){
         const evidence=el('section',null,'org-evidence'),image=el('img');
         image.alt='사업장에서 제출한 조직도 출력물 사진';
@@ -427,7 +453,6 @@
         form.onsubmit=e=>{e.preventDefault();if(!save.disabled)write('save')};
         form.append(note,preview);main.append(form);
       }else main.append(note,preview);
-      tools.append(zoom);
       {
         remove=button('저장본 삭제',async()=>{
           if(busy||dirty||!confirm(site.site_name+'의 '+periodName(doc.period)+' 저장본 v'+doc.revision+'을 삭제할까요?'))return;
@@ -440,7 +465,7 @@
           }catch(err){
             note.replaceChildren(el('span',err.message==='confirmed_delete_forbidden'?'반기 확인을 마친 자료는 안전관리자만 삭제할 수 있습니다.':'삭제하지 못했습니다. 최신본을 확인해 주세요.'),button('최신본 불러오기',reload));
           }finally{busy=false;if(form)form.inert=false;update();}
-        });tools.append(remove);
+        });actionCard(extra,remove,'저장 이력 관리','현장 담당자 / 안전관리자','반기 확인을 마친 자료는 안전관리자만 삭제할 수 있습니다.');
       }
       {
         print=button('PDF 출력',async()=>{
@@ -449,8 +474,10 @@
           try{await sheet.querySelector('img').decode();if(onScreen()&&sheet.isConnected&&!dirty)printChart(paper(doc.chart,printedSite,null,template),site.site_name+'_안전보건조직도_v'+doc.revision)}
           catch{note.textContent='출력 양식을 불러오지 못했습니다. 다시 시도해 주세요.'}
         });
-        tools.append(print);
+        const printStep=actionCard(flow,print,'2. 출력 후 현장 게시','현장 담당자 / 조회자','현장 담당자는 출력한 조직도를 게시합니다.',2);
+        flow.insertBefore(printStep,flow.querySelector('[data-step="3"]'));
       }
+      extra.append(zoom);
       preview.append(paper(chart,printedSite,form?change:null,template,!doc));update();
     }
     const focus=()=>{if(sameUser()){refresh();schedule()}else{clearTimeout(refreshTimer);window.removeEventListener('focus',focus);document.removeEventListener('visibilitychange',focus)}};

@@ -97,6 +97,27 @@
 
 .org-evidence img{display:block;max-width:100%;max-height:65vh;object-fit:contain;margin-block:8px}.org-evidence label{display:inline-flex;align-items:center;gap:6px}.org-actions button:disabled,.org-manage-tools button:disabled{opacity:.55;cursor:default}
 
+/* Keep workflow ownership beside each action, including disabled actions. */
+.org-panel .org-workflow{display:block;padding:14px;border:1px solid #cfdfed;border-radius:12px;background:#f7fbfe;margin-bottom:16px;word-break:keep-all}
+.org-workflow h3{margin:0;color:#204f73;font-size:16px}.org-flow-legend{margin:5px 0 12px;font-size:13px;line-height:1.5;color:#526b80}
+.org-flow-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.org-flow-step{display:flex;flex-direction:column;align-items:stretch;gap:7px;padding:12px 10px;border:1px solid #c8dbea;border-radius:9px;background:#fff;min-width:0}
+.org-flow-heading{font-size:14px;line-height:1.5;color:#254a68}
+.org-panel .org-flow-step>button{width:100%;min-height:48px;padding:8px 5px;white-space:normal;line-height:1.45;font-size:14px;font-weight:700}
+.org-flow-role{font-size:14px;line-height:1.5;font-weight:700;color:#1e567e}
+.org-flow-help{display:block;font-size:12px;line-height:1.55;color:#526b80;overflow-wrap:anywhere}
+.org-flow-step.is-next{border-color:#518db6;box-shadow:inset 0 3px #518db6;background:#f0f8ff}
+.org-flow-step.is-done .org-flow-heading{color:#286c4d}
+.org-flow-guidance{margin:12px 0 0;padding:10px 12px;border-radius:7px;background:#e6f1fa;color:#254d70;font-size:14px;line-height:1.6}
+.org-flow-extra{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid #d7e5ef}
+.org-flow-extra>.org-zoom{grid-column:1/-1;justify-self:start}
+.org-flow-option{display:grid;align-items:start;gap:5px;min-width:0}
+.org-flow-option .org-flow-heading{font-size:12px;color:#526b80}
+.org-flow-option>button{min-height:44px;justify-self:start}
+.org-flow-option .org-flow-role{font-size:12px}.org-flow-option .org-flow-help{font-size:12px}
+@media(max-width:1050px){.org-flow-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.org-panel .org-workflow{padding:10px}.org-flow-steps{gap:8px}.org-flow-step{padding:10px 8px}.org-panel .org-flow-step>button{min-height:62px}.org-flow-role{font-size:13px}}
+
 /* Only actionable menu rows own a work indicator. */
 .platform-hub .hub-sidebar{--work-dot-axis:16px;--work-dot-size:9px}
 .platform-hub .hub-sidebar button:has(>.org-dot,>.enl424-nav-dot,>.wf412-nav-badge){padding-right:32px}
