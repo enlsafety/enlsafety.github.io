@@ -7,6 +7,7 @@
     risk:'<path d="M12 2 20 5v6c0 5-4 9-8 11-4-2-8-6-8-11V5z m-4 10 3 3 5-6"/>',
     tbm:'<path d="M3 4h18v13H9l-6 4z M7 9h10m-10 4h7"/>',
     organization:'<circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2m1-15a3 3 0 0 1 0 6m1 3a5 5 0 0 1 4 5"/>',
+    policy:'<path d="M5 3h12l3 3v15H5zM17 3v5h3M8 11h9M8 15h9M8 19h6"/>',
     training:'<path d="m2 7 10-4 10 4-10 4z"/><path d="M6 9v3c3 3 9 3 12 0V9m4-2v6M3 16c3-1 6-.5 9 1 3-1.5 6-2 9-1v5c-3-.7-6-.5-9 1-3-1.5-6-1.7-9-1zm9 1v5"/>',
     msds:'<path d="M9 2h6m-5 0v7L4 20h16L14 9V2M8 14h8"/>',
     history:'<path d="M3 10a9 9 0 1 1 1.8 8M3 4v6h6M12 7v5l3 2"/>',
