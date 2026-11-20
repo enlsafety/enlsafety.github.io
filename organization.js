@@ -90,6 +90,13 @@
       if(admin||u.role==='field'&&['empty','draft'].includes(state))return 'pending';
       return '';
     }
+    function documentBadge(node,site,key){
+      if(key!=='chart'||workState(site)!=='pending')return;
+      const dot=el('span',null,'org-document-dot');
+      dot.setAttribute('aria-hidden','true');dot.title='처리할 일 있음';
+      node.setAttribute('aria-description','이번 반기 조직도에 처리할 일이 남아 있습니다.');
+      node.append(dot);
+    }
     function badges(){
       for(const node of host.querySelectorAll('[data-module="organization"],[data-hub="feature:organization"]')){
         let dot=node.querySelector('.org-dot');
@@ -176,7 +183,9 @@
       const subtitles={chart:'안전보건 조직 및 인원 현황',appointment:'임명장 메뉴 (작성 기능 준비 중)',evaluation:'업무수행평가표 메뉴 (작성 기능 준비 중)'};
       for(const [key,label] of Object.entries(documents)){
         const card=button('',()=>selectDocument(site,key),'org-document-card');
+        card.dataset.doc=key;
         card.append(el('strong',label),el('span',subtitles[key],'org-status'));
+        documentBadge(card,site,key);
         grid.append(card);
       }
       main.replaceChildren(back,head,grid);
@@ -221,6 +230,7 @@
           for(const [key,label] of Object.entries(documents)){
             const sub=button(label,()=>selectDocument(s,key));
             sub.dataset.doc=key;sub.dataset.owner=s.site_id;
+            documentBadge(sub,s,key);
             if(shownDoc===key)sub.setAttribute('aria-current','page');
             children.append(sub);
           }

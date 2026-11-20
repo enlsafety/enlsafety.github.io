@@ -28,6 +28,12 @@
 .org-submenu{display:grid;gap:2px;margin:0 0 5px 13px;padding-left:5px;border-left:1px solid #bfd1de}
 .org-panel .org-submenu button{text-align:left;background:transparent;border:0;padding:7px 6px;font-size:13px}
 .org-panel .org-submenu button[aria-current=page]{background:#dcebf7;color:#103c60;font-weight:700}
+.org-panel .org-submenu button{position:relative;padding-right:23px}
+.org-document-dot{position:absolute;display:block;width:9px;height:9px;border-radius:50%;background:#d33742;pointer-events:none}
+.org-submenu .org-document-dot{right:8px;top:50%;transform:translateY(-50%)}
+.org-document-card>.org-document-dot{right:16px;top:20px}
+.org-panel .org-document-card{position:relative}
+.org-document-card>strong{padding-right:15px}
 .org-folder small{font-size:11px;white-space:nowrap}.org-folder :is(.pending,.approved)::before{width:6px;height:6px;margin-right:4px}
 .org-manage-tools{display:flex;align-items:center;gap:2px;margin:3px 2px 7px}
 #app .org-manage-tools>button{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:4px;width:auto;height:27px;min-height:0;min-width:0;padding:0 5px;border:0;border-radius:4px;background:transparent;box-shadow:none;color:#496073;font-family:inherit;font-size:12px;font-weight:600;line-height:1.2;white-space:nowrap}
