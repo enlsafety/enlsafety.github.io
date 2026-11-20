@@ -89,6 +89,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Personnel registration and audit regression
+        run: |
+          npm install --no-save --package-lock=false @electric-sql/pglite@0.5.17
+          node tests/personnel-audit-redaction.cjs
+          node tests/personnel-proof-edge.cjs
       - name: Cause draft release regression
         run: |
           node --check incident-flow-v440.js

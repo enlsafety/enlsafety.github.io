@@ -2,6 +2,8 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const {stripTypeScriptTypes}=require('node:module'),{PGlite}=require('@electric-sql/pglite');
 (async()=>{const db=new PGlite();await db.exec(fs.readFileSync('tests/fixtures/login-proof-schema.sql','utf8'));await db.exec('create schema private;'+fs.readFileSync('supabase/migrations/20261104080927_platform_foundation.sql','utf8').split('create table private.enl_platform_catalog')[0]);let handler,passed=0;
+ await db.exec('create role anon; create role authenticated;');
+ for(const migration of ['20261110024000_redact_personnel_audit_credentials','20261120004518_personnel_audit_null_safe_redaction'])await db.exec(fs.readFileSync('supabase/migrations/'+migration+'.sql','utf8'));
  const tag=conn=>async(parts,...args)=>(await conn.query(parts.reduce((s,p,i)=>s+(i?'$'+i:'')+p,''),args)).rows;const sql=tag(db);sql.begin=fn=>db.transaction(t=>fn(Object.assign(tag(t),{json:JSON.stringify})));sql.json=JSON.stringify;sql.end=async()=>{};
  const ctx={Deno:{env:{get:()=> 'isolated'},serve:h=>handler=h},postgres:()=>sql,Request,Response,TextEncoder,crypto};vm.createContext(ctx);
  vm.runInContext(stripTypeScriptTypes(fs.readFileSync('edge-functions/enl-personnel-v434/index.ts','utf8').replace(/^import .*;\r?\n/gm,'')),ctx);
@@ -36,6 +38,17 @@ const {stripTypeScriptTypes}=require('node:module'),{PGlite}=require('@electric-
  check(people.body.personnel.find(x=>x.name===person.name).duties.join(',')==='health,supervisor','roster returns all active legal duties');
  check(people.body.personnel.find(x=>x.personnel_id===field.id).access_role==='worker','existing holder is reassigned after explicit replacement');
  check((await managerCall({...person,name:'실패 검수',expectedHolder:saved.body.person.personnel_id,duties:['bad']})).status===400,'invalid duties rejected');
+ const clerk={siteId:field.siteId,name:'QA 신규 서무',jobTitle:'서무',accessRole:'field',passwordHash:'synthetic-clerk-proof',phone:'010-0000-0000',email:'clerk@example.invalid',expectedHolder:''};
+ const registered=await managerCall(clerk);check(registered.status===200,'safety registers a new clerk with audit trigger enabled');
+ check((await db.query('select clerk_name from public.enl_site_master where site_id=$1',[field.siteId])).rows[0].clerk_name===clerk.name,'new clerk is reflected in site master');
+ const clerkId=registered.body.person.personnel_id;
+ const updated=await managerCall({...clerk,personnelId:clerkId,name:'QA 수정 서무'});check(updated.status===200,'safety updates clerk with audit trigger enabled');
+ const audits=(await db.query('select before_payload,after_payload from public.enl_personnel_audit where personnel_id=$1 order by id',[clerkId])).rows;
+ check(audits.length===2&&audits[0].before_payload===null&&audits[1].before_payload.name===clerk.name,'create and update snapshots remain intact');
+ check(audits.every(a=>[a.before_payload,a.after_payload].every(p=>p===null||(!('pin_hash' in p)&&!('password_hash' in p)))),'audit snapshots never retain credentials');
+ check((await call({action:'personnel_delete',personnelId:clerkId,actor:safety,actorPasswordHash:'qa-auth-safety-proof-472'})).status===200,'safety deletes synthetic clerk with audit trigger enabled');
+ const deletedAudit=(await db.query('select after_payload from public.enl_personnel_audit where personnel_id=$1 and action=$2',[clerkId,'delete'])).rows;
+ check(deletedAudit.length===1&&deletedAudit[0].after_payload===null,'delete audit permits missing after snapshot');
  console.log(JSON.stringify({suite:'personnel-proof-edge',passed,failed:0,productionWrites:0}));
  }finally{await db.close()}
 })().catch(e=>{console.error(e.message);process.exitCode=1});
