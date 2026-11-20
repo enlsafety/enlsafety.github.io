@@ -1,6 +1,7 @@
 import { storageUsageRequest } from "./storage-usage.ts";
 import { analysisTargetRequest } from "./analysis-targets.ts";
 import { organizationRequest } from "./organization.ts";
+import { policyRequest } from "./policy-management.ts";
 import { riskRequest } from "./risk-assessment.ts";
 import { safetyCardRequest } from "./safety-card.ts";
 const moduleKeys=['incident','risk','tbm','organization','training','msds'];
@@ -130,6 +131,11 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
     const [config]=await sql`select item from private.enl_platform_catalog cross join lateral jsonb_array_elements(modules) item where singleton and item->>'key'='risk'`;
     if(!canEnter(config?.item,actor))return reply({ok:false,message:'module_unavailable'},403);
     return riskRequest(sql,actor,body,reply);
+  }
+  if(action.startsWith('platform_policy_')){
+    const [config]=await sql`select item from private.enl_platform_catalog cross join lateral jsonb_array_elements(modules) item where singleton and item->>'key'='policy'`;
+    if(!canEnter(config?.item,actor))return reply({ok:false,message:'module_unavailable'},403);
+    return policyRequest(sql,actor,body,reply);
   }
   if(action.startsWith('platform_org_')){
     const [config]=await sql`select item from private.enl_platform_catalog cross join lateral jsonb_array_elements(modules) item where singleton and item->>'key'='organization'`;
