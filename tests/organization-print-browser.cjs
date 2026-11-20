@@ -27,18 +27,18 @@ const {orgFixture}=require('./organization.cjs');
     }
     const btn=name=>page.getByRole('button',{name,exact:true});
     await open('field');
-    assert.ok(await btn('최신화 및 출력했습니다').isDisabled());
+    assert.ok(await btn('게시 사진 제출').isDisabled());
     await page.locator('[name=lead]').fill('검수 소장');await page.locator('[name=supervisor]').fill('검수 감독자');
     await btn('조직도 저장').click();
     await btn('PDF 출력').click();await page.waitForFunction(()=>window.didPrint);
     assert.ok(await btn('확인완료').isDisabled());
-    const chooser=page.waitForEvent('filechooser');await btn('최신화 및 출력했습니다').click();
+    const chooser=page.waitForEvent('filechooser');await btn('게시 사진 제출').click();
     const png=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=40;c.height=60;return c.toDataURL().split(',')[1];});
     await (await chooser).setFiles({name:'검수.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')});
     await page.locator('.org-evidence img').waitFor();
     for(const role of ['manager','executive']){
       await open(role);
-      for(const name of ['조직도 저장','최신화 및 출력했습니다','확인완료','최신화 수정','저장본 삭제'])assert.ok(await btn(name).isDisabled(),role+name);
+      for(const name of ['조직도 저장','게시 사진 제출','확인완료','최신화 수정','저장본 삭제'])assert.ok(await btn(name).isDisabled(),role+name);
       assert.equal(await page.locator('input.org-inline').count(),0);
     }
     await open('safety');assert.ok(await btn('확인완료').isDisabled());
