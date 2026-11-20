@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - run: npm install --no-save --package-lock=false @electric-sql/pglite@0.3.10 playwright@1.51.1 pdfjs-dist@3.11.174 sharp@0.35.5
+      - run: npm install --no-save --package-lock=false jsdom@31.0.1 @electric-sql/pglite@0.3.10 playwright@1.51.1 pdfjs-dist@3.11.174 sharp@0.35.5
       - name: Use official Ubuntu mirror for browser dependencies
         run: |
           for source in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do
