@@ -97,6 +97,8 @@ jobs:
           node tests/personnel-card-sync.cjs
           node tests/safety-card-api.cjs
           node tests/activity-history.cjs
+      - name: Supervisor appointment workflow regression
+        run: node tests/supervisor-appointments.cjs
       - name: Cause draft release regression
         run: |
           node --check incident-flow-v440.js

@@ -3,7 +3,7 @@
   const roles = ['worker','field','safety','manager','executive'];
   const ns = 'http://www.w3.org/2000/svg';
   const defaults = () => ({lead:'',supervisor:'',teams:['코스관리','스프링쿨러','서무','기타'].map(name => ({name,regular:0,daily:0}))});
-  const documents={chart:'01. 조직도',appointment:'02. 임명장',certificate:'03. 관리감독자 교육수료증',evaluation:'04. 관리감독자 업무수행평가표'};
+  const documents={chart:'01. 조직도',appointment:'02. 관리감독자 임명장',certificate:'03. 관리감독자 교육수료증',evaluation:'04. 관리감독자 업무수행평가표'};
   const documentSchedules={chart:'인원 변동 시',appointment:'관리감독자 임명 시',certificate:'임명일로부터 1년 이내',evaluation:'매 반기 1회'};
   const selectPrompt='사업장 목록이나 좌측 폴더에서 조회할 내용을 선택하세요.';
   const stages={empty:'미작성',draft:'출력물 제출 전',pending:'안전관리자 확인 대기',approved:'반기 확인완료'};
@@ -151,7 +151,7 @@
       badges();
       if(allowed){if(!wasAllowed){refresh();schedule()}}else{pending=0;clearTimeout(refreshTimer);}
     }
-    function canLeave(){return !busy&&(!dirty||confirm('저장하지 않은 조직도 변경사항이 있어요. 화면을 이동할까요?'))}
+    function canLeave(){return !busy&&(!dirty||confirm('저장하지 않은 서류 변경사항이 있어요. 화면을 이동할까요?'))}
     function leave(){sequence++;dirty=false;shownPeriod=null;shownSite=null;shownDoc=null;main=null;railBody=null;managerForm=null;panel?.replaceChildren()}
     function status(text){const p=el('p',text,'org-status');p.setAttribute('role','status');return p}
     function failure(err,retry,target=panel){
@@ -181,7 +181,7 @@
       head.append(el('h3',site.folder_name||site.site_name),
         el('p','조회할 서류를 선택하세요.','org-status'));
       const grid=el('div',null,'org-document-grid');
-      const subtitles={chart:'안전보건 조직 및 인원 현황',appointment:'임명장 메뉴 (작성 기능 준비 중)',certificate:'교육수료증 메뉴 (등록 기능 준비 중)',evaluation:'업무수행평가표 메뉴 (작성 기능 준비 중)'};
+      const subtitles={chart:'안전보건 조직 및 인원 현황',appointment:'관리감독자별 임명장 작성, 출력 및 확인',certificate:'교육수료증 메뉴 (등록 기능 준비 중)',evaluation:'업무수행평가표 메뉴 (작성 기능 준비 중)'};
       for(const [key,label] of Object.entries(documents)){
         const card=button('',()=>selectDocument(site,key),'org-document-card');
         card.dataset.doc=key;
@@ -208,6 +208,12 @@
       shownSite=site.site_id;shownDoc=key;shownRevision=undefined;
       paintRail();if(innerWidth<=750)rail.open=false;
       const back=button('← '+(site.folder_name||site.site_name)+' 서류 목록',()=>selectFolder(site.site_id,true),'org-back');
+      if(key==='appointment'){
+        const content=el('div',null,'appt-content'),token=sequence;
+        main.replaceChildren(back,el('h2',site.site_name+' / '+documents[key]),el('p',documentSchedules[key],'org-document-schedule'),content);
+        window.enlSupervisorAppointment(content,u,api,site,{isCurrent:()=>onScreen()&&sequence===token,dirty:v=>dirty=v,busy:v=>busy=v});
+        return;
+      }
       main.replaceChildren(back,el('h2',site.site_name+' / '+documents[key]),el('p',documentSchedules[key],'org-document-schedule'),status(key==='certificate'?'교육수료증 등록 기능은 준비 중입니다.':'해당 서류의 작성 기능은 준비 중입니다.'));
     }
     function paintRail(){

@@ -1,0 +1,9 @@
+#app .appt-selectors{display:flex;gap:10px;align-items:center;margin:14px 0;min-width:0}
+#app .appt-selectors select{flex:1;min-width:0;width:0}
+#app .appt-selectors button{flex:none}
+#app .appt-fields{display:grid;grid-template-columns:2fr 1fr 1fr 1.2fr;gap:12px;margin:16px 0;padding:16px;background:#f4f9fd;border:1px solid #d0e1f1;border-radius:10px}
+#app .appt-fields label{display:flex;flex-direction:column;gap:7px;min-width:0;color:#16476d;font-weight:700}
+#app .appt-fields input{box-sizing:border-box;width:100%;min-width:0;background:#fffdf5;border:1px solid #bd4a53;color:#183e5d;font:inherit;padding:10px;border-radius:6px}
+#app .appt-fields input[readonly]{background:#eef3f7;border-color:#cbd7e1;color:#526578}
+.appt-paper{aspect-ratio:595.28 / 841.89}
+@media(max-width:750px){#app .appt-selectors{flex-wrap:wrap}#app .appt-selectors select{flex-basis:100%;width:100%}#app .appt-fields{grid-template-columns:1fr 1fr;padding:10px;gap:10px}#app .appt-fields input{font-size:16px}}

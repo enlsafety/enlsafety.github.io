@@ -19,7 +19,7 @@ export function halfYear(at = new Date()) {
   return kst.getUTCFullYear() + '-' + (kst.getUTCMonth() < 6 ? 1 : 2);
 }
 
-function validPrintPhoto(data:unknown){
+export function validPrintPhoto(data:unknown){
   if(typeof data!=='string'||data.length>466668||!/^\/9j\/[a-zA-Z0-9+/]*={0,2}$/.test(data))return false;
   let image;
   try{image=atob(data);}catch{return false;}

@@ -1,6 +1,7 @@
 import { storageUsageRequest } from "./storage-usage.ts";
 import { analysisTargetRequest } from "./analysis-targets.ts";
 import { organizationRequest } from "./organization.ts";
+import { appointmentRequest } from './supervisor-appointments.ts';
 import { policyRequest } from "./policy-management.ts";
 import { riskRequest } from "./risk-assessment.ts";
 import { safetyCardRequest } from "./safety-card.ts";
@@ -140,7 +141,7 @@ export async function platformRequest(sql:any,actor:any,body:any,reply:any){
   if(action.startsWith('platform_org_')){
     const [config]=await sql`select item from private.enl_platform_catalog cross join lateral jsonb_array_elements(modules) item where singleton and item->>'key'='organization'`;
     if(!canEnter(config?.item,actor))return reply({ok:false,message:'module_unavailable'},403);
-    return organizationRequest(sql,actor,body,reply);
+    return action.startsWith('platform_org_appointment_')?appointmentRequest(sql,actor,body,reply):organizationRequest(sql,actor,body,reply);
   }
   if(['platform_banners','platform_banner_upload','platform_banners_save'].includes(action))return bannerRequest(sql,actor,body,reply);
   if(['platform_board_list','platform_board_file','platform_board_detail'].includes(action)){
