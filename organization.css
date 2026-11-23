@@ -75,6 +75,9 @@
 #app .org-panel :is(button.org-site-card,button.org-document-card):hover{border-color:#5197bf;background:#ebf6fd;box-shadow:0 4px 12px rgba(28,71,103,.09)}
 #app .org-panel :is(button.org-site-card,button.org-document-card):focus-visible{outline:3px solid #3b91cb;outline-offset:2px}
 .org-site-card strong,.org-document-card strong{font-size:16px;line-height:1.4;color:#193f62}
+.org-document-heading{display:flex;align-items:center;flex-wrap:wrap;gap:8px;min-width:0;padding-right:15px}
+.org-document-heading strong{word-break:keep-all;overflow-wrap:anywhere}
+.org-document-schedule{display:inline-block;max-width:100%;box-sizing:border-box;padding:4px 8px;border:1px solid #c8dfef;border-radius:6px;background:#eaf5fc;color:#245d83;font-size:13px;font-weight:600;line-height:1.5;word-break:keep-all;overflow-wrap:anywhere}
 .org-site-card .org-state,.org-document-card .org-status{font-size:12px;line-height:1.4}
 #app .org-panel button.org-back{margin-bottom:16px;padding:8px 12px;border:0;background:#eaf4fc;color:#265f87}
 @media(max-width:750px){.org-site-grid,.org-document-grid{grid-template-columns:minmax(0,1fr);gap:9px}.org-page-title h3{font-size:18px}#app .org-panel button.org-site-card{min-height:77px;padding:13px}#app .org-panel button.org-document-card{min-height:100px;padding:14px}}
