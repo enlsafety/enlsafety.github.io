@@ -99,37 +99,6 @@ function printPoster(kind,settings,siteName){
   window.addEventListener('afterprint',cleanup,{once:true});
   try{window.print()}catch(e){cleanup();throw e}
 }
-function showProofPhoto(source,description,trigger){
-  const dialog=make('dialog',null,'policy-photo-viewer');
-  dialog.setAttribute('aria-label',description+' 원본 보기');
-  const toolbar=make('div',null,'policy-photo-toolbar'),viewport=make('div',null,'policy-photo-viewport');
-  const image=make('img');image.alt=description;image.draggable=false;
-  const label=make('output','불러오는 중');label.setAttribute('aria-live','polite');
-  let scale=1,fit=false;
-  function resize(){
-    if(!image.naturalWidth)return;
-    image.style.width=fit?'100%':Math.round(image.naturalWidth*scale)+'px';
-    image.style.height=fit?'100%':'auto';
-    image.style.objectFit=fit?'contain':'initial';
-    label.textContent=fit?'화면 맞춤':Math.round(scale*100)+'%';
-    smaller.disabled=fit||scale<=.25;larger.disabled=fit||scale>=4;
-  }
-  const smaller=btn('축소',()=>{scale=Math.max(.25,scale-.25);resize()});
-  const larger=btn('확대',()=>{scale=Math.min(4,scale+.25);resize()});
-  const original=btn('원본 크기',()=>{fit=false;scale=1;resize()});
-  const fitted=btn('화면 맞춤',()=>{fit=true;resize()});
-  const close=btn('닫기',()=>dialog.close());close.autofocus=true;
-  toolbar.append(make('strong','게시 사진 원본'),smaller,label,larger,original,fitted,close);
-  viewport.tabIndex=0;viewport.setAttribute('aria-label','사진 확대 영역. 스크롤하여 사진의 다른 부분을 확인하세요.');
-  viewport.append(image);
-  const help=make('p','확대하거나 원본 크기로 보고, 스크롤해서 날짜와 글씨를 확인하세요.','policy-photo-help');
-  dialog.append(toolbar,help,viewport);
-  dialog.addEventListener('close',()=>{dialog.remove();if(trigger.isConnected)trigger.focus()},{once:true});
-  trigger.closest('.policy-panel').append(dialog);
-  image.onload=resize;
-  image.onerror=()=>{help.textContent='사진을 불러오지 못했습니다. 닫은 뒤 다시 열어 주세요.';label.textContent='불러오기 실패';};
-  dialog.showModal();image.src=source;
-}
 function mount(host,u,api,sameUser){
   const admin=u.role==='safety',field=u.role==='field';
   let enabled=false,panel=null,main=null,nav=null,settings=null,sites=[],siteId=null,kind=null,request=0,busy=false,needCount=0;
@@ -318,7 +287,7 @@ function mount(host,u,api,sameUser){
     if(proof){
       right.append(make('p','제출: '+proof.submittedBy+' / '+when(proof.submittedAt),'policy-help'));
       const image=make('img');image.src=proof.photo;image.alt=s.siteName+' 실제 '+docs[doc]+' 게시 사진';image.loading='lazy';image.className='policy-proof-photo';
-      const preview=btn(null,()=>showProofPhoto(proof.photo,image.alt,preview),'policy-proof-open');
+      const preview=btn(null,()=>window.enlOpenDocumentPhoto(proof.photo,image.alt,preview),'policy-proof-open enl-proof-thumb');
       preview.setAttribute('aria-label',image.alt+' 원본 보기');preview.setAttribute('aria-haspopup','dialog');
       preview.append(image,make('span','사진 클릭하여 원본 보기'));
       right.append(preview);

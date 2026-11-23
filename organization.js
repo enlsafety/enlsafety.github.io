@@ -459,7 +459,10 @@
         const label=el('label');review=el('input');review.type='checkbox';
         review.checked=doc.review_event==='approve';review.disabled=!admin||historic||state!=='pending';review.onchange=update;
         label.append(review,' 조직도와 출력물 사진을 대조했습니다.');
-        evidence.append(el('h3','제출된 출력물 사진'),image,label);main.append(evidence);
+        const preview=button('',()=>window.enlOpenDocumentPhoto(doc.photo,image.alt,preview));
+        preview.className='enl-proof-thumb';preview.setAttribute('aria-label','제출된 조직도 사진 확대 보기');preview.setAttribute('aria-haspopup','dialog');
+        preview.append(image,el('span','사진 클릭하여 확대 보기'));
+        evidence.append(el('h3','제출된 출력물 사진'),preview,label);main.append(evidence);
       }
       const zoom=button('양식 확대',()=>{
         const large=preview.classList.toggle('org-zoomed');
