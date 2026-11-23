@@ -43,6 +43,24 @@ async function waitFor(fn){for(let i=0;i<200;i++){if(fn())return;await tick();}a
   await waitFor(()=>state.d.querySelector('.policy-proof-photo'));
   assert.equal(button(state.d,'게시 사진 제출').disabled,true);
   assert.equal(state.d.querySelectorAll('.policy-flow-steps [data-action-state=required]').length,0);
+  // Opening original photos must remain read-only for every permitted role.
+  await f.call('field',{action:'platform_policy_submit',siteId:'qa-site',kind:'objectives',revision:1,photo});
+  for(const role of ['field','safety','manager','executive','worker'])for(const kind of ['policy','objectives']){
+   const {w,d,ui}=await open(role,kind),trigger=d.querySelector('.policy-proof-open');
+   assert.ok(trigger,role+' can view '+kind+' evidence');trigger.click();
+   const viewer=d.querySelector('.policy-photo-viewer'),image=viewer.querySelector('img');
+   assert.equal(image.src,d.querySelector('.policy-proof-photo').src,'use the stored original without resampling');
+   Object.defineProperty(image,'naturalWidth',{value:2400});image.dispatchEvent(new w.Event('load'));
+   assert.equal(image.style.width,'2400px');
+   button(viewer,'확대').click();assert.equal(image.style.width,'3000px');
+   button(viewer,'축소').click();assert.equal(image.style.width,'2400px');
+   button(viewer,'화면 맞춤').click();assert.equal(image.style.objectFit,'contain');
+   button(viewer,'원본 크기').click();assert.equal(image.style.width,'2400px');
+   assert.equal(button(d,'확인완료').disabled,true,'viewing never approves evidence');
+   button(viewer,'닫기').click();assert.equal(d.querySelector('.policy-photo-viewer'),null);
+   assert.equal(d.activeElement,trigger);trigger.click();ui.leave();
+   assert.equal(d.querySelector('.policy-photo-viewer'),null,'leaving removes private photo');
+  }
   state=await open('safety');assert.ok(button(state.d,'전체 수정'));
   assert.ok(button(state.d,'확인완료').disabled);
   assert.equal(state.d.querySelector('.policy-flow-steps [data-action-state=required]').dataset.step,'3');

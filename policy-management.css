@@ -43,6 +43,20 @@
 .policy-review-panel h4{margin:0 0 12px;font-size:17px;color:#214e71}
 .policy-review-panel .policy-badge{margin-bottom:12px}
 .policy-review-panel .policy-proof-photo{display:block;max-width:100%;width:100%;max-height:280px;object-fit:contain;border:1px solid #d6e1e8;background:#f7fbfd;border-radius:8px}
+.policy-panel .policy-proof-open{display:block;width:100%;padding:0;overflow:hidden;cursor:zoom-in;background:#f7fbfd}
+.policy-proof-open>span{display:block;padding:9px;font-size:14px;font-weight:700}
+.policy-panel .policy-proof-open:focus-visible{outline:3px solid #2877b3;outline-offset:3px}
+.policy-panel .policy-photo-viewer{box-sizing:border-box;width:96vw;max-width:1600px;height:92vh;height:92dvh;max-height:96vh;max-height:96dvh;margin:auto;padding:16px;border:1px solid #bdd4e3;border-radius:12px;background:#fff;color:#203d57;overflow:hidden}
+.policy-panel .policy-photo-viewer[open]{display:flex;flex-direction:column;gap:10px}
+.policy-photo-viewer::backdrop{background:rgba(9,28,47,.78)}
+.policy-photo-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:8px;flex-shrink:0}
+.policy-photo-toolbar strong{margin-right:auto}
+.policy-photo-toolbar output{min-width:58px;text-align:center;font-size:14px}
+.policy-photo-toolbar button{min-height:44px}
+.policy-photo-help{margin:0;font-size:14px;line-height:1.5;flex-shrink:0}
+.policy-photo-viewport{flex:1;min-height:0;min-width:0;overflow:auto;overscroll-behavior:contain;background:#e9eff4;border-radius:8px;-webkit-overflow-scrolling:touch}
+.policy-photo-viewport>img{display:block;max-width:none;max-height:none;margin:0 auto}
+@media(max-width:600px){.policy-panel .policy-photo-viewer{width:96vw;padding:10px}.policy-photo-toolbar{gap:6px}.policy-photo-toolbar strong{flex-basis:100%}.policy-photo-toolbar button{padding:8px 10px}}
 .policy-review-panel>button{width:100%;margin-top:10px;min-height:42px}
 .policy-check-photo{display:flex;gap:8px;align-items:flex-start;padding:12px;margin:15px 0 8px;background:#f0f7fc;border:1px solid #d5e8f6;border-radius:8px;font-size:14px;line-height:1.5}
 .policy-check-photo input{flex:none;margin-top:3px;width:17px;height:17px}
