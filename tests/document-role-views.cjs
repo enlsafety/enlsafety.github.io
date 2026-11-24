@@ -46,6 +46,7 @@ async function verify(f,role,saved){
     assert.equal(keys.length,17);
     if(!saved)for(const key of keys.filter(k=>!['organization','incident'].includes(k))){
       await showSidebar();
+      if(key.startsWith('training-')&&!await sidebar.locator('.hub-training-menus').evaluate(el=>el.open))await sidebar.locator('.hub-training-menus>summary').click();
       const link=sidebar.locator('[data-hub="feature:'+key+'"]');
       const label=await link.locator('span').last().textContent();
       await link.click();await page.locator('.hub-module-preview:visible').waitFor();

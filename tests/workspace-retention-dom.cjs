@@ -2,6 +2,7 @@
 const {JSDOM,VirtualConsole}=require('jsdom');
 const fs=require('node:fs'),assert=require('node:assert/strict');
 const {orgFixture}=require('./organization.cjs');
+const windows=[];
 const until=async(fn,label)=>{for(let i=0;i<400;i++){if(fn())return;await new Promise(r=>setTimeout(r,20));}throw Error('timeout '+label)};
 (async()=>{
  const f=await orgFixture();
@@ -19,7 +20,7 @@ const until=async(fn,label)=>{for(let i=0;i<400;i++){if(fn())return;await new Pr
   const dom=new JSDOM(html,{url:'https://isolated.test/stable412.html?role='+role,runScripts:'dangerously',pretendToBeVisual:true,virtualConsole:vc,beforeParse(w){
    w.qaRiskList=async body=>(await f.call(role,{action:'platform_risk_list',manageFolders:body.manageFolders,includeTasks:body.includeTasks})).body;
    Object.assign(w,{TextEncoder,TextDecoder,structuredClone,Response,Request,Headers,AbortController,fetch:async()=>new Response('{}'),scrollTo:(x,y)=>{w.scrollX=x;w.scrollY=y;},confirm:()=>{confirms++;return answer;},alert:()=>{}});
-   w.ResizeObserver=class{observe(){}disconnect(){}};w.HTMLElement.prototype.scrollIntoView=()=>{};w.matchMedia=()=>({matches:false,addEventListener(){},removeEventListener(){}});w.URL.createObjectURL=()=>'';w.URL.revokeObjectURL=()=>{};
+   w.CSS={escape:value=>String(value).replace(/[^a-zA-Z0-9_-]/g,c=>String.fromCharCode(92)+c)};w.ResizeObserver=class{observe(){}disconnect(){}};w.HTMLElement.prototype.scrollIntoView=()=>{};w.matchMedia=()=>({matches:false,addEventListener(){},removeEventListener(){}});w.URL.createObjectURL=()=>'';w.URL.revokeObjectURL=()=>{};
   }});
   const w=dom.window,d=w.document;
   const append=d.head.append.bind(d.head);
@@ -45,7 +46,7 @@ const until=async(fn,label)=>{for(let i=0;i<400;i++){if(fn())return;await new Pr
    await until(()=>d.querySelector('[data-risk-template=office]'),'books');d.querySelector('[data-risk-template=office]').click();
    await frame.activateWorkTab('home');await until(()=>d.querySelector('.risk-paper'),'background document loading');await frame.activateWorkTab('risk');
    assert.equal(d.head.querySelectorAll('script[src*="risk-paper-templates"]').length,1);
-   assert.equal(!!d.querySelector('.hub-sidebar [data-hub="feature:risk"] .hub-task-dot'),['field','safety'].includes(role));
+   assert.ok(d.querySelector('.hub-sidebar [data-hub="feature:risk"] .hub-document-dot'),'no safety approval is recorded for risk documents');
    const evaluator=d.querySelector('[data-risk-field=evaluator]'),paper=d.querySelector('.risk-paper-scroll'),improvements=d.querySelector('.risk-improvements');
    if(['field','safety'].includes(role)){evaluator.value='유지 '+role;evaluator.dispatchEvent(new w.Event('input',{bubbles:true}));}
    improvements.open=true;paper.scrollLeft=250;w.scrollTo(0,420);const before=confirms;
@@ -74,13 +75,13 @@ const until=async(fn,label)=>{for(let i=0;i<400;i++){if(fn())return;await new Pr
    await frame.activateWorkTab('home');await frame.activateWorkTab('bulletins');assert.equal(d.querySelector('.hub-board-filter [name=query]'),search);assert.equal(search.value,'미검색 입력');
    await frame.activateWorkTab('risk');assert.equal(d.querySelector('[data-risk-field=evaluator]'),evaluator);
    if(['field','safety'].includes(role)){
-    answer=false;await frame.activateWorkTab('home');d.querySelector('[aria-label="위험성평가 탭 닫기"]').click();await new Promise(r=>setTimeout(r,30));assert.ok(d.querySelector('[data-worktab=risk]'),'inactive dirty close cancellation');
-    answer=true;d.querySelector('[aria-label="위험성평가 탭 닫기"]').click();await until(()=>!d.querySelector('[data-worktab=risk]'),'close risk');
+    answer=false;await frame.activateWorkTab('home');d.querySelector('[aria-label="08. 위험성 평가 탭 닫기"]').click();await new Promise(r=>setTimeout(r,30));assert.ok(d.querySelector('[data-worktab=risk]'),'inactive dirty close cancellation');
+    answer=true;d.querySelector('[aria-label="08. 위험성 평가 탭 닫기"]').click();await until(()=>!d.querySelector('[data-worktab=risk]'),'close risk');
     await frame.activateWorkTab('risk');await until(()=>d.querySelector('.risk-panel .org-site-card'),'reopened risk');assert.equal(d.querySelector('.risk-editor'),null,'explicit close resets');
    }
    assert.deepEqual(errors,[]);d.querySelector('#logoutBtn').click();assert.equal(d.querySelector('.risk-editor'),null);assert.equal(d.querySelector('[data-worktab]'),null);
    console.log('PASS retained tabs '+role+': async loading, dirty input, sheet scroll, details, native root, photos, system shell, close and logout');
-  }finally{w.close();}
+  }finally{windows.push(w);}
  }
  }finally{await f.db.close();}
-})().catch(e=>{console.error(e);process.exitCode=1;});
+})().then(()=>{for(const w of windows)w.close();process.exit(0);}).catch(e=>{console.error(e);process.exit(1);});

@@ -101,6 +101,8 @@ jobs:
         run: node tests/supervisor-appointments.cjs
       - name: Single-source cause and prevention regression
         run: node tests/prevention-cause-source.cjs
+      - name: Document sidebar navigation regression
+        run: node tests/sidebar-dom.cjs
       - name: Cause draft release regression
         run: |
           node --check incident-flow-v440.js
