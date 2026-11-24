@@ -93,3 +93,5 @@
 .policy-rail-child>.policy-document-dot{right:8px;top:50%;transform:translateY(-50%)}
 .policy-review-panel>.policy-message{margin:6px 0;padding:8px 10px;background:#e6f1fa;border-radius:7px}
 @media(max-width:600px){.policy-flow-steps{grid-template-columns:minmax(0,1fr);gap:8px}.policy-review-head .org-flow-legend{font-size:11px}}
+
+.policy-document-dot.is-approved{width:14px;height:16px;border-radius:0;background:none;box-shadow:none;color:#198348;font-size:17px;line-height:16px;font-weight:800;text-align:center}

@@ -804,3 +804,13 @@
 .platform-hub .hub-training-menus>summary::after{grid-column:3;grid-row:1;margin:0}
 .platform-hub .hub-document-menus .hub-document-dot{grid-column:3;grid-row:1;position:static;transform:none;display:block;width:9px;height:9px;border-radius:50%;background:#d73740;box-shadow:0 0 0 1px #fff;margin:0;justify-self:center;align-self:center;pointer-events:none}
 .platform-hub .hub-training-menus>summary>.hub-document-dot{grid-column:4}
+
+/* Unavailable menus are visible, but never interactive or included in alerts. */
+.platform-hub .hub-sidebar nav button.is-unimplemented,
+.platform-hub .hub-sidebar .hub-training-menus.is-unimplemented>summary{color:#a8b2bf!important;opacity:1;background:transparent!important;box-shadow:none!important;transform:none!important;cursor:default!important;pointer-events:none}
+.platform-hub .hub-sidebar nav button.is-unimplemented svg,
+.platform-hub .hub-training-menus.is-unimplemented>summary svg{opacity:.48}
+.platform-hub .hub-training-menus.is-unimplemented>summary::after{opacity:.35}
+.platform-hub .hub-document-menus .hub-sidebar-row>button{grid-template-columns:18px minmax(0,1fr) 14px}
+.platform-hub .hub-training-menus>summary{grid-template-columns:18px minmax(0,1fr) 6px 14px}
+.platform-hub .hub-document-menus .hub-document-dot.is-approved{width:14px;height:16px;border-radius:0;background:none;box-shadow:none;color:#6cdb9c;font-size:17px;line-height:16px;font-weight:800;text-align:center}

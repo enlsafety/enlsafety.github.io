@@ -11,7 +11,7 @@
     const setDirty=v=>{dirty=v;if(active())hooks.dirty(v);};
     const editable=()=>['field','safety'].includes(user.role)&&(user.role==='safety'||site.active!==false);
     const canChange=()=>!busy&&(!dirty||confirm('저장하지 않은 교육수료증 변경사항이 있습니다. 이동할까요?'));
-    const errorText=e=>({appointment_changed:'임명장이 변경되었습니다. 최신 자료를 불러온 뒤 대상자와 임명일을 확인해 주세요.',certificate_changed:'다른 사용자가 수료증을 수정했습니다. 최신 자료를 불러와 주세요.',folder_changed:'사업장 폴더가 변경되었습니다. 최신 자료를 불러와 주세요.',invalid_completion_date:'수료일은 임명일 이후부터 오늘까지의 실제 날짜로 입력해 주세요.',photo_required:'교육수료증 사진을 첨부해 주세요.',forbidden:'이 자료를 수정할 권한이 없습니다.'}[e.message]||'처리 결과를 확인하지 못했습니다. 최신 자료를 불러와 저장 여부를 확인해 주세요.');
+    const errorText=e=>({appointment_changed:'임명장이 변경되었습니다. 최신 자료를 불러온 뒤 대상자와 임명일을 확인해 주세요.',certificate_changed:'다른 사용자가 수료증을 수정했습니다. 최신 자료를 불러와 주세요.',folder_changed:'사업장 폴더가 변경되었습니다. 최신 자료를 불러와 주세요.',invalid_completion_date:'수료일은 임명일 이후부터 오늘까지의 실제 날짜로 입력해 주세요.',photo_required:'교육수료증 사진을 첨부해 주세요.',photo_review_required:'저장된 수료증 사진과 수료일을 확인한 후 승인해 주세요.',forbidden:'이 자료를 수정할 권한이 없습니다.'}[e.message]||'처리 결과를 확인하지 못했습니다. 최신 자료를 불러와 저장 여부를 확인해 주세요.');
     async function load(id=selectedId,index){
       setBusy(true);root.replaceChildren(el('p','교육수료증과 임명일을 불러오는 중입니다.','org-status'));
       try{
@@ -73,7 +73,8 @@
       const source=el('a','교육주기 안내 (고용노동부)');source.href='https://1350.moel.go.kr/rtmview.do?id=1000261996';source.target='_blank';source.rel='noopener noreferrer';root.append(source);
       editor=el('section',null,'cert-editor');editor.hidden=true;root.append(editor);
       function recordRow(record){
-        const row=el('div',null,'cert-record');row.append(el('strong','수료일 '+record.completed_on),el('span',record.appointment.name+' / '+record.actor_name+' 등록 / '+when(record.saved_at)));
+        const row=el('div',null,'cert-record');row.append(el('strong','수료일 '+record.completed_on),el('span',record.appointment.name+' / '+record.actor_name+(record.event==='approve'?' 승인 / ':' 등록 / ')+when(record.saved_at)));
+        row.append(el('span',record.event==='approve'?'안전관리자 승인 완료':'안전관리자 승인 대기',record.event==='approve'?'cert-success':'cert-warning'));
         row.append(button('사진 및 저장 이력',()=>{if(canChange())openRecord(record);}));return row;
       }
     }
@@ -95,7 +96,7 @@
       editor.append(el('h3',doc?'교육수료증 상세':'교육수료증 등록'));
       if(result){
         const versions=el('label','저장 이력'),select=el('select');select.setAttribute('aria-label','수료증 저장 이력');
-        for(const h of result.history)select.add(new Option(when(h.saved_at)+' / '+h.actor_name+' / 수료일 '+h.completed_on+' (v'+h.revision+')',h.revision,false,h.revision===doc.revision));
+        for(const h of result.history)select.add(new Option(when(h.saved_at)+' / '+h.actor_name+' / '+(h.event==='approve'?'승인':'등록')+' / 수료일 '+h.completed_on+' (v'+h.revision+')',h.revision,false,h.revision===doc.revision));
         select.onchange=()=>{const rev=Number(select.value);select.value=doc.revision;if(canChange())openRecord(doc,rev);};versions.append(select);editor.append(versions);
         if(historic||!M.matches(doc,a.appointment))editor.append(el('p','이전 저장본입니다. 당시 임명일: '+doc.appointment.date+' / 성명: '+doc.appointment.name,'org-status'));
       }
@@ -126,12 +127,35 @@
         try{
           await api({action:'platform_org_certificate_save',siteId:site.site_id,appointmentId:a.document_id,appointmentRevision:a.revision,folderRevision:site.folder_revision,certificateId:id,revision:doc?.revision||0,completedOn:date.value,...(photo?{photo}:{})});
           if(!active())return;
-          const index=M.current(a.appointment.date,date.value).index;setDirty(false);await load(a.document_id,index);
+          const index=M.current(a.appointment.date,date.value).index;setDirty(false);await load(a.document_id,index);hooks.changed?.();
           if(active())root.prepend(el('p','교육수료증을 저장했습니다.','cert-success'));
         }catch(e){if(active())note.replaceChildren(el('span',errorText(e)),button('최신 자료 불러오기',()=>{if(canChange())load(a.document_id);}));}
         finally{setBusy(false);root.inert=false;}
       };
       form.append(dateLabel,fileLabel,periodNote,preview,note,save,close);editor.append(form);
+      if(doc){
+        editor.append(el('p',doc.event==='approve'?'안전관리자 승인 완료. 수정 저장하면 다시 승인을 받아야 합니다.':'등록된 수료증은 안전관리자 승인 대기 중입니다.',doc.event==='approve'?'cert-success':'cert-warning'));
+      }
+      if(doc&&!historic&&M.matches(doc,a.appointment)&&doc.event!=='approve'&&user.role==='safety'){
+        let photoLoaded=false;
+        const reviewLabel=el('label',null,'cert-review'),review=el('input');review.type='checkbox';review.disabled=true;
+        reviewLabel.append(review,document.createTextNode('저장된 수료증 사진의 성명, 교육내용과 수료일을 확인했습니다.'));
+        const approve=button('수료증 승인',async()=>{
+          if(busy||dirty||!review.checked||!photoLoaded)return;
+          setBusy(true);root.inert=true;note.textContent='승인 중입니다.';
+          try{
+            await api({action:'platform_org_certificate_approve',siteId:site.site_id,appointmentId:a.document_id,appointmentRevision:a.revision,folderRevision:site.folder_revision,certificateId:id,revision:doc.revision,reviewedPhotoRevision:doc.photo_revision});
+            if(!active())return;await load(a.document_id,periodIndex);hooks.changed?.();
+            if(active())root.prepend(el('p','교육수료증을 승인했습니다.','cert-success'));
+          }catch(e){if(active())note.textContent=errorText(e);}
+          finally{setBusy(false);root.inert=false;}
+        },'org-primary');approve.disabled=true;
+        const updateReview=()=>{review.disabled=dirty||!photoLoaded;approve.disabled=dirty||!photoLoaded||!review.checked;};
+        const image=preview.querySelector('img');
+        if(image){image.onload=()=>{photoLoaded=true;updateReview();};if(image.complete&&image.naturalWidth){photoLoaded=true;}}
+        review.onchange=updateReview;form.addEventListener('input',updateReview);form.addEventListener('change',()=>{review.checked=false;approve.disabled=true;});
+        updateReview();editor.append(reviewLabel,approve);
+      }
       if(!doc)date.focus();
     }
     load();

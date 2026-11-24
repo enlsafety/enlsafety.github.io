@@ -26,14 +26,20 @@ for(const m of config.modules)if(documentNames[m.key])m.displayName=documentName
   }else{assert.equal(d.querySelector('.hub-storage-usage'),null);assert.equal(w.__fixtureCalls.filter(x=>x==='platform_storage_usage').length,0);}
   assert.equal(d.querySelector('.hub-training-menus').open,false,'education initially collapsed');
   const docIcons=[...d.querySelectorAll('.hub-document-menus use')].map(e=>e.getAttribute('href'));assert.equal(new Set(docIcons).size,docIcons.length,'distinct category pictograms');
-  assert.equal(d.querySelectorAll('.hub-training-menus button .hub-document-dot').length,5,'unapproved education remains marked');
+  assert.equal(d.querySelectorAll('.hub-training-menus .hub-document-dot').length,0,'unimplemented education has no alerts');
+  const education=d.querySelector('.hub-training-menus>summary');education.click();assert.equal(d.querySelector('.hub-training-menus').open,false);
+  for(const b of d.querySelectorAll('.hub-training-menus button')){assert.ok(b.disabled);assert.match(b.textContent,/구현중/);}
+  const incident=d.querySelector('.hub-document-menus [data-hub="feature:incident"]');
+  hub.setDocumentApprovalState('incident',0,'',1);assert.equal(incident.querySelector('.is-approved')?.textContent,'✓');
+  hub.setDocumentApprovalState('incident',0,'',0);assert.equal(incident.querySelector('.hub-document-dot'),null,'no false approval for zero documents');
+  hub.setDocumentApprovalState('incident',1,'미승인',1);assert.ok(incident.querySelector('.hub-document-dot:not(.is-approved)'));
+  hub.setDocumentApprovalState('policy',3,'미승인',3);assert.equal(nav.querySelector('[data-hub="feature:policy"] .hub-document-dot'),null,'unimplemented never gets alerts');
+  assert.ok(nav.querySelector('[data-hub="feature:tbm"]').disabled);
   const keys=[...nav.querySelectorAll('[data-hub]')].map(n=>n.dataset.hub);
   let group=d.querySelector('.hub-document-menus');assert.equal(group.open,true);group.querySelector('summary').click();await until(()=>!group.open,'collapse');
   await hub.reloadCatalog();group=d.querySelector('.hub-document-menus');assert.equal(group.open,false,'collapse retained on catalog refresh');group.querySelector('summary').click();await until(()=>group.open,'expand');
   assert.deepEqual([...nav.querySelectorAll('[data-hub]')].map(n=>n.dataset.hub),keys,'collapse never drops menu entries');
-  nav.querySelector('[data-hub="feature:policy"]').click();await until(()=>!d.querySelector('.hub-module-preview').hidden,'policy view');assert.match(d.querySelector('.hub-module-preview h2').textContent,/경영방침/);
-  assert.equal(nav.querySelector('[data-hub="feature:policy"]').getAttribute('aria-current'),'page');
-  nav.querySelector('[data-hub="home"]').click();await until(()=>nav.querySelector('[data-hub="home"]').classList.contains('on'),'home');
+  const disabled=nav.querySelector('[data-hub="feature:policy"]'),workspace=hub.dataset.workspace;assert.ok(disabled.disabled);disabled.click();assert.equal(hub.dataset.workspace,workspace,'disabled menu cannot navigate');
   d.querySelector('.hub-mobile-menu').click();assert.equal(hub.classList.contains('hub-menu-open'),true);d.querySelector('.hub-sidebar-backdrop').click();assert.equal(hub.classList.contains('hub-menu-open'),false);
   assert.ok(d.querySelector('.topbar .enl-system-mark'),'approved app icon retained');assert.ok(d.querySelector('.hub-inquiry'),'support retained');assert.deepEqual(errors,[]);
   console.log('PASS sidebar '+role+': menu identity, collapse/reopen, selected state, mobile drawer, admin controls and app branding');

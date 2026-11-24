@@ -461,7 +461,7 @@ dialog.draft-resume-dialog{position:fixed;inset:0;box-sizing:border-box;width:mi
 
 /* One notification-dot treatment across navigation, documents and required steps. */
 :root{--enl-alert-dot-color:#d73740;--enl-alert-dot-ring:0 0 0 2px #fff}
-:is(.enl424-nav-dot,.org-dot,.org-document-dot,.policy-dot,.policy-document-dot),
+:is(.enl424-nav-dot,.org-dot,.org-document-dot,.policy-dot,.policy-document-dot):not(.is-approved),
 .org-state.pending::before,
 .org-flow-step[data-action-state=required]>.org-flow-heading::before,
 .org-flow-legend>[data-action-state=required]::before{

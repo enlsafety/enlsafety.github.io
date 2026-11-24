@@ -101,14 +101,15 @@ function printPoster(kind,settings,siteName){
 }
 function mount(host,u,api,sameUser){
   const admin=u.role==='safety',field=u.role==='field';
-  let enabled=false,panel=null,main=null,nav=null,settings=null,sites=[],siteId=null,kind=null,request=0,busy=false,needCount=0,approvalPending=null;
+  let enabled=false,panel=null,main=null,nav=null,settings=null,sites=[],siteId=null,kind=null,request=0,busy=false,needCount=0,approvalPending=null,approvalTotal=0;
   const status=(message)=>make('p',message,'policy-message');
   const documentWork=(s,state)=>s.active&&state!=='approved'&&(admin||field&&state!=='pending');
   const hasWork=s=>documentWork(s,s.policyState)||documentWork(s,s.objectivesState);
-  function workDot(node,needed){
-    if(!needed)return;
-    const dot=make('span',null,'policy-document-dot');dot.setAttribute('aria-hidden','true');
-    node.setAttribute('aria-description','처리할 일이 있습니다.');node.append(dot);
+  function workDot(node,needed,approved=false){
+    if(!needed&&!approved)return;
+    const label=approved?'안전관리자 승인 완료':'미제출 또는 안전관리자 승인 미완료';
+    const dot=make('span',approved?'✓':null,'policy-document-dot'+(approved?' is-approved':''));dot.setAttribute('role','img');dot.setAttribute('aria-label',label);dot.title=label;
+    node.setAttribute('aria-description',label);node.append(dot);
   }
   function badges(){
     for(const el of host.querySelectorAll('[data-module="policy"],[data-hub="feature:policy"]')){
@@ -119,7 +120,7 @@ function mount(host,u,api,sameUser){
       dot.title=admin?'확인이 필요한 사업장 '+needCount+'개':'현장 최신화 미완료';
       dot.setAttribute('aria-label',dot.title);
     }
-    if(enabled&&approvalPending!==null)host.setDocumentApprovalState?.('policy',approvalPending,'안전보건 경영방침 및 목표 안전관리자 승인 미완료 '+approvalPending+'개 사업장');
+    if(enabled&&approvalPending!==null)host.setDocumentApprovalState?.('policy',approvalPending,'안전보건 경영방침 및 목표 안전관리자 승인 미완료 '+approvalPending+'개 사업장',approvalTotal);
   }
   let badgeRequest=0;
   async function refreshBadges(){
@@ -128,12 +129,12 @@ function mount(host,u,api,sameUser){
     try{
       const result=await api({action:'platform_policy_list'});
       if(id!==badgeRequest||!sameUser()||!enabled)return;
-      needCount=(result.sites||[]).filter(hasWork).length;approvalPending=(result.sites||[]).filter(s=>s.active!==false&&(s.policyState!=='approved'||s.objectivesState!=='approved')).length;badges();
+      approvalTotal=(result.sites||[]).filter(s=>s.active!==false).length;needCount=(result.sites||[]).filter(hasWork).length;approvalPending=(result.sites||[]).filter(s=>s.active!==false&&(s.policyState!=='approved'||s.objectivesState!=='approved')).length;badges();
     }catch{/* Leave the last verified badge state unchanged during a transient outage. */}
   }
   function catalog(m){
     enabled=!!m&&m.enabled!==false&&m.state!=='hidden'&&m.canEnter!==false&&(m.state==='live'||m.preview);
-    if(!enabled){needCount=0;approvalPending=null;}badges();if(enabled)refreshBadges();
+    if(!enabled){needCount=0;approvalPending=null;approvalTotal=0;}badges();if(enabled)refreshBadges();
   }
   function canLeave(){return !busy}
   function canSuspend(){return !busy}
@@ -161,7 +162,7 @@ function mount(host,u,api,sameUser){
       if(s.siteId===siteId){
         for(const [doc,label] of Object.entries(docs)){
           const sub=btn(label,()=>chooseDocument(doc),'policy-rail-child');
-          workDot(sub,documentWork(s,s[doc==='policy'?'policyState':'objectivesState']));
+          workDot(sub,s.active&&s[doc==='policy'?'policyState':'objectivesState']!=='approved',s.active&&s[doc==='policy'?'policyState':'objectivesState']==='approved');
           if(kind===doc)sub.setAttribute('aria-current','page');nav.append(sub);
         }
       }
@@ -191,7 +192,7 @@ function mount(host,u,api,sameUser){
       const state=s[k==='policy'?'policyState':'objectivesState'];
       const card=btn('',()=>chooseDocument(k),'policy-document-card');
       card.append(make('strong',name),make('span',steps[state]||steps.empty,'policy-badge '+stateClass(state)));
-      workDot(card,documentWork(s,state));
+      workDot(card,s.active&&state!=='approved',s.active&&state==='approved');
       grid.append(card);
     }
     main.replaceChildren(back,heading,grid);
@@ -206,7 +207,7 @@ function mount(host,u,api,sameUser){
       if(seq!==request||!sameUser()||!main)return;
       sites=result.sites||[];settings=result.settings;
       siteId=sites.some(s=>s.siteId===oldSite)?oldSite:null;kind=siteId?oldKind:null;
-      needCount=sites.filter(hasWork).length;approvalPending=sites.filter(s=>s.active!==false&&(s.policyState!=='approved'||s.objectivesState!=='approved')).length;badges();head();
+      approvalTotal=sites.filter(s=>s.active!==false).length;needCount=sites.filter(hasWork).length;approvalPending=sites.filter(s=>s.active!==false&&(s.policyState!=='approved'||s.objectivesState!=='approved')).length;badges();head();
       if(siteId&&kind)await chooseDocument(kind);
       else if(siteId)documentsPage();else sitesPage();
     }catch(e){if(seq===request&&main){main.replaceChildren(status('최신화 현황을 불러오지 못했습니다.'),btn('다시 불러오기',()=>reload(preserve)));}}

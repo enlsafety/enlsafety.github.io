@@ -21,7 +21,7 @@ async function check(engine,width) {
       const org=page.locator('[data-hub="feature:organization"]>.hub-document-dot');
       for(const state of ['empty','draft','pending','approved','draft']){
         await page.evaluate(state=>{
-          window.records[0]={active:true,state,checked:state==='approved'};
+          window.records[0]={active:true,state,checked:state==='approved',documentStates:{chart:state,appointment:state,certificate:state}};
           window.dispatchEvent(new Event('focus'));
         },state);
         const actionable=state!=='approved';

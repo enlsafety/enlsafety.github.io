@@ -7,8 +7,9 @@ export async function certificateRequest(sql:any,actor:any,body:any,reply:any){
   if(!['field','worker','safety','manager','executive'].includes(actor.role))return reply({ok:false,message:'forbidden'},403);
   const siteId=body.siteId,op=body.action.slice('platform_org_certificate_'.length);
   if(typeof siteId!=='string'||!siteId||siteId.length>128||(scoped&&siteId!==actor.siteId))return reply({ok:false,message:'forbidden'},403);
-  if(!['list','open','save'].includes(op))return reply({ok:false,message:'unknown_action'},400);
+  if(!['list','open','save','approve'].includes(op))return reply({ok:false,message:'unknown_action'},400);
   if(op==='save'&&!field&&actor.role!=='safety')return reply({ok:false,message:'forbidden'},403);
+  if(op==='approve'&&actor.role!=='safety')return reply({ok:false,message:'forbidden'},403);
   return sql.begin(async(tx:any)=>{
     await tx`select pg_advisory_xact_lock(hashtextextended(${siteId},2911))`;
     const [site]=await tx`select s.site_id,s.site_name,s.active,f.revision as folder_revision
@@ -19,7 +20,7 @@ export async function certificateRequest(sql:any,actor:any,body:any,reply:any){
       const appointments=await tx`select distinct on(document_id) document_id,revision,appointment,event
         from private.enl_supervisor_appointments where site_id=${siteId} order by document_id,revision desc`;
       appointments.sort((a:any,b:any)=>a.appointment.name.localeCompare(b.appointment.name,'ko'));
-      const records=await tx`select distinct on(certificate_id) certificate_id,appointment_id,appointment,revision,completed_on::text,actor_name,saved_at
+      const records=await tx`select distinct on(certificate_id) certificate_id,appointment_id,appointment,revision,event,completed_on::text,actor_name,saved_at
         from private.enl_supervisor_certificates where site_id=${siteId} order by certificate_id,revision desc`;
       return reply({ok:true,site,today:model.today(),appointments,records});
     }
@@ -27,11 +28,11 @@ export async function certificateRequest(sql:any,actor:any,body:any,reply:any){
     if(!validId(id))return reply({ok:false,message:'invalid_certificate'},400);
     if(op==='open'){
       if(body.revision!=null&&(!Number.isInteger(body.revision)||body.revision<1))return reply({ok:false,message:'invalid_revision'},400);
-      const history=await tx`select revision,completed_on::text,saved_at,actor_name,appointment from private.enl_supervisor_certificates
+      const history=await tx`select revision,event,completed_on::text,saved_at,actor_name,appointment from private.enl_supervisor_certificates
         where site_id=${siteId} and certificate_id=${id} order by revision desc`;
       const revision=body.revision??history[0]?.revision;
       if(!revision)return reply({ok:false,message:'unavailable'},404);
-      const [document]=await tx`select c.certificate_id,c.appointment_id,c.appointment,c.appointment_revision,c.revision,c.completed_on::text,c.saved_at,c.actor_name,
+      const [document]=await tx`select c.certificate_id,c.appointment_id,c.appointment,c.appointment_revision,c.revision,c.event,c.photo_revision,c.completed_on::text,c.saved_at,c.actor_name,
         encode(p.photo_jpeg,'base64') as photo from private.enl_supervisor_certificates c
         join private.enl_supervisor_certificates p on p.site_id=c.site_id and p.certificate_id=c.certificate_id and p.revision=c.photo_revision
         where c.site_id=${siteId} and c.certificate_id=${id} and c.revision=${revision}`;
@@ -46,11 +47,19 @@ export async function certificateRequest(sql:any,actor:any,body:any,reply:any){
       where site_id=${siteId} and document_id=${body.appointmentId} order by revision desc limit 1`;
     if(!appointment)return reply({ok:false,message:'appointment_required'},400);
     if(appointment.revision!==body.appointmentRevision)return reply({ok:false,message:'appointment_changed'},409);
-    if(!model.validDate(body.completedOn)||body.completedOn>model.today()||body.completedOn<appointment.appointment.date)return reply({ok:false,message:'invalid_completion_date'},400);
-    const [last]=await tx`select revision,appointment_id,appointment,photo_revision from private.enl_supervisor_certificates
+    const [last]=await tx`select revision,event,appointment_id,appointment,photo_revision,completed_on::text from private.enl_supervisor_certificates
       where site_id=${siteId} and certificate_id=${id} order by revision desc limit 1`;
     if((last?.revision??0)!==body.revision)return reply({ok:false,message:'certificate_changed'},409);
     if(last&&(last.appointment_id!==body.appointmentId||last.appointment.name!==appointment.appointment.name||last.appointment.date!==appointment.appointment.date))return reply({ok:false,message:'appointment_changed'},409);
+    if(op==='approve'){
+      if(!last||last.event==='approve')return reply({ok:false,message:'certificate_changed'},409);
+      if(body.reviewedPhotoRevision!==last.photo_revision)return reply({ok:false,message:'photo_review_required'},400);
+      const revision=last.revision+1;
+      await tx`insert into private.enl_supervisor_certificates(site_id,certificate_id,revision,appointment_id,appointment_revision,appointment,completed_on,photo_revision,actor_id,actor_name,event)
+        values(${siteId},${id},${revision},${body.appointmentId},${appointment.revision},${tx.json(appointment.appointment)},${last.completed_on}::date,${last.photo_revision},${actor.id},${actor.name},'approve')`;
+      return reply({ok:true,certificateId:id,revision});
+    }
+    if(!model.validDate(body.completedOn)||body.completedOn>model.today()||body.completedOn<appointment.appointment.date)return reply({ok:false,message:'invalid_completion_date'},400);
     const supplied=body.photo!==undefined;
     if(supplied&&!validPrintPhoto(body.photo)||!supplied&&!last)return reply({ok:false,message:'photo_required'},400);
     const revision=body.revision+1;

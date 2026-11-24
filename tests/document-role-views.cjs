@@ -45,21 +45,19 @@ async function verify(f,role,saved){
     const keys=await buttons.evaluateAll(es=>es.map(e=>e.dataset.hub.slice(8)));
     assert.equal(keys.length,17);
     if(!saved)for(const key of keys.filter(k=>!['organization','incident'].includes(k))){
-      await showSidebar();
-      if(key.startsWith('training-')&&!await sidebar.locator('.hub-training-menus').evaluate(el=>el.open))await sidebar.locator('.hub-training-menus>summary').click();
       const link=sidebar.locator('[data-hub="feature:'+key+'"]');
-      const label=await link.locator('span').last().textContent();
-      await link.click();await page.locator('.hub-module-preview:visible').waitFor();
-      assert.equal(await page.locator('.hub-module-preview h2').innerText(),label);
+      assert.ok(await link.isDisabled());assert.match(await link.textContent(),/구현중/);
+      assert.equal(await link.locator('.hub-document-dot').count(),0);
     }
     await showSidebar();await sidebar.locator('[data-hub="feature:organization"]').click();
     const site=page.locator('.org-folder[data-site-id="qa-site"]');
     await site.click();
     const main=page.locator('.org-main');
-    for(const key of ['appointment','evaluation','chart']){
+    assert.ok(await page.locator('[data-owner="qa-site"][data-doc="evaluation"]').isDisabled());
+    for(const key of ['appointment','chart']){
       const rail=page.locator('.org-rail');if(!await rail.evaluate(e=>e.open))await rail.locator('summary').click();
       await page.locator('[data-owner="qa-site"][data-doc="'+key+'"]').click();
-      if(key!=='chart')assert.match(await main.innerText(),/준비 중/);
+      if(key==='appointment')await main.locator('.appt-content select').waitFor();
     }
     await main.locator('.org-paper img').waitFor();
     assert.ok(await main.locator('.org-paper img').evaluate(async e=>{await e.decode();return e.naturalWidth>0}));

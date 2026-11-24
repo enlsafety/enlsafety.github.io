@@ -4,7 +4,6 @@ const {policyFixture,photo}=require('./policy-management.cjs');
 (async()=>{
  const f=await policyFixture();
  try{
-  await f.db.exec(fs.readFileSync('supabase/migrations/20261123090000_supervisor_appointments.sql','utf8'));
   const call=(role,op,data={})=>f.call(role,{action:'platform_org_appointment_'+op,siteId:'qa-site',...data});
   const data={department:'QA 가상 사업장',position:'팀장',name:'가상 관리감독자',date:'2026-11-23'};
   const req={documentId:'bbaca1de-8689-451a-9781-b2c11d7c95a4',revision:0,folderRevision:1,appointment:data};

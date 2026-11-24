@@ -98,7 +98,10 @@ jobs:
           node tests/safety-card-api.cjs
           node tests/activity-history.cjs
       - name: Supervisor appointment workflow regression
-        run: node tests/supervisor-appointments.cjs
+        run: |
+          node tests/supervisor-appointments.cjs
+          node tests/supervisor-certificates.cjs
+          node tests/supervisor-certificates-dom.cjs
       - name: Single-source cause and prevention regression
         run: node tests/prevention-cause-source.cjs
       - name: Document sidebar navigation regression

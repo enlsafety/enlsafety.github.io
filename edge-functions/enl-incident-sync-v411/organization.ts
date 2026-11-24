@@ -1,3 +1,4 @@
+import './supervisor-training-model.js';
 const groups = 4;
 const validText = (value:unknown, limit:number) => typeof value === 'string'
   && !!value.trim() && value.trim().length <= limit && !/[\u0000-\u001f\u007f]/.test(value);
@@ -87,7 +88,10 @@ export async function organizationRequest(sql:any, actor:any, body:any, reply:an
   ) v on true`;
   if (body.action === 'platform_org_list') {
     const sites = await sql`select s.site_id,s.site_name,coalesce(f.display_name,s.site_name) as folder_name,f.revision as folder_revision,s.active,v.revision,v.saved_at,
-        v.period,v.confirmed,v.photo_revision,v.review_event,(select max(revision) from private.enl_org_charts where site_id=s.site_id) as tip
+        v.period,v.confirmed,v.photo_revision,v.review_event,
+        (select jsonb_agg(a) from (select distinct on(document_id) document_id,appointment,event from private.enl_supervisor_appointments where site_id=s.site_id order by document_id,revision desc) a) as appointments,
+        (select jsonb_agg(c) from (select distinct on(certificate_id) appointment_id,appointment,completed_on,event from private.enl_supervisor_certificates where site_id=s.site_id order by certificate_id,revision desc) c) as certificates,
+        (select max(revision) from private.enl_org_charts where site_id=s.site_id) as tip
       from public.enl_site_master s join private.enl_org_folders f using(site_id) ${recent}
       where ${visible} and s.site_id <> 'site-hq' and not f.deleted
       order by (s.active is false),s.site_name,s.site_id`;
@@ -99,8 +103,15 @@ export async function organizationRequest(sql:any, actor:any, body:any, reply:an
     candidates.sort((a:any,b:any)=>sortKo(a.site_name,b.site_name));
     return reply({ok:true,period,candidates,sites:sites.map((s:any)=>{
       const state=reviewState(s,period,s.tip);
-      const {tip,confirmed,review_event,...summary}=s;
-      return {...summary,state,checked:state==='approved'};
+      const {tip,confirmed,review_event,appointments,certificates,...summary}=s;
+      const model=(globalThis as any).enlSupervisorTrainingModel,today=model.today(),people=appointments||[],records=certificates||[];
+      const appointment=people.length&&people.every((a:any)=>a.event==='approve')?'approved':'pending';
+      const certificate=people.length&&people.every((a:any)=>{
+        const p=model.current(a.appointment.date,today);if(!p)return false;
+        const selected=model.summary(a.appointment,records.filter((c:any)=>c.appointment_id===a.document_id),p,today).certificates;
+        return selected.length>0&&selected.every((c:any)=>c.event==='approve');
+      })?'approved':'pending';
+      return {...summary,state,checked:state==='approved',documentStates:{chart:state,appointment,certificate}};
     })});
   }
   const siteId = body.siteId;

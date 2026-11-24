@@ -155,3 +155,10 @@
 .platform-hub .hub-sidebar-row.is-editing>button:first-child:has(>.org-dot){position:static;padding-right:9px}
 .org-rail-list .org-folder>.org-state:is(.pending,.approved){display:inline-flex;flex-direction:row-reverse;align-items:center;gap:4px}
 .org-rail-list .org-folder>.org-state:is(.pending,.approved)::before{margin:0;flex:none}
+
+.org-panel .org-submenu button:disabled,.org-panel .org-document-card:disabled{color:#aab2bc!important;background:transparent!important;border-color:#e2e6eb;box-shadow:none!important;transform:none!important;opacity:1;cursor:default!important;pointer-events:none}
+.org-panel .org-document-card:disabled *{color:inherit!important}
+.org-document-dot{box-shadow:0 0 0 1px #fff}
+.org-document-dot.is-approved{width:14px;height:16px;border-radius:0;background:none;box-shadow:none;color:#198348;font-size:17px;line-height:16px;font-weight:800;text-align:center}
+.cert-review{display:flex;align-items:flex-start;gap:8px;margin:14px 0;line-height:1.5}
+.cert-review input{width:auto;margin-top:4px}

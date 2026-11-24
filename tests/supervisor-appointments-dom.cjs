@@ -7,7 +7,6 @@ async function until(fn){for(let i=0;i<300;i++){if(fn())return;await pause()}ass
  const f=await policyFixture();let dom;
  const template='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="595" height="842"/>';
  try{
-  await f.db.exec(fs.readFileSync('supabase/migrations/20261123090000_supervisor_appointments.sql','utf8'));
   let docId;
   for(const role of ['field','safety','manager','executive','worker']){
    dom?.window.close();dom=new JSDOM('<div id="app"><main data-workspace="organization"><div class="org-panel"><div class="org-main"></div></div></main></div>',{runScripts:'outside-only',url:'https://isolated.test/'});

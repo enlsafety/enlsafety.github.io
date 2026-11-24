@@ -128,7 +128,7 @@
         try{
           await api({action:'platform_org_appointment_'+op,siteId:site.site_id,documentId:id,revision:doc?.revision||0,folderRevision:site.folder_revision,
             ...(op==='save'?{appointment:data}:{}),...(photo?{photo}:{}),...(op==='approve'?{reviewedPhotoRevision:doc.photo_revision}:{})});
-          if(!active())return;setDirty(false);await load(id);
+          if(!active())return;setDirty(false);await load(id);hooks.changed?.();
         }catch(e){if(active())note.replaceChildren(el('span','처리 결과를 확인하지 못했습니다. 최신 저장본을 확인한 뒤 다시 진행해 주세요.'),button('최신본 불러오기',()=>{if(canChange())load(doc?id:undefined);}));}
         finally{setBusy(false);if(active())update();}
       }

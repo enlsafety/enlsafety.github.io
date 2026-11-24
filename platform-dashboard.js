@@ -674,28 +674,31 @@
   }
   const documentApprovalStates=new Map();
   function documentApproval(key){
+    if(!moduleAvailable(entry(key)))return null;
     if(documentApprovalStates.has(key))return documentApprovalStates.get(key);
-    const connected=['organization','policy','incident'].includes(key)&&moduleAvailable(entry(key));
-    return {count:null,label:connected?'안전관리자 승인 상태 확인 필요':'안전관리자 승인 기록 없음 (승인 기능 준비 중)'};
+    return {count:null,total:null,label:'안전관리자 승인 상태 확인 필요'};
   }
   function paintDocumentApprovals(){
     const group=sidebar.querySelector('.hub-document-menus');if(!group)return;
     const paint=(node,state)=>{
       let dot=node.querySelector(':scope > .hub-document-dot');
-      if(state.count===0){dot?.remove();return;}
-      if(!dot){dot=document.createElement('span');dot.className='hub-document-dot';dot.setAttribute('role','img');node.append(dot);}
-      dot.setAttribute('aria-label',state.label);dot.title=state.label;
+      if(!state||node.disabled||state.count===0&&!state.total){dot?.remove();return;}
+      const approved=state.count===0&&state.total>0,label=approved?'안전관리자 승인 완료':state.label;
+      if(!dot){dot=document.createElement('span');dot.setAttribute('role','img');node.append(dot);}
+      dot.className='hub-document-dot'+(approved?' is-approved':'');dot.textContent=approved?'✓':'';
+      dot.setAttribute('aria-label',label);dot.title=label;
     };
     for(const button of group.querySelectorAll('button[data-hub]'))paint(button,documentApproval(button.dataset.hub.slice('feature:'.length)));
     const education=group.querySelector('.hub-training-menus>summary');
     if(education){
       const children=documentMenuItems().find(m=>m.key==='training')?.children||[];
-      const pending=children.filter(m=>documentApproval(m.key).count!==0).length;
-      paint(education,{count:pending,label:'안전관리자 승인 미완료 교육 항목 '+pending+'개'});
+      const states=children.map(m=>documentApproval(m.key)).filter(Boolean);
+      const pending=states.filter(s=>s.count!==0).length;
+      paint(education,states.length?{count:pending,total:states.reduce((n,s)=>n+(s.total||0),0),label:'안전관리자 승인 미완료 교육 항목 '+pending+'개'}:null);
     }
   }
-  host.setDocumentApprovalState=(key,count,label)=>{
-    documentApprovalStates.set(key,{count,label:label||'안전관리자 승인 미완료 '+count+'건'});
+  host.setDocumentApprovalState=(key,count,label,total)=>{
+    documentApprovalStates.set(key,{count,total,label:label||'안전관리자 승인 미완료 '+count+'건'});
     paintDocumentApprovals();
   };
   const taskCounts=new Map();
@@ -705,7 +708,7 @@
     for(const button of sidebar.querySelectorAll(selector)){
       if(button.closest('.hub-document-menus'))continue;
       let dot=button.querySelector('.hub-task-dot');
-      if(!count){dot?.remove();continue;}
+      if(!count||button.disabled){dot?.remove();continue;}
       if(!dot){dot=document.createElement('span');dot.className='org-dot hub-task-dot';dot.setAttribute('role','img');button.append(dot);}
       const label='처리할 업무 '+count+'건';dot.setAttribute('aria-label',label);dot.title=label;
     }
@@ -730,12 +733,14 @@
       const hidden=catalog?.omitted?.includes(key)||m?.state==='hidden';
       if((!m&&!support&&!builtin)||(!admin&&hidden))continue;
       const icon=builtin?sidebarIcon(builtin.icon):menuPictogram(key);
-      const label=icon+'<span>'+safe(builtin?.title||(support?'공통업무지원서비스':featureName(m)))+'</span>';
+      const unavailable=!builtin&&!support&&!moduleAvailable(m);
+      const label=icon+'<span>'+safe(builtin?.title||(support?'공통업무지원서비스':featureName(m)))+(unavailable?' (구현중)':'')+'</span>';
       const row=document.createElement('div');row.className='hub-sidebar-row';
       row.innerHTML=action(builtin||support?key:'feature:'+key,label,(key==='boards'?boards[active]:active===key)?'on':'');
       const button=row.firstElementChild;
       if(hidden){row.classList.add('is-hidden');button.insertAdjacentHTML('beforeend','<small>숨김</small>');}
-      if(hidden||sidebarDraft){button.setAttribute('aria-disabled','true');}
+      if(unavailable){button.disabled=true;button.classList.add('is-unimplemented');}
+      if(hidden||sidebarDraft||unavailable){button.setAttribute('aria-disabled','true');}
       else button.onclick=()=>dispatch(button.dataset.hub);
       if(sidebarDraft){
         row.classList.add('is-editing');row.draggable=!savingSidebar;
@@ -762,17 +767,19 @@
         row.innerHTML=action('feature:'+item.key,menuPictogram(item.key)+'<span>'+safe(item.displayName)+'</span>',active===item.key||active==='document:'+item.key?'on':'');
         const b=row.firstElementChild;
         const available=moduleAvailable(module);
-        const destination=available?item.key:'document:'+item.key;
-        b.disabled=!!sidebarDraft||(!available&&!documentInfo(destination));
-        if(!b.disabled)b.onclick=()=>selectTab(destination);
+        b.disabled=!!sidebarDraft||!available;
+        if(!available){b.classList.add('is-unimplemented');b.querySelector('span').append(document.createTextNode(' (구현중)'));b.setAttribute('aria-disabled','true');}
+        if(!b.disabled)b.onclick=()=>selectTab(item.key);
         parent.append(row);
       };
       for(const item of numbered){
         if(!item.children){appendDocument(group,item);continue;}
         const training=document.createElement('details'),title=document.createElement('summary');
         training.className='hub-training-menus';training.setAttribute('aria-label',item.displayName);
-        training.open=trainingExpanded;training.ontoggle=()=>{trainingExpanded=training.open;};
+        const available=item.children.some(child=>moduleAvailable(entry(child.key)));
+        training.open=available&&trainingExpanded;training.ontoggle=()=>{trainingExpanded=training.open;};
         title.innerHTML=menuPictogram(item.key)+'<span>'+safe(item.displayName)+'</span>';training.append(title);
+        if(!available){training.classList.add('is-unimplemented');title.setAttribute('aria-disabled','true');title.tabIndex=-1;title.querySelector('span').append(document.createTextNode(' (구현중)'));title.onclick=e=>e.preventDefault();}
         for(const child of item.children)appendDocument(training,child);
         group.append(training);
       }
@@ -780,7 +787,7 @@
     }
     paintFavorites();org?.badges();policy?.badges();for(const [key,count] of taskCounts)host.setTaskCount(key,count);paintDocumentApprovals();
   }
-  function favoriteChoices(){return [...items().filter(m=>m.state!=='hidden'&&!catalog?.omitted?.includes(m.key)&&(m.key!=='system'||admin)).map(m=>({key:m.key,title:featureName(m)})),{key:'bulletins',title:'공지사항'},{key:'schedule',title:'전체 일정'}]}
+  function favoriteChoices(){return [...items().filter(m=>moduleAvailable(m)&&!catalog?.omitted?.includes(m.key)&&(m.key!=='system'||admin)).map(m=>({key:m.key,title:featureName(m)})),{key:'bulletins',title:'공지사항'},{key:'schedule',title:'전체 일정'}]}
   function paintFavorites(){const box=host.querySelector('.hub-favorites>div'),choices=favoriteChoices();box.replaceChildren();for(const key of content.favorites){const x=choices.find(v=>v.key===key);if(!x)continue;const b=document.createElement('button');b.type='button';b.innerHTML=menuPictogram(key)+'<span>'+safe(x.title)+'</span>';b.onclick=()=>dispatch(['bulletins','schedule'].includes(key)?key:'feature:'+key);box.append(b)}if(!box.children.length)box.innerHTML='<p>자주 쓰는 메뉴를 추가하세요.</p>'}
   function favorites(){const d=dialog(host,'즐겨찾기 설정'),box=d.querySelector('.hub-dialog-body');box.innerHTML='<form class="hub-form">'+favoriteChoices().map(x=>'<label class="hub-check"><input type="checkbox" name="favorite" value="'+x.key+'" '+(content.favorites.includes(x.key)?'checked':'')+'>'+safe(x.title)+'</label>').join('')+'<button type="submit">저장</button><p role="status"></p></form>';box.querySelector('form').onsubmit=async ev=>{ev.preventDefault();const form=ev.currentTarget,b=form.querySelector('button');b.disabled=true;try{const favorites=Array.from(form.querySelectorAll(':checked'),x=>x.value);await api({action:'platform_hub_favorites',favorites});if(!sameUser())return;content.favorites=favorites;paintFavorites();d.close()}catch{form.querySelector('[role=status]').textContent='저장하지 못했습니다. 다시 시도해 주세요.'}finally{b.disabled=false}}}
   function scopedIncidents(){return (data.incidents||[]).filter(i=>!i.bulkInvalidation?.active&&(!['field','worker'].includes(u.role)||String(i.siteId)===String(u.siteId)))}
@@ -827,7 +834,7 @@
       }
     }
     host.setTaskCount('incident',tasks);
-    if(readable){const unapproved=scopedIncidents().filter(i=>i.status!=='closed'&&(i.status!=='approved'||i.corrective?.status!=='approved')).length;host.setDocumentApprovalState('incident',unapproved,'안전관리자 사고 검토 또는 조치 확인 미완료 '+unapproved+'건');}
+    if(readable){const unapproved=scopedIncidents().filter(i=>i.status!=='closed'&&(i.status!=='approved'||i.corrective?.status!=='approved')).length;host.setDocumentApprovalState('incident',unapproved,'안전관리자 사고 검토 또는 조치 확인 미완료 '+unapproved+'건',scopedIncidents().length);}
     showFeedCount('[data-approval-count]',pending.length);
     approvalBody(host.querySelector('[data-list=approvals]'),true,pending);
     const box=host.querySelector('[data-list-workspace=approvals] [data-approval-list]');

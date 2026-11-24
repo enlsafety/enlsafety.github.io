@@ -33,7 +33,7 @@ async function waitFor(fn){for(let i=0;i<200;i++){if(fn())return;await tick();}a
    assert.equal(button(d,'게시 사진 제출').disabled,role!=='field');
    assert.equal(button(d,'확인완료').disabled,true);
    assert.equal(d.querySelectorAll('.policy-flow-steps [data-action-state=required]').length,role==='field'?2:0);
-   assert.equal(d.querySelectorAll('.policy-rail .policy-document-dot').length,role==='field'?3:0);
+   assert.equal(d.querySelectorAll('.policy-rail .policy-document-dot').length,role==='field'?3:2);
    assert.equal(d.querySelector('.policy-document-layout').firstChild.className,'policy-review-panel');
    w.print=()=>{assert.ok(d.querySelector('#enl-policy-print-page svg'));const ids=[...d.querySelectorAll('svg filter')].map(n=>n.id);assert.equal(new Set(ids).size,ids.length,'screen and print filter IDs must be distinct');w.dispatchEvent(new w.Event('afterprint'));};
    button(d,'PDF 출력').click();assert.equal(d.querySelector('#enl-policy-print-page'),null);
@@ -72,7 +72,7 @@ async function waitFor(fn){for(let i=0;i<200;i++){if(fn())return;await tick();}a
   await waitFor(()=>state.d.querySelector('.policy-document-heading').textContent.includes('최신화 완료'));
   assert.equal(button(state.d,'확인완료').disabled,true);
   assert.equal(state.d.querySelectorAll('.policy-flow-steps [data-action-state=required]').length,0);
-  assert.equal(state.d.querySelectorAll('.policy-rail-child')[0].querySelector('.policy-document-dot'),null,'approved policy clears its dot');
+  assert.equal(state.d.querySelectorAll('.policy-rail-child')[0].querySelector('.policy-document-dot.is-approved')?.textContent,'✓','approved policy shows green check');
   assert.ok(state.d.querySelectorAll('.policy-rail-child')[1].querySelector('.policy-document-dot'),'objectives remain incomplete');
   button(state.d,'전체 수정').click();
   let form=state.d.querySelector('dialog form');form.elements.year.value='2027';form.elements.date.value='2027-01-01';

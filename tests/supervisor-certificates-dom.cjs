@@ -31,10 +31,15 @@ async function until(fn){for(let i=0;i<300;i++){if(fn())return;await pause()}ass
     assert.equal(d.querySelector('.cert-state').textContent,'기한 경과 / 수료증 미등록');assert.equal(d.querySelector('.cert-record'),null,'future period certificate not counted as prior evidence');
    }else if(role==='safety'){
     assert.equal(btn('교육수료증 등록').disabled,false);btn('사진 및 저장 이력').click();await until(()=>!busy&&d.querySelector('.cert-editor img'));
-    const versions=d.querySelector('[aria-label="수료증 저장 이력"]');assert.equal(versions.options.length,2);versions.value=1;versions.dispatchEvent(new w.Event('change'));
+    const approve=btn('수료증 승인'),review=d.querySelector('.cert-review input');assert.ok(approve.disabled);assert.ok(review.disabled);
+    d.querySelector('.cert-photo img').dispatchEvent(new w.Event('load'));assert.equal(review.disabled,false);
+    review.checked=true;review.dispatchEvent(new w.Event('change'));assert.equal(approve.disabled,false);
+    approve.click();await until(()=>!busy&&d.querySelector('.cert-record').textContent.includes('승인 완료'));
+    btn('사진 및 저장 이력').click();await until(()=>!busy&&d.querySelector('.cert-editor img'));assert.equal(btn('수료증 승인'),undefined);
+    const versions=d.querySelector('[aria-label="수료증 저장 이력"]');assert.equal(versions.options.length,3);versions.value=1;versions.dispatchEvent(new w.Event('change'));
     await until(()=>!busy&&d.querySelector('[name=completedOn]')?.value==='2026-11-01');assert.ok(btn('수료증 수정 저장').disabled,'history is immutable');
    }else{
-    assert.ok(btn('교육수료증 등록').disabled);btn('사진 및 저장 이력').click();await until(()=>!busy&&d.querySelector('.cert-editor img'));
+    assert.equal(btn('수료증 승인'),undefined);assert.ok(btn('교육수료증 등록').disabled);btn('사진 및 저장 이력').click();await until(()=>!busy&&d.querySelector('.cert-editor img'));
     assert.ok(btn('수료증 수정 저장').disabled);assert.ok(d.querySelector('[name=completedOn]').readOnly);assert.ok(d.querySelector('input[type=file]').disabled);
    }
   }

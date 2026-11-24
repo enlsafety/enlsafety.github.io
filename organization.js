@@ -81,7 +81,7 @@
     try{window.print()}catch(err){cleanup();throw err}
   }
   function controller(host,u,api,sameUser) {
-    let panel, sequence=0, listRequest=0, allowed=false, busy=false, dirty=false, pending=0, approvalPending=null, shownRevision, refreshTimer, shownPeriod, shownSite, shownDoc, template;
+    let panel, sequence=0, listRequest=0, allowed=false, busy=false, dirty=false, pending=0, approvalPending=null, approvalTotal=0, shownRevision, refreshTimer, shownPeriod, shownSite, shownDoc, template;
     let main,rail,railBody,folders=[],available=[],listingPeriod,managerForm;
     const admin=u.role==='safety';
     const onScreen=()=>sameUser()&&host.dataset.workspace==='organization';
@@ -91,12 +91,14 @@
       if(admin||u.role==='field'&&['empty','draft'].includes(state))return 'pending';
       return '';
     }
+    function documentState(site,key){return site.documentStates?.[key]||(key==='chart'?site.state:'pending');}
+    function incomplete(site){return ['chart','appointment','certificate'].some(key=>documentState(site,key)!=='approved');}
     function documentBadge(node,site,key){
-      if(key!=='chart'||workState(site)!=='pending')return;
-      const dot=el('span',null,'org-document-dot');
-      dot.setAttribute('aria-hidden','true');dot.title='처리할 일 있음';
-      node.setAttribute('aria-description','이번 반기 조직도에 처리할 일이 남아 있습니다.');
-      node.append(dot);
+      if(key==='evaluation'||site.active===false)return;
+      const approved=documentState(site,key)==='approved',label=approved?'안전관리자 승인 완료':'미제출 또는 안전관리자 승인 미완료';
+      const dot=el('span',approved?'✓':null,approved?'org-document-dot is-approved':'org-document-dot');
+      dot.setAttribute('role','img');dot.setAttribute('aria-label',label);dot.title=label;
+      node.setAttribute('aria-description',label);node.append(dot);
     }
     function badges(){
       for(const node of host.querySelectorAll('[data-module="organization"],[data-hub="feature:organization"]')){
@@ -107,7 +109,7 @@
         dot.setAttribute('role','img');
         dot.setAttribute('aria-label','이번 반기 조직도 확인 미완료 '+pending+'개 사업장');dot.title=dot.getAttribute('aria-label');
       }
-      if(allowed&&approvalPending!==null)host.setDocumentApprovalState?.('organization',approvalPending,'이번 반기 조직도 안전관리자 승인 미완료 '+approvalPending+'개 사업장');
+      if(allowed&&approvalPending!==null)host.setDocumentApprovalState?.('organization',approvalPending,'안전보건 조직 서류 승인 미완료 '+approvalPending+'개 사업장',approvalTotal);
     }
     const listFlights=new Map();
     async function readList(manageFolders=false){
@@ -118,7 +120,8 @@
       const result=await flight;
       if(token===listRequest && sameUser() && allowed){
         pending=result.sites.filter(site=>workState(site)==='pending').length;
-        approvalPending=result.sites.filter(site=>site.active!==false&&site.state!=='approved').length;
+        approvalTotal=result.sites.filter(site=>site.active!==false).length;
+        approvalPending=result.sites.filter(site=>site.active!==false&&incomplete(site)).length;
         badges();
       }
       return result;
@@ -186,10 +189,10 @@
       const grid=el('div',null,'org-document-grid');
       const subtitles={chart:'안전보건 조직 및 인원 현황',appointment:'관리감독자별 임명장 작성, 출력 및 확인',certificate:'수료증 사진과 수료일 등록, 임명일 기준 교육기한 확인',evaluation:'업무수행평가표 메뉴 (작성 기능 준비 중)'};
       for(const [key,label] of Object.entries(documents)){
-        const card=button('',()=>selectDocument(site,key),'org-document-card');
+        const card=button('',key==='evaluation'?null:()=>selectDocument(site,key),'org-document-card');card.disabled=key==='evaluation';
         card.dataset.doc=key;
         const heading=el('div',null,'org-document-heading');
-        heading.append(el('strong',label),el('span',documentSchedules[key],'org-document-schedule'));
+        heading.append(el('strong',label+(key==='evaluation'?' (구현중)':'')),el('span',documentSchedules[key],'org-document-schedule'));
         card.append(heading,el('span',subtitles[key],'org-status'));
         documentBadge(card,site,key);
         grid.append(card);
@@ -205,6 +208,7 @@
       if(site)paintDocuments(site);else paintSites();
     }
     function selectDocument(site,key){
+      if(key==='evaluation')return;
       if(key==='chart'){folder(site.site_id);return;}
       if(!canLeave())return;
       ++sequence;dirty=false;closeManager();
@@ -214,22 +218,22 @@
       if(key==='appointment'){
         const content=el('div',null,'appt-content'),token=sequence;
         main.replaceChildren(back,el('h2',site.site_name+' / '+documents[key]),el('p',documentSchedules[key],'org-document-schedule'),content);
-        window.enlSupervisorAppointment(content,u,api,site,{isCurrent:()=>onScreen()&&sequence===token,dirty:v=>dirty=v,busy:v=>busy=v});
+        window.enlSupervisorAppointment(content,u,api,site,{isCurrent:()=>onScreen()&&sequence===token,dirty:v=>dirty=v,busy:v=>busy=v,changed:refresh});
         return;
       }
       if(key==='certificate'){
         const content=el('div',null,'cert-content'),token=sequence;
         main.replaceChildren(back,el('h2',site.site_name+' / '+documents[key]),el('p',documentSchedules[key],'org-document-schedule'),content);
-        window.enlSupervisorCertificates(content,u,api,site,{isCurrent:()=>onScreen()&&sequence===token,dirty:v=>dirty=v,busy:v=>busy=v});
+        window.enlSupervisorCertificates(content,u,api,site,{isCurrent:()=>onScreen()&&sequence===token,dirty:v=>dirty=v,busy:v=>busy=v,changed:refresh});
         return;
       }
       main.replaceChildren(back,el('h2',site.site_name+' / '+documents[key]),el('p',documentSchedules[key],'org-document-schedule'),status('해당 서류의 작성 기능은 준비 중입니다.'));
     }
     function paintRail(){
       if(!railBody)return;
-      const count=folders.filter(s=>s.active!==false&&!s.checked).length;
+      const count=folders.filter(s=>s.active!==false&&incomplete(s)).length;
       rail.querySelector('summary').textContent='사업장 폴더 ('+folders.length+')';
-      rail.querySelector('.org-summary').textContent=periodName(listingPeriod)+' 미승인 '+count+'곳';
+      rail.querySelector('.org-summary').textContent='서류 승인 미완료 '+count+'곳';
       const scroll=railBody.scrollTop;
       const focus=railBody.contains(document.activeElement)?document.activeElement.dataset:null;
       panel.querySelectorAll('[data-needs-site]').forEach(b=>{b.disabled=!admin||!shownSite});
@@ -246,7 +250,7 @@
           const children=el('div',null,'org-submenu');
           children.setAttribute('role','group');children.setAttribute('aria-label',s.folder_name||s.site_name);
           for(const [key,label] of Object.entries(documents)){
-            const sub=button(label,()=>selectDocument(s,key));
+            const sub=button(label+(key==='evaluation'?' (구현중)':''),key==='evaluation'?null:()=>selectDocument(s,key));sub.disabled=key==='evaluation';
             sub.dataset.doc=key;sub.dataset.owner=s.site_id;sub.title=documentSchedules[key];
             documentBadge(sub,s,key);
             if(shownDoc===key)sub.setAttribute('aria-current','page');
