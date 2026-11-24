@@ -788,3 +788,19 @@
 .hub-training-menus>.hub-sidebar-row{padding-left:10px}
 .platform-hub .hub-training-menus button span{white-space:normal;overflow-wrap:anywhere;line-height:1.5}
 @media(hover:none) and (pointer:coarse){.platform-hub .hub-training-menus>summary{min-height:44px}}
+
+/* Keep pictogram, label and approval indicator in separate columns. */
+.platform-hub .hub-document-menus>.hub-sidebar-row{padding-left:0}
+.platform-hub .hub-document-menus>.hub-sidebar-row::before{left:1px}
+.platform-hub .hub-document-menus>.hub-sidebar-row::after{left:0}
+.platform-hub .hub-document-menus .hub-sidebar-row>button{display:grid;grid-template-columns:18px minmax(0,1fr) 9px;column-gap:5px;padding:7px 4px 7px 5px}
+.platform-hub .hub-document-menus .hub-sidebar-row>button>svg{grid-column:1;width:18px;height:18px}
+.platform-hub .hub-sidebar nav .hub-document-menus button>span:not(.hub-document-dot){grid-column:2;min-width:0;white-space:normal;word-break:normal;overflow-wrap:anywhere;line-height:1.45}
+.platform-hub .hub-training-menus{margin-left:0}
+.platform-hub .hub-training-menus>.hub-sidebar-row{padding-left:6px}
+.platform-hub .hub-training-menus>summary{display:grid;grid-template-columns:18px minmax(0,1fr) 6px 9px;column-gap:5px;padding:7px 4px 7px 5px}
+.platform-hub .hub-training-menus>summary>svg{grid-column:1;width:18px;height:18px}
+.platform-hub .hub-training-menus>summary>span:not(.hub-document-dot){grid-column:2;min-width:0}
+.platform-hub .hub-training-menus>summary::after{grid-column:3;grid-row:1;margin:0}
+.platform-hub .hub-document-menus .hub-document-dot{grid-column:3;grid-row:1;position:static;transform:none;display:block;width:9px;height:9px;border-radius:50%;background:#d73740;box-shadow:0 0 0 1px #fff;margin:0;justify-self:center;align-self:center;pointer-events:none}
+.platform-hub .hub-training-menus>summary>.hub-document-dot{grid-column:4}

@@ -81,7 +81,7 @@
     try{window.print()}catch(err){cleanup();throw err}
   }
   function controller(host,u,api,sameUser) {
-    let panel, sequence=0, listRequest=0, allowed=false, busy=false, dirty=false, pending=0, shownRevision, refreshTimer, shownPeriod, shownSite, shownDoc, template;
+    let panel, sequence=0, listRequest=0, allowed=false, busy=false, dirty=false, pending=0, approvalPending=null, shownRevision, refreshTimer, shownPeriod, shownSite, shownDoc, template;
     let main,rail,railBody,folders=[],available=[],listingPeriod,managerForm;
     const admin=u.role==='safety';
     const onScreen=()=>sameUser()&&host.dataset.workspace==='organization';
@@ -100,12 +100,14 @@
     }
     function badges(){
       for(const node of host.querySelectorAll('[data-module="organization"],[data-hub="feature:organization"]')){
+        if(node.closest('.hub-document-menus')){node.querySelector('.org-dot')?.remove();continue;}
         let dot=node.querySelector('.org-dot');
         if(!allowed||!pending){dot?.remove();continue}
         if(!dot){dot=el('span',null,'org-dot');node.append(dot)}
         dot.setAttribute('role','img');
         dot.setAttribute('aria-label','이번 반기 조직도 확인 미완료 '+pending+'개 사업장');dot.title=dot.getAttribute('aria-label');
       }
+      if(allowed&&approvalPending!==null)host.setDocumentApprovalState?.('organization',approvalPending,'이번 반기 조직도 안전관리자 승인 미완료 '+approvalPending+'개 사업장');
     }
     const listFlights=new Map();
     async function readList(manageFolders=false){
@@ -116,6 +118,7 @@
       const result=await flight;
       if(token===listRequest && sameUser() && allowed){
         pending=result.sites.filter(site=>workState(site)==='pending').length;
+        approvalPending=result.sites.filter(site=>site.active!==false&&site.state!=='approved').length;
         badges();
       }
       return result;
@@ -149,7 +152,7 @@
       const wasAllowed=allowed;
       allowed=roles.includes(u.role)&&!!m&&m.enabled!==false&&m.state!=='hidden'&&m.canEnter!==false&&(m.state==='live'||m.preview);
       badges();
-      if(allowed){if(!wasAllowed){refresh();schedule()}}else{pending=0;clearTimeout(refreshTimer);}
+      if(allowed){if(!wasAllowed){refresh();schedule()}}else{pending=0;approvalPending=null;clearTimeout(refreshTimer);}
     }
     function canLeave(){return !busy&&(!dirty||confirm('저장하지 않은 서류 변경사항이 있어요. 화면을 이동할까요?'))}
     function leave(){sequence++;dirty=false;shownPeriod=null;shownSite=null;shownDoc=null;main=null;railBody=null;managerForm=null;panel?.replaceChildren()}

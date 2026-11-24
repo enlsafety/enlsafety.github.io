@@ -181,10 +181,10 @@
  });
  const svg=(key,extra={})=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(paths[key]||extra[key]||paths.file)+'</svg>';
  // A compact vector vocabulary for navigation, separate from the large card illustrations.
- const sidebarKeys=new Set('home incident risk tbm organization training msds support system policy law voice emergency ppe ergonomics rules favorites history approvals notices documents dashboard bulletins schedule'.split(' '));
+ const sidebarKeys=new Set('home incident risk tbm organization training safety-card budget health training-new-hire training-regular training-msds training-special-substance training-special-flammable msds support system policy law voice emergency ppe ergonomics rules favorites history approvals notices documents dashboard bulletins schedule'.split(' '));
  function sidebarIcon(key,custom){
   const id=sidebarKeys.has(key)?key:'module';
-  const use='<use href="assets/sidebar-outline-r135.svg#'+id+'"/>';
+  const use='<use href="assets/sidebar-outline-r188.svg#'+id+'"/>';
   const glyph=custom?'<g transform="translate(0 1) scale(.74)">'+use+'</g><text x="23" y="22" text-anchor="end" font-family="system-ui,sans-serif" font-size="10" font-weight="800" fill="currentColor" stroke="none">'+custom+'</text>':use;
   return '<svg class="hub-nav-picto" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round">'+glyph+'</svg>';
  }
@@ -440,7 +440,7 @@
   };
   const canWriteBoard=kind=>admin||(kind==='request'&&u.role==='field'&&['현장소장','파트장','서무'].includes(u.position));
   const canManageBoard=item=>admin||(item.kind==='request'&&u.role==='field'&&['현장소장','파트장','서무'].includes(u.position)&&item.created_by===(u.id||u.personnelId)&&item.site_id===u.siteId);
-  const sidebarBuiltins={safetyCard:{title:'안전관리카드',icon:'policy'},boards:{title:'게시판',icon:'bulletins'}};
+  const sidebarBuiltins={safetyCard:{title:'안전관리카드',icon:'safety-card'},boards:{title:'게시판',icon:'bulletins'}};
   const boardKey=kind=>Object.keys(boards).find(key=>boards[key].kind===kind);
   const builtins={...Object.fromEntries(Object.entries(boards).map(([key,b])=>[key,b.title])),home:'통합 홈',safetyCard:sidebarBuiltins.safetyCard.title,support:'공통업무지원서비스',schedule:'전체 일정',recent:'최근 업무 기록',inquiry:admin?'문의함':'안전관리자 문의'};
   let stripSignature='';
@@ -631,7 +631,7 @@
     const customModules=catalog.modules.filter(m=>!sidebarKeys.has(m.key)).sort((a,b)=>a.key.localeCompare(b.key));
     return sidebarIcon(entry(key)?.iconKey,customModules.findIndex(m=>m.key===key)+1);
   }
-  let sidebarDraft=null, sidebarRevision=0, moving='', savingSidebar=false, documentsExpanded=true, trainingExpanded=true;
+  let sidebarDraft=null, sidebarRevision=0, moving='', savingSidebar=false, documentsExpanded=true, trainingExpanded=false;
   const sidebarOrder=()=>catalog?.sidebarMenuOrder||[...Object.keys(sidebarBuiltins),...(catalog?.sidebarOrder||catalog?.homeOrder||[])];
   const sidebar=host.querySelector('.hub-sidebar');
   const editPanel=document.createElement('div');
@@ -672,11 +672,38 @@
     if(from<0||to<0||from===to)return;
     sidebarDraft.splice(to,0,sidebarDraft.splice(from,1)[0]);navigation();
   }
+  const documentApprovalStates=new Map();
+  function documentApproval(key){
+    if(documentApprovalStates.has(key))return documentApprovalStates.get(key);
+    const connected=['organization','policy','incident'].includes(key)&&moduleAvailable(entry(key));
+    return {count:null,label:connected?'안전관리자 승인 상태 확인 필요':'안전관리자 승인 기록 없음 (승인 기능 준비 중)'};
+  }
+  function paintDocumentApprovals(){
+    const group=sidebar.querySelector('.hub-document-menus');if(!group)return;
+    const paint=(node,state)=>{
+      let dot=node.querySelector(':scope > .hub-document-dot');
+      if(state.count===0){dot?.remove();return;}
+      if(!dot){dot=document.createElement('span');dot.className='hub-document-dot';dot.setAttribute('role','img');node.append(dot);}
+      dot.setAttribute('aria-label',state.label);dot.title=state.label;
+    };
+    for(const button of group.querySelectorAll('button[data-hub]'))paint(button,documentApproval(button.dataset.hub.slice('feature:'.length)));
+    const education=group.querySelector('.hub-training-menus>summary');
+    if(education){
+      const children=documentMenuItems().find(m=>m.key==='training')?.children||[];
+      const pending=children.filter(m=>documentApproval(m.key).count!==0).length;
+      paint(education,{count:pending,label:'안전관리자 승인 미완료 교육 항목 '+pending+'개'});
+    }
+  }
+  host.setDocumentApprovalState=(key,count,label)=>{
+    documentApprovalStates.set(key,{count,label:label||'안전관리자 승인 미완료 '+count+'건'});
+    paintDocumentApprovals();
+  };
   const taskCounts=new Map();
   host.setTaskCount=(key,count)=>{
     taskCounts.set(key,count);
     const selector='[data-hub="feature:'+key+'"]';
     for(const button of sidebar.querySelectorAll(selector)){
+      if(button.closest('.hub-document-menus'))continue;
       let dot=button.querySelector('.hub-task-dot');
       if(!count){dot?.remove();continue;}
       if(!dot){dot=document.createElement('span');dot.className='org-dot hub-task-dot';dot.setAttribute('role','img');button.append(dot);}
@@ -751,7 +778,7 @@
       }
       nav.append(group);
     }
-    paintFavorites();org?.badges();policy?.badges();for(const [key,count] of taskCounts)host.setTaskCount(key,count);
+    paintFavorites();org?.badges();policy?.badges();for(const [key,count] of taskCounts)host.setTaskCount(key,count);paintDocumentApprovals();
   }
   function favoriteChoices(){return [...items().filter(m=>m.state!=='hidden'&&!catalog?.omitted?.includes(m.key)&&(m.key!=='system'||admin)).map(m=>({key:m.key,title:featureName(m)})),{key:'bulletins',title:'공지사항'},{key:'schedule',title:'전체 일정'}]}
   function paintFavorites(){const box=host.querySelector('.hub-favorites>div'),choices=favoriteChoices();box.replaceChildren();for(const key of content.favorites){const x=choices.find(v=>v.key===key);if(!x)continue;const b=document.createElement('button');b.type='button';b.innerHTML=menuPictogram(key)+'<span>'+safe(x.title)+'</span>';b.onclick=()=>dispatch(['bulletins','schedule'].includes(key)?key:'feature:'+key);box.append(b)}if(!box.children.length)box.innerHTML='<p>자주 쓰는 메뉴를 추가하세요.</p>'}
@@ -800,6 +827,7 @@
       }
     }
     host.setTaskCount('incident',tasks);
+    if(readable){const unapproved=scopedIncidents().filter(i=>i.status!=='closed'&&(i.status!=='approved'||i.corrective?.status!=='approved')).length;host.setDocumentApprovalState('incident',unapproved,'안전관리자 사고 검토 또는 조치 확인 미완료 '+unapproved+'건');}
     showFeedCount('[data-approval-count]',pending.length);
     approvalBody(host.querySelector('[data-list=approvals]'),true,pending);
     const box=host.querySelector('[data-list-workspace=approvals] [data-approval-list]');

@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" fill="none">
+  <!-- Monochrome navigation variant; original pictograms are preserved. -->
+  <symbol id="home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9"/></symbol>
+  <symbol id="incident" viewBox="0 0 24 24">
+    <path d="M7 8V2m4 6V5"/><rect x="4" y="8" width="13" height="14" rx="3" fill="none"/><path d="M7.5 12h6M8 16h4m-4 3h4m6-16a5 5 0 0 1 3 5"/>
+  </symbol>
+  <symbol id="risk" viewBox="0 0 24 24">
+    <path fill="none" d="M3 18a10 10 0 1 1 18 0l-3 2H6z"/><path d="m12 14 4-5M5 13h2m2-6 1 2m8 4h1"/><circle cx="12" cy="14" r="1.5" fill="currentColor"/>
+  </symbol>
+  <symbol id="tbm" viewBox="0 0 24 24">
+    <path fill="none" d="M3 3h18v10h-6l-3 3v-3H3z"/><path d="M7 7h6m3 0h1"/><circle cx="6" cy="17" r="1.6"/><circle cx="18" cy="17" r="1.6"/><path d="M2.5 22q.8-4.3 7 0m5 0q.8-4.3 7 0"/>
+  </symbol>
+  <symbol id="organization" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="6" rx="1"/><path d="M12 8v5M5 13h14M5 13v3m14-3v3"/><rect x="1" y="16" width="8" height="6" rx="1"/><rect x="15" y="16" width="8" height="6" rx="1"/></symbol>
+  <symbol id="training" viewBox="0 0 24 24">
+    <path fill="none" d="M4 5h16v11H4z"/><path d="M2 4h20M12 16v3m-5 3 5-3 5 3"/><path fill="currentColor" stroke="none" d="m10 7 5 3.5-5 3.5z"/>
+  </symbol>
+  <symbol id="msds" viewBox="0 0 24 24">
+    <path fill="none" d="m12 2 10 10-10 10L2 12z"/><path fill="none" d="M12 7q0 2.5 2 4.5c3.6 4.5-4 7.2-5.1 2.3-.4-2 1.8-3.4 3.1-6.8Z"/>
+  </symbol>
+  <symbol id="support" viewBox="0 0 24 24">
+    <path fill="none" d="M2 9V6a2 2 0 0 1 2-2h5l2 3h8a2 2 0 0 1 2 2v2H2z"/><path fill="none" d="M2 9h17l-2 10H5z"/><path d="M13 16h8m-3-3 3 3-3 3"/>
+  </symbol>
+  <symbol id="system" viewBox="0 0 24 24">
+    <path d="M5 3v3m0 5v10m7-18v10m0 5v3m7-18v4m0 5v9"/><g fill="none"><rect x="2.5" y="6" width="5" height="5" rx="1.5"/><rect x="9.5" y="13" width="5" height="5" rx="1.5"/><rect x="16.5" y="7" width="5" height="5" rx="1.5"/></g>
+  </symbol>
+  <symbol id="policy" viewBox="0 0 24 24"><path d="M4 22V3m0 1c5-5 10 5 16 0v10c-6 5-11-5-16 0"/><path d="m8 8 2 2 5-4"/></symbol>
+  <symbol id="law" viewBox="0 0 24 24">
+    <path fill="none" d="m7 3 7 6-4 4-7-6z"/><path d="m12 11 8 7m-14 0h6l2 3H4z"/>
+  </symbol>
+  <symbol id="voice" viewBox="0 0 24 24">
+    <rect x="8.5" y="2" width="7" height="13" rx="3.5" fill="none"/><path d="M5 11a7 7 0 0 0 14 0m-7 7v4m-4 0h8M9 7h3"/>
+  </symbol>
+  <symbol id="emergency" viewBox="0 0 24 24">
+    <path fill="none" d="M3 21V3h11v4H7v14z"/><path d="m9 12 3-3 3 4h3m-4-2-3 5 4 2v3m-4-5-3 4m10-13h4m-2-2 2 2-2 2"/><circle cx="15" cy="7" r="1.5" fill="currentColor" stroke="none"/>
+  </symbol>
+  <symbol id="ppe" viewBox="0 0 24 24">
+    <path fill="none" d="M8 21v-3l-4-6q-.8-2.5 1.5-2l2.5 2.7V6q0-2.3 2.5-1.6V11 4q.3-2.3 2.7-1V11 4.8q1-2 2.6-.4V12 6.8q1-1.8 2.5-.3v7.8q0 2.5-2 4.4V21z"/><path d="M8 18h8"/>
+  </symbol>
+  <symbol id="ergonomics" viewBox="0 0 24 24">
+    <circle cx="10" cy="4.5" r="2.4" fill="none"/><path d="m9 9-1 5q0 2 2 2h5l2 5h3M9 9l3 3h5"/><path stroke="currentColor" d="M4 10v6a3 3 0 0 0 3 3h5m-4 0v3"/>
+  </symbol>
+  <symbol id="rules" viewBox="0 0 24 24">
+    <path fill="none" d="M5 3h12a2 2 0 0 1 2 2v15H6a2 2 0 0 1-2-2V5q0-2 1-2z"/><path d="M8 3v17m3-12h5m-5 4h4m4-6h2v4h-2m0 3h2v4h-2"/>
+  </symbol>
+  <symbol id="favorites" viewBox="0 0 24 24"><path fill="none" d="M5 3h14v18l-7-4-7 4z"/><path d="m9 9 2 2 4-4"/></symbol>
+  <symbol id="incident-home" viewBox="0 0 24 24"><path d="M4 21V4h16v17M2 21h20m-13 0v-5h6v5"/><path d="M9 9h6m-3-3v6"/></symbol>
+  <symbol id="incident-status" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="15" rx="3" fill="none"/><path d="M4 12h4l2-4 3 8 2-4h4m-10 9h6"/></symbol>
+  <symbol id="incident-report" viewBox="0 0 24 24"><path d="M11 3H4v18h14v-6"/><path fill="none" d="m10 15 1-4 8-8 3 3-8 8z"/></symbol>
+  <symbol id="incident-list" viewBox="0 0 24 24"><path d="M7 3h13v14M4 6h13v15H4zM7 10h7m-7 4h7m-7 4h4"/></symbol>
+  <symbol id="incident-actions" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-6l2 2M20 4v4h-4M20 12a8 8 0 0 1-14 6l-2-2m0 4v-4h4"/><path d="m9 12 2 2 4-5"/></symbol>
+  <symbol id="history" viewBox="0 0 24 24"><path d="M6 3v18m5-16h9m-9 7h6m-6 7h9"/><g fill="none"><circle cx="6" cy="5" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="6" cy="19" r="2"/></g></symbol>
+  <symbol id="incident-settings" viewBox="0 0 24 24"><path fill="none" d="M20 3a6 6 0 0 1-7 8l-8 10-3-3 9-9a6 6 0 0 1 7-7l-4 4 3 2z"/></symbol>
+  <symbol id="incident-inquiry" viewBox="0 0 24 24"><path fill="none" d="M3 4h18v13H9l-5 4v-4H3z"/><path d="M9.5 8q1-3 4-1 2 2-1 4v1m0 2h.01"/></symbol>
+  <symbol id="incident-stats" viewBox="0 0 24 24"><path d="M3 3v18h19"/><path fill="none" d="M6 17v-4h3v4zm5 0V9h3v8zm5 0V5h3v12z"/></symbol>
+  <symbol id="incident-closed" viewBox="0 0 24 24"><path d="M5 8v13h14V8"/><path fill="none" d="M3 4h18v4H3z"/><path d="m8 14 3 3 5-6"/></symbol>
+  <symbol id="approvals" viewBox="0 0 24 24"><path fill="none" d="M6 14h12l2 4H4z"/><path d="M10 14V9c-4-6 8-6 4 0v5M4 21h16"/></symbol>
+  <symbol id="notices" viewBox="0 0 24 24"><path d="M4 20V9l6 5h4l6-5v11z"/><path fill="none" d="M7 10V3h10v7l-3 3h-4z"/></symbol>
+  <symbol id="documents" viewBox="0 0 24 24"><path d="m3 7 9-5 9 5-9 5-9-5zm0 5 9 5 9-5M3 17l9 5 9-5"/></symbol>
+  <symbol id="dashboard" viewBox="0 0 24 24"><path d="M11 3v10h10a10 10 0 1 1-10-10z"/><path fill="none" d="M15 2v7h7a8 8 0 0 0-7-7z"/></symbol>
+  <symbol id="bulletins" viewBox="0 0 24 24"><path fill="none" d="M3 5h18v14H3z"/><path d="M6 8h5v5H6zm8 1h4m-4 4h4m-12 3h12"/></symbol>
+  <symbol id="schedule" viewBox="0 0 24 24"><path d="M4 5h16v16H4zM8 2v5m8-5v5M4 10h16m-12 5 2 2 5-5"/></symbol>
+  <symbol id="module" viewBox="0 0 24 24"><path fill="none" d="m12 2 9 5v10l-9 5-9-5V7z"/><path d="m3 7 9 5 9-5m-9 5v10"/></symbol>
+
+  <symbol id="budget" viewBox="0 0 24 24"><rect x="3" y="2" width="13" height="20" rx="2"/><path d="M6 6h7M6 10h1m4 0h1m-6 4h1m4 0h1m-6 4h1"/><circle cx="18" cy="17" r="5"/><path d="M18 14v6m2-4h-3a1 1 0 0 0 0 2h2"/></symbol>
+  <symbol id="health" viewBox="0 0 24 24"><path d="M3 3v5a5 5 0 0 0 10 0V3M3 3h2m6 0h2M8 13v2a6 6 0 0 0 12 0v-2"/><circle cx="20" cy="10" r="3"/></symbol>
+  <symbol id="training-new-hire" viewBox="0 0 24 24"><circle cx="8" cy="6" r="3"/><path d="M2 18v-2a6 6 0 0 1 12 0v2M17 5h6m-3-3v6M3 22h13"/><path d="M16 12h6v10h-6z"/></symbol>
+  <symbol id="training-regular" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M7 2v5m10-5v5M3 9h18m-14 6 3 3 6-6"/></symbol>
+  <symbol id="training-msds" viewBox="0 0 24 24"><path d="M2 5q5-2 10 1 5-3 10-1v16q-5-2-10 1-5-3-10-1zM12 6v16M5 9h4m-4 4h4m6-4h4m-2 0v3l3 5h-6l3-5"/></symbol>
+  <symbol id="training-special-substance" viewBox="0 0 24 24"><path d="M3 3h8M5 3v14a2 2 0 0 0 4 0V3M5 11h4m6-8h6m-5 0v8l-4 8q-1 3 2 3h7q2 0 1-3l-4-8V3M14 17h7"/><circle cx="7" cy="7" r=".5"/></symbol>
+  <symbol id="training-special-flammable" viewBox="0 0 24 24"><path d="m12 2 10 19H2zM12 8c1 4 4 4 3 7-1 4-7 3-6-1 1-2 3-2 3-6z"/></symbol>
+<symbol id="safety-card" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><circle cx="8" cy="10" r="2"/><path d="M4 17q4-5 8 0m3-8h4m-4 4h4m-4 4h3"/></symbol>
+</svg>

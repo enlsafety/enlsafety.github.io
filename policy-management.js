@@ -101,7 +101,7 @@ function printPoster(kind,settings,siteName){
 }
 function mount(host,u,api,sameUser){
   const admin=u.role==='safety',field=u.role==='field';
-  let enabled=false,panel=null,main=null,nav=null,settings=null,sites=[],siteId=null,kind=null,request=0,busy=false,needCount=0;
+  let enabled=false,panel=null,main=null,nav=null,settings=null,sites=[],siteId=null,kind=null,request=0,busy=false,needCount=0,approvalPending=null;
   const status=(message)=>make('p',message,'policy-message');
   const documentWork=(s,state)=>s.active&&state!=='approved'&&(admin||field&&state!=='pending');
   const hasWork=s=>documentWork(s,s.policyState)||documentWork(s,s.objectivesState);
@@ -112,12 +112,14 @@ function mount(host,u,api,sameUser){
   }
   function badges(){
     for(const el of host.querySelectorAll('[data-module="policy"],[data-hub="feature:policy"]')){
+      if(el.closest('.hub-document-menus')){el.querySelector('.policy-dot')?.remove();continue;}
       let dot=el.querySelector('.policy-dot');
       if(!enabled||!needCount){dot?.remove();continue;}
       if(!dot){dot=make('span',null,'policy-dot');el.append(dot)}
       dot.title=admin?'확인이 필요한 사업장 '+needCount+'개':'현장 최신화 미완료';
       dot.setAttribute('aria-label',dot.title);
     }
+    if(enabled&&approvalPending!==null)host.setDocumentApprovalState?.('policy',approvalPending,'안전보건 경영방침 및 목표 안전관리자 승인 미완료 '+approvalPending+'개 사업장');
   }
   let badgeRequest=0;
   async function refreshBadges(){
@@ -126,12 +128,12 @@ function mount(host,u,api,sameUser){
     try{
       const result=await api({action:'platform_policy_list'});
       if(id!==badgeRequest||!sameUser()||!enabled)return;
-      needCount=(result.sites||[]).filter(hasWork).length;badges();
+      needCount=(result.sites||[]).filter(hasWork).length;approvalPending=(result.sites||[]).filter(s=>s.active!==false&&(s.policyState!=='approved'||s.objectivesState!=='approved')).length;badges();
     }catch{/* Leave the last verified badge state unchanged during a transient outage. */}
   }
   function catalog(m){
     enabled=!!m&&m.enabled!==false&&m.state!=='hidden'&&m.canEnter!==false&&(m.state==='live'||m.preview);
-    if(!enabled)needCount=0;badges();if(enabled)refreshBadges();
+    if(!enabled){needCount=0;approvalPending=null;}badges();if(enabled)refreshBadges();
   }
   function canLeave(){return !busy}
   function canSuspend(){return !busy}
@@ -204,7 +206,7 @@ function mount(host,u,api,sameUser){
       if(seq!==request||!sameUser()||!main)return;
       sites=result.sites||[];settings=result.settings;
       siteId=sites.some(s=>s.siteId===oldSite)?oldSite:null;kind=siteId?oldKind:null;
-      needCount=sites.filter(hasWork).length;badges();head();
+      needCount=sites.filter(hasWork).length;approvalPending=sites.filter(s=>s.active!==false&&(s.policyState!=='approved'||s.objectivesState!=='approved')).length;badges();head();
       if(siteId&&kind)await chooseDocument(kind);
       else if(siteId)documentsPage();else sitesPage();
     }catch(e){if(seq===request&&main){main.replaceChildren(status('최신화 현황을 불러오지 못했습니다.'),btn('다시 불러오기',()=>reload(preserve)));}}
