@@ -372,9 +372,39 @@
   function items(){return catalog?[...catalog.modules,...catalog.services]:[];}
   const entry=key=>items().find(x=>x.key===key);
   const canBrowseDocuments=['field','safety','manager','executive'].includes(u.role);
+  // Document taxonomy is a navigation label, independent of module rollout and permissions.
+  const documentSections=[
+    {key:'organization',displayName:'01. 안전보건 조직'},
+    {key:'policy',displayName:'02. 안전보건 경영방침 및 목표'},
+    {key:'law',displayName:'03. 산업안전보건법령 요지'},
+    {key:'budget',displayName:'04. 안전보건관리 예산편성 및 집행'},
+    {key:'training',displayName:'05. 교육관리',children:[
+      {key:'training-new-hire',displayName:'05-1. 신규 채용 시 교육'},
+      {key:'training-regular',displayName:'05-2. 정기 안전보건 교육'},
+      {key:'training-msds',displayName:'05-3. 물질안전보건 교육'},
+      {key:'training-special-substance',displayName:'05-4. 특별안전보건교육(물질)'},
+      {key:'training-special-flammable',displayName:'05-5. 특별안전보건교육(인화성액체)'}
+    ]},
+    {key:'msds',displayName:'06. 물질안전보건자료'},
+    {key:'voice',displayName:'07. 종사자 의견 청취'},
+    {key:'risk',displayName:'08. 위험성 평가'},
+    {key:'emergency',displayName:'09. 비상사태 대비 및 대응'},
+    {key:'incident',displayName:'10. 사고관리'},
+    {key:'ppe',displayName:'11. 보호구 지급 및 관리'},
+    {key:'ergonomics',displayName:'12. 근골격계 유해위험요인조사'},
+    {key:'health',displayName:'13. 근로자 건강진단'}
+  ];
+  function documentMenuItems(){
+    if(!catalog)return [];
+    const standard=documentSections.filter(m=>!catalog.omitted?.includes(m.key));
+    const known=new Set(documentSections.map(m=>m.key));
+    const extras=(catalog.documentMenus||[]).filter(m=>!known.has(m.key)&&!catalog.omitted?.includes(m.key));
+    return [...standard,...extras];
+  }
+  function documentMenuInfo(key){return documentMenuItems().flatMap(m=>[m,...(m.children||[])]).find(m=>m.key===key);}
   function documentInfo(key){
     if(!canBrowseDocuments||!key.startsWith('document:'))return null;
-    return catalog?.documentMenus?.find(item=>item.key===key.slice('document:'.length));
+    return documentMenuInfo(key.slice('document:'.length));
   }
   const moduleAvailable=m=>!!m&&m.enabled!==false&&m.canEnter!==false&&m.state!=='hidden'&&(m.state==='live'||m.preview);
   const entering=new Map();
@@ -420,13 +450,15 @@
   function tabTitle(key){
     if(Object.hasOwn(builtins,key))return builtins[key];
     const info=documentInfo(key);if(info)return info.displayName;
-    const m=entry(key);return m?featureName(m):(names[key]||key);
+    const m=entry(key);return (key!=='incident'&&documentMenuInfo(key)?.displayName)||(m?featureName(m):(names[key]||key));
   }
   function paintTabs(){
     const header=host.closest('.app-shell')?.querySelector('.topbar');
     if(!header)return;
     if(header.nextElementSibling!==strip)header.after(strip);
     const selectedFeature=documentInfo(active)?.key||active;
+    const trainingGroup=host.querySelector('.hub-training-menus');
+    if(trainingGroup){const selected=!!documentMenuItems().find(m=>m.key==='training')?.children?.some(m=>m.key===selectedFeature);trainingGroup.classList.toggle('has-active',selected);if(selected)trainingGroup.open=true;}
     const selectedMenu=boards[active]?'boards':['home','support','safetyCard'].includes(active)?active:'feature:'+selectedFeature;
     host.querySelectorAll('.hub-sidebar nav [data-hub]').forEach(b=>{
       const selected=b.dataset.hub===selectedMenu;b.classList.toggle('on',selected);
@@ -599,7 +631,7 @@
     const customModules=catalog.modules.filter(m=>!sidebarKeys.has(m.key)).sort((a,b)=>a.key.localeCompare(b.key));
     return sidebarIcon(entry(key)?.iconKey,customModules.findIndex(m=>m.key===key)+1);
   }
-  let sidebarDraft=null, sidebarRevision=0, moving='', savingSidebar=false, documentsExpanded=true;
+  let sidebarDraft=null, sidebarRevision=0, moving='', savingSidebar=false, documentsExpanded=true, trainingExpanded=true;
   const sidebarOrder=()=>catalog?.sidebarMenuOrder||[...Object.keys(sidebarBuiltins),...(catalog?.sidebarOrder||catalog?.homeOrder||[])];
   const sidebar=host.querySelector('.hub-sidebar');
   const editPanel=document.createElement('div');
@@ -644,16 +676,17 @@
   host.setTaskCount=(key,count)=>{
     taskCounts.set(key,count);
     const selector='[data-hub="feature:'+key+'"]';
-    const button=sidebar.querySelector(selector);
-    if(!button)return;
-    let dot=button.querySelector('.hub-task-dot');
-    if(!count){dot?.remove();return;}
-    if(!dot){dot=document.createElement('span');dot.className='org-dot hub-task-dot';dot.setAttribute('role','img');button.append(dot);}
-    const label='처리할 업무 '+count+'건';dot.setAttribute('aria-label',label);dot.title=label;
+    for(const button of sidebar.querySelectorAll(selector)){
+      let dot=button.querySelector('.hub-task-dot');
+      if(!count){dot?.remove();continue;}
+      if(!dot){dot=document.createElement('span');dot.className='org-dot hub-task-dot';dot.setAttribute('role','img');button.append(dot);}
+      const label='처리할 업무 '+count+'건';dot.setAttribute('aria-label',label);dot.title=label;
+    }
   };
   function navigation(){
     const nav=sidebar.querySelector('nav');
     const previousGroup=nav.querySelector('.hub-document-menus');if(previousGroup)documentsExpanded=previousGroup.open;
+    const previousTraining=nav.querySelector('.hub-training-menus');if(previousTraining)trainingExpanded=previousTraining.open;
     nav.innerHTML=action('home',sidebarIcon('home')+'<span>홈</span>',active==='home'?'on':'');
     nav.firstElementChild.onclick=()=>dispatch('home');
     if(admin){
@@ -661,12 +694,9 @@
       edit.textContent=sidebarDraft?'순서 저장':'편집모드';edit.disabled=!catalog||savingSidebar;
       edit.setAttribute('aria-pressed',String(!!sidebarDraft));cancel.hidden=!sidebarDraft;cancel.disabled=savingSidebar;
     }
-    const labels=new Map((catalog?.documentMenus||[]).map(m=>[m.key,m.displayName]));
-    for(const m of catalog?.modules||[])labels.set(m.key,featureName(m));
-    const numbered=Array.from(labels,([key,displayName])=>({key,displayName}))
-      .filter(m=>/^\d{2}\. /.test(m.displayName||'')&&!catalog.omitted?.includes(m.key))
-      .sort((a,b)=>a.displayName.localeCompare(b.displayName,'ko'));
-    const grouped=new Set(numbered.map(m=>m.key));
+    const numbered=documentMenuItems();
+    // Keep the primary accident shortcut, with the same destination under 10. 사고관리.
+    const grouped=new Set(numbered.filter(m=>m.key!=='incident').map(m=>m.key));
     const order=(sidebarDraft||sidebarOrder()).filter(k=>!grouped.has(k));
     for(const [i,key] of order.entries()){
       const m=entry(key),support=key==='support',builtin=sidebarBuiltins[key];
@@ -699,18 +729,25 @@
       group.open=documentsExpanded;
       group.ontoggle=()=>{documentsExpanded=group.open;};
       heading.innerHTML=sidebarIcon('documents')+'<span>안전보건 서류관리</span>';group.append(heading);
-      for(const item of numbered){
+      const appendDocument=(parent,item)=>{
         const module=entry(item.key),row=document.createElement('div');
         row.className='hub-sidebar-row';
-        row.innerHTML=action('feature:'+item.key,menuPictogram(item.key)+'<span>'+safe(item.displayName)+'</span>',active===item.key?'on':'');
+        row.innerHTML=action('feature:'+item.key,menuPictogram(item.key)+'<span>'+safe(item.displayName)+'</span>',active===item.key||active==='document:'+item.key?'on':'');
         const b=row.firstElementChild;
-        // The catalog publishes these section titles even before their modules launch.
-        // Their information tabs only render the published title and readiness message.
         const available=moduleAvailable(module);
         const destination=available?item.key:'document:'+item.key;
         b.disabled=!!sidebarDraft||(!available&&!documentInfo(destination));
         if(!b.disabled)b.onclick=()=>selectTab(destination);
-        group.append(row);
+        parent.append(row);
+      };
+      for(const item of numbered){
+        if(!item.children){appendDocument(group,item);continue;}
+        const training=document.createElement('details'),title=document.createElement('summary');
+        training.className='hub-training-menus';training.setAttribute('aria-label',item.displayName);
+        training.open=trainingExpanded;training.ontoggle=()=>{trainingExpanded=training.open;};
+        title.innerHTML=menuPictogram(item.key)+'<span>'+safe(item.displayName)+'</span>';training.append(title);
+        for(const child of item.children)appendDocument(training,child);
+        group.append(training);
       }
       nav.append(group);
     }

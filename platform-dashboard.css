@@ -776,3 +776,15 @@
 .hub-other-settings>summary {cursor:pointer;margin-block:12px}
 
 .hub-other-settings .hub-card-arrow{display:none}.hub-other-settings .feature-pencil,.hub-other-settings .feature-controls{position:relative;z-index:1}
+
+/* Document education submenus share the existing sidebar tree and touch targets. */
+.platform-hub .hub-training-menus{margin:1px 0 1px 8px;border-left:1px solid #547a9b55}
+.platform-hub .hub-training-menus>summary{display:flex;align-items:center;gap:8px;padding:6px 9px;min-height:32px;color:inherit;font-size:12px;font-weight:700;list-style:none;cursor:pointer;border-radius:8px}
+.hub-training-menus>summary::-webkit-details-marker{display:none}
+.hub-training-menus>summary::after{content:'';width:5px;height:5px;border:solid #b5d1e9;border-width:0 1.5px 1.5px 0;transform:rotate(45deg);margin-left:auto;flex-shrink:0}
+.hub-training-menus[open]>summary::after{transform:rotate(225deg)}
+.hub-training-menus>summary:focus-visible{outline:2px solid #9adfff;outline-offset:-2px}
+.platform-hub .hub-training-menus.has-active>summary{color:#fff;background:#ffffff10}
+.hub-training-menus>.hub-sidebar-row{padding-left:10px}
+.platform-hub .hub-training-menus button span{white-space:normal;overflow-wrap:anywhere;line-height:1.5}
+@media(hover:none) and (pointer:coarse){.platform-hub .hub-training-menus>summary{min-height:44px}}

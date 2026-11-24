@@ -43,8 +43,8 @@ async function verify(f,role,saved){
     }
     await buttons.first().waitFor({state:'attached'});
     const keys=await buttons.evaluateAll(es=>es.map(e=>e.dataset.hub.slice(8)));
-    assert.equal(keys.length,10);
-    if(!saved)for(const key of keys.filter(k=>k!=='organization')){
+    assert.equal(keys.length,17);
+    if(!saved)for(const key of keys.filter(k=>!['organization','incident'].includes(k))){
       await showSidebar();
       const link=sidebar.locator('[data-hub="feature:'+key+'"]');
       const label=await link.locator('span').last().textContent();
@@ -79,7 +79,7 @@ async function verify(f,role,saved){
       assert.ok(await main.locator('.org-preview').evaluate(e=>e.classList.contains('org-zoomed')));
     }
     assert.deepEqual(errors,[]);
-    console.log('PASS',role,saved?'approved and historical':'empty template and ten category links');
+    console.log('PASS',role,saved?'approved and historical':'empty template and nested document category links');
   }finally{await browser.close()}
 }
 (async()=>{
