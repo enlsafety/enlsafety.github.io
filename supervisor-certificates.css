@@ -1,0 +1,36 @@
+#app .cert-content{min-width:0;font-size:16px;line-height:1.6}
+#app .cert-content h3{margin:0;font-size:19px}
+#app .cert-toolbar{display:flex;align-items:end;gap:12px;margin:16px 0}
+#app .cert-toolbar label{flex:1;min-width:0}
+#app .cert-content label{display:flex;flex-direction:column;gap:6px;font-weight:700}
+#app .cert-content select,#app .cert-content input{box-sizing:border-box;max-width:100%;min-width:0;font:inherit;border:1px solid #a6bfd4;border-radius:7px;padding:10px;background:#fff;color:#1c3c55}
+#app .cert-content select{width:100%}
+#app .cert-content button{min-height:44px;white-space:normal}
+#app .cert-overview{padding:20px;background:#f1f8fe;border:1px solid #c9dfef;border-radius:12px;margin:16px 0}
+#app .cert-heading{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+#app .cert-state{font-size:16px;color:#255b7d}
+#app .cert-overview[data-state=due] .cert-state{color:#8a5000}
+#app .cert-overview[data-state=overdue] .cert-state{color:#ac2531}
+#app .cert-overview[data-state=registered] .cert-state{color:#176045}
+#app .cert-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:16px 0}
+#app .cert-facts dt{font-size:14px;color:#4e6476}
+#app .cert-facts dd{margin:4px 0 0;font-size:18px;font-weight:700;color:#163e60;overflow-wrap:anywhere}
+#app .cert-guidance{margin:0;border-top:1px solid #c9dfef;padding-top:12px}
+#app .cert-period{margin:18px 0}
+#app .cert-warning{padding:12px;border:1px solid #e4bdc0;background:#fff6f6;color:#8e2730;border-radius:8px}
+#app .cert-success{padding:12px;background:#eff9f3;color:#176045;border-radius:8px}
+#app .cert-records{margin:20px 0}
+#app .cert-record{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:14px 0;border-bottom:1px solid #d6e3ed}
+#app .cert-record span{flex:1;min-width:180px;font-size:14px;color:#52677b;overflow-wrap:anywhere}
+#app .cert-previous{margin:16px 0}
+#app .cert-editor{padding:20px;border:1px solid #c4d9e9;border-radius:12px;background:#f7fbfe;margin-top:20px}
+#app .cert-editor[hidden]{display:none}
+#app .cert-form{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px}
+#app .cert-form>label{flex:1;min-width:220px}
+#app .cert-form input:not([readonly]):not(:disabled){background:#fffdf5}
+#app .cert-form input[readonly]{background:#edf2f6}
+#app .cert-date-note,#app .cert-photo,#app .cert-form>.org-status{width:100%;margin:0}
+#app .cert-photo .enl-proof-thumb{max-width:100%}
+#app .cert-footnote{font-size:14px;color:#53697c;margin:16px 0 6px}
+#app .cert-content a{font-size:14px;color:#195c90}
+@media(max-width:750px){#app .cert-toolbar{align-items:stretch;flex-direction:column}#app .cert-overview,#app .cert-editor{padding:14px}#app .cert-facts{grid-template-columns:1fr;gap:12px}#app .cert-form>label{min-width:0;flex-basis:100%}#app .cert-form input{width:100%}#app .cert-record{align-items:flex-start;flex-direction:column}#app .cert-record span{min-width:0}#app .cert-content select{font-size:16px}}
