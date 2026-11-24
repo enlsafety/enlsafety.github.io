@@ -70,10 +70,10 @@
     const causeStatus=d.causeAnalysisStatus==='investigating'?'조사 중 · 원인 미확정':d.causeAnalysisStatus==='analyzed'?'분석 완료':'원인분석 상태 미기록';
     const cause=[
       '분석상태: '+causeStatus,
-      c.rootCause?'재발방지 원인분석: '+c.rootCause:'',
       d.environmentCause?'환경적 요인: '+d.environmentCause:'',
       d.behaviorCause?'행동적 요인: '+d.behaviorCause:'',
-      d.causeAnalysisNote?'기타·종합 원인: '+d.causeAnalysisNote:''
+      d.causeAnalysisNote?'기타·종합 원인: '+d.causeAnalysisNote:'',
+      window.ENLIncidentCause.legacy(i)?'기존 계획의 원인 기록 (전환 전): '+window.ENLIncidentCause.legacy(i):''
     ].filter(Boolean).join(' / ');
     const process=[d.workAction||'',d.incidentHow||i.summary||''].filter(Boolean).join(' → ');
     const plan=c.planDetail||d.preventionPlan||'-';

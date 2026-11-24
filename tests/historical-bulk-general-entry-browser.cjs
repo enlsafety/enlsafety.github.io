@@ -13,7 +13,7 @@ async function run(engine){
    window.openModal=html=>document.getElementById('modalRoot').innerHTML='<div class="modal">'+html+'</div>';window.closeModal=()=>document.getElementById('modalRoot').innerHTML='';
    window.enlOpenHistoricalCandidate454=(batch,candidate)=>{window.__opened.push([batch,candidate]);window.closeModal()};
   });
-  for(const file of ['incidents-v410.js','report-v410.js','closed-incident-reopen-v438.js','official-records-v439.js'])await page.addScriptTag({content:fs.readFileSync(file,'utf8')});
+  for(const file of ['incident-cause-model.js','incidents-v410.js','report-v410.js','closed-incident-reopen-v438.js','official-records-v439.js'])await page.addScriptTag({content:fs.readFileSync(file,'utf8')});
   await page.evaluate(()=>window.enlOpenIncidentReview('qa-bulk',true,window.__u));
   await page.waitForFunction(()=>document.getElementById('editInc')?.textContent==='이관정보 수정');
   assert.equal(await page.locator('[data-enl438-reopen]').count(),0,'imported follow-up data cannot be reset through generic rollback');

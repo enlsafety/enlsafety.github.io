@@ -51,7 +51,7 @@ async function managerHome(engine){
       ];
       currentView='home';window.renderShell(window.__u);
     });
-    await page.addScriptTag({content:fs.readFileSync('workflow-prevention-v429.js','utf8')});
+    await page.addScriptTag({content:fs.readFileSync('incident-cause-model.js','utf8')});await page.addScriptTag({content:fs.readFileSync('workflow-prevention-v429.js','utf8')});
     await page.evaluate(()=>window.renderShell(window.__u));
     await page.waitForTimeout(80);
 

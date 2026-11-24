@@ -160,7 +160,7 @@
     row('즉시 조치',i.immediateAction);
     if(!initialOnly){
       if(c.status&&c.status!=='approved')row('재발방지 진행상태',({planned:'계획 수립 완료 / 현장 조치 작성 대기',draft:'현장 조치 작성 중',submitted:'안전관리자 검토 대기',rejected:'보완 요청 / 현장 조치 수정 중'})[c.status]||'작성 중');
-      const cause=clean(d.causeAnalysisNote)||clean(c.rootCause)||join([d.environmentCause,d.behaviorCause],'\n');
+      const cause=window.ENLIncidentCause.text(i);
       row(d.causeAnalysisStatus==='investigating'&&cause?'원인 (조사 중)':'사고 원인',briefReportText(cause,true)||(d.causeAnalysisStatus==='investigating'?'조사 중':''),false,cause);
       const plan=c.planDetail||(d.preventionPlan!=='후속 단계에서 안전관리자가 별도 수립'?d.preventionPlan:'');
       row('재발방지 계획',briefReportText(plan,false),false,plan);
@@ -208,10 +208,10 @@
     add('A','현장 최초 사고보고',presentation==='screen'?executiveSummaryHtml(i,{initialOnly:true,includeOriginal}):reportReadOnlyHtml(i));
     add('B','안전관리자 원인분석 및 검토',
       reportRow('원인분석 상태',d.causeAnalysisStatus==='analyzed'?'분석 완료':d.causeAnalysisStatus==='investigating'?'조사 중 · 미확정':'분석 대기')+
-      reportRow('환경적 요인',d.environmentCause)+reportRow('행동적 요인',d.behaviorCause)+reportRow('기타·종합 원인',d.causeAnalysisNote)+
+      reportRow('환경적 요인',d.environmentCause)+reportRow('행동적 요인',d.behaviorCause)+reportRow('기타·종합 원인',d.causeAnalysisNote)+(window.ENLIncidentCause.legacy(i)?'<details class="report410-legacy-cause"'+(presentation==='screen'?'':' open')+'><summary>기존 계획의 원인 기록 (전환 전)</summary>'+reportRow('보존된 기존 내용',window.ENLIncidentCause.legacy(i))+'</details>':'')+
       reportRow('분석 담당 / 일시',[d.causeAnalyzedBy,d.causeAnalyzedAt&&fmt(d.causeAnalyzedAt)].filter(Boolean).join(' · '))+
       reportRow('검토의견',i.safetyNote)+reportRow('사고보고 승인',[i.approvedBy,i.approvedAt&&fmt(i.approvedAt)].filter(Boolean).join(' · ')));
-    if(c.planDetail||c.planAt)add('C','안전관리자 재발방지계획',reportRow('원인 분석',c.rootCause)+reportRow('재발방지계획',c.planDetail)+reportRow('조치 담당자 / 완료예정일',[c.ownerName,c.dueDate].filter(Boolean).join(' · '))+reportRow('계획 수립',[c.planBy,c.planAt&&fmt(c.planAt)].filter(Boolean).join(' · ')));
+    if(c.planDetail||c.planAt)add('C','안전관리자 재발방지계획',reportRow('재발방지계획',c.planDetail)+reportRow('조치 담당자 / 완료예정일',[c.ownerName,c.dueDate].filter(Boolean).join(' · '))+reportRow('계획 수립',[c.planBy,c.planAt&&fmt(c.planAt)].filter(Boolean).join(' · ')));
     if(c.actionDetail||c.submittedAt)add('D','현장 재발방지조치 및 증빙',reportRow('실제 조치내용',c.actionDetail)+reportRow('시행일 / 완료일',[c.actionDate,c.actionCompletedDate||c.completedDate].filter(Boolean).join(' / '))+reportRow('조치 담당자',c.actionOwner)+reportRow('추가 확인사항',c.additionalNotes)+reportRow('제출자 / 일시',[c.submittedBy,c.submittedAt&&fmt(c.submittedAt)].filter(Boolean).join(' · '))+reportFiles('action',c.afterPhotos));
     if(c.reviewNote||c.reviewedAt||i.closedAt)add('E','안전관리자 조치 확인',reportRow('처리 상태',i.status==='closed'?'종결':i.executiveApproval?.state==='pending'?'경영진 결재대기':c.status==='rejected'?'보완요청':'검토 중')+reportRow('확인 / 보완요청 의견',c.reviewNote)+reportRow('확인자 / 일시',[c.reviewedBy,c.reviewedAt&&fmt(c.reviewedAt)].filter(Boolean).join(' · '))+reportRow('종결 일시',i.closedAt&&fmt(i.closedAt)));
     return `<article class="report410-cumulative" data-report-id="${esc(i.id)}">${parts.join('')}</article>`;

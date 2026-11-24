@@ -12,7 +12,7 @@ try{
  r=await push('field',{...base,id:'qa-race-reverse',reportDetails:{incidentHow:'QA'}});eq(r.status,200,'reverse fixture');let other=r.body.incidents[0];
  r=await push('field',other,{summary:'recalled facts'});eq(r.status,200,'recall wins');
  r=await push('safety',other,{status:'approved',reportDetails:{...other.reportDetails,causeAnalysisStatus:'investigating'}});eq(r.status,409,'stale approval loses');
- r=await push('safety',i,{corrective:{status:'planned',rootCause:'QA cause',planDetail:'QA plan',ownerName:'QA 현장',dueDate:'2026-10-20'}});eq(r.status,200,'plan');i=r.body.incidents[0];
+ r=await push('safety',i,{corrective:{status:'planned',planDetail:'QA plan',ownerName:'QA 현장',dueDate:'2026-10-20'}});eq(r.status,200,'plan');i=r.body.incidents[0];
  const action={...i.corrective,status:'submitted',actionDetail:'QA done',actionDate:'2026-10-13',actionCompletedDate:'2026-10-14',actionOwner:'QA 현장',afterPhotos:[{name:'QA.png',path:'action/site-qa-site/qa.png',mime:'image/png'}]};
  for(const who of ['manager','executive','other']){r=await push(who,i,{corrective:action});assert.ok(r.status===403||(r.status===200&&!r.body.incidents.length),who+' cannot submit this site');checks++;}
  for(const date of ['2026-02-30','2099-01-01','2026-10-12']){r=await push('field',i,{corrective:{...action,actionCompletedDate:date}});eq(r.status,400,'invalid/future/before-start completion blocked');}

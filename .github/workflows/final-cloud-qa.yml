@@ -91,7 +91,7 @@ jobs:
           node-version: '24'
       - name: Personnel registration and audit regression
         run: |
-          npm install --no-save --package-lock=false @electric-sql/pglite@0.5.17
+          npm install --no-save --package-lock=false @electric-sql/pglite@0.5.17 jsdom@31.0.1
           node tests/personnel-audit-redaction.cjs
           node tests/personnel-proof-edge.cjs
           node tests/personnel-card-sync.cjs
@@ -99,6 +99,8 @@ jobs:
           node tests/activity-history.cjs
       - name: Supervisor appointment workflow regression
         run: node tests/supervisor-appointments.cjs
+      - name: Single-source cause and prevention regression
+        run: node tests/prevention-cause-source.cjs
       - name: Cause draft release regression
         run: |
           node --check incident-flow-v440.js

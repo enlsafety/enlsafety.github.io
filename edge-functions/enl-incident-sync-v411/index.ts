@@ -1,3 +1,4 @@
+import './incident-cause-model.js';
 import { hasHealth as Deno } from "../_shared/device-runtime.ts";
 import { formDraftRequest, consumeFormDraft } from "./form-drafts.ts";
 import { platformRequest, serviceAllowed } from "./platform-api.ts";
@@ -159,7 +160,7 @@ function publicSummary(i:any){
     const follow=hm.followType==="site_check"?"현장 확인 필요":hm.followType==="improvement"?"신규 개선조치 필요":"추가조치 없음";
     return {occurredDate:clean(i?.occurredAt).slice(0,10),eventType:type||"안전사고",category:clean(i?.category),place,overview,cause:"기존 ERP 기결재 사고자료 이관",preventiveAction:hm.existingActionSummary?redact(hm.existingActionSummary,names):`기존 조치자료: ${ev}`,actionStatus:`과거사고 이관종결 · ${follow}`,approvedAt:"",publishedAt:clean(i?.updatedAt||hm.transferredAt)};
   }
-  const cause=actionApproved?(redact(c.rootCause||"",names)||"승인된 사고조치의 원인 분석 내용을 확인하고 있습니다."):"사고조치는 사고보고와 별도로 작성·검토됩니다.";
+  const cause=actionApproved?(redact((globalThis as any).ENLIncidentCause.text(i),names)||"승인된 사고조치의 원인 분석 내용을 확인하고 있습니다."):"사고조치는 사고보고와 별도로 작성·검토됩니다.";
   const action=actionApproved?(redact(c.actionDetail||"",names)||"안전관리자가 승인한 재발방지 조치를 시행했습니다."):clean(c.status)==="submitted"?"사고조치가 안전관리자 검토대기 중입니다.":clean(c.status)==="rejected"?"사고조치가 반려되어 수정 중입니다.":clean(c.status)?"사고조치를 작성·진행 중입니다.":"승인된 사고보고에 대한 사고조치가 아직 작성되지 않았습니다.";
   const actionStatus=actionApproved?"사고조치 승인완료":clean(c.status)==="submitted"?"사고조치 검토대기":clean(c.status)==="rejected"?"사고조치 반려":clean(c.status)?"사고조치 진행 중":"사고조치 미작성";
   return {occurredDate:clean(i?.occurredAt).slice(0,10),eventType:type||"안전사고",category:clean(i?.category),place,overview,cause,preventiveAction:action,actionStatus,approvedAt:clean(i?.approvedAt),publishedAt:clean(i?.updatedAt||i?.approvedAt)};

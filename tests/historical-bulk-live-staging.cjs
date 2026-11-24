@@ -316,7 +316,7 @@ async function workflowTests() {
   };
   let { p } = await refreshed();
   if (!p.corrective) {
-    await push(next => { next.corrective = { status: 'planned', planDetail: '합성 재발방지계획', rootCause: '합성 확인원인', ownerName: '합성 현장', dueDate: today(), planBy: '합성 안전관리자' }; });
+    await push(next => { next.corrective = { status: 'planned', planDetail: '합성 재발방지계획', ownerName: '합성 현장', dueDate: today(), planBy: '합성 안전관리자' }; });
   }
   ensure((await refreshed()).p.corrective?.status, 'Prevention plan persists on imported incident');
   denied(await actionOn('void_incident', batchId, id), 'candidate_workflow_locked', 'Started followup blocks invalidation');

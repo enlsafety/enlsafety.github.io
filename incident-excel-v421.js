@@ -131,10 +131,11 @@
     section('B. 안전관리자 원인분석 및 검토');
     put('분석상태 / 담당',join([d.causeAnalysisStatus==='analyzed'?'분석 완료':d.causeAnalysisStatus==='investigating'?'조사 중 · 원인 미확정':'분석상태 미기록',stamp(d.causeAnalyzedBy,d.causeAnalyzedAt)]),true);
     put('환경적 요인',d.environmentCause,true);put('행동적 요인',d.behaviorCause,true);put('기타·종합 원인',d.causeAnalysisNote,true);
+    if(window.ENLIncidentCause.legacy(i))put('기존 계획의 원인 기록 (전환 전)',window.ENLIncidentCause.legacy(i),true);
     put('검토의견',i.safetyNote);
     put('사고보고 승인',stamp(i.approvedBy,i.approvedAt),true);
     section('C. 안전관리자 재발방지계획');
-    put('원인 분석',c.rootCause,true);put('재발방지계획',c.planDetail,true);
+    put('재발방지계획',c.planDetail,true);
     put('담당 / 완료예정일',join([c.ownerName,c.dueDate]),true);put('계획 작성자 / 일시',stamp(c.planBy,c.planAt));
     if(c.planUpdatedAt&&c.planUpdatedAt!==c.planAt)put('계획 변경자 / 일시',stamp(c.planUpdatedBy,c.planUpdatedAt));
     section('D. 현장 재발방지조치 및 증빙');

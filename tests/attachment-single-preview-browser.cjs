@@ -34,7 +34,7 @@ async function run(engine,width){
    localStorage.setItem('enl_safety_v3',JSON.stringify({version:3,sites:[{id:'qa-site',name:'QA 사업장'}],users:[{id:'qa-safety',name:'QA 안전',role:'safety',active:true}],incidents:[]}));
    localStorage.setItem('enl_safety_session_v3',JSON.stringify({userId:'qa-safety',loggedAt:new Date().toISOString()}));
   });
-  for(const file of ['core.js','report-v410.js','incident-review-v431.js'])await page.addScriptTag({content:fs.readFileSync(file,'utf8')});
+  for(const file of ['incident-cause-model.js','core.js','report-v410.js','incident-review-v431.js'])await page.addScriptTag({content:fs.readFileSync(file,'utf8')});
   await page.evaluate(originalImage=>{
    window.qaRequests=[];
    window.qaOriginalImage=originalImage;

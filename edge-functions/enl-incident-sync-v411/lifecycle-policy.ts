@@ -106,6 +106,8 @@ export function validateLifecycle(prev:any,next:any,actor:any,now:string){
     if(!['approved','closed'].includes(next.status))fail('approved_state_locked');
   }
   const oldC=prev.corrective||{},c=next.corrective||{};
+  // Cause edits belong to the audited reportDetails correction path only.
+  for(const key of ['rootCause','causeStatus'])if(!equal(oldC[key],c[key]))fail('cause_analysis_source_locked');
   if(!equal(oldC.submissions,c.submissions))fail('submission_history_locked',403);
   const actionFields=['actionDetail','actionDate','actionCompletedDate','completedDate','actionOwner','additionalNotes','afterPhotos','submittedBy','submittedById','submittedAt'];
   const snapshot=(record:any)=>Object.fromEntries(['submittedBy','submittedById','submittedAt','actionDetail','actionDate','actionCompletedDate','completedDate','actionOwner','additionalNotes','afterPhotos'].filter(k=>record[k]!==undefined).map(k=>[k,structuredClone(record[k])]));
@@ -162,7 +164,7 @@ export function validateLifecycle(prev:any,next:any,actor:any,now:string){
       }else if(['planned','in_progress'].includes(c.status)||(c.status==='rejected'&&oldC.status==='rejected')){
         if(['submitted','approved'].includes(oldC.status))fail('action_review_in_progress');
         for(const key of [...actionFields,'reviewedBy','reviewedById','reviewedAt','reviewNote'])if(!equal(oldC[key],c[key]))fail('submitted_evidence_locked');
-        if(!text(c.rootCause)||!text(c.planDetail)||!text(c.ownerName)||!/^\d{4}-\d{2}-\d{2}$/.test(text(c.dueDate)))fail('plan_fields_required');
+        if(!text(c.planDetail)||!text(c.ownerName)||!/^\d{4}-\d{2}-\d{2}$/.test(text(c.dueDate)))fail('plan_fields_required');
         c.planBy=oldC.planBy||actor.name;c.planById=oldC.planById||actor.id;c.planAt=oldC.planAt||now;c.planUpdatedBy=actor.name;c.planUpdatedAt=now;appendHistory(oldC.planAt?'prevention_plan_updated':'prevention_plan_registered',text(c.planDetail));
       }else fail('action_transition_invalid');
     }
@@ -178,7 +180,7 @@ export function correctedIncident(prev:any,changes:any,reason:string,actor:any,n
   if(prev.executiveApproval?.state==='pending')fail('executive_review_in_progress');
   if(!text(reason)||text(reason).length>2000)fail('revision_reason_required',400);
   const allowed=new Set(['safetyNote','summary','occurredAt','eventType','category','injuredName','injuredAge','injuredGender','injuredPart','injuryType','job','severity','potentialMajor','leaveEstimate','immediateAction','reportDetails','photos','corrective',...(prev.pastReport?['pastReport']:[]),...(historical?['historicalImport']:[])]);
-  const correctiveAllowed=new Set(['rootCause','causeStatus','planDetail','ownerName','dueDate','actionDetail','actionDate','actionOwner','additionalNotes','afterPhotos']);
+  const correctiveAllowed=new Set(['planDetail','ownerName','dueDate','actionDetail','actionDate','actionOwner','additionalNotes','afterPhotos']);
   const historicalDetails=new Set(['place','workAction','incidentHow','environmentCause','behaviorCause','injuredName','workerName','job','injuryDetail','diagnosis','doctorOpinion','medicalCost','medicalCostPending','medicalCostDetail','repairCost','repairCostPending','repairCostDetail','damagedItem','damageDetail','preventionPlan','specialNote','causeAnalysisStatus','causeAnalysisNote']);
   const historicalMeta=new Set(['originalReporterName','erpApprovalRef','erpApprovalDate','existingActionNote','additionalActionNote','existingActionStatus']);
   const next=structuredClone(prev),diff:any[]=[];

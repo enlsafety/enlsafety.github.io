@@ -7,7 +7,7 @@ let r=await f.call(past?'safety':'field',{action:'push',incidents:[{...(past?{pa
 const push=async(who,fn)=>{let n=structuredClone(i);fn(n);n._syncBaseVersion=i._syncVersion;n._syncMutationId=crypto.randomUUID();let r=await f.call(who,{action:'push',incidents:[n]});if(r.status===200)i=r.body.incidents[0];return r;};
 const ok=async(who,fn)=>{const r=await push(who,fn);assert.equal(r.status,200,JSON.stringify(r));checks++};
 await ok('safety',x=>{x.status='approved';x.reportDetails.causeAnalysisStatus='investigating'});
-await ok('safety',x=>x.corrective={status:'planned',rootCause:'원인',planDetail:'계획',ownerName:'QA 현장',dueDate:'2026-10-30'});
+await ok('safety',x=>x.corrective={status:'planned',planDetail:'계획',ownerName:'QA 현장',dueDate:'2026-10-30'});
 await ok('field',x=>Object.assign(x.corrective,{status:'submitted',actionDetail:'조치완료',actionDate:'2026-10-29',actionOwner:'QA 현장',afterPhotos:[{path:'qa.png',mime:'image/png'}]}));
 await f.db.exec("update enl_hq_users set position='부사장' where user_id='qa-executive'");
 r=await push('safety',x=>{x.corrective.status='approved'});check(r.status===409&&r.body.message==='president_approver_required','vice president cannot stand in for president');

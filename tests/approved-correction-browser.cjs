@@ -32,7 +32,7 @@ const {fixture}=require('./final-lifecycle.cjs'),{chromium,webkit}=require('play
 
    },{incident});
    await page.addScriptTag({content:fs.readFileSync('incidents-v410.js','utf8')});
-   for(const file of ['report-v410.js','closed-incident-reopen-v438.js','incident-flow-v440.js'])await page.addScriptTag({content:fs.readFileSync(file,'utf8')});
+   for(const file of ['incident-cause-model.js','report-v410.js','closed-incident-reopen-v438.js','incident-flow-v440.js'])await page.addScriptTag({content:fs.readFileSync(file,'utf8')});
    await page.evaluate(()=>openIncidentModal('qa-approved-browser',true,currentUser()));
    await page.locator('[data-closed-correct]').click();await page.locator('#unifiedReportForm').waitFor();
    await page.locator('#incidentHow410').fill('수정한 사고경위');

@@ -11,7 +11,7 @@ async function call(who,body){const r=await fetch(URL,{signal:AbortSignal.timeou
  for(const who of ['manager','executive']){r=await call(who,{action:'pull'});check(r,200,'preapproval visibility');assert.ok(r.body.incidents.some(x=>x.id===id));check(await call(who,{action:'acknowledge',incidentId:id}),410,'approval blocked');}
  await push('safety',x=>{x.status='supplement';x.supplement={requestNote:'자료 보완'}},'supplement');await push('field',x=>x.status='supplement_submitted','resubmit');await push('safety',x=>{x.status='approved';x.reportDetails.causeAnalysisStatus='investigating'},'safety approval');
  await push('field',x=>x.summary='무단 정정','locked facts',409);await push('field',x=>x.reportDetails.repairCost=35000,'cost addition');
- await push('safety',x=>x.corrective={status:'planned',rootCause:'추정: 동선 겹침',planDetail:'가상 안전표지 설치',ownerName:'QA 현장',dueDate:'2026-10-20'},'plan');
+ await push('safety',x=>x.corrective={status:'planned',planDetail:'가상 안전표지 설치',ownerName:'QA 현장',dueDate:'2026-10-20'},'plan');
  await push('field',x=>Object.assign(x.corrective,{status:'submitted',actionDetail:'가상 표지 설치 완료',actionDate:'2026-10-13',actionCompletedDate:'2026-10-13',actionOwner:'QA 현장',afterPhotos:[{name:'가상증빙.pdf',path:'action/site-qa-site/qa.pdf',mime:'application/pdf'}]}),'submit');
  await push('safety',x=>Object.assign(x.corrective,{status:'rejected',reviewNote:'가상 보완요청'}),'action revision');await push('field',x=>x.corrective.status='submitted','action resubmit');await push('safety',x=>{x.corrective.status='approved';x.status='closed'},'closure');
  assert.equal(i.corrective.submissions.length,2);assert.equal(i.corrective.actionCompletedDate,'2026-10-13');

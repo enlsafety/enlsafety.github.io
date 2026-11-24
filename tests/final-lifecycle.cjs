@@ -50,6 +50,7 @@ async function fixture({hubNotices=false,fetchMock}={}){
  vm.runInContext(read('edge-functions/enl-incident-sync-v411/site-contract-v451.js'),ctx);
  vm.runInContext(read('executive-approval-v482.js'),ctx);
  vm.runInContext(read('safety-card-model.js'),ctx);
+ vm.runInContext(read('incident-cause-model.js'),ctx);
  vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/safety-card-links.ts').replace(/^import .*;\r?\n/gm,'').replace(/export /g,'')),ctx);
  vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/safety-card.ts').replace(/^import .*;\r?\n/gm,'').replace(/export /g,'')),ctx);
  vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/lifecycle-policy.ts').replace(/export /g,'')),ctx);
@@ -97,7 +98,7 @@ async function run(){const f=await fixture();await f.db.exec(read("supabase/migr
  r=await push('field',x=>x.summary='승인사고 변조');check(r.status===409,'approved facts locked');
  r=await push('field',x=>x.reportDetails.repairCost=50000);assert.equal(r.status,200,JSON.stringify(r));check(i.status==='approved'&&i.approvedAt===approval&&i.officialRecord.costAdditions.length===1,'additive cost audited without invalidating approval');
  r=await push('field',x=>x.reportDetails.repairCost=60000);check(r.status===409,'existing cost locked');
- r=await push('safety',x=>x.corrective={status:'planned',rootCause:'추정: 시야 제한',planDetail:'동선 분리',ownerName:'QA 현장',dueDate:'2026-10-20'});assert.equal(r.status,200,JSON.stringify(r));check(!!i.corrective.planAt,'plan server timestamp');
+ r=await push('safety',x=>x.corrective={status:'planned',planDetail:'동선 분리',ownerName:'QA 현장',dueDate:'2026-10-20'});assert.equal(r.status,200,JSON.stringify(r));check(!!i.corrective.planAt,'plan server timestamp');
  r=await push('field',x=>{x.corrective.status='submitted';x.corrective.actionDetail='완료'});check(r.status===409,'missing action date and evidence blocked');
  r=await push('field',x=>{x.corrective.status='in_progress';x.corrective.actionDetail='진행중'});check(r.status===200,'action draft');
  r=await push('field',x=>{x.corrective.status='submitted';x.corrective.actionDetail='동선 분리 완료';x.corrective.actionDate='2026-10-13';x.corrective.actionOwner='QA 현장';x.corrective.afterPhotos=[{name:'QA.pdf',mime:'application/pdf',path:'action/site-qa-site/QA.pdf'}]});assert.equal(r.status,200,JSON.stringify(r));check(i.corrective.submittedBy==='QA 현장','action submitted');

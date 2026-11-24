@@ -1,0 +1,45 @@
+'use strict';
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const {fixture}=require('./final-lifecycle.cjs');
+const {JSDOM}=require('jsdom');
+const wait=async fn=>{for(let i=0;i<200;i++){if(fn())return;await new Promise(r=>setTimeout(r,5));}assert.fail('UI did not settle');};
+(async()=>{
+ const f=await fixture();let dom;
+ try{
+  const base={id:'qa-unified-cause',siteId:'qa-site',status:'reported',category:'property',summary:'QA 시설 접촉',eventType:'접촉',occurredAt:'2026-10-12T01:00:00Z',photos:[],reportDetails:{incidentHow:'QA 확인한 경위',environmentCause:'확인된 환경',behaviorCause:'확인된 작업방법',causeAnalysisNote:'추가 조사로 확인한 종합원인',causeAnalysisStatus:'analyzed'}};
+  const push=(i,changes)=>f.call('safety',{action:'push',incidents:[{...structuredClone(i),...changes,_syncBaseVersion:i._syncVersion||0,_syncMutationId:crypto.randomUUID()}]});
+  let r=await push(base,{});assert.equal(r.status,200);let i=r.body.incidents[0];
+  r=await push(i,{status:'approved'});assert.equal(r.status,200);i=r.body.incidents[0];
+  const causes=structuredClone(i.reportDetails),approval=i.approvedAt;
+  r=await push(i,{corrective:{status:'planned',rootCause:'새로 쓴 중복 원인',planDetail:'대책',ownerName:'QA',dueDate:'2026-11-30'}});assert.equal(r.status,409);assert.equal(r.body.message,'cause_analysis_source_locked');
+  r=await push(i,{corrective:{status:'planned',planDetail:'대책',ownerName:'QA',dueDate:'2026-11-30'}});assert.equal(r.status,200,JSON.stringify(r));i=r.body.incidents[0];assert.equal(i.corrective.rootCause,undefined);assert.deepEqual(i.reportDetails,causes);
+  r=await f.call('safety',{action:'correct_closed',incidentId:i.id,expectedVersion:i._syncVersion,mutationId:crypto.randomUUID(),reason:'추가 조사 결과 반영',changes:{reportDetails:{causeAnalysisNote:'정정한 종합원인'}}});assert.equal(r.status,200,JSON.stringify(r));i=r.body.incident;assert.equal(i.reportDetails.causeAnalysisNote,'정정한 종합원인');assert.equal(i.approvedAt,approval);assert.equal(i.officialRecord.revisionNumber,1);assert.equal(i.corrective.rootCause,undefined);
+  r=await f.call('safety',{action:'correct_closed',incidentId:i.id,expectedVersion:i._syncVersion,mutationId:crypto.randomUUID(),reason:'중복 경로 시도',changes:{corrective:{rootCause:'중복 원인'}}});assert.equal(r.status,400);
+  const legacy=await f.seedLegacy({...i,id:'qa-legacy-cause',corrective:{...i.corrective,rootCause:'예전에 별도로 기록한 내용'}});
+  r=await push(legacy,{corrective:{...legacy.corrective,planDetail:'기존 원인은 보존하고 대책만 변경'}});assert.equal(r.status,200,JSON.stringify(r));const old=r.body.incidents[0];assert.equal(old.corrective.rootCause,'예전에 별도로 기록한 내용');
+  r=await push(old,{corrective:{...old.corrective,rootCause:'덮어쓰기 시도'}});assert.equal(r.status,409);
+  const scope={window:{}};vm.createContext(scope);vm.runInContext(fs.readFileSync('incident-cause-model.js','utf8'),scope);
+  const M=scope.window.ENLIncidentCause;assert.match(M.text(old),/정정한 종합원인/);assert.doesNotMatch(M.text(old),/예전에/);assert.equal(M.legacy(old),'예전에 별도로 기록한 내용');
+  assert.equal(M.legacy({...old,corrective:{rootCause:'정정한 종합원인'}}),'');
+  assert.equal(M.text({reportDetails:{causeAnalysisStatus:'investigating'},corrective:{rootCause:'기존 추정'}}),'조사 중 / 원인 미확정');
+  assert.match(M.text({corrective:{rootCause:'구자료'}}),/전환 전.*구자료/);
+  dom=new JSDOM('<div id="modalRoot"></div>',{runScripts:'outside-only',url:'https://isolated.test/',pretendToBeVisual:true});const w=dom.window,d=w.document;const alerts=[];
+  Object.assign(w,{data:{incidents:[old],users:[],sites:[]},currentView:'actions',structuredClone,alert:v=>alerts.push(v),currentUser:()=>({id:'qa-safety',role:'safety',name:'QA 안전'}),siteById:()=>({name:'QA 사업장'}),fmt:String,nowISO:()=>new Date().toISOString(),renderShell:()=>{},esc:v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))});
+  w.eventTypeOptions=()=>'<option>접촉</option>';w.won=String;w.roleName=String;w.requestAnimationFrame=fn=>w.setTimeout(fn,0);w.cancelAnimationFrame=id=>w.clearTimeout(id);
+  w.openModal=html=>d.querySelector('#modalRoot').innerHTML='<div class="modal">'+html+'</div>';w.closeModal=()=>d.querySelector('#modalRoot').replaceChildren();
+  w.HTMLElement.prototype.scrollIntoView=()=>{};w.enlAttachmentGalleryHtml=()=>'';
+  let saved;
+  w.enlCommitOrNotify=async next=>{const res=await push(next,{});if(res.status!==200)throw Error(res.body.message);saved=res.body.incidents[0];return true;};
+  for(const file of ['incident-cause-model.js','report-v410.js','workflow-prevention-v429.js'])w.eval(fs.readFileSync(file,'utf8'));
+  w.openUnifiedCorrectiveModal(old.id,w.currentUser());
+  assert.equal(d.querySelector('#prev429RootCause'),null);assert.equal(d.querySelectorAll('[data-report-stage="B"] textarea').length,0);
+  const b=d.querySelector('[data-report-stage="B"]');assert.match(b.textContent,/정정한 종합원인/);assert.match(b.textContent,/확인된 환경/);assert.match(b.textContent,/확인된 작업방법/);assert.match(b.querySelector('details').textContent,/예전에 별도로/);
+  const form=d.querySelector('#prev429PlanForm');assert.equal(form.querySelectorAll('[required]').length,3);assert.equal(form.querySelector('[name=rootCause]'),null);
+  d.querySelector('#prev429PlanDetail').value='UI에서 변경한 재발방지대책';d.querySelector('#prev429Owner').value='QA 담당자';d.querySelector('#prev429Due').value='2026-11-30';form.dispatchEvent(new w.Event('submit',{cancelable:true,bubbles:true}));
+  await wait(()=>!!saved);assert.equal(saved.corrective.planDetail,'UI에서 변경한 재발방지대책');assert.equal(saved.corrective.rootCause,'예전에 별도로 기록한 내용');assert.equal(saved.reportDetails.causeAnalysisNote,'정정한 종합원인');
+  const report=w.enlCumulativeReportHtml(saved);const box=d.createElement('div');box.innerHTML=report;
+  assert.doesNotMatch(box.querySelector('[data-report-stage="C"]').textContent,/원인/);assert.match(box.querySelector('[data-report-stage="B"]').textContent,/정정한 종합원인/);
+  if(process.env.CAUSE_QA_FIXTURE)fs.writeFileSync(process.env.CAUSE_QA_FIXTURE,JSON.stringify(saved));
+  console.log('PASS unified cause: three plan fields, readonly approved analysis, real DB plan save, audited cause correction, legacy preservation, blocked duplicate writes, existing approval preserved');
+ }finally{dom?.window.close();await f.db.close();}
+})().catch(e=>{console.error(e);process.exitCode=1});

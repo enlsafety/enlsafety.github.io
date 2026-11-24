@@ -57,7 +57,7 @@
         : join([d.damagedItem && '파손 대상: ' + d.damagedItem, text(d.damageDetail)]),
       immediate: text(i.immediateAction, '조치 내용 미기재'),
       cause: join([causeState, d.environmentCause && '작업환경: ' + d.environmentCause, d.behaviorCause && '작업방법: ' + d.behaviorCause,
-        d.causeAnalysisNote, c.rootCause && '추가 확인: ' + c.rootCause]),
+        d.causeAnalysisNote, window.ENLIncidentCause.legacy(i) && '기존 계획의 원인 기록 (전환 전): ' + window.ENLIncidentCause.legacy(i)]),
       plan: text(c.planDetail || d.preventionPlan || h.additionalActionNote || h.existingActionNote, '예방계획 미기재'),
       action: join([actionStatus(c), c.actionDetail || (h.workflowExempt ? h.existingActionNote : ''),
         (c.actionCompletedDate || c.completedDate) && '완료일: ' + dateText(c.actionCompletedDate || c.completedDate), c.additionalNotes]),

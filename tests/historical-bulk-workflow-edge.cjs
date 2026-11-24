@@ -57,7 +57,7 @@ function harness(file){
  const invented=clone(state.records[0]);invented.approvedAt='2026-10-12T03:00:00Z';
  assert.equal((await invoke('push',{incidents:[invented]})).body.message,'bulk_initial_approval_locked');
  const created=bulk();created.id='qa-forged';assert.equal((await invoke('push',{incidents:[created]})).body.message,'bulk_registration_requires_import_api');
- const plan=clone(state.records[0]);plan.corrective={status:'planned',planDetail:'격리 계획',rootCause:'격리 원인',ownerName:'격리 현장',dueDate:'2026-10-20',planBy:'격리 안전관리자'};
+ const plan=clone(state.records[0]);plan.corrective={status:'planned',planDetail:'격리 계획',ownerName:'격리 현장',dueDate:'2026-10-20',planBy:'격리 안전관리자'};
  r=await invoke('push',{incidents:[plan]});assert.equal(r.status,200);assert.equal(r.body.pushed,1);assert.equal(state.records[0].status,'approved');assert.equal(state.records[0].reporterId,'');assert.equal(state.records[0].approvedAt,null);
  const submit=clone(state.records[0]);submit.corrective={...submit.corrective,status:'submitted',actionDetail:'격리 조치 실시',afterPhotos:[{id:'qa-photo'}]};
  r=await invoke('push',{incidents:[submit]},'field');assert.equal(r.status,200);assert.equal(state.records[0].corrective.status,'submitted');assert.equal(state.records[0].status,'approved');assert.equal(state.records[0].reporterId,'');

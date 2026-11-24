@@ -21,7 +21,7 @@ function context(document) {
   const scope = {window:{}, TextEncoder, Uint8Array, Uint32Array, DataView, Blob, console};
   if (document) Object.assign(scope,document);
   vm.createContext(scope);
-  for (const file of ['incident-excel-v421.js','incident-one-page-excel-v471.js']) vm.runInContext(fs.readFileSync(file,'utf8'),scope,{filename:file});
+  for (const file of ['incident-cause-model.js','incident-excel-v421.js','incident-one-page-excel-v471.js']) vm.runInContext(fs.readFileSync(file,'utf8'),scope,{filename:file});
   scope.window.siteById = () => ({name:'예시 골프장'});
   return scope;
 }

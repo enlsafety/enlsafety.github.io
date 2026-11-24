@@ -7,7 +7,7 @@ try{
  for(const who of ['manager','executive']){const v=(await f.call(who,{action:'pull'})).body.incidents[0];check(v.reportDetails.diagnosis,undefined,'initial medical redaction');check(v.reportDetails.doctorOpinion,undefined,'opinion redaction');check(/비공개진단|비공개의견/.test(v.summary),false,'generated summary medical redaction')}
  check((await push('safety',x=>{x.status='approved';x.reportDetails.causeAnalysisStatus='investigating'})).status,200,'approve');
  check((await push('field',x=>x.acknowledgements=[{userId:'fake'}])).status,409,'old signatures immutable');
- check((await push('safety',x=>x.corrective={status:'planned',rootCause:'가상 원인',planDetail:'가상 계획',ownerName:'QA 현장',dueDate:'2026-10-20'})).status,200,'plan');
+ check((await push('safety',x=>x.corrective={status:'planned',planDetail:'가상 계획',ownerName:'QA 현장',dueDate:'2026-10-20'})).status,200,'plan');
  check((await push('field',x=>Object.assign(x.corrective,{status:'submitted',actionDetail:'가상 조치',actionDate:'2026-10-13',actionOwner:'QA 현장',afterPhotos:[{path:'action/site-qa-site/qa.pdf',name:'QA.pdf',mime:'application/pdf'}]}))).status,200,'evidence');
  check((await push('safety',x=>{x.corrective.status='approved';x.status='closed'})).status,200,'close');
  r=await f.call('executive',{action:'executive_decide',incidentId:i.id,expectedVersion:i._syncVersion,decision:'approve'});check(r.status,200,'executive closes');i=r.body.incident;
@@ -27,6 +27,6 @@ try{
  // Manual historical record follows the same complete prevention workflow.
  r=await f.call('safety',{action:'push',incidents:[{id:'qa-manual-security',siteId:'qa-site',status:'reported',category:'property',summary:'가상 과거사고',occurredAt:'2025-01-01T01:00:00Z',pastReport:{drafterName:'QA 당시 소장',safetyManagerName:'QA 당시 안전'},corrective:null,reportDetails:{repairCost:null},photos:[],_syncBaseVersion:0,_syncMutationId:crypto.randomUUID()}]});check(r.status,200,'past report create');i=r.body.incidents[0];
  check((await push('safety',x=>{x.status='approved';x.reportDetails.causeAnalysisStatus='investigating'})).status,200,'regular initial approval');
- check((await push('safety',x=>x.corrective={status:'planned',rootCause:'가상 원인',planDetail:'가상 계획',ownerName:'QA 현장',dueDate:'2026-10-20'})).status,200,'manual plan');check((await push('field',x=>{x.reportDetails.repairCost=0;Object.assign(x.corrective,{status:'submitted',actionDetail:'가상 완료',actionDate:'2026-10-13',actionOwner:'QA 현장',afterPhotos:[{path:'action/site-qa-site/qa.pdf'}]})})).status,200,'manual field zero cost/evidence');check((await push('safety',x=>{x.status='closed';x.corrective.status='approved'})).status,200,'manual close');
+ check((await push('safety',x=>x.corrective={status:'planned',planDetail:'가상 계획',ownerName:'QA 현장',dueDate:'2026-10-20'})).status,200,'manual plan');check((await push('field',x=>{x.reportDetails.repairCost=0;Object.assign(x.corrective,{status:'submitted',actionDetail:'가상 완료',actionDate:'2026-10-13',actionOwner:'QA 현장',afterPhotos:[{path:'action/site-qa-site/qa.pdf'}]})})).status,200,'manual field zero cost/evidence');check((await push('safety',x=>{x.status='closed';x.corrective.status='approved'})).status,200,'manual close');
  console.log(JSON.stringify({passed,failed:0,suite:'final-security'}));
 }finally{await f.db.close()}})().catch(e=>{console.error(e);process.exitCode=1});

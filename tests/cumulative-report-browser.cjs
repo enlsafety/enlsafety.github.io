@@ -29,7 +29,7 @@ const profiles=[{name:'desktop',engine:chromium,width:1365},{name:'android',engi
    window.enlIncidentApi=body=>qaApi(currentUser().role,body);
    window.enlCommitOrNotify=async record=>{try{const next={...record,_syncBaseVersion:record._syncVersion||0,_syncMutationId:crypto.randomUUID()};const r=await qaApi(currentUser().role,{action:'push',incidents:[next]});if(!r.incidents?.length)throw Error('not_saved');enlAcceptSavedIncident(r.incidents[0]);return true;}catch(e){alert(e.message);return false;}};
   });
-  for(const file of ['incidents-v410.js','form-drafts.js','report-v410.js','workflow-prevention-v429.js','closed-incident-reopen-v438.js','incident-flow-v440.js','required-fields-v453.js'])await page.addScriptTag({content:fs.readFileSync(file,'utf8')});
+  for(const file of ['incident-cause-model.js','incidents-v410.js','form-drafts.js','report-v410.js','workflow-prevention-v429.js','closed-incident-reopen-v438.js','incident-flow-v440.js','required-fields-v453.js'])await page.addScriptTag({content:fs.readFileSync(file,'utf8')});
   const legacy=await page.evaluate(()=>enlReportReadOnlyHtml({id:'legacy',siteId:'qa-site',category:'property',summary:'QA 이전 형식에만 저장된 경위',reportDetails:{}}));assert.ok(legacy.includes('QA 이전 형식에만 저장된 경위'));assert.ok(legacy.includes('미확인'));
   const setRole=role=>page.evaluate(role=>{qaUser=role==='safety'?{id:'qa-safety',name:'QA 안전',role:'safety',position:'안전관리자'}:{id:'qa-field',name:'QA 현장',role:'field',position:'현장소장',siteId:'qa-site'};},role);
   const get=async()=> (await f.call('safety',{action:'pull'})).body.incidents[0];
@@ -67,7 +67,7 @@ const profiles=[{name:'desktop',engine:chromium,width:1365},{name:'android',engi
   await page.locator('#unifiedReportForm button[type=submit]').click();await page.locator('#unifiedReportForm').waitFor({state:'detached'});let saved=await get();assert.equal(saved.approvedAt,approved.approvedAt);assert.equal(saved.approvedBy,approved.approvedBy);assert.equal(saved.reportDetails.causeAnalysisNote,'QA 사진 대조');assert.equal(saved.officialRecord.revisionNumber,1);
   // C opens at current work, with A+B above and preserved attachment binding.
   await openAction();await assertStage('C');assert.ok(await page.locator('#prev429PlanDetail').evaluate(el=>!!el.closest('td')));assert.ok((await page.locator('[data-report-stage="B"]').innerText()).includes('QA 확인된 협소 동선'));
-  await page.locator('#prev429RootCause').fill('QA 동선 중첩');await page.locator('#prev429PlanDetail').fill('QA 안내표지 설치');await page.locator('#prev429Owner').fill('QA 현장');await page.locator('#prev429Due').fill('2026-10-20');
+  assert.equal(await page.locator('#prev429RootCause').count(),0);await page.locator('#prev429PlanDetail').fill('QA 안내표지 설치');await page.locator('#prev429Owner').fill('QA 현장');await page.locator('#prev429Due').fill('2026-10-20');
   await page.locator('#prev429PlanForm button[type=submit]').click();await page.locator('#prev429PlanForm').waitFor({state:'detached'});await openAction();assert.equal(await page.locator('#prev429PlanDetail').inputValue(),'QA 안내표지 설치');await page.evaluate(()=>closeModal());
   // D restores tab draft and uploaded files when reopened; ABC never contain controls.
   await setRole('field');await openAction();await assertStage('D');assert.ok(await page.locator('#prev429ActionDetail').evaluate(el=>!!el.closest('td')));await page.locator('#prev429ActionDetail').fill('QA 안내표지 설치 완료');await page.locator('#prev429ActionDate').fill('2026-10-14');await page.locator('#prev432CompletedDate').fill('2026-10-14');

@@ -59,7 +59,7 @@ const assert=require('node:assert/strict'),crypto=require('node:crypto'),fs=requ
    assert.ok(official.includes("'분석상태: '+causeStatus"),'official UI shows cause review status');checks++;
    // v4.7.1 exports XLSX rather than the retired popup PDF. Verify the actual workbook.
    const vm=require('node:vm'),scope={window:{},TextEncoder,Uint8Array,Uint32Array,DataView,Blob,console};vm.createContext(scope);
-   for(const file of ['incident-excel-v421.js','incident-one-page-excel-v471.js'])vm.runInContext(fs.readFileSync(file,'utf8'),scope);
+   for(const file of ['incident-cause-model.js','incident-excel-v421.js','incident-one-page-excel-v471.js'])vm.runInContext(fs.readFileSync(file,'utf8'),scope);
    const workbook=Buffer.from(scope.window.enlBuildOnePageIncidentWorkbook(i));
    for(const value of ['원인 검토 완료',newCause.environmentCause,newCause.behaviorCause,newCause.causeAnalysisNote]){assert.ok(workbook.includes(Buffer.from(value)),'downloaded XLSX preserves '+value);checks++;}
    assert.ok(official.includes("d.causeAnalysisNote?'기타·종합 원인: '"),'official record displays other confirmed cause');checks++;
