@@ -6,6 +6,7 @@
  const caption={initial:'최초 위험성평가',regular:'정기 위험성평가'};
  const errorText={record_changed:'다른 사용자가 먼저 저장했습니다. 입력 내용은 남아 있습니다. 최신 저장본을 확인한 뒤 다시 작성해 주세요.',folder_changed:'사업장 폴더가 변경됐습니다. 입력 내용을 확인하고 목록에서 다시 열어 주세요.',invalid_record:'평가일, 평가자, 위험성 등급과 제외 사유를 확인해 주세요. 상 또는 중 항목은 개선대책, 담당자와 조치기한이 필요합니다.',invalid_photo:'사진을 처리하지 못했습니다. 사진을 다시 선택해 주세요.'};
   async function preparePhoto(file){
+   if(file.type==='application/pdf'||/\.pdf$/i.test(file.name))throw Error('photo_only');
    if(file.size>25000000)throw Error('too_large');
    const url=URL.createObjectURL(file);let img;
    try{img=await new Promise((resolve,reject)=>{const image=new Image(),timer=setTimeout(()=>reject(Error('timeout')),20000);image.onload=()=>{clearTimeout(timer);resolve(image);};image.onerror=()=>{clearTimeout(timer);reject(Error('decode'));};image.src=url;});}
@@ -119,7 +120,7 @@
    editor=el('section',null,'risk-editor');note=el('p','','risk-message');note.setAttribute('role','status');note.setAttribute('aria-live','polite');
    const head=el('div',null,'org-head'),title=el('div');title.append(el('h3',site.site_name+' / '+caption[kind]),el('p',(kind==='regular'?period+'년 / ':'')+template.name+' 위험성평가','org-status'));
    const tools=el('div',null,'org-actions');tools.append(btn('평가서 목록',()=>{if(canLeave())onBack();},'org-back'),btn('인쇄 / PDF',print));head.append(title,tools);editor.append(head);
-   const state=el('p',revision?'저장본 '+revision+' / '+(documentData.document.state==='completed'?'평가완료':'작성중')+' / '+(documentData.document.actor_name||''):'기본 양식 — 아직 저장하지 않았습니다.','risk-state');editor.append(state);
+   const state=el('p',revision?'저장본 '+revision+' / '+(documentData.document.approved?'반기 확인완료':documentData.document.state==='completed'?'작성중 / 안전관리자 승인 대기':'작성중')+' / '+(documentData.document.actor_name||''):'기본 양식 — 아직 저장하지 않았습니다.','risk-state');editor.append(state);
    if(history.length){
     const historyLabel=el('label','저장 이력'),select=el('select');select.dataset.riskHistory='';
     for(const h of history)select.add(new Option(h.revision+'차 / '+(h.state==='completed'?'평가완료':'작성중')+' / '+new Date(h.saved_at).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'})+' / '+h.actor_name,String(h.revision)));
@@ -140,6 +141,16 @@
    for(const sheet of window.ENLRiskPaperTemplates[templateId].sheets.filter(s=>s.improvement))improvements.append(paper(sheet));
    editor.append(improvements,note);
    if(writable()){const actions=el('div',null,'risk-save-actions');actions.append(btn('저장',()=>save('draft'),'org-primary'),btn('평가완료로 저장',()=>save('completed')));editor.append(actions);}
+   if(user.role==='safety'&&revision===latest&&documentData.document.state==='completed'&&!documentData.document.approved){
+     editor.append(btn('안전관리자 승인',async()=>{
+       if(busy)return;if(dirty){note.textContent='변경사항을 먼저 저장한 후 승인해 주세요.';return;}
+       if(!confirm('현재 저장된 평가내용과 개선사진을 확인하고 승인할까요?'))return;
+       busy=true;editor.inert=true;
+       try{await api({action:'platform_risk_approve',siteId:site.site_id,kind,period,templateId,revision,folderRevision:site.folder_revision});if(current()){await load();config.onSaved?.();}}
+       catch(e){if(current())note.textContent=errorText[e.message]||'승인하지 못했습니다. 최신 저장본을 확인해 주세요.';}
+       finally{busy=false;if(editor)editor.inert=false;}
+     },'org-primary'));
+   }
    host.replaceChildren(editor);
   }
   function photoControl(row,key,label,printing=false){
@@ -152,7 +163,7 @@
      try{const p=await preparePhoto(input.files[0]);if(current()){photos.set(p.id,{...p,fresh:true});row[key]=p.id;changed();paint();}}
      catch(e){note.textContent='사진을 읽지 못했습니다. JPG 또는 PNG 사진을 선택해 주세요.';}
      finally{input.value='';busy=false;end?.();}
-    };box.append(input,btn('사진 제거',()=>{if(!busy){row[key]='';changed();paint();}},'risk-remove'));
+    };const choose=btn('사진 선택',()=>input.click());choose.disabled=!writable();const drop=window.enlDocumentEvidence.drop(input,choose,{deferred:true});drop.querySelector('.attachment-drop-hint').textContent='현장 개선 전후 사진을 끌어다 놓으세요. 사진파일만 등록할 수 있습니다.';drop.querySelector('.enl-document-drop-note').textContent='사진을 추가한 후 평가서를 저장하세요.';box.append(drop,btn('사진 제거',()=>{if(!busy){row[key]='';changed();paint();}},'risk-remove'));
    }return box;
   }
   function print(){

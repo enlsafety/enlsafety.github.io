@@ -4,7 +4,7 @@ const {fixture}=require('./final-lifecycle.cjs');
 async function orgFixture(){
   const f=await fixture();
   await f.db.exec("insert into enl_site_master(site_id,site_name,active) values ('other-site','두 번째 사업장',true),('closed-site','종료 사업장',false)");
-  for(const name of ['20261104234953_integrated_home_content','20261105051542_home_safety_cards','20261110000000_organization_charts','20261110000030_private_org_template','20261110000100_open_organization_module','20261110003000_organization_site_folders','20261110011500_org_record_deletion_document_menu','20261110014000_organization_review_events','20261118015255_organization_print_review','20261123090000_supervisor_appointments','20261124013417_supervisor_certificates','20261124100000_supervisor_certificate_approval'])
+  for(const name of ['20261104234953_integrated_home_content','20261105051542_home_safety_cards','20261110000000_organization_charts','20261110000030_private_org_template','20261110000100_open_organization_module','20261110003000_organization_site_folders','20261110011500_org_record_deletion_document_menu','20261110014000_organization_review_events','20261118015255_organization_print_review','20261123090000_supervisor_appointments','20261124013417_supervisor_certificates','20261124100000_supervisor_certificate_approval','20261126000000_certificate_photo_bundle'])
     await f.db.exec(fs.readFileSync('supabase/migrations/'+name+'.sql','utf8'));
   return f;
 }

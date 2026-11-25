@@ -7,11 +7,12 @@ const {orgFixture}=require('./organization.cjs');
   await f.db.exec(fs.readFileSync('supabase/migrations/20261117000000_risk_assessment_folders.sql','utf8'));
   await f.db.exec(fs.readFileSync('supabase/migrations/20261117000100_open_risk_assessment_module.sql','utf8'));
   await f.db.exec(fs.readFileSync('supabase/migrations/20261117042933_risk_assessment_records.sql','utf8'));
+  await f.db.exec(fs.readFileSync('supabase/migrations/20261126000002_risk_safety_review.sql','utf8'));
   const key={siteId:'qa-site',kind:'initial',period:'initial',templateId:'course'};
   const call=(who,op,extra={})=>f.call(who,{action:'platform_risk_'+op,...key,...extra});
   const doc=async(who='field',extra={})=>(await call(who,'open',extra)).body;
   const tasks=async who=>(await call(who,'list',{includeTasks:true})).body.sites[0].tasks;
-  assert.equal(await tasks('field'),2);assert.equal(await tasks('manager'),undefined);
+  assert.equal(await tasks('field'),2);assert.equal(await tasks('manager'),2);
   const templates=JSON.parse(fs.readFileSync('edge-functions/enl-incident-sync-v411/risk-templates.json'));
   assert.equal(templates.books.flatMap(b=>b.sections.flatMap(s=>s.rows)).length,204);
   for(const b of templates.books){const data=await doc('field',{templateId:b.id});assert.equal(data.document.content.rows.length,b.sections.flatMap(s=>s.rows).length);assert.equal(data.document.revision,0);assert.equal(data.document.content.improvements.length,3);}

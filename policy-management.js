@@ -103,14 +103,15 @@ function mount(host,u,api,sameUser){
   const admin=u.role==='safety',field=u.role==='field',evidence=window.enlDocumentEvidence;
   const complete=state=>evidence.complete(u.role,state);
   const allComplete=s=>complete(s.policyState)&&complete(s.objectivesState);
-  let enabled=false,panel=null,main=null,nav=null,settings=null,sites=[],siteId=null,kind=null,request=0,busy=false,needCount=0,approvalPending=null,approvalTotal=0;
+  const aggregate=s=>evidence.aggregate([s.policyState,s.objectivesState]);
+  let enabled=false,panel=null,main=null,nav=null,settings=null,sites=[],siteId=null,kind=null,request=0,busy=false,needCount=0,approvalPending=null,approvalTotal=0,approvalProgress=0;
   const status=(message)=>make('p',message,'policy-message');
-  const documentWork=(s,state)=>s.active&&state!=='approved'&&(admin||field&&state!=='pending');
+  const documentWork=(s,state)=>s.active&&state!=='approved';
   const hasWork=s=>documentWork(s,s.policyState)||documentWork(s,s.objectivesState);
   function workDot(node,needed,approved=false,state){
     if(!needed&&!approved)return;
-    const label=state?evidence.label(u.role,state):approved?(field?'현장 서류 제출 완료':'안전관리자 승인 완료'):(field?'서류 제출 필요':'미제출 또는 안전관리자 승인 미완료');
-    const dot=make('span',approved?'✓':null,'policy-document-dot'+(approved?' is-approved':''));dot.setAttribute('role','img');dot.setAttribute('aria-label',label);dot.title=label;
+    const label=evidence.status(state||(approved?'approved':'empty')),progress=!approved&&state&&state!=='empty';
+    const dot=make('span',approved?'✓':progress?'◷':null,'policy-document-dot'+(approved?' is-approved':progress?' is-progress':''));dot.setAttribute('role','img');dot.setAttribute('aria-label',label);dot.title=label;
     node.setAttribute('aria-description',label);node.append(dot);
   }
   function badges(){
@@ -122,7 +123,7 @@ function mount(host,u,api,sameUser){
       dot.title=admin?'확인이 필요한 사업장 '+needCount+'개':'현장 최신화 미완료';
       dot.setAttribute('aria-label',dot.title);
     }
-    if(enabled&&approvalPending!==null)host.setDocumentApprovalState?.('policy',approvalPending,(field?'안전보건 경영방침 및 목표 제출 필요 ':'안전보건 경영방침 및 목표 승인 미완료 ')+approvalPending+'개 사업장',approvalTotal,field?'현장 서류 제출 완료':'안전관리자 승인 완료');
+    if(enabled&&approvalPending!==null)host.setDocumentApprovalState?.('policy',approvalPending,(field?'안전보건 경영방침 및 목표 제출 필요 ':'안전보건 경영방침 및 목표 승인 미완료 ')+approvalPending+'개 사업장',approvalTotal,'반기 확인완료',approvalProgress);
   }
   let badgeRequest=0;
   async function refreshBadges(){
@@ -131,26 +132,19 @@ function mount(host,u,api,sameUser){
     try{
       const result=await api({action:'platform_policy_list'});
       if(id!==badgeRequest||!sameUser()||!enabled)return;
-      approvalTotal=(result.sites||[]).filter(s=>s.active!==false).length;needCount=(result.sites||[]).filter(hasWork).length;approvalPending=(result.sites||[]).filter(s=>s.active!==false&&!allComplete(s)).length;badges();
+      approvalTotal=(result.sites||[]).filter(s=>s.active!==false).length;needCount=(result.sites||[]).filter(hasWork).length;approvalPending=(result.sites||[]).filter(s=>s.active!==false&&!allComplete(s)).length;approvalProgress=(result.sites||[]).filter(s=>s.active!==false&&aggregate(s)!=='empty').length;badges();
     }catch{/* Leave the last verified badge state unchanged during a transient outage. */}
   }
   function catalog(m){
     enabled=!!m&&m.enabled!==false&&m.state!=='hidden'&&m.canEnter!==false&&(m.state==='live'||m.preview);
-    if(!enabled){needCount=0;approvalPending=null;approvalTotal=0;}badges();if(enabled)refreshBadges();
+    if(!enabled){needCount=0;approvalPending=null;approvalTotal=0;approvalProgress=0;}badges();if(enabled)refreshBadges();
   }
   function canLeave(){return !busy}
   function canSuspend(){return !busy}
   function leave(){request++;siteId=null;kind=null;main=null;nav=null;panel?.replaceChildren();badges()}
   const current=()=>sites.find(s=>s.siteId===siteId);
-  function siteState(s){
-    if(!s.active)return '종료 사업장';
-    if(s.complete)return '경영방침 및 목표 확인완료';
-    if(field&&allComplete(s))return '제출 완료 / 승인 대기';
-    if(s.policyState==='pending'||s.objectivesState==='pending')return '안전관리자 확인 대기';
-    if(s.policyState==='rejected'||s.objectivesState==='rejected')return '서류 재제출 필요';
-    return '최신화 미완료';
-  }
-  function stateClass(state){return complete(state)?'is-approved':state==='pending'?'is-pending':state==='rejected'?'is-rejected':'is-empty'}
+  function siteState(s){return !s.active?'종료 사업장':evidence.status(aggregate(s));}
+  function stateClass(state){return complete(state)?'is-approved':state==='empty'?'is-empty':'is-pending'}
   function rail(){
     if(!nav)return;
     nav.replaceChildren();
@@ -158,8 +152,8 @@ function mount(host,u,api,sameUser){
     for(const s of sites){
       const b=btn('',()=>chooseSite(s.siteId),'policy-folder');
       b.dataset.siteId=s.siteId;
-      b.append(make('strong',s.folderName),make('small',siteState(s),'policy-badge '+(allComplete(s)?'is-approved':s.policyState==='pending'||s.objectivesState==='pending'?'is-pending':'is-empty')));
-      workDot(b,s.active&&!allComplete(s),s.active&&allComplete(s));
+      b.append(make('strong',s.folderName),make('small',siteState(s),'policy-badge '+(allComplete(s)?'is-approved':aggregate(s)!=='empty'?'is-pending':'is-empty')));
+      workDot(b,s.active&&!allComplete(s),s.active&&allComplete(s),aggregate(s));
       if(s.siteId===siteId)b.setAttribute('aria-current','page');
       nav.append(b);
       if(s.siteId===siteId){
@@ -179,8 +173,8 @@ function mount(host,u,api,sameUser){
     const grid=make('div',null,'policy-site-grid');
     for(const s of sites){
       const b=btn('',()=>chooseSite(s.siteId),'policy-site-card');
-      b.append(make('strong',s.folderName),make('small',siteState(s),'policy-badge '+(allComplete(s)?'is-approved':s.policyState==='pending'||s.objectivesState==='pending'?'is-pending':'is-empty')));
-      workDot(b,s.active&&!allComplete(s),s.active&&allComplete(s));
+      b.append(make('strong',s.folderName),make('small',siteState(s),'policy-badge '+(allComplete(s)?'is-approved':aggregate(s)!=='empty'?'is-pending':'is-empty')));
+      workDot(b,s.active&&!allComplete(s),s.active&&allComplete(s),aggregate(s));
       grid.append(b);
     }
     main.replaceChildren(heading,grid);
@@ -190,7 +184,7 @@ function mount(host,u,api,sameUser){
     const s=current();if(!s)return sitesPage();kind=null;rail();
     const back=btn('← 사업장 목록',sitesPage,'policy-back');
     const heading=make('div',null,'policy-page-title');
-    heading.append(make('h3',s.folderName),status('두 문서의 게시 사진 / PDF를 각각 제출하고 안전관리자 확인을 받아야 완료됩니다.'));
+    heading.append(make('h3',s.folderName),status('두 문서의 게시 출력물 사진을 각각 제출하고 안전관리자 확인을 받아야 완료됩니다.'));
     const grid=make('div',null,'policy-document-grid');
     for(const [k,name] of Object.entries(docs)){
       const state=s[k==='policy'?'policyState':'objectivesState'];
@@ -228,7 +222,7 @@ function mount(host,u,api,sameUser){
   function globalEdit(){
     if(!admin||!settings||busy)return;
     const dialog=make('dialog',null,'policy-global-dialog');
-    const form=make('form');form.innerHTML='<h3>경영방침 및 목표 전체 수정</h3><p>전 사업장에 적용되는 두 문서의 상단 연도와 하단 시행일을 함께 수정합니다.</p><label>상단 표시 연도<input name="year" type="number" min="2000" max="2100" step="1" required></label><label>하단 시행일<input name="date" type="date" required></label><p class="policy-dialog-warning">변경 내용을 저장하면 전 사업장의 최신화 확인이 초기화됩니다. 기존 게시 사진 / PDF와 승인 이력은 보관됩니다. 날짜만 변경해도 재확인이 필요합니다.</p><div class="policy-dialog-actions"><button type="button" data-cancel>취소</button><button type="submit">전 사업장에 적용</button></div><p role="status"></p>';
+    const form=make('form');form.innerHTML='<h3>경영방침 및 목표 전체 수정</h3><p>전 사업장에 적용되는 두 문서의 상단 연도와 하단 시행일을 함께 수정합니다.</p><label>상단 표시 연도<input name="year" type="number" min="2000" max="2100" step="1" required></label><label>하단 시행일<input name="date" type="date" required></label><p class="policy-dialog-warning">변경 내용을 저장하면 전 사업장의 최신화 확인이 초기화됩니다. 기존 게시 출력물 사진과 승인 이력은 보관됩니다. 날짜만 변경해도 재확인이 필요합니다.</p><div class="policy-dialog-actions"><button type="button" data-cancel>취소</button><button type="submit">전 사업장에 적용</button></div><p role="status"></p>';
     form.elements.year.value=settings.year;form.elements.date.value=settings.date;
     dialog.append(form);host.append(dialog);
     const note=form.querySelector('[role=status]'),submit=form.querySelector('[type=submit]');
@@ -266,13 +260,13 @@ function mount(host,u,api,sameUser){
     heading.append(text);
     const print=btn('PDF 출력',()=>printPoster(doc,set,s.siteName),'policy-main-action');
     const upload=make('input');upload.type='file';upload.accept='image/*';upload.hidden=true;
-    const note=status(st==='empty'?'출력 후 현장 게시 사진 / PDF를 제출하세요.':
+    const note=status(st==='empty'?'출력 후 현장 게시 출력물 사진을 제출하세요.':
       st==='pending'?'안전관리자 확인 대기 중입니다.':
-      st==='approved'?'최신화 확인이 완료됐습니다.':'사유 확인 후 게시 사진 / PDF를 다시 제출하세요.');
-    const submit=btn(st==='rejected'?'게시 사진 / PDF 다시 제출':'게시 사진 / PDF 제출',()=>upload.click(),'policy-main-action');
+      st==='approved'?'최신화 확인이 완료됐습니다.':'사유 확인 후 게시 출력물 사진을 다시 제출하세요.');
+    const submit=btn(st==='rejected'?'게시 출력물 사진 다시 제출':'게시 출력물 사진 제출',()=>upload.click(),'policy-main-action');
     submit.disabled=!field||!s.active||locked;
     upload.disabled=submit.disabled;
-    evidence.mark(submit,locked,st==='pending'?'제출 완료 / 승인 대기':st==='approved'?'제출 완료':st==='rejected'?'사진 / PDF 다시 제출':'사진 / PDF 제출');
+    evidence.mark(submit,st==='approved',st==='pending'?'제출 완료 / 승인 대기':st==='approved'?'제출 완료':st==='rejected'?'출력물 사진 다시 제출':'출력물 사진 제출');
     const approved=btn('확인완료',()=>{},'policy-main-action');approved.disabled=true;evidence.mark(approved,st==='approved','확인완료');
     const paper=poster(doc,set);
     const tip=make('p','원본 양식은 고정되어 있습니다. 연도와 시행일은 안전관리자의 ‘전체 수정’에서만 변경할 수 있습니다.','policy-help');
@@ -297,7 +291,7 @@ function mount(host,u,api,sameUser){
     let proofPreview;
     if(proof){
       right.append(make('p','제출: '+proof.submittedBy+' / '+when(proof.submittedAt),'policy-help'));
-      proofPreview=evidence.preview(proof.photo,s.siteName+' '+docs[doc]+' 제출 사진 / PDF');
+      proofPreview=evidence.preview(proof.photo,s.siteName+' '+docs[doc]+' 제출 출력물 사진');
       proofPreview.classList.add('policy-proof-open');proofPreview.querySelector('img')?.classList.add('policy-proof-photo');
       right.append(proofPreview);
       if(proof.reviewedAt)right.append(status('검토: '+proof.reviewedBy+' / '+when(proof.reviewedAt)));
@@ -308,7 +302,7 @@ function mount(host,u,api,sameUser){
       let proofLoaded=proofPreview?.dataset.loaded==='true';
       const updateReview=()=>{check.disabled=busy||!proofLoaded;approved.disabled=busy||!proofLoaded||!check.checked;};
       proofPreview?.addEventListener('evidence-ready',()=>{proofLoaded=true;updateReview();});
-      label.append(check,' 출력 양식의 연도, 시행일, 현장 게시 상태를 사진 / PDF로 확인했습니다.');
+      label.append(check,' 출력 양식의 연도, 시행일, 현장 게시 상태를 출력물 사진으로 확인했습니다.');
       approved.onclick=()=>decide('approved');
       check.onchange=updateReview;updateReview();
       const reject=btn('재제출 요청',()=>decide('rejected'));
@@ -321,7 +315,7 @@ function mount(host,u,api,sameUser){
           if(input===null)return;
           msg=input.trim();
           if(!msg||msg.length>300){alert('재제출 사유를 1~300자로 입력해 주세요.');return;}
-        }else if(!confirm('실제 게시 사진 / PDF와 '+docs[doc]+' 내용을 확인완료 처리할까요?'))return;
+        }else if(!confirm('실제 게시 출력물 사진과 '+docs[doc]+' 내용을 확인완료 처리할까요?'))return;
         busy=true;approved.disabled=reject.disabled=true;note.textContent='처리 중입니다.';
         try{
           await api({action:'platform_policy_decide',siteId:s.siteId,kind:doc,revision:set.revision,evidenceId:proof.id,decision,note:msg});

@@ -31,7 +31,7 @@ async function waitFor(fn){for(let i=0;i<200;i++){if(fn())return;await tick();}a
   for(const role of ['field','manager','executive','worker']){
    const {w,d}=await open(role);
    assert.equal(!!button(d,'전체 수정'),false);
-   assert.equal(button(d,'사진 / PDF 제출').disabled,role!=='field');
+   assert.equal(button(d,'출력물 사진 제출').disabled,role!=='field');
    assert.equal(button(d,'확인완료').disabled,true);
    assert.equal(d.querySelectorAll('.policy-flow-steps [data-action-state=required]').length,role==='field'?2:0);
    assert.equal(d.querySelectorAll('.policy-rail .policy-document-dot').length,['field','worker'].includes(role)?3:4);

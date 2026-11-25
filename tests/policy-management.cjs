@@ -5,6 +5,7 @@ const photo='/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8
 async function policyFixture(){
  const f=await orgFixture();
  await f.db.exec(fs.readFileSync('supabase/migrations/20261120090000_policy_management.sql','utf8'));
+ await f.db.exec(fs.readFileSync('supabase/migrations/20261126000001_policy_photo_only.sql','utf8'));
  await f.db.exec(`update private.enl_platform_catalog set modules=(select jsonb_agg(case when item->>'key'='policy' then item || '{"roles":["safety","field","worker","manager","executive"],"state":"live","enabled":true,"pilots":[]}'::jsonb else item end) from jsonb_array_elements(modules) item);
  insert into enl_site_personnel(personnel_id,site_id,name,job_title,access_role,active,pin_hash) values('qa-worker','qa-site','검수 근로자','근로자','worker',true,'qa-proof');`);
  f.actors.worker={id:'qa-worker',role:'worker',siteId:'qa-site'};

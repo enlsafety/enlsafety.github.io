@@ -102,12 +102,14 @@ jobs:
           node tests/supervisor-appointments.cjs
           node tests/supervisor-certificates.cjs
           node tests/supervisor-certificates-dom.cjs
-      - name: Document PDF evidence and role-specific submission checks
+      - name: Photo-only evidence, bundles and safety approval checks
         run: |
           node tests/document-pdf-evidence.cjs
           node tests/document-evidence-dom.cjs
           node tests/policy-management-dom.cjs
           node tests/document-photo-viewer-dom.cjs
+          node tests/risk-records.cjs
+          node tests/risk-review.cjs
       - name: Joint-site authentication and selector regression
         run: |
           node tests/joint-sites.cjs

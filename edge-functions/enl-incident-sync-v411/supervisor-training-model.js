@@ -28,5 +28,12 @@
     const state=certificates.length?'registered':asOf<p.start?'upcoming':remaining<0?'overdue':remaining<=30?'due':'pending';
     return {state,remaining,certificates,label:{registered:'수료증 등록',upcoming:'교육기간 시작 전',overdue:'기한 경과 / 수료증 미등록',due:'기한 임박 / 수료증 미등록',pending:'수료증 미등록'}[state]};
   }
-  root.enlSupervisorTrainingModel={validDate,today,period,current,matches,summary};
+  function timingWarning(appointment,records,completedOn,excludeId){
+    if(!validDate(completedOn)||completedOn<appointment.date)return null;
+    const earlier=records.filter(r=>(!excludeId||r.certificate_id!==excludeId)&&matches(r,appointment)&&r.completed_on<completedOn).sort((a,b)=>b.completed_on.localeCompare(a.completed_on));
+    const previous=earlier[0],expected=period(appointment.date,previous?current(appointment.date,previous.completed_on).index+1:0);
+    if(completedOn<=expected.end)return null;
+    return {deadline:expected.end,completedOn,nextDeadline:current(appointment.date,completedOn).end};
+  }
+  root.enlSupervisorTrainingModel={validDate,today,period,current,matches,summary,timingWarning};
 })(globalThis);

@@ -1,4 +1,5 @@
 import riskTemplates from "./risk-templates.json" with { type: "json" };
+const riskReviewPeriod=()=>{const d=new Date(Date.now()+9*3600000);return d.getUTCFullYear()+'-'+(d.getUTCMonth()<6?1:2)};
 const isText=(value:unknown,max:number)=>typeof value==='string'&&!!value.trim()
   &&value.trim().length<=max&&!/[\u0000-\u001f\u007f]/.test(value);
 
@@ -21,13 +22,14 @@ export async function riskRequest(sql:any,actor:any,body:any,reply:any){
     const collator=new Intl.Collator('ko-KR',{numeric:true,sensitivity:'base'});
     sites.sort((a:any,b:any)=>collator.compare(a.folder_name,b.folder_name)||collator.compare(a.site_name,b.site_name));
     candidates.sort((a:any,b:any)=>collator.compare(a.site_name,b.site_name));
-    if(body.includeTasks===true && (field||actor.role==='safety')){
-      const latest=await sql`select distinct on(r.site_id,r.kind,r.template_id) r.site_id,r.kind,r.state
+    if(body.includeTasks===true){
+      const latest=await sql`select distinct on(r.site_id,r.kind,r.template_id) r.site_id,r.kind,r.state,r.approved_period
         from private.enl_risk_records r join public.enl_site_master s using(site_id)
         where ${visible} and (r.kind='initial' or r.kind='regular' and r.period=to_char(now() at time zone 'Asia/Seoul','YYYY'))
         order by r.site_id,r.kind,r.template_id,r.revision desc`;
       for(const site of sites){
         const records=latest.filter((r:any)=>r.site_id===site.site_id);
+        site.documentStates=Object.fromEntries(['initial','regular'].map(kind=>{const group=records.filter((r:any)=>r.kind===kind);return [kind,!group.length?'empty':group.every((r:any)=>r.state==='completed'&&r.approved_period===riskReviewPeriod())?'approved':'progress'];}));
         site.tasks=site.active===false?0:['initial','regular'].filter(kind=>{
           const group=records.filter((r:any)=>r.kind===kind);
           return !group.length||group.some((r:any)=>r.state!=='completed');
@@ -105,9 +107,9 @@ async function evaluationRequest(sql:any,actor:any,body:any,reply:any){
  if(!site)return reply({ok:false,message:'site_unavailable'},404);
  const where=sql`site_id=${siteId} and kind=${kind} and period=${period}`;
  if(body.action==='platform_risk_documents'){
-  const records=await sql`select distinct on (template_id) template_id,revision,state,saved_at,actor_name from private.enl_risk_records where ${where} order by template_id,revision desc`;
+  const records=await sql`select distinct on (template_id) template_id,revision,state,saved_at,actor_name,approved_period from private.enl_risk_records where ${where} order by template_id,revision desc`;
   const years=await sql`select distinct period from private.enl_risk_records where site_id=${siteId} and kind='regular' order by period desc`;
-  return reply({ok:true,site,records,years:years.map((r:any)=>r.period),templates:riskTemplates.books.map(b=>({id:b.id,name:b.name,count:b.sections.reduce((n,s)=>n+s.rows.length,0)}))});
+  return reply({ok:true,site,records:records.map((r:any)=>({...r,approved:r.approved_period===riskReviewPeriod()})),years:years.map((r:any)=>r.period),templates:riskTemplates.books.map(b=>({id:b.id,name:b.name,count:b.sections.reduce((n,s)=>n+s.rows.length,0)}))});
  }
  const book=riskTemplates.books.find(b=>b.id===body.templateId);
  if(!book)return reply({ok:false,message:'invalid_template'},400);
@@ -119,7 +121,22 @@ async function evaluationRequest(sql:any,actor:any,body:any,reply:any){
   if(revision&&!doc)return reply({ok:false,message:'record_unavailable'},404);
   const content=doc?.content||riskDefault(book),ids=content.improvements.flatMap((r:any)=>[r.beforePhoto,r.afterPhoto]).filter(Boolean);
   const photos=ids.length?await sql`select id,mime,replace(encode(bytes,'base64'),E'\\n','') as base64 from private.enl_risk_photos where site_id=${siteId} and id in (select jsonb_array_elements_text(${sql.json(ids)}::jsonb))`:[];
-  return reply({ok:true,site,template:{id:book.id,name:book.name,version:riskTemplates.version},document:doc?{revision:doc.revision,state:doc.state,saved_at:doc.saved_at,actor_name:doc.actor_name,content}:{revision:0,state:'draft',content},history,photos,latestRevision:history[0]?.revision||0});
+  return reply({ok:true,site,template:{id:book.id,name:book.name,version:riskTemplates.version},document:doc?{revision:doc.revision,approved:doc.approved_period===riskReviewPeriod(),state:doc.state,saved_at:doc.saved_at,actor_name:doc.actor_name,content}:{revision:0,state:'draft',content},history,photos,latestRevision:history[0]?.revision||0});
+ }
+ if(body.action==='platform_risk_approve'){
+  if(actor.role!=='safety')return reply({ok:false,message:'forbidden'},403);
+  if(!Number.isInteger(body.revision)||body.revision<1||!Number.isInteger(body.folderRevision))return reply({ok:false,message:'invalid_revision'},400);
+  return sql.begin(async(tx:any)=>{
+   await tx`select pg_advisory_xact_lock(hashtextextended(${siteId},2912))`;
+   const [folder]=await tx`select revision,deleted from private.enl_risk_folders where site_id=${siteId} for update`;
+   if(!folder||folder.deleted||folder.revision!==body.folderRevision)return reply({ok:false,message:'folder_changed'},409);
+   const [last]=await tx`select * from private.enl_risk_records where ${where} and template_id=${book.id} order by revision desc limit 1`;
+   if(!last||last.revision!==body.revision||last.state!=='completed'||last.approved_period===riskReviewPeriod())return reply({ok:false,message:'record_changed'},409);
+   const revision=last.revision+1;
+   await tx`insert into private.enl_risk_records(site_id,kind,period,template_id,revision,template_version,content,state,actor_id,actor_name,approved_period)
+     values(${siteId},${kind},${period},${book.id},${revision},${last.template_version},${tx.json(last.content)},'completed',${actor.id},${actor.name},${riskReviewPeriod()})`;
+   return reply({ok:true,revision});
+  });
  }
  if(body.action!=='platform_risk_save')return reply({ok:false,message:'unknown_action'},400);
  if(!['field','safety'].includes(actor.role))return reply({ok:false,message:'forbidden'},403);

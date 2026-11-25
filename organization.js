@@ -81,22 +81,20 @@
     try{window.print()}catch(err){cleanup();throw err}
   }
   function controller(host,u,api,sameUser) {
-    let panel, sequence=0, listRequest=0, allowed=false, busy=false, dirty=false, pending=0, approvalPending=null, approvalTotal=0, shownRevision, refreshTimer, shownPeriod, shownSite, shownDoc, template;
+    let panel, sequence=0, listRequest=0, allowed=false, busy=false, dirty=false, pending=0, approvalPending=null, approvalTotal=0, approvalProgress=0, shownRevision, refreshTimer, shownPeriod, shownSite, shownDoc, template;
     let main,rail,railBody,folders=[],available=[],listingPeriod,managerForm;
     const admin=u.role==='safety',evidence=window.enlDocumentEvidence;
     const onScreen=()=>sameUser()&&host.dataset.workspace==='organization';
-    function workState(site,state=site.state){
-      if(site.active===false)return '';
-      if(evidence.complete(u.role,state))return 'approved';
-      if(admin||u.role==='field'&&['empty','draft'].includes(state))return 'pending';
-      return '';
+    function siteWork(site){return evidence.aggregate(['chart','appointment','certificate'].map(key=>documentState(site,key)));}
+    function workState(site,state=siteWork(site)){
+      return site.active===false?'':state==='approved'?'approved':state==='empty'?'pending':'progress';
     }
     function documentState(site,key){return site.documentStates?.[key]||(key==='chart'?site.state:'empty');}
     function incomplete(site){return ['chart','appointment','certificate'].some(key=>!evidence.complete(u.role,documentState(site,key)));}
     function documentBadge(node,site,key){
       if(key==='evaluation'||site.active===false)return;
-      const state=documentState(site,key),approved=evidence.complete(u.role,state),label=evidence.label(u.role,state);
-      const dot=el('span',approved?'✓':null,approved?'org-document-dot is-approved':'org-document-dot');
+      const state=documentState(site,key),approved=evidence.complete(u.role,state),label=evidence.label(u.role,state),progress=!approved&&state!=='empty';
+      const dot=el('span',approved?'✓':progress?'◷':null,approved?'org-document-dot is-approved':progress?'org-document-dot is-progress':'org-document-dot');
       dot.setAttribute('role','img');dot.setAttribute('aria-label',label);dot.title=label;
       node.setAttribute('aria-description',label);node.append(dot);
     }
@@ -109,7 +107,7 @@
         dot.setAttribute('role','img');
         dot.setAttribute('aria-label','이번 반기 조직도 확인 미완료 '+pending+'개 사업장');dot.title=dot.getAttribute('aria-label');
       }
-      if(allowed&&approvalPending!==null)host.setDocumentApprovalState?.('organization',approvalPending,(u.role==='field'?'안전보건 조직 서류 제출 필요 ':'안전보건 조직 서류 승인 미완료 ')+approvalPending+'개 사업장',approvalTotal,u.role==='field'?'현장 서류 제출 완료':'안전관리자 승인 완료');
+      if(allowed&&approvalPending!==null)host.setDocumentApprovalState?.('organization',approvalPending,(u.role==='field'?'안전보건 조직 서류 제출 필요 ':'안전보건 조직 서류 승인 미완료 ')+approvalPending+'개 사업장',approvalTotal,'반기 확인완료',approvalProgress);
     }
     const listFlights=new Map();
     async function readList(manageFolders=false){
@@ -122,6 +120,7 @@
         pending=result.sites.filter(site=>workState(site)==='pending').length;
         approvalTotal=result.sites.filter(site=>site.active!==false).length;
         approvalPending=result.sites.filter(site=>site.active!==false&&incomplete(site)).length;
+        approvalProgress=result.sites.filter(site=>site.active!==false&&siteWork(site)!=='empty').length;
         badges();
       }
       return result;
@@ -172,7 +171,7 @@
       for(const site of [...folders].sort((a,b)=>collator.compare(a.folder_name||a.site_name,b.folder_name||b.site_name))){
         const card=button('',()=>selectFolder(site.site_id,true),'org-site-card');
         const name=el('strong',site.folder_name||site.site_name);
-        const condition=site.active===false?'종료':stages[site.state]||'미작성';
+        const condition=site.active===false?'종료':evidence.status(siteWork(site));
         const small=el('span',condition,'org-state '+workState(site));
         card.append(name,small);card.setAttribute('aria-label',(site.folder_name||site.site_name)+' 서류 메뉴 열기');
         grid.append(card);
@@ -187,7 +186,7 @@
       head.append(el('h3',site.folder_name||site.site_name),
         el('p','조회할 서류를 선택하세요.','org-status'));
       const grid=el('div',null,'org-document-grid');
-      const subtitles={chart:'안전보건 조직 및 인원 현황',appointment:'관리감독자별 임명장 작성, 출력 및 확인',certificate:'수료증 사진 / PDF와 수료일 등록, 임명일 기준 교육기한 확인',evaluation:'업무수행평가표 메뉴 (작성 기능 준비 중)'};
+      const subtitles={chart:'안전보건 조직 및 인원 현황',appointment:'관리감독자별 임명장 작성, 출력 및 확인',certificate:'수료증 출력물 사진과 수료일 등록, 임명일 기준 교육기한 확인',evaluation:'업무수행평가표 메뉴 (작성 기능 준비 중)'};
       for(const [key,label] of Object.entries(documents)){
         const card=button('',key==='evaluation'?null:()=>selectDocument(site,key),'org-document-card');card.disabled=key==='evaluation';
         card.dataset.doc=key;
@@ -233,7 +232,7 @@
       if(!railBody)return;
       const count=folders.filter(s=>s.active!==false&&incomplete(s)).length;
       rail.querySelector('summary').textContent='사업장 폴더 ('+folders.length+')';
-      rail.querySelector('.org-summary').textContent=(u.role==='field'?'서류 제출 필요 ':'서류 승인 미완료 ')+count+'곳';
+      rail.querySelector('.org-summary').textContent='서류 승인 미완료 '+count+'곳';
       const scroll=railBody.scrollTop;
       const focus=railBody.contains(document.activeElement)?document.activeElement.dataset:null;
       panel.querySelectorAll('[data-needs-site]').forEach(b=>{b.disabled=!admin||!shownSite});
@@ -243,7 +242,7 @@
         const b=button('',()=>selectFolder(s.site_id),'org-folder');
         b.dataset.siteId=s.site_id;
         b.setAttribute('aria-expanded',String(expanded));
-        const state=s.active===false?'종료':stages[s.state]||'미작성';
+        const state=s.active===false?'종료':evidence.status(siteWork(s));
         b.append(el('span',s.folder_name||s.site_name),el('small',state,'org-state '+workState(s)));
         railBody.append(b);
         if(expanded){
@@ -420,7 +419,7 @@
       function update(){
         if(save)save.disabled=busy||!editable||(!dirty&&!!doc);
         if(check)check.disabled=busy||dirty||historic||!doc||u.role!=='field'||site.active===false||locked||state==='pending';
-        if(check){upload.disabled=check.disabled;evidence.mark(check,!historic&&['pending','approved'].includes(state),'pending'===state?'제출 완료 / 승인 대기':state==='approved'?'제출 완료':'사진 / PDF 제출');}
+        if(check){upload.disabled=check.disabled;evidence.mark(check,!historic&&state==='approved','pending'===state?'제출 완료 / 승인 대기':state==='approved'?'제출 완료':'출력물 사진 제출');}
         if(approve)evidence.mark(approve,state==='approved','확인완료');
         if(approve)approve.disabled=busy||dirty||historic||!admin||state!=='pending'||!photoLoaded||!review?.checked;
         if(reopen)reopen.disabled=busy||!writer||historic||!locked;
@@ -439,7 +438,7 @@
           !doc?'조직도 작성 후 저장하세요.':
           state==='approved'?'이번 반기 확인완료':
           state==='pending'?'제출 완료 / 안전관리자 확인 대기':
-          '출력 후 현장 게시 사진 또는 PDF를 제출하세요.';
+          '출력 후 현장 게시 출력물 사진을 제출하세요.';
       }
       async function write(op,photo){
         if(busy)return;
@@ -479,9 +478,9 @@
         const section=el('section',null,'org-evidence');
         const label=el('label');review=el('input');review.type='checkbox';
         review.checked=doc.review_event==='approve';review.disabled=!admin||historic||state!=='pending';review.onchange=update;
-        label.append(review,' 조직도와 제출된 사진 / PDF 내용을 대조했습니다.');
-        const preview=evidence.preview(doc.photo,'제출된 조직도 사진 / PDF',()=>{photoLoaded=true;update();});
-        section.append(el('h3','제출된 사진 / PDF'),preview,label);main.append(section);
+        label.append(review,' 조직도와 제출된 출력물 사진 내용을 대조했습니다.');
+        const preview=evidence.preview(doc.photo,'제출된 조직도 출력물 사진',()=>{photoLoaded=true;update();});
+        section.append(el('h3','제출된 출력물 사진'),preview,label);main.append(section);
       }
       const zoom=button('양식 확대',()=>{
         const large=preview.classList.toggle('org-zoomed');

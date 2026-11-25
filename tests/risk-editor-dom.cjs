@@ -4,14 +4,14 @@ const until=async(fn,label)=>{for(let n=0;n<300;n++){if(fn())return;await new Pr
 (async()=>{
  const f=await orgFixture();
  try{
- for(const p of ['supabase/migrations/20261117000000_risk_assessment_folders.sql','supabase/migrations/20261117000100_open_risk_assessment_module.sql','supabase/migrations/20261117042933_risk_assessment_records.sql'])await f.db.exec(fs.readFileSync(p,'utf8'));
+ for(const p of ['supabase/migrations/20261117000000_risk_assessment_folders.sql','supabase/migrations/20261117000100_open_risk_assessment_module.sql','supabase/migrations/20261117042933_risk_assessment_records.sql','supabase/migrations/20261126000002_risk_safety_review.sql'])await f.db.exec(fs.readFileSync(p,'utf8'));
  for(const role of ['field','safety','manager','executive']){
   const errors=[],vc=new VirtualConsole();vc.on('jsdomError',e=>errors.push(e.message));
   const dom=new JSDOM('<body><div id="app"><div id="host" data-workspace="risk"></div></div></body>',{url:'https://isolated.test',runScripts:'outside-only',pretendToBeVisual:true,virtualConsole:vc});
   const w=dom.window,d=w.document;let confirm=true,fail=false;
   w.structuredClone=structuredClone;w.confirm=()=>confirm;w.HTMLElement.prototype.scrollIntoView=()=>{};w.print=()=>{};
   Object.defineProperty(w,'crypto',{value:crypto.webcrypto});
-  for(const p of ['risk-paper-templates.js','risk-paper.js','risk-editor.js','risk-assessment.js'])w.eval(fs.readFileSync(p,'utf8'));
+  for(const p of ['document-photo-viewer.js','attachment-drop-v4813.js','risk-paper-templates.js','risk-paper.js','risk-editor.js','risk-assessment.js'])w.eval(fs.readFileSync(p,'utf8'));
   const user={role,id:'qa-'+role,siteId:'qa-site'};
   const api=async body=>{if(fail&&body.action==='platform_risk_save')throw Error('network_failure');const r=await f.call(role,body);if(r.status!==200)throw Error(r.body.message);return r.body;};
   const mount=w.enlRiskAssessment(d.querySelector('#host'),user,api,()=>true);mount.catalog({enabled:true,state:'live'});await mount.open();

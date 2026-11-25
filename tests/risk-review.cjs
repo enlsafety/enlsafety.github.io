@@ -1,0 +1,28 @@
+'use strict';
+const assert=require('node:assert/strict'),fs=require('node:fs'),{JSDOM}=require('jsdom');
+const {orgFixture}=require('./organization.cjs');
+const until=async(fn)=>{for(let i=0;i<300;i++){if(fn())return;await new Promise(r=>setTimeout(r,5));}throw Error('UI did not settle');};
+(async()=>{const f=await orgFixture();let dom;try{
+ for(const name of ['20261117000000_risk_assessment_folders','20261117000100_open_risk_assessment_module','20261117042933_risk_assessment_records','20261126000002_risk_safety_review'])await f.db.exec(fs.readFileSync('supabase/migrations/'+name+'.sql','utf8'));
+ const key={siteId:'qa-site',kind:'initial',period:'initial',templateId:'office',folderRevision:1};
+ const call=async(role,action,p={},status=200)=>{const result=await f.call(role,{action:'platform_risk_'+action,...key,...p});assert.equal(result.status,status,JSON.stringify(result.body));return result.body;};
+ const opened=await call('field','open'),content=opened.document.content;
+ content.assessmentDate='2026-11-25';content.evaluator='QA';content.rows.forEach(r=>r.level='하');
+ await call('field','save',{revision:0,content,state:'completed'});
+ assert.equal((await call('field','open')).document.approved,false);
+ await call('field','approve',{revision:1},403);await call('manager','approve',{revision:1},403);
+ await call('safety','approve',{revision:9},409);await call('safety','approve',{revision:1,folderRevision:9},409);
+ dom=new JSDOM('<div id="app"><div id="root"></div></div>',{url:'https://isolated.test',runScripts:'outside-only'});const w=dom.window,d=w.document;
+ w.structuredClone=structuredClone;w.confirm=()=>true;
+ for(const name of ['document-photo-viewer.js','attachment-drop-v4813.js','risk-paper-templates.js','risk-paper.js','risk-editor.js'])w.eval(fs.readFileSync(name,'utf8'));
+ const api=async body=>{const r=await f.call('safety',body);if(r.status!==200)throw Error(r.body.message);return r.body;};
+ w.enlRiskEditor(d.querySelector('#root'),{site:{site_id:'qa-site',site_name:'QA',folder_revision:1},kind:'initial',period:'initial',templateId:'office',user:{role:'safety'},isCurrent:()=>true,onBack(){}},api);
+ await until(()=>[...d.querySelectorAll('button')].some(b=>b.textContent==='안전관리자 승인'));
+ [...d.querySelectorAll('button')].find(b=>b.textContent==='안전관리자 승인').click();
+ await until(()=>d.querySelector('.risk-state')?.textContent.includes('반기 확인완료'));
+ let doc=await call('safety','open');assert.ok(doc.document.approved);assert.equal(doc.document.revision,2);assert.deepEqual(doc.document.content,content);
+ const list=await call('field','list',{includeTasks:true});assert.equal(list.sites[0].documentStates.initial,'approved');assert.equal(list.sites[0].documentStates.regular,'empty');
+ await call('field','save',{revision:2,state:'draft',content});assert.equal((await call('field','open')).document.approved,false);
+ await call('safety','approve',{revision:3},409);assert.ok((await call('field','open',{revision:2})).document.approved,'approved history retained');
+ console.log('PASS risk explicit safety approval through UI/API, field denial, stale writes, folder locks, immutable history and approval invalidation on edit');
+}finally{dom?.window.close();await f.db.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

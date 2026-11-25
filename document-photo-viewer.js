@@ -2,18 +2,10 @@
 'use strict';
 const make=(tag,text,cls)=>{const n=document.createElement(tag);if(text)n.textContent=text;if(cls)n.className=cls;return n};
 const button=(text,fn)=>{const n=make('button',text);n.type='button';n.onclick=fn;return n};
-const PDF_LIMIT=10*1024*1024;
 const isPdf=source=>typeof source==='string'&&source.startsWith('data:application/pdf;base64,');
 let inputSequence=0;
 async function prepare(file){
-  if(file.type==='application/pdf'||/\.pdf$/i.test(file.name)){
-    if(!file.size||file.size>PDF_LIMIT)throw Error('pdf_size');
-    const buffer=await file.arrayBuffer(),bytes=new Uint8Array(buffer);
-    const head=new TextDecoder().decode(bytes.slice(0,16)),tail=new TextDecoder().decode(bytes.slice(-2048));
-    if(!/^%PDF-(1\.[0-7]|2\.0)[\r\n\t ]/.test(head)||!/%%EOF[\s\x00]*$/.test(tail))throw Error('invalid_pdf');
-    const data=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(new Blob([buffer],{type:'application/pdf'}));});
-    return {mime:'application/pdf',base64:data.split(',')[1]};
-  }
+  if(file.type==='application/pdf'||/\.pdf$/i.test(file.name))throw Error('photo_only');
   if(!(file.type||'').startsWith('image/')&&!/\.(jpe?g|png|webp|gif|bmp|heic|heif|avif)$/i.test(file.name))throw Error('invalid_file');
   return window.enlPrepareDocumentPhoto(file);
 }
@@ -32,10 +24,10 @@ function preview(source,caption,onReady){
 }
 function drop(input,control,{deferred=false}={}){
   input.id=input.id||'enl-document-file-'+(++inputSequence);
-  input.accept='image/*,application/pdf,.pdf';input.hidden=true;
+  input.accept='image/*,.jpg,.jpeg,.png,.webp,.heic,.heif';input.hidden=true;
   const zone=make('div',null,'enl-document-drop');zone.dataset.attachmentInput=input.id;
-  const hint=make('span','사진 또는 PDF를 여기에 끌어다 놓으세요. PDF 최대 10MB, 한 번에 1개.','attachment-drop-hint');
-  const status=make('span',deferred?'파일 선택 후 수료일을 입력하고 저장하세요.':'파일을 선택하거나 끌어다 놓으면 제출됩니다.','enl-document-drop-note');
+  const hint=make('span','출력하여 현장에 보관한 서류를 촬영한 사진을 끌어다 놓으세요. PDF는 제출할 수 없습니다.','attachment-drop-hint');
+  const status=make('span',deferred?'수료일과 사진을 확인한 후 저장하세요.':'파일을 선택하거나 끌어다 놓으면 제출됩니다.','enl-document-drop-note');
   if(control.parentNode)control.replaceWith(zone);
   zone.append(control,hint,status,input);
   const sync=()=>{input.disabled=control.disabled;zone.setAttribute('aria-disabled',String(control.disabled));};
@@ -47,11 +39,13 @@ function drop(input,control,{deferred=false}={}){
   lifecycle.observe(document.body,{childList:true,subtree:true});
   return zone;
 }
-function complete(role,state){return state==='approved'||role==='field'&&state==='pending';}
-function label(role,state){return state==='approved'?'안전관리자 승인 완료':role==='field'&&state==='pending'?'제출 완료 / 안전관리자 승인 대기':role==='field'?'서류 제출 필요':'미제출 또는 안전관리자 승인 미완료';}
+function complete(role,state){return state==='approved';}
+function aggregate(states){const items=states.filter(s=>s!=null&&s!=='unimplemented');return !items.length||items.every(s=>s==='empty')?'empty':items.every(s=>s==='approved')?'approved':'progress';}
+function status(state){return state==='approved'?'반기 확인완료':state==='empty'?'미작성':'작성중';}
+function label(role,state){return status(state)+(state==='pending'?' / 안전관리자 승인 대기':'');}
 function mark(control,done,text){control.classList.toggle('enl-submission-complete',done);control.textContent=(done?'✓ ':'')+text;}
-window.enlDocumentEvidence={prepare,preview,drop,isPdf,complete,label,mark,
-  error:error=>({pdf_size:'PDF는 10MB 이하 파일을 선택해 주세요.',invalid_pdf:'올바른 PDF 파일이 아닙니다. 파일을 확인해 주세요.',invalid_file:'사진 또는 PDF 파일을 선택해 주세요.',too_large:'파일이 너무 큽니다. PDF는 10MB 이하, 사진은 25MB 이하로 선택해 주세요.'}[error?.message]||'파일을 읽지 못했습니다. 사진 또는 PDF 파일을 확인해 주세요.')};
+window.enlDocumentEvidence={prepare,preview,drop,isPdf,complete,label,mark,aggregate,status,
+  error:error=>({photo_only:'PDF는 제출할 수 없습니다. 서류를 출력해 현장에 보관하고, 출력물을 촬영한 사진을 올려 주세요.',invalid_file:'출력물을 촬영한 사진파일을 선택해 주세요.',too_large:'파일이 너무 큽니다. 사진은 25MB 이하로 선택해 주세요.'}[error?.message]||'파일을 읽지 못했습니다. 사진파일을 확인해 주세요.')};
 let pdfEngine;
 const pdfAssets=new URL('assets/vendor/pdfjs-5.6.205/',document.baseURI).href;
 window.enlLoadDocumentPdf=()=>{

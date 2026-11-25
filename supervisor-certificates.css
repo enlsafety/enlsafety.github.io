@@ -34,3 +34,11 @@
 #app .cert-footnote{font-size:14px;color:#53697c;margin:16px 0 6px}
 #app .cert-content a{font-size:14px;color:#195c90}
 @media(max-width:750px){#app .cert-toolbar{align-items:stretch;flex-direction:column}#app .cert-overview,#app .cert-editor{padding:14px}#app .cert-facts{grid-template-columns:1fr;gap:12px}#app .cert-form>label{min-width:0;flex-basis:100%}#app .cert-form input{width:100%}#app .cert-record{align-items:flex-start;flex-direction:column}#app .cert-record span{min-width:0}#app .cert-content select{font-size:16px}}
+#app .cert-timing-warning{flex-basis:100%;box-sizing:border-box;width:100%;padding:16px 18px;border:2px solid #e58922;border-left:7px solid #dd780c;border-radius:9px;background:#fff2dc;color:#844400;line-height:1.65;font-size:16px}
+#app .cert-timing-warning strong{font-size:18px;color:#9d4700}
+#app .cert-timing-warning p{margin:6px 0 0}
+#app .cert-photo{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(240px,100%),1fr));gap:14px}
+#app .cert-photo-item{min-width:0;display:flex;flex-direction:column;gap:8px}
+#app .cert-photo-item .enl-proof-thumb{width:100%}
+#app .cert-form>.enl-document-drop{flex:1;min-width:220px}
+@media(max-width:750px){#app .cert-form>.enl-document-drop{min-width:0;width:100%;flex-basis:100%}}

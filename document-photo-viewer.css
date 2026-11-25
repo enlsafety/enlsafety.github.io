@@ -30,3 +30,9 @@
 
 #app .enl-pdf-viewport>canvas{display:block;max-width:none;margin:12px auto;background:#fff;box-shadow:0 1px 6px #afbac5}
 #app .enl-document-drop[aria-disabled=true]>.attachment-drop-hint,#app .enl-document-drop[aria-disabled=true]>.enl-document-drop-note{display:none}
+.org-document-dot.is-progress,.policy-document-dot.is-progress{width:16px;height:18px;background:none;box-shadow:none;border-radius:0;color:#c26800;font-size:20px;font-weight:800;line-height:18px;text-align:center}
+.org-state.progress::before{content:"◷";display:inline-block;margin-right:6px;color:#c26800;background:none;font-size:18px;line-height:18px;font-weight:800}
+.org-state.progress{color:#a85800}
+.org-rail-list .org-folder>.org-state.progress{display:inline-flex;flex-direction:row-reverse;align-items:center;gap:4px}
+.platform-hub .hub-document-menus .hub-document-dot.is-progress{width:16px;height:18px;background:none;box-shadow:none;color:#ffb14e;font-size:20px;line-height:18px;font-weight:800;text-align:center}
+.platform-hub .hub-document-menus .hub-document-dot.is-unknown{background:#9caab7}

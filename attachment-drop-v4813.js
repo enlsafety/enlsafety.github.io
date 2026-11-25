@@ -59,7 +59,7 @@
     const accepted=files.filter(file=>accepts(input,file));
     if(accepted.length!==files.length)alert('허용되지 않는 파일 형식은 제외했습니다. 이 첨부 구역에서 지원하는 파일을 선택해 주세요.');
     if(!accepted.length)return;
-    if(!input.multiple&&accepted.length>1){alert('이 제출 구역은 한 번에 파일 1개를 받습니다. 여러 장은 하나의 PDF로 묶어 제출해 주세요.');return;}
+    if(!input.multiple&&accepted.length>1){alert('이 제출 구역은 한 번에 파일 1개를 받습니다. 사진 한 장을 선택해 주세요.');return;}
     try{
       const transfer=new DataTransfer();
       // Deferred-upload forms keep their pending selection until submission.

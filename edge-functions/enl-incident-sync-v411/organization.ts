@@ -89,9 +89,9 @@ export async function organizationRequest(sql:any, actor:any, body:any, reply:an
       const certificateStates=people.map((a:any)=>{
         const p=model.current(a.appointment.date,today);if(!p)return 'empty';
         const selected=model.summary(a.appointment,records.filter((c:any)=>c.appointment_id===a.document_id),p,today).certificates;
-        return !selected.length?'empty':selected.every((c:any)=>c.event==='approve')?'approved':'pending';
+        return !selected.length?(records.some((c:any)=>c.appointment_id===a.document_id&&model.matches(c,a.appointment))?'draft':'empty'):selected.every((c:any)=>c.event==='approve')?'approved':'pending';
       });
-      const certificate=!certificateStates.length||certificateStates.includes('empty')?'empty':certificateStates.every((v:string)=>v==='approved')?'approved':'pending';
+      const certificate=!certificateStates.length||certificateStates.every((v:string)=>v==='empty')?'empty':certificateStates.every((v:string)=>v==='approved')?'approved':'pending';
       return {...summary,state,checked:state==='approved',documentStates:{chart:state,appointment,certificate}};
     })});
   }

@@ -22,11 +22,13 @@
       if(!force&&lastList&&Date.now()-listedAt<30000)return Promise.resolve(lastList);
       if(force)listFlight=null;
       if(!listFlight){
-        const flight=api({action:'platform_risk_list',manageFolders:admin,includeTasks:admin||user.role==='field'}).then(result=>{
+        const flight=api({action:'platform_risk_list',manageFolders:admin,includeTasks:true}).then(result=>{
           if(listFlight!==flight)return listFlight||lastList||result;
           if(sameUser()&&enabled){
             lastList=result;listedAt=Date.now();sites=result.sites.sort((a,b)=>sortKo.compare(a.folder_name||a.site_name,b.folder_name||b.site_name));
             host.setTaskCount?.('risk',sites.reduce((n,s)=>n+(s.tasks||0),0));
+            const active=sites.filter(s=>s.active!==false),E=window.enlDocumentEvidence;
+            host.setDocumentApprovalState?.('risk',active.filter(s=>E.aggregate(Object.values(s.documentStates||{}))!=='approved').length,'위험성평가 작성 상태',active.length,'반기 확인완료',active.filter(s=>E.aggregate(Object.values(s.documentStates||{}))!=='empty').length);
             if(main?.querySelector('.org-site-grid'))drawSites();
             if(railBody)drawRail();
           }
@@ -44,7 +46,7 @@
     function leave(){sequence++;closeEditor();closeManager();selected=null;docOpen=false;panel?.replaceChildren();}
     function catalog(item){
       enabled=roles.includes(user.role)&&!!item&&item.enabled!==false&&item.state!=='hidden'&&item.canEnter!==false&&(item.state==='live'||item.preview);
-      if(enabled&&(admin||user.role==='field'))readList().catch(()=>{});
+      if(enabled)readList().catch(()=>{});
       if(!enabled){lastList=null;host.setTaskCount?.('risk',0);if(panel)panel.hidden=true;}
     }
     function selectedSite(){return sites.find(s=>s.site_id===selected);}
@@ -60,13 +62,13 @@
         const row=button('',()=>choose(site.site_id),'org-folder');
         row.dataset.siteId=site.site_id;row.setAttribute('aria-expanded',String(expanded));
         row.append($('span',site.folder_name||site.site_name));
-        if(site.active===false)row.append($('small','종료','org-state'));
-        if(site.tasks)row.append($('small','처리 필요 '+site.tasks,'org-state pending'));
+        const state=window.enlDocumentEvidence.aggregate(Object.values(site.documentStates||{}));
+        row.append($('small',site.active===false?'종료':window.enlDocumentEvidence.status(state),'org-state '+(site.active===false?'':state==='approved'?'approved':state==='empty'?'pending':'progress')));
         railBody.append(row);
         if(expanded){
           const submenu=$('div',null,'org-submenu');submenu.setAttribute('role','group');submenu.setAttribute('aria-label',(site.folder_name||site.site_name)+' 위험성평가');
           for(const [kind,label] of [['initial','01. 최초 위험성평가'],['regular','02. 정기 위험성평가']]){
-            const child=button(label,()=>chooseType(site,kind));if(docOpen&&selectedKind===kind)child.setAttribute('aria-current','page');submenu.append(child);
+            const child=button(label,()=>chooseType(site,kind));if(docOpen&&selectedKind===kind)child.setAttribute('aria-current','page');const badge=$('span',window.enlDocumentEvidence.status(site.documentStates?.[kind]||'empty'),'org-state '+(site.documentStates?.[kind]==='approved'?'approved':site.documentStates?.[kind]==='empty'?'pending':'progress'));child.append(badge);submenu.append(child);
           }railBody.append(submenu);
         }
       }
@@ -79,7 +81,7 @@
       const grid=$('div',null,'org-site-grid');
       for(const site of sites){
         const row=button('',()=>choose(site.site_id),'org-site-card');
-        row.append($('strong',site.folder_name||site.site_name),$('span',site.tasks?'처리 필요 '+site.tasks:site.active===false?'종료 사업장':'위험성평가 메뉴',site.tasks?'org-state pending':'org-status'));
+        row.append($('strong',site.folder_name||site.site_name),$('span',site.active===false?'종료 사업장':window.enlDocumentEvidence.status(window.enlDocumentEvidence.aggregate(Object.values(site.documentStates||{}))),'org-state '+(window.enlDocumentEvidence.aggregate(Object.values(site.documentStates||{}))==='approved'?'approved':window.enlDocumentEvidence.aggregate(Object.values(site.documentStates||{}))==='empty'?'pending':'progress')));
         row.setAttribute('aria-label',(site.folder_name||site.site_name)+' 위험성평가 메뉴 열기');
         grid.append(row);
       }
@@ -93,7 +95,7 @@
       const grid=$('div',null,'org-document-grid');
       for(const [kind,title,description] of [['initial','최초 위험성평가','사업장 오픈 전 완료 필수'],['regular','정기 위험성평가','매년 1회 실시']]){
         const card=button('',()=>chooseType(site,kind),'org-document-card');card.dataset.riskKind=kind;
-        card.append($('strong',title),$('span',description,'org-status'));grid.append(card);
+        card.append($('strong',title),$('span',description,'org-status'),$('span',window.enlDocumentEvidence.status(site.documentStates?.[kind]||'empty'),'org-state '+(site.documentStates?.[kind]==='approved'?'approved':site.documentStates?.[kind]==='empty'?'pending':'progress')));grid.append(card);
       }
       main.replaceChildren(button('← 사업장 목록',()=>choose(null),'org-back'),heading,grid);
     }
@@ -126,7 +128,7 @@
         const grid=$('div',null,'org-document-grid');
         for(const book of result.templates){
           const record=result.records.find(r=>r.template_id===book.id),card=button('',()=>openEditor(site,kind,period,book.id),'org-document-card');card.dataset.riskTemplate=book.id;
-          card.append($('strong',book.name),$('span',book.count+'개 기본 항목','org-status'),$('span',record?(record.state==='completed'?'평가완료':'작성중')+' / '+record.actor_name:'미작성','org-state '+(record?.state==='completed'?'approved':'')));grid.append(card);
+          card.append($('strong',book.name),$('span',book.count+'개 기본 항목','org-status'),$('span',record?(record.approved?'반기 확인완료':'작성중')+' / '+record.actor_name:'미작성','org-state '+(record?.approved?'approved':record?'progress':'pending')));grid.append(card);
         }
         main.append(grid,message('업무에 맞는 평가서를 선택해 작성하세요. 고정 양식의 빨간 입력칸에 작성하세요. 해당하지 않는 작업은 사유를 남겨 제외할 수 있습니다.'));
       }catch(err){if(sameUser()&&seq===sequence)main.replaceChildren(message('평가서 목록을 불러오지 못했습니다.'),button('다시 불러오기',()=>chooseType(site,kind,period)),button('평가구분 선택',()=>drawDocuments(site)));}
