@@ -1,6 +1,6 @@
 'use strict';
 const assert=require('node:assert/strict'),{fixture}=require('./login-proof-edge.cjs');
-(async()=>{const f=await fixture(true),{db,call}=f;
+(async()=>{const f=await fixture(true),{db,call,mailbox}=f;
 try{
  const source={id:'qa-auth-field-472',role:'field',siteId:'qa-auth-site-472'},sourceKey='site:'+source.id;
  const target={id:'qa-joint-clerk',role:'field',siteId:'qa-second'},targetKey='site:'+target.id,proof='qa-auth-field-proof-472';
@@ -10,9 +10,9 @@ try{
  await db.query("insert into private.enl_joint_site_email_members(account_key,address) values($1,'joint.qa@enlife.co.kr'),($2,'joint.qa@enlife.co.kr')",[sourceKey,targetKey]);
  await db.query("insert into enl_site_personnel(personnel_id,site_id,name,job_title,access_role,active,email,pin_hash,source) values($1,'qa-second','QA 현장','서무','field',true,'joint.qa@enlife.co.kr',$2,'joint-site-assignment')",[target.id,proof]);
  await db.exec("insert into enl_site_personnel(personnel_id,site_id,name,job_title,access_role,active,email,pin_hash) values('qa-primary-clerk','qa-second','기존 서무','서무','field',true,'primary.qa@enlife.co.kr','primary-proof')");
- await db.exec("update private.enl_password_schedule set verified_email=(select email from enl_site_personnel where 'site:'||personnel_id=account_key)");
  const login={action:'login_site',name:'QA 현장',siteId:source.siteId,accountKey:sourceKey,passwordHash:proof};
- const first=await call(login);assert.equal(first.status,200,JSON.stringify(first));const token=first.body.deviceSession;
+ const pending=await call(login);assert.equal(pending.status,428,'the first identity verification remains required');assert.equal(mailbox.length,1);
+ const first=await call({...login,deviceCode:mailbox[0].code});assert.equal(first.status,200,JSON.stringify(first));const token=first.body.deviceSession;
  const read={action:'joint_sites',actor:source,deviceSession:token};
  assert.equal((await call({...read,deviceSession:undefined})).status,403);
  assert.equal((await call({...read,actor:target})).status,403,'a token is bound to one personnel account');
@@ -23,6 +23,27 @@ try{
  const targetLogin={...login,siteId:target.siteId,accountKey:targetKey};
  assert.equal((await call({...targetLogin,passwordHash:'wrong'})).status,401);
  const switched=await call(targetLogin);assert.equal(switched.status,200);assert.equal(switched.body.person.site_id,target.siteId);assert.equal(switched.body.person.personnel_id,target.id);
+ assert.equal(mailbox.length,1,'switching to an unverified destination does not send another email');
+ const destinationVerified=async()=>{const r=await call({action:'lookup',name:'QA 현장',fixedAccount:true,accountKey:targetKey});return r.body.options?.[0]?.emailVerified===true};
+ assert.equal(await destinationVerified(),true,'login UI recognizes the linked verification');
+ assert.equal((await db.query('select verified_email from private.enl_password_schedule where account_key=$1',[targetKey])).rows[0].verified_email,null,'shared trust is not permanently copied');
+ for(const body of [login,targetLogin,{...targetLogin,deviceKey:'b'.repeat(64)}])assert.equal((await call(body)).status,200,'round trips and another device retain the once-per-person policy');
+ assert.equal(mailbox.length,1);
+ // Trust must follow the explicit same-person link, not a matching name or address alone.
+ await db.query('delete from private.enl_joint_site_email_members where account_key=$1',[targetKey]);assert.equal(await destinationVerified(),false,'removed destination membership revokes shared verification');
+ await db.query("insert into private.enl_joint_site_email_members values($1,'joint.qa@enlife.co.kr')",[targetKey]);
+ await db.query("update enl_site_personnel set name='QA 다른 사람' where personnel_id=$1",[source.id]);assert.equal(await destinationVerified(),false,'another person cannot lend verification');
+ await db.query("update enl_site_personnel set name='QA 현장',active=false where personnel_id=$1",[source.id]);assert.equal(await destinationVerified(),false,'retired source cannot lend verification');
+ await db.query('update enl_site_personnel set active=true where personnel_id=$1',[source.id]);
+ await db.query("update enl_site_master set active=false where site_id=$1",[source.siteId]);assert.equal(await destinationVerified(),false,'closed source site cannot lend verification');
+ await db.query('update enl_site_master set active=true where site_id=$1',[source.siteId]);
+ await db.query("update enl_site_personnel set access_role='worker' where personnel_id=$1",[source.id]);assert.equal(await destinationVerified(),false,'ordinary worker cannot lend field verification');
+ await db.query("update enl_site_personnel set access_role='field' where personnel_id=$1",[source.id]);
+ await db.query("update private.enl_password_schedule set verified_email='old.qa@enlife.co.kr' where account_key=$1",[sourceKey]);assert.equal(await destinationVerified(),false,'old email verification cannot be reused');
+ await db.query("update private.enl_password_schedule set verified_email=null,demo_password_only=true where account_key=$1",[sourceKey]);assert.equal(await destinationVerified(),false,'password-only exceptions are not identity verification');
+ await db.query("update private.enl_password_schedule set verified_email='joint.qa@enlife.co.kr',demo_password_only=false where account_key=$1",[sourceKey]);assert.equal(await destinationVerified(),true);
+ read.deviceSession=(await call(login)).body.deviceSession;
+
  const scoped={action:'personnel_pull',actor:target,deviceSession:switched.body.deviceSession,actorPinHash:proof,siteId:target.siteId};
  assert.equal((await call(scoped)).status,200);assert.equal((await call({...scoped,siteId:source.siteId})).status,403,'target session cannot write/read another site through a forged siteId');
  // Editing either clerk must not remove the other clerk or replace the primary site contact.
@@ -37,5 +58,5 @@ try{
  await db.exec("update enl_site_master set active=true where site_id='qa-second'");
  await db.query('delete from private.enl_joint_site_email_members where account_key=$1',[targetKey]);assert.equal((await call(read)).body.sites.length,1,'removed assignment excluded');
  await db.query("update enl_site_personnel set active=false where personnel_id=$1",[source.id]);assert.equal((await call(read)).status,403,'retired source denied');
- console.log('PASS joint-site login choices, authenticated assignment list, destination proof, site isolation, removed assignments and concurrent primary clerk preservation');
+ console.log('PASS joint-site one-time email verification, no-mail switching, revocable same-person trust, destination proof, site isolation and primary clerk preservation');
 }finally{await db.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

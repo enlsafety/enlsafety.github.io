@@ -5,7 +5,28 @@ export async function schedule(sql:any,key:string){
 }
 export async function loginPolicy(sql:any,key:string,email:string){
  const [row]=await sql`select demo_password_only,verified_email from private.enl_password_schedule where account_key=${key}`;
- return {passwordOnly:row?.demo_password_only===true,emailVerified:!!email&&row?.verified_email===email};
+ let emailVerified=!!email&&row?.verified_email===email,sharedEmailVerified=false;
+ // One verified company email belongs to the person across explicitly linked
+ // workplace accounts. Do not copy verification into the destination account:
+ // removing the link or changing the verified address immediately ends sharing.
+ if(!emailVerified&&email&&key.startsWith('site:')){
+  const [shared]=await sql`select 1 as verified
+   from private.enl_joint_site_email_members mine
+   join private.enl_account_email_owners owner on owner.address=mine.address and owner.account_key='joint:'||mine.address
+   join public.enl_site_personnel target on mine.account_key='site:'||target.personnel_id::text
+   join public.enl_site_master target_site on target_site.site_id=target.site_id and target_site.active
+   join private.enl_joint_site_email_members peer on peer.address=mine.address and peer.account_key<>mine.account_key
+   join public.enl_site_personnel source on peer.account_key='site:'||source.personnel_id::text
+   join public.enl_site_master source_site on source_site.site_id=source.site_id and source_site.active
+   join private.enl_password_schedule verified on verified.account_key=peer.account_key and verified.verified_email=mine.address
+   where mine.account_key=${key} and mine.address=${email}
+    and target.active and target.access_role='field' and lower(btrim(target.email))=mine.address
+    and source.active and source.access_role='field' and lower(btrim(source.email))=mine.address
+    and regexp_replace(lower(source.name),'[[:space:]]','','g')=regexp_replace(lower(target.name),'[[:space:]]','','g')
+   limit 1`;
+  emailVerified=sharedEmailVerified=!!shared;
+ }
+ return {passwordOnly:row?.demo_password_only===true,emailVerified,sharedEmailVerified};
 }
 export async function confirmEmail(tx:any,key:string,email:string){
  await tx`update private.enl_password_schedule set verified_email=${email} where account_key=${key}`;
@@ -54,6 +75,10 @@ export async function finishLogin(sql:any,key:string,body:any,result:any,send:an
   // Each password login still receives its own revocable session.
   await tx`insert into private.enl_login_devices(account_key,device_hash,email) values(${key},${device},${email})
     on conflict(account_key,device_hash) do nothing`;
+  // The legacy device-registration trigger records direct verification. Undo
+  // only its transient stamp for inherited trust within this same transaction.
+  if(policy.sharedEmailVerified)await tx`update private.enl_password_schedule set verified_email=null
+    where account_key=${key} and verified_email=${email}`;
   return reply({...result,...await issueSession(tx,key,device),passwordPolicy:await schedule(tx,key)});
  });
 }
