@@ -94,7 +94,7 @@
     function documentBadge(node,site,key){
       if(key==='evaluation'||site.active===false)return;
       const state=documentState(site,key),approved=evidence.complete(u.role,state),label=evidence.label(u.role,state),progress=!approved&&state!=='empty';
-      const dot=el('span',approved?'✓':progress?'◷':null,approved?'org-document-dot is-approved':progress?'org-document-dot is-progress':'org-document-dot');
+      const dot=el('span',approved?'✓':null,approved?'org-document-dot is-approved':progress?'org-document-dot is-progress':'org-document-dot');
       dot.setAttribute('role','img');dot.setAttribute('aria-label',label);dot.title=label;
       node.setAttribute('aria-description',label);node.append(dot);
     }

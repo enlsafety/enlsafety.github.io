@@ -689,7 +689,7 @@
       if(!state||node.disabled||state.count===0&&!state.total){dot?.remove();return;}
       const approved=state.count===0&&state.total>0,progress=!approved&&(state.progress>0||state.count>0&&state.total>state.count),label=approved?'반기 확인완료':progress?'작성중':state.count==null?'작성 상태 확인 중':'미작성';
       if(!dot){dot=document.createElement('span');dot.setAttribute('role','img');node.append(dot);}
-      dot.className='hub-document-dot'+(approved?' is-approved':progress?' is-progress':state.count==null?' is-unknown':'');dot.textContent=approved?'✓':progress?'◷':'';
+      dot.className='hub-document-dot'+(approved?' is-approved':progress?' is-progress':state.count==null?' is-unknown':'');dot.textContent=approved?'✓':'';
       dot.setAttribute('aria-label',label);dot.title=label;
     };
     for(const button of group.querySelectorAll('button[data-hub]'))paint(button,documentApproval(button.dataset.hub.slice('feature:'.length)));

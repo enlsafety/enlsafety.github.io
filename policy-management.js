@@ -111,7 +111,7 @@ function mount(host,u,api,sameUser){
   function workDot(node,needed,approved=false,state){
     if(!needed&&!approved)return;
     const label=evidence.status(state||(approved?'approved':'empty')),progress=!approved&&state&&state!=='empty';
-    const dot=make('span',approved?'✓':progress?'◷':null,'policy-document-dot'+(approved?' is-approved':progress?' is-progress':''));dot.setAttribute('role','img');dot.setAttribute('aria-label',label);dot.title=label;
+    const dot=make('span',approved?'✓':null,'policy-document-dot'+(approved?' is-approved':progress?' is-progress':''));dot.setAttribute('role','img');dot.setAttribute('aria-label',label);dot.title=label;
     node.setAttribute('aria-description',label);node.append(dot);
   }
   function badges(){

@@ -32,5 +32,4 @@
 #app .enl-document-drop[aria-disabled=true]>.attachment-drop-hint,#app .enl-document-drop[aria-disabled=true]>.enl-document-drop-note{display:none}
 .org-state.progress{color:#a85800}
 .platform-hub .hub-document-menus .hub-document-dot.is-unknown{background:#9caab7}
-.org-document-dot.is-progress,.policy-document-dot.is-progress,.platform-hub .hub-document-menus .hub-document-dot.is-progress{display:none}
-.org-state.progress::before{content:none;display:none}
+.org-state.progress::before{content:"";display:inline-block;width:9px;height:9px;margin-right:7px;border-radius:50%;background:#d73740;box-shadow:0 0 0 2px #fff}
