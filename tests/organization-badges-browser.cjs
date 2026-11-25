@@ -25,7 +25,7 @@ async function check(engine,width) {
           window.records[0]={active:true,state,checked:state==='approved',documentStates:{chart:state,appointment:state,certificate:state}};
           window.dispatchEvent(new Event('focus'));
         },state);
-        const actionable=state!=='approved'&&!(role==='field'&&state==='pending');
+        const actionable=state!=='approved';
         await org.waitFor({state:actionable?'visible':'detached'});
         if(actionable)assert.match(await org.getAttribute('aria-label'),/1개 사업장/);
       }
