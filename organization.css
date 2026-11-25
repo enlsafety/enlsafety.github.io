@@ -162,3 +162,18 @@
 .org-document-dot.is-approved{width:14px;height:16px;border-radius:0;background:none;box-shadow:none;color:#198348;font-size:17px;line-height:16px;font-weight:800;text-align:center}
 .cert-review{display:flex;align-items:flex-start;gap:8px;margin:14px 0;line-height:1.5}
 .cert-review input{width:auto;margin-top:4px}
+
+/* Clear document boundaries; preserve the established workflow colors. */
+@media screen{
+ #app .org-panel{--org-divider:#7897b2;border:2px solid var(--org-divider);border-radius:14px}
+ #app .org-panel .org-workspace{border:2px solid var(--org-divider)}
+ #app .org-panel .org-rail{border-right:2px solid var(--org-divider)}
+ #app .org-panel .org-submenu{border-left:2px solid #8ba6bb}
+ #app .org-panel :is(.appt-selectors select,.appt-selectors button,.org-versions select,.org-history select){border:2px solid var(--org-divider)}
+ #app .org-panel .org-flow-step{border-width:2px;--org-border:#8199ae}
+ #app .org-panel .org-flow-step[data-action-state=required]{--org-border:#c5424c}
+ #app .org-panel .org-flow-step[data-action-state=general]{--org-border:#658daf}
+ #app .org-panel .org-flow-step>button{border-width:2px}
+ #app .org-panel .enl-proof-thumb{border:2px solid var(--org-divider)}
+}
+@media screen and (max-width:750px){#app .org-panel .org-rail{border-right:0;border-bottom:2px solid var(--org-divider)}}

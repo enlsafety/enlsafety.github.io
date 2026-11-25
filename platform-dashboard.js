@@ -555,6 +555,10 @@
     }});
     return saved.root;
   };
+  host.canSwitchAccount=()=>{
+    for(const key of new Set([...opened,active]))if(!canLeave(false,key))return false;
+    return true;
+  };
   function showTab(key,historyScope='all'){
     if(active==='incident')incidentView=currentView;
     if(key==='inquiry')inquiryOrigin=active;

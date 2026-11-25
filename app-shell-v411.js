@@ -84,6 +84,7 @@
     const chip=document.getElementById('userChip'),menu=document.getElementById('userMenu');if(chip&&menu)chip.onclick=()=>toggleAccountMenu(menu.classList.contains('hide'));
     menu.querySelector('[data-wf-inquiry-menu]').onclick=()=>{toggleAccountMenu(false);const frame=app.querySelector('.app-shell')?.enlWorkspaceFrame;if(frame)frame.activateWorkTab('inquiry');else window.enlRenderSafetyInquiry?.()};
     document.getElementById('logoutBtn').onclick=logout;
+    window.enlMountSiteSwitch?.(u,menu);
     document.getElementById('personnelBtn411')?.addEventListener('click',()=>window.enlRenderPersonnelPage?.(u));document.getElementById('settingsBtn411')?.addEventListener('click',()=>window.enlOpenSystemAdmin(u));
     document.querySelectorAll('[data-shell-view]').forEach(b=>b.onclick=()=>{listReturn=null;const next=b.dataset.shellView;if(next==='history')window.enlRequestHistory?.();if(role==='safety'&&next==='report')return openSafetyReport(u);if(next==='actions')window.enlResetActionFilter?.();currentView=next;if(['safety','manager','executive'].includes(role)&&currentView==='incidents')safetyListFilter={title:'전체 사고목록'};try{enlPlatformSection=currentView==='home'?'hub':'incident';localStorage.setItem(ENL_PLATFORM_SECTION_KEY,enlPlatformSection)}catch(e){}renderShell(u)});
     document.querySelector('[data-platform-home]').onclick=()=>window.enlReturnToPlatform(u);

@@ -366,6 +366,20 @@
     const p={id:String(person.personnel_id||person.id||''),personnelId:String(person.personnel_id||person.id||''),name:person.name,position:person.job_title||person.position||(kind==='field'?'현장관리':'일반근로자'),role:kind,siteId:person.site_id||person.siteId,active:person.active!==false};if(passwordHash)p.pinHash=passwordHash;
     session=kind==='worker'?{loggedAt:nowISO(),worker:p}:{loggedAt:nowISO(),manager:p};saveSession();return p;
   }
+  window.enlLoginToJointSite=async(option,passwordHash,isCurrent)=>{
+    const r=await window.enlDeviceAuth.login(option,{action:'login_site',name:option.name,siteId:option.siteId,passwordHash,accountKey:option.accountKey},api,isCurrent);
+    if(!isCurrent())return;
+    const person=r.person;
+    if(!person||'site:'+person.personnel_id!==option.accountKey||person.site_id!==option.siteId||norm(person.name)!==norm(option.name)||person.access_role!=='field'){
+      window.enlDeviceAuth.clear();throw Error('account_changed');
+    }
+    document.querySelector('.app-shell')?.enlWorkspaceFrame?.disposeWorkTabs?.();
+    saveSiteSession(person,passwordHash);
+    currentView='platform';
+    try{enlPlatformSection='hub';localStorage.setItem(ENL_PLATFORM_SECTION_KEY,'hub');localStorage.setItem('enl_safety_view_refresh_v412','platform');}catch{}
+    // A fresh shell cancels old-site requests and discards retained DOM and filters.
+    location.reload();
+  };
   function loginError(e){
     switch(e.message){
       case 'invalid_login':return '비밀번호가 일치하지 않거나 계정 정보가 변경됐습니다. 이름을 다시 조회한 후 입력해 주세요.';

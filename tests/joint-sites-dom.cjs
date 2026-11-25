@@ -1,0 +1,24 @@
+'use strict';
+const {JSDOM}=require('jsdom'),fs=require('node:fs'),assert=require('node:assert/strict');
+const until=async fn=>{for(let i=0;i<100;i++){if(fn())return;await new Promise(r=>setTimeout(r,5));}throw Error('UI did not settle');};
+(async()=>{const dom=new JSDOM('<div class="app-shell"><div id="userMenu"><button id="logoutBtn">로그아웃</button></div></div>',{url:'https://isolated.test',runScripts:'outside-only'}),w=dom.window,d=w.document;
+try{
+ let user={id:'a',role:'field',siteId:'one',pinHash:'saved-proof'},allowed=false,fail=true,calls=[],sites=[{accountKey:'site:a',siteId:'one',name:'검수',label:'첫 번째 사업장'},{accountKey:'site:b',siteId:'two',name:'검수',label:'두 번째 사업장'}];
+ w.currentUser=()=>user;w.enlDeviceAuth={keyOf:u=>(u?.role==='field'?'site:':'hq:')+(u?.id||'')};w.enlAuthApi=async()=>({sites});w.sha256=async s=>'hash:'+s;
+ w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
+ d.querySelector('.app-shell').enlWorkspaceFrame={canSwitchAccount:()=>allowed};
+ w.enlLoginToJointSite=async(target,proof,current)=>{assert.ok(current());calls.push({target,proof});if(fail)throw Error('invalid_login');};
+ w.eval(fs.readFileSync('site-switcher.js','utf8'));w.enlMountSiteSwitch(user,d.querySelector('#userMenu'));
+ await until(()=>d.querySelector('[data-site-switch]')&&!d.querySelector('[data-site-switch]').hidden);
+ d.querySelector('[data-site-switch]').click();assert.equal(d.querySelector('dialog'),null,'dirty/busy guard may refuse switch');
+ allowed=true;d.querySelector('[data-site-switch]').click();assert.ok(d.querySelector('dialog').open);assert.ok(d.querySelector('[type=submit]').disabled);
+ const pick=d.querySelector('select');pick.value='site:b';pick.dispatchEvent(new w.Event('change'));assert.equal(d.querySelector('[type=submit]').disabled,false);
+ d.querySelector('form').dispatchEvent(new w.Event('submit',{cancelable:true}));await until(()=>calls.length===1&&!d.querySelector('form').inert);
+ assert.equal(user.siteId,'one','failed login keeps original context');assert.equal(d.querySelector('input').parentElement.hidden,false);
+ fail=false;d.querySelector('input').value='different-password';d.querySelector('form').dispatchEvent(new w.Event('submit',{cancelable:true}));await until(()=>calls.length===2&&!d.querySelector('form').inert);
+ assert.equal(calls[1].target.siteId,'two');assert.equal(calls[1].proof,'hash:different-password');
+ sites=sites.slice(0,1);d.querySelector('form').dispatchEvent(new w.Event('submit',{cancelable:true}));await until(()=>d.querySelector('[role=status]').textContent.includes('설정이 변경'));
+ assert.equal(calls.length,2,'membership is checked again immediately before switching');d.querySelector('dialog').close();
+ user={id:'c',role:'field',siteId:'three'};d.querySelector('#userMenu').innerHTML='<button id="logoutBtn">로그아웃</button>';w.enlMountSiteSwitch(user,d.querySelector('#userMenu'));await new Promise(r=>setTimeout(r,10));assert.ok(d.querySelector('[data-site-switch]').hidden,'single assignment has no switch control');
+ console.log('PASS site selector, dirty guard, current-site default, password fallback, failed-switch preservation and live membership recheck');
+}finally{w.close();}})().catch(e=>{console.error(e);process.exitCode=1;});

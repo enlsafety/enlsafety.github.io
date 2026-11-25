@@ -102,6 +102,10 @@ jobs:
           node tests/supervisor-appointments.cjs
           node tests/supervisor-certificates.cjs
           node tests/supervisor-certificates-dom.cjs
+      - name: Joint-site authentication and selector regression
+        run: |
+          node tests/joint-sites.cjs
+          node tests/joint-sites-dom.cjs
       - name: Single-source cause and prevention regression
         run: node tests/prevention-cause-source.cjs
       - name: Document sidebar navigation regression
