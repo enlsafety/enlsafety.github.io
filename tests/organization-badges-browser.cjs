@@ -8,6 +8,7 @@ async function check(engine,width) {
     const page=await browser.newPage({viewport:{width,height:900},hasTouch:width<800});
     await page.setContent('<body class="safety-ui"><div id="app"><main class="platform-hub hub-menu-open"><aside class="hub-sidebar"><nav><div class="hub-sidebar-row"><button data-hub="feature:incident">사고보고<span class="org-dot hub-task-dot"></span></button></div><details open class="hub-document-menus"><summary>안전보건 서류관리</summary><div class="hub-sidebar-row"><button data-hub="feature:organization"><svg class="hub-nav-picto"></svg><span>01. 안전보건 조직</span></button></div></details></nav></aside></main></div>');
     for(const file of ['style.css','platform-dashboard.css','organization.css'])await page.addStyleTag({path:file});
+    await page.addScriptTag({path:'document-photo-viewer.js'});
     await page.addScriptTag({path:'organization.js'});
     for(const role of ['safety','field','manager','executive','worker']){
       await page.evaluate(role=>{
@@ -24,7 +25,7 @@ async function check(engine,width) {
           window.records[0]={active:true,state,checked:state==='approved',documentStates:{chart:state,appointment:state,certificate:state}};
           window.dispatchEvent(new Event('focus'));
         },state);
-        const actionable=state!=='approved';
+        const actionable=state!=='approved'&&!(role==='field'&&state==='pending');
         await org.waitFor({state:actionable?'visible':'detached'});
         if(actionable)assert.match(await org.getAttribute('aria-label'),/1개 사업장/);
       }

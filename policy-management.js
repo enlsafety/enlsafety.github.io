@@ -1,7 +1,7 @@
 (()=>{
 'use strict';
 const docs={policy:'01. 안전보건경영방침',objectives:'02. 안전보건경영목표'};
-const steps={empty:'게시 확인 전',pending:'안전관리자 확인 대기',approved:'최신화 완료',rejected:'사진 재제출 요청'};
+const steps={empty:'게시 확인 전',pending:'안전관리자 확인 대기',approved:'최신화 완료',rejected:'서류 재제출 요청'};
 const ns='http://www.w3.org/2000/svg';
 let posterSequence=0;
 const make=(tag,txt,cls)=>{const n=document.createElement(tag);if(txt!==undefined&&txt!==null)n.textContent=txt;if(cls)n.className=cls;return n};
@@ -100,14 +100,16 @@ function printPoster(kind,settings,siteName){
   try{window.print()}catch(e){cleanup();throw e}
 }
 function mount(host,u,api,sameUser){
-  const admin=u.role==='safety',field=u.role==='field';
+  const admin=u.role==='safety',field=u.role==='field',evidence=window.enlDocumentEvidence;
+  const complete=state=>evidence.complete(u.role,state);
+  const allComplete=s=>complete(s.policyState)&&complete(s.objectivesState);
   let enabled=false,panel=null,main=null,nav=null,settings=null,sites=[],siteId=null,kind=null,request=0,busy=false,needCount=0,approvalPending=null,approvalTotal=0;
   const status=(message)=>make('p',message,'policy-message');
   const documentWork=(s,state)=>s.active&&state!=='approved'&&(admin||field&&state!=='pending');
   const hasWork=s=>documentWork(s,s.policyState)||documentWork(s,s.objectivesState);
-  function workDot(node,needed,approved=false){
+  function workDot(node,needed,approved=false,state){
     if(!needed&&!approved)return;
-    const label=approved?'안전관리자 승인 완료':'미제출 또는 안전관리자 승인 미완료';
+    const label=state?evidence.label(u.role,state):approved?(field?'현장 서류 제출 완료':'안전관리자 승인 완료'):(field?'서류 제출 필요':'미제출 또는 안전관리자 승인 미완료');
     const dot=make('span',approved?'✓':null,'policy-document-dot'+(approved?' is-approved':''));dot.setAttribute('role','img');dot.setAttribute('aria-label',label);dot.title=label;
     node.setAttribute('aria-description',label);node.append(dot);
   }
@@ -120,7 +122,7 @@ function mount(host,u,api,sameUser){
       dot.title=admin?'확인이 필요한 사업장 '+needCount+'개':'현장 최신화 미완료';
       dot.setAttribute('aria-label',dot.title);
     }
-    if(enabled&&approvalPending!==null)host.setDocumentApprovalState?.('policy',approvalPending,'안전보건 경영방침 및 목표 안전관리자 승인 미완료 '+approvalPending+'개 사업장',approvalTotal);
+    if(enabled&&approvalPending!==null)host.setDocumentApprovalState?.('policy',approvalPending,(field?'안전보건 경영방침 및 목표 제출 필요 ':'안전보건 경영방침 및 목표 승인 미완료 ')+approvalPending+'개 사업장',approvalTotal,field?'현장 서류 제출 완료':'안전관리자 승인 완료');
   }
   let badgeRequest=0;
   async function refreshBadges(){
@@ -129,7 +131,7 @@ function mount(host,u,api,sameUser){
     try{
       const result=await api({action:'platform_policy_list'});
       if(id!==badgeRequest||!sameUser()||!enabled)return;
-      approvalTotal=(result.sites||[]).filter(s=>s.active!==false).length;needCount=(result.sites||[]).filter(hasWork).length;approvalPending=(result.sites||[]).filter(s=>s.active!==false&&(s.policyState!=='approved'||s.objectivesState!=='approved')).length;badges();
+      approvalTotal=(result.sites||[]).filter(s=>s.active!==false).length;needCount=(result.sites||[]).filter(hasWork).length;approvalPending=(result.sites||[]).filter(s=>s.active!==false&&!allComplete(s)).length;badges();
     }catch{/* Leave the last verified badge state unchanged during a transient outage. */}
   }
   function catalog(m){
@@ -143,11 +145,12 @@ function mount(host,u,api,sameUser){
   function siteState(s){
     if(!s.active)return '종료 사업장';
     if(s.complete)return '경영방침 및 목표 확인완료';
+    if(field&&allComplete(s))return '제출 완료 / 승인 대기';
     if(s.policyState==='pending'||s.objectivesState==='pending')return '안전관리자 확인 대기';
-    if(s.policyState==='rejected'||s.objectivesState==='rejected')return '사진 재제출 필요';
+    if(s.policyState==='rejected'||s.objectivesState==='rejected')return '서류 재제출 필요';
     return '최신화 미완료';
   }
-  function stateClass(state){return state==='approved'?'is-approved':state==='pending'?'is-pending':state==='rejected'?'is-rejected':'is-empty'}
+  function stateClass(state){return complete(state)?'is-approved':state==='pending'?'is-pending':state==='rejected'?'is-rejected':'is-empty'}
   function rail(){
     if(!nav)return;
     nav.replaceChildren();
@@ -155,14 +158,15 @@ function mount(host,u,api,sameUser){
     for(const s of sites){
       const b=btn('',()=>chooseSite(s.siteId),'policy-folder');
       b.dataset.siteId=s.siteId;
-      b.append(make('strong',s.folderName),make('small',siteState(s),'policy-badge '+(s.complete?'is-approved':s.policyState==='pending'||s.objectivesState==='pending'?'is-pending':'is-empty')));
-      workDot(b,hasWork(s));
+      b.append(make('strong',s.folderName),make('small',siteState(s),'policy-badge '+(allComplete(s)?'is-approved':s.policyState==='pending'||s.objectivesState==='pending'?'is-pending':'is-empty')));
+      workDot(b,s.active&&!allComplete(s),s.active&&allComplete(s));
       if(s.siteId===siteId)b.setAttribute('aria-current','page');
       nav.append(b);
       if(s.siteId===siteId){
         for(const [doc,label] of Object.entries(docs)){
           const sub=btn(label,()=>chooseDocument(doc),'policy-rail-child');
-          workDot(sub,s.active&&s[doc==='policy'?'policyState':'objectivesState']!=='approved',s.active&&s[doc==='policy'?'policyState':'objectivesState']==='approved');
+          const state=s[doc==='policy'?'policyState':'objectivesState'];
+          workDot(sub,s.active&&!complete(state),s.active&&complete(state),state);
           if(kind===doc)sub.setAttribute('aria-current','page');nav.append(sub);
         }
       }
@@ -175,8 +179,8 @@ function mount(host,u,api,sameUser){
     const grid=make('div',null,'policy-site-grid');
     for(const s of sites){
       const b=btn('',()=>chooseSite(s.siteId),'policy-site-card');
-      b.append(make('strong',s.folderName),make('small',siteState(s),'policy-badge '+(s.complete?'is-approved':s.policyState==='pending'||s.objectivesState==='pending'?'is-pending':'is-empty')));
-      workDot(b,hasWork(s));
+      b.append(make('strong',s.folderName),make('small',siteState(s),'policy-badge '+(allComplete(s)?'is-approved':s.policyState==='pending'||s.objectivesState==='pending'?'is-pending':'is-empty')));
+      workDot(b,s.active&&!allComplete(s),s.active&&allComplete(s));
       grid.append(b);
     }
     main.replaceChildren(heading,grid);
@@ -186,13 +190,13 @@ function mount(host,u,api,sameUser){
     const s=current();if(!s)return sitesPage();kind=null;rail();
     const back=btn('← 사업장 목록',sitesPage,'policy-back');
     const heading=make('div',null,'policy-page-title');
-    heading.append(make('h3',s.folderName),status('두 문서의 게시 사진을 각각 제출하고 안전관리자 확인을 받아야 완료됩니다.'));
+    heading.append(make('h3',s.folderName),status('두 문서의 게시 사진 / PDF를 각각 제출하고 안전관리자 확인을 받아야 완료됩니다.'));
     const grid=make('div',null,'policy-document-grid');
     for(const [k,name] of Object.entries(docs)){
       const state=s[k==='policy'?'policyState':'objectivesState'];
       const card=btn('',()=>chooseDocument(k),'policy-document-card');
       card.append(make('strong',name),make('span',steps[state]||steps.empty,'policy-badge '+stateClass(state)));
-      workDot(card,s.active&&state!=='approved',s.active&&state==='approved');
+      workDot(card,s.active&&!complete(state),s.active&&complete(state),state);
       grid.append(card);
     }
     main.replaceChildren(back,heading,grid);
@@ -207,7 +211,7 @@ function mount(host,u,api,sameUser){
       if(seq!==request||!sameUser()||!main)return;
       sites=result.sites||[];settings=result.settings;
       siteId=sites.some(s=>s.siteId===oldSite)?oldSite:null;kind=siteId?oldKind:null;
-      approvalTotal=sites.filter(s=>s.active!==false).length;needCount=sites.filter(hasWork).length;approvalPending=sites.filter(s=>s.active!==false&&(s.policyState!=='approved'||s.objectivesState!=='approved')).length;badges();head();
+      approvalTotal=sites.filter(s=>s.active!==false).length;needCount=sites.filter(hasWork).length;approvalPending=sites.filter(s=>s.active!==false&&!allComplete(s)).length;badges();head();
       if(siteId&&kind)await chooseDocument(kind);
       else if(siteId)documentsPage();else sitesPage();
     }catch(e){if(seq===request&&main){main.replaceChildren(status('최신화 현황을 불러오지 못했습니다.'),btn('다시 불러오기',()=>reload(preserve)));}}
@@ -224,7 +228,7 @@ function mount(host,u,api,sameUser){
   function globalEdit(){
     if(!admin||!settings||busy)return;
     const dialog=make('dialog',null,'policy-global-dialog');
-    const form=make('form');form.innerHTML='<h3>경영방침 및 목표 전체 수정</h3><p>전 사업장에 적용되는 두 문서의 상단 연도와 하단 시행일을 함께 수정합니다.</p><label>상단 표시 연도<input name="year" type="number" min="2000" max="2100" step="1" required></label><label>하단 시행일<input name="date" type="date" required></label><p class="policy-dialog-warning">변경 내용을 저장하면 전 사업장의 최신화 확인이 초기화됩니다. 기존 게시 사진과 승인 이력은 보관됩니다. 날짜만 변경해도 재확인이 필요합니다.</p><div class="policy-dialog-actions"><button type="button" data-cancel>취소</button><button type="submit">전 사업장에 적용</button></div><p role="status"></p>';
+    const form=make('form');form.innerHTML='<h3>경영방침 및 목표 전체 수정</h3><p>전 사업장에 적용되는 두 문서의 상단 연도와 하단 시행일을 함께 수정합니다.</p><label>상단 표시 연도<input name="year" type="number" min="2000" max="2100" step="1" required></label><label>하단 시행일<input name="date" type="date" required></label><p class="policy-dialog-warning">변경 내용을 저장하면 전 사업장의 최신화 확인이 초기화됩니다. 기존 게시 사진 / PDF와 승인 이력은 보관됩니다. 날짜만 변경해도 재확인이 필요합니다.</p><div class="policy-dialog-actions"><button type="button" data-cancel>취소</button><button type="submit">전 사업장에 적용</button></div><p role="status"></p>';
     form.elements.year.value=settings.year;form.elements.date.value=settings.date;
     dialog.append(form);host.append(dialog);
     const note=form.querySelector('[role=status]'),submit=form.querySelector('[type=submit]');
@@ -262,12 +266,14 @@ function mount(host,u,api,sameUser){
     heading.append(text);
     const print=btn('PDF 출력',()=>printPoster(doc,set,s.siteName),'policy-main-action');
     const upload=make('input');upload.type='file';upload.accept='image/*';upload.hidden=true;
-    const note=status(st==='empty'?'출력 후 현장 게시 사진을 제출하세요.':
+    const note=status(st==='empty'?'출력 후 현장 게시 사진 / PDF를 제출하세요.':
       st==='pending'?'안전관리자 확인 대기 중입니다.':
-      st==='approved'?'최신화 확인이 완료됐습니다.':'사유 확인 후 게시 사진을 다시 제출하세요.');
-    const submit=btn(st==='rejected'?'게시 사진 다시 제출':'게시 사진 제출',()=>upload.click(),'policy-main-action');
+      st==='approved'?'최신화 확인이 완료됐습니다.':'사유 확인 후 게시 사진 / PDF를 다시 제출하세요.');
+    const submit=btn(st==='rejected'?'게시 사진 / PDF 다시 제출':'게시 사진 / PDF 제출',()=>upload.click(),'policy-main-action');
     submit.disabled=!field||!s.active||locked;
-    const approved=btn('확인완료',()=>{},'policy-main-action');approved.disabled=true;
+    upload.disabled=submit.disabled;
+    evidence.mark(submit,locked,st==='pending'?'제출 완료 / 승인 대기':st==='approved'?'제출 완료':st==='rejected'?'사진 / PDF 다시 제출':'사진 / PDF 제출');
+    const approved=btn('확인완료',()=>{},'policy-main-action');approved.disabled=true;evidence.mark(approved,st==='approved','확인완료');
     const paper=poster(doc,set);
     const tip=make('p','원본 양식은 고정되어 있습니다. 연도와 시행일은 안전관리자의 ‘전체 수정’에서만 변경할 수 있습니다.','policy-help');
     const left=make('div',null,'policy-paper-panel');left.append(paper,tip);
@@ -283,56 +289,57 @@ function mount(host,u,api,sameUser){
     }
     const fieldAction=field&&s.active&&!locked;
     step(1,'출력',print,'전체 사용자',fieldAction);
-    step(2,'사진 제출',submit,'현장 담당자',fieldAction);
+    step(2,'서류 제출',submit,'현장 담당자',fieldAction);
+    evidence.drop(upload,submit);
     step(3,'확인',approved,'안전관리자',admin&&s.active&&st==='pending');
     const reviewHead=make('div',null,'policy-review-head');reviewHead.append(make('h4','현장 게시 여부 확인'),legend);
-    right.append(reviewHead,flow,note,upload);
+    right.append(reviewHead,flow,note);
+    let proofPreview;
     if(proof){
       right.append(make('p','제출: '+proof.submittedBy+' / '+when(proof.submittedAt),'policy-help'));
-      const image=make('img');image.src=proof.photo;image.alt=s.siteName+' 실제 '+docs[doc]+' 게시 사진';image.loading='lazy';image.className='policy-proof-photo';
-      const preview=btn(null,()=>window.enlOpenDocumentPhoto(proof.photo,image.alt,preview),'policy-proof-open enl-proof-thumb');
-      preview.setAttribute('aria-label',image.alt+' 원본 보기');preview.setAttribute('aria-haspopup','dialog');
-      preview.append(image,make('span','사진 클릭하여 원본 보기'));
-      right.append(preview);
+      proofPreview=evidence.preview(proof.photo,s.siteName+' '+docs[doc]+' 제출 사진 / PDF');
+      proofPreview.classList.add('policy-proof-open');proofPreview.querySelector('img')?.classList.add('policy-proof-photo');
+      right.append(proofPreview);
       if(proof.reviewedAt)right.append(status('검토: '+proof.reviewedBy+' / '+when(proof.reviewedAt)));
       if(proof.reviewNote)right.append(status('재제출 사유: '+proof.reviewNote));
     }
     if(admin&&st==='pending'&&proof){
       const label=make('label',null,'policy-check-photo'),check=make('input');check.type='checkbox';
-      label.append(check,' 출력 양식의 연도, 시행일, 현장 게시 상태를 사진으로 확인했습니다.');
+      let proofLoaded=proofPreview?.dataset.loaded==='true';
+      const updateReview=()=>{check.disabled=busy||!proofLoaded;approved.disabled=busy||!proofLoaded||!check.checked;};
+      proofPreview?.addEventListener('evidence-ready',()=>{proofLoaded=true;updateReview();});
+      label.append(check,' 출력 양식의 연도, 시행일, 현장 게시 상태를 사진 / PDF로 확인했습니다.');
       approved.onclick=()=>decide('approved');
-      check.onchange=()=>{approved.disabled=busy||!check.checked;};
+      check.onchange=updateReview;updateReview();
       const reject=btn('재제출 요청',()=>decide('rejected'));
       right.append(label,reject);
       async function decide(decision){
-        if(busy||decision==='approved'&&!check.checked)return;
+        if(busy||decision==='approved'&&(!check.checked||!proofLoaded))return;
         let msg='';
         if(decision==='rejected'){
-          const input=prompt('사진 재제출을 요청하는 사유를 입력해 주세요. (300자 이내)','');
+          const input=prompt('서류 재제출을 요청하는 사유를 입력해 주세요. (300자 이내)','');
           if(input===null)return;
           msg=input.trim();
           if(!msg||msg.length>300){alert('재제출 사유를 1~300자로 입력해 주세요.');return;}
-        }else if(!confirm('실제 게시 사진과 '+docs[doc]+' 내용을 확인완료 처리할까요?'))return;
+        }else if(!confirm('실제 게시 사진 / PDF와 '+docs[doc]+' 내용을 확인완료 처리할까요?'))return;
         busy=true;approved.disabled=reject.disabled=true;note.textContent='처리 중입니다.';
         try{
           await api({action:'platform_policy_decide',siteId:s.siteId,kind:doc,revision:set.revision,evidenceId:proof.id,decision,note:msg});
           await reload(true);
         }catch(err){note.textContent=['review_state_changed','settings_changed'].includes(err.message)?'다른 변경사항이 있습니다. 새로고침 후 확인해 주세요.':'확인 처리에 실패했습니다. 다시 시도해 주세요.';}
-        finally{busy=false;approved.disabled=!check.checked;reject.disabled=false;}
+        finally{busy=false;updateReview();reject.disabled=false;}
       }
     }
     upload.onchange=async()=>{
       const file=upload.files?.[0];upload.value='';
       if(!file||busy||!field||!s.active||locked)return;
-      if(!confirm('출력한 '+docs[doc]+'의 실제 현장 게시 사진을 안전관리자에게 제출할까요?'))return;
-      busy=true;note.textContent='사진을 준비하고 제출하는 중입니다.';
+      busy=true;submit.disabled=upload.disabled=true;note.textContent='파일을 준비하고 제출하는 중입니다.';
       try{
-        if(!window.enlPrepareDocumentPhoto)throw Error('photo_unavailable');
-        const image=await window.enlPrepareDocumentPhoto(file);
+        const image=await evidence.prepare(file);
         await api({action:'platform_policy_submit',siteId:s.siteId,kind:doc,revision:set.revision,photo:image.base64});
         await reload(true);
-      }catch(err){note.textContent=['settings_changed','review_state_changed'].includes(err.message)?'상태가 변경됐습니다. 최신본을 새로고침해 주세요.':'사진을 제출하지 못했습니다. 사진 형식이나 네트워크를 확인해 주세요.';}
-      finally{busy=false;}
+      }catch(err){note.textContent=['settings_changed','review_state_changed'].includes(err.message)?'상태가 변경됐습니다. 최신본을 새로고침해 주세요.':'파일을 제출하지 못했습니다. '+evidence.error(err);}
+      finally{busy=false;submit.disabled=upload.disabled=!field||!s.active||locked;}
     };
     const layout=make('div',null,'policy-document-layout');layout.append(right,left);
     main.replaceChildren(back,heading,layout);

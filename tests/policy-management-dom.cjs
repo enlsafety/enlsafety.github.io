@@ -16,6 +16,7 @@ async function waitFor(fn){for(let i=0;i<200;i++){if(fn())return;await tick();}a
    w.enlPrepareDocumentPhoto=async()=>({base64:photo});
    w.HTMLElement.prototype.scrollTo=function(){};
    w.eval(fs.readFileSync('document-photo-viewer.js','utf8'));
+   w.eval(fs.readFileSync('document-photo-viewer.js','utf8'));
    w.eval(fs.readFileSync('policy-management.js','utf8'));
    const api=async body=>{const r=await f.call(role,body);if(!r.body.ok)throw Error(r.body.message);return r.body;};
    const ui=w.enlPolicyManagement(w.document.getElementById('app'),{role},api,()=>true);
@@ -26,14 +27,14 @@ async function waitFor(fn){for(let i=0;i<200;i++){if(fn())return;await tick();}a
    await waitFor(()=>d.querySelector('.policy-poster'));
    return {w,d,ui};
   }
-  const button=(d,text)=>[...d.querySelectorAll('button')].find(b=>b.textContent===text);
+  const button=(d,text)=>[...d.querySelectorAll('button')].find(b=>b.textContent.replace(/^✓ /,'')===text);
   for(const role of ['field','manager','executive','worker']){
    const {w,d}=await open(role);
    assert.equal(!!button(d,'전체 수정'),false);
-   assert.equal(button(d,'게시 사진 제출').disabled,role!=='field');
+   assert.equal(button(d,'사진 / PDF 제출').disabled,role!=='field');
    assert.equal(button(d,'확인완료').disabled,true);
    assert.equal(d.querySelectorAll('.policy-flow-steps [data-action-state=required]').length,role==='field'?2:0);
-   assert.equal(d.querySelectorAll('.policy-rail .policy-document-dot').length,role==='field'?3:2);
+   assert.equal(d.querySelectorAll('.policy-rail .policy-document-dot').length,['field','worker'].includes(role)?3:4);
    assert.equal(d.querySelector('.policy-document-layout').firstChild.className,'policy-review-panel');
    w.print=()=>{assert.ok(d.querySelector('#enl-policy-print-page svg'));const ids=[...d.querySelectorAll('svg filter')].map(n=>n.id);assert.equal(new Set(ids).size,ids.length,'screen and print filter IDs must be distinct');w.dispatchEvent(new w.Event('afterprint'));};
    button(d,'PDF 출력').click();assert.equal(d.querySelector('#enl-policy-print-page'),null);
@@ -43,7 +44,7 @@ async function waitFor(fn){for(let i=0;i<200;i++){if(fn())return;await tick();}a
   Object.defineProperty(input,'files',{value:[new state.w.File(['qa'],'evidence.jpg',{type:'image/jpeg'})]});
   input.dispatchEvent(new state.w.Event('change'));
   await waitFor(()=>state.d.querySelector('.policy-proof-photo'));
-  assert.equal(button(state.d,'게시 사진 제출').disabled,true);
+  assert.equal(button(state.d,'제출 완료 / 승인 대기').disabled,true);
   assert.equal(state.d.querySelectorAll('.policy-flow-steps [data-action-state=required]').length,0);
   // Opening original photos must remain read-only for every permitted role.
   await f.call('field',{action:'platform_policy_submit',siteId:'qa-site',kind:'objectives',revision:1,photo});
@@ -67,6 +68,7 @@ async function waitFor(fn){for(let i=0;i<200;i++){if(fn())return;await tick();}a
   state=await open('safety');assert.ok(button(state.d,'전체 수정'));
   assert.ok(button(state.d,'확인완료').disabled);
   assert.equal(state.d.querySelector('.policy-flow-steps [data-action-state=required]').dataset.step,'3');
+  state.d.querySelector('.policy-proof-photo').dispatchEvent(new state.w.Event('load'));
   const check=state.d.querySelector('.policy-check-photo input');check.checked=true;check.dispatchEvent(new state.w.Event('change'));
   button(state.d,'확인완료').click();
   await waitFor(()=>state.d.querySelector('.policy-document-heading').textContent.includes('최신화 완료'));

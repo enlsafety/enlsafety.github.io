@@ -61,7 +61,7 @@ if(require.main===module)(async()=>{
   let document=(await call('field','open',{certificateId:req.certificateId})).body.document;
   assert.equal(document.event,'approve');assert.equal(document.revision,3);assert.equal(document.photo_revision,1);assert.equal(document.completed_on,'2026-11-02','approval cannot alter evidence');
   let states=(await f.call('field',{action:'platform_org_list'})).body.sites[0].documentStates;
-  assert.equal(states.certificate,'approved');assert.equal(states.appointment,'pending','separate document approvals');
+  assert.equal(states.certificate,'approved');assert.equal(states.appointment,'draft','separate document approvals');
   assert.equal((await call('field','save',{...req,revision:3,photo:undefined,completedOn:'2026-11-03'})).status,200);
   states=(await f.call('field',{action:'platform_org_list'})).body.sites[0].documentStates;
   assert.equal(states.certificate,'pending','editing evidence invalidates approval');
@@ -72,7 +72,7 @@ if(require.main===module)(async()=>{
   await f.call('safety',{action:'platform_org_appointment_save',siteId:'qa-site',documentId:f.appointmentId,revision:1,folderRevision:1,appointment:{...f.appointment,date:'2025-01-01'}});
   assert.equal((await call('field','save',{...req,revision:2})).status,409,'stale appointment rejected');
   assert.equal((await call('field','save',{...req,revision:2,appointmentRevision:2})).status,409,'old evidence cannot be reassigned to changed appointment');
-  assert.equal((await f.call('field',{action:'platform_org_list'})).body.sites[0].documentStates.certificate,'pending','changed appointment cannot inherit old approval');
+  assert.equal((await f.call('field',{action:'platform_org_list'})).body.sites[0].documentStates.certificate,'empty','changed appointment cannot inherit old approval');
   await f.db.exec("update enl_site_master set active=false where site_id='qa-site'");assert.equal((await call('field','save',req)).status,403);
   const rights=(await f.db.query("select has_table_privilege('anon','private.enl_supervisor_certificates','SELECT') a,has_table_privilege('authenticated','private.enl_supervisor_certificates','INSERT') b,relrowsecurity from pg_class where oid='private.enl_supervisor_certificates'::regclass")).rows[0];
   assert.equal(rights.a,false);assert.equal(rights.b,false);assert.equal(rights.relrowsecurity,true);

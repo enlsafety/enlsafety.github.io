@@ -1,3 +1,5 @@
+import {validDocumentEvidence,documentEvidenceUrl} from './document-evidence.ts';
+export {validPrintPhoto} from './document-evidence.ts';
 import './supervisor-training-model.js';
 const groups = 4;
 const validText = (value:unknown, limit:number) => typeof value === 'string'
@@ -18,28 +20,6 @@ function chartData(input:any) {
 export function halfYear(at = new Date()) {
   const kst = new Date(at.getTime() + 9 * 3600000);
   return kst.getUTCFullYear() + '-' + (kst.getUTCMonth() < 6 ? 1 : 2);
-}
-
-export function validPrintPhoto(data:unknown){
-  if(typeof data!=='string'||data.length>466668||!/^\/9j\/[a-zA-Z0-9+/]*={0,2}$/.test(data))return false;
-  let image;
-  try{image=atob(data);}catch{return false;}
-  if(image.length>350000||!image.endsWith('\xff\xd9'))return false;
-  const word=(i:number)=>image.charCodeAt(i)*256+image.charCodeAt(i+1);
-  let hasFrame=false;
-  for(let i=2;i+4<image.length;){
-    if(image.charCodeAt(i++)!==255)return false;
-    while(image.charCodeAt(i)===255)i++;
-    const marker=image.charCodeAt(i++),size=word(i);
-    if(size<2||i+size>image.length)return false;
-    if([192,193,194].includes(marker)){
-      if(size<8||!word(i+3)||!word(i+5)||Math.max(word(i+3),word(i+5))>1400)return false;
-      hasFrame=true;
-    }
-    if(marker===218)return hasFrame&&i+size<image.length-2;
-    i+=size;
-  }
-  return false;
 }
 
 export function reviewState(row:any, period:string, tip:number) {
@@ -105,12 +85,13 @@ export async function organizationRequest(sql:any, actor:any, body:any, reply:an
       const state=reviewState(s,period,s.tip);
       const {tip,confirmed,review_event,appointments,certificates,...summary}=s;
       const model=(globalThis as any).enlSupervisorTrainingModel,today=model.today(),people=appointments||[],records=certificates||[];
-      const appointment=people.length&&people.every((a:any)=>a.event==='approve')?'approved':'pending';
-      const certificate=people.length&&people.every((a:any)=>{
-        const p=model.current(a.appointment.date,today);if(!p)return false;
+      const appointment=!people.length?'empty':people.every((a:any)=>a.event==='approve')?'approved':people.every((a:any)=>['submit','approve'].includes(a.event))?'pending':'draft';
+      const certificateStates=people.map((a:any)=>{
+        const p=model.current(a.appointment.date,today);if(!p)return 'empty';
         const selected=model.summary(a.appointment,records.filter((c:any)=>c.appointment_id===a.document_id),p,today).certificates;
-        return selected.length>0&&selected.every((c:any)=>c.event==='approve');
-      })?'approved':'pending';
+        return !selected.length?'empty':selected.every((c:any)=>c.event==='approve')?'approved':'pending';
+      });
+      const certificate=!certificateStates.length||certificateStates.includes('empty')?'empty':certificateStates.every((v:string)=>v==='approved')?'approved':'pending';
       return {...summary,state,checked:state==='approved',documentStates:{chart:state,appointment,certificate}};
     })});
   }
@@ -134,7 +115,7 @@ export async function organizationRequest(sql:any, actor:any, body:any, reply:an
     const proof=result.document?.photo_revision;
     if(proof){
       const [photo]=await sql`select encode(print_jpeg,'base64') as jpeg from private.enl_org_charts where site_id=${siteId} and revision=${proof}`;
-      if(photo?.jpeg)result.document.photo='data:image/jpeg;base64,'+photo.jpeg.replace(/\s/g,'');
+      if(photo?.jpeg)result.document.photo=documentEvidenceUrl(photo.jpeg);
     }
     let template;
     if (body.includeTemplate === true) {
@@ -190,7 +171,7 @@ export async function organizationRequest(sql:any, actor:any, body:any, reply:an
     if(op==='confirm'){
       if(state==='pending')return reply({ok:false,message:'review_state_changed'},409);
       const data=body.photo;
-      if(body.chart!==undefined||!validPrintPhoto(data))return reply({ok:false,message:'photo_required'},400);
+      if(body.chart!==undefined||!validDocumentEvidence(data))return reply({ok:false,message:'photo_required'},400);
       photo=data;
     }
     const revision=tip+1;

@@ -177,3 +177,6 @@
  #app .org-panel .enl-proof-thumb{border:2px solid var(--org-divider)}
 }
 @media screen and (max-width:750px){#app .org-panel .org-rail{border-right:0;border-bottom:2px solid var(--org-divider)}}
+
+/* Completed field submissions and approved records use the same check shape. */
+.org-state.approved::before{content:"✓";width:14px;height:16px;line-height:16px;background:none;border-radius:0;box-shadow:none;color:#198348;font-size:17px;font-weight:800}

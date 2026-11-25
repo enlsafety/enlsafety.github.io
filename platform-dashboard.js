@@ -687,7 +687,7 @@
     const paint=(node,state)=>{
       let dot=node.querySelector(':scope > .hub-document-dot');
       if(!state||node.disabled||state.count===0&&!state.total){dot?.remove();return;}
-      const approved=state.count===0&&state.total>0,label=approved?'안전관리자 승인 완료':state.label;
+      const approved=state.count===0&&state.total>0,label=approved?(state.completeLabel||'안전관리자 승인 완료'):state.label;
       if(!dot){dot=document.createElement('span');dot.setAttribute('role','img');node.append(dot);}
       dot.className='hub-document-dot'+(approved?' is-approved':'');dot.textContent=approved?'✓':'';
       dot.setAttribute('aria-label',label);dot.title=label;
@@ -701,8 +701,8 @@
       paint(education,states.length?{count:pending,total:states.reduce((n,s)=>n+(s.total||0),0),label:'안전관리자 승인 미완료 교육 항목 '+pending+'개'}:null);
     }
   }
-  host.setDocumentApprovalState=(key,count,label,total)=>{
-    documentApprovalStates.set(key,{count,total,label:label||'안전관리자 승인 미완료 '+count+'건'});
+  host.setDocumentApprovalState=(key,count,label,total,completeLabel)=>{
+    documentApprovalStates.set(key,{count,total,completeLabel,label:label||'안전관리자 승인 미완료 '+count+'건'});
     paintDocumentApprovals();
   };
   const taskCounts=new Map();

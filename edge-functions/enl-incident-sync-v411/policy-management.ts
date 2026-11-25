@@ -1,30 +1,10 @@
+import {validDocumentEvidence,documentEvidenceUrl} from './document-evidence.ts';
 // E&L CEO safety policy and objectives: globally dated posters, site-specific proof and approval.
 // Routed only after index.ts has verified the actor with current credentials.
 const policyKinds = new Set(['policy','objectives']);
 const policyText = (value:unknown, max=128) =>
   typeof value==='string' && value.trim().length>0 && value.trim().length<=max && !/[\u0000-\u001f\u007f]/.test(value);
 const policyStatus = (value:any) => value?.review_state || 'empty';
-function policyPhotoOk(data:unknown){
-  if(typeof data!=='string' || data.length>466668 || !/^\/9j\/[a-zA-Z0-9+/]*={0,2}$/.test(data))return false;
-  let image:string;
-  try{image=atob(data);}catch{return false;}
-  if(image.length<100 || image.length>350000 || !image.endsWith('\xff\xd9'))return false;
-  const word=(i:number)=>image.charCodeAt(i)*256+image.charCodeAt(i+1);
-  let hasFrame=false;
-  for(let i=2;i+4<image.length;){
-    if(image.charCodeAt(i++)!==255)return false;
-    while(image.charCodeAt(i)===255)i++;
-    const marker=image.charCodeAt(i++),size=word(i);
-    if(size<2||i+size>image.length)return false;
-    if([192,193,194].includes(marker)){
-      if(size<8||!word(i+3)||!word(i+5)||Math.max(word(i+3),word(i+5))>1400)return false;
-      hasFrame=true;
-    }
-    if(marker===218)return hasFrame&&i+size<image.length-2;
-    i+=size;
-  }
-  return false;
-}
 function settingsPublic(s:any){
   return {year:Number(s.policy_year),date:s.effective_date,revision:Number(s.revision),updatedAt:s.updated_at,updatedBy:s.updated_by_name};
 }
@@ -110,7 +90,7 @@ export async function policyRequest(sql:any,actor:any,body:any,reply:any){
       id:Number(proof.id),state:policyStatus(proof),submittedBy:proof.submitted_by_name,
       submittedAt:proof.submitted_at,reviewedBy:proof.reviewed_by_name,
       reviewedAt:proof.reviewed_at,reviewNote:proof.review_note,
-      photo:'data:image/jpeg;base64,'+proof.jpeg.replace(/\s/g,'')
+      photo:documentEvidenceUrl(proof.jpeg)
     }:null});
   }
 
@@ -118,7 +98,7 @@ export async function policyRequest(sql:any,actor:any,body:any,reply:any){
   if(!Number.isInteger(revision)||revision<1)return reply({ok:false,message:'invalid_revision'},400);
   if(action==='platform_policy_submit'){
     if(!field||site.active===false)return reply({ok:false,message:'forbidden'},403);
-    if(!policyPhotoOk(body.photo))return reply({ok:false,message:'photo_required'},400);
+    if(!validDocumentEvidence(body.photo))return reply({ok:false,message:'photo_required'},400);
     return sql.begin(async(tx:any)=>{
       await tx`select pg_advisory_xact_lock(hashtextextended(${siteId+':'+kind},9142026))`;
       const [settings]=await tx`select revision,policy_year,effective_date::text as effective_date

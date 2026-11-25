@@ -1,4 +1,4 @@
-import { validPrintPhoto } from './organization.ts';
+import {validDocumentEvidence,documentEvidenceUrl} from './document-evidence.ts';
 const validId=(s:any)=>typeof s==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s);
 function appointmentData(input:any){
   if(!input||typeof input!=='object')return null;
@@ -41,7 +41,7 @@ export async function appointmentRequest(sql:any,actor:any,body:any,reply:any){
       if(document?.photo_revision){
         const [photo]=await tx`select encode(print_jpeg,'base64') as jpeg from private.enl_supervisor_appointments
           where site_id=${siteId} and document_id=${selected} and revision=${document.photo_revision}`;
-        if(photo?.jpeg)document.photo='data:image/jpeg;base64,'+photo.jpeg.replace(/\s/g,'');
+        if(photo?.jpeg)document.photo=documentEvidenceUrl(photo.jpeg);
       }
       return {records,history,document:document??null};
     });
@@ -58,7 +58,7 @@ export async function appointmentRequest(sql:any,actor:any,body:any,reply:any){
   if((!field&&!safety)||(op==='submit'&&!field)||(op==='approve'&&!safety))return reply({ok:false,message:'forbidden'},403);
   const data=op==='save'?appointmentData(body.appointment):null;
   if(!validId(id)||!Number.isInteger(body.revision)||body.revision<0||!Number.isInteger(body.folderRevision)||(op==='save'&&!data))return reply({ok:false,message:'invalid_appointment'},400);
-  if(op==='submit'&&!validPrintPhoto(body.photo))return reply({ok:false,message:'photo_required'},400);
+  if(op==='submit'&&!validDocumentEvidence(body.photo))return reply({ok:false,message:'photo_required'},400);
   return sql.begin(async(tx:any)=>{
     await tx`select pg_advisory_xact_lock(hashtextextended(${siteId},2911))`;
     const [current]=await tx`select s.site_name,s.active,f.revision from public.enl_site_master s join private.enl_org_folders f using(site_id)

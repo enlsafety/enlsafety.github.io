@@ -1,4 +1,4 @@
-import { validPrintPhoto } from './organization.ts';
+import {validDocumentEvidence,documentEvidenceUrl} from './document-evidence.ts';
 import './supervisor-training-model.js';
 const model=(globalThis as any).enlSupervisorTrainingModel;
 const validId=(s:any)=>typeof s==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s);
@@ -37,7 +37,7 @@ export async function certificateRequest(sql:any,actor:any,body:any,reply:any){
         join private.enl_supervisor_certificates p on p.site_id=c.site_id and p.certificate_id=c.certificate_id and p.revision=c.photo_revision
         where c.site_id=${siteId} and c.certificate_id=${id} and c.revision=${revision}`;
       if(!document)return reply({ok:false,message:'unavailable'},404);
-      document.photo='data:image/jpeg;base64,'+document.photo.replace(/\s/g,'');
+      document.photo=documentEvidenceUrl(document.photo);
       return reply({ok:true,site,document,history});
     }
     if(field&&site.active===false)return reply({ok:false,message:'forbidden'},403);
@@ -61,7 +61,7 @@ export async function certificateRequest(sql:any,actor:any,body:any,reply:any){
     }
     if(!model.validDate(body.completedOn)||body.completedOn>model.today()||body.completedOn<appointment.appointment.date)return reply({ok:false,message:'invalid_completion_date'},400);
     const supplied=body.photo!==undefined;
-    if(supplied&&!validPrintPhoto(body.photo)||!supplied&&!last)return reply({ok:false,message:'photo_required'},400);
+    if(supplied&&!validDocumentEvidence(body.photo)||!supplied&&!last)return reply({ok:false,message:'photo_required'},400);
     const revision=body.revision+1;
     await tx`insert into private.enl_supervisor_certificates(site_id,certificate_id,revision,appointment_id,appointment_revision,appointment,completed_on,photo_revision,photo_jpeg,actor_id,actor_name)
       values(${siteId},${id},${revision},${body.appointmentId},${appointment.revision},${tx.json(appointment.appointment)},${body.completedOn}::date,

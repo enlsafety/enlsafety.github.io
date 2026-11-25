@@ -1,4 +1,14 @@
 /* Posting evidence stays compact in the page; full images open in a modal. */
+#app .enl-document-drop{border:2px dashed #6b98bd;border-radius:9px;padding:10px;min-width:0;box-sizing:border-box;background:#f4f9fe}
+#app .enl-document-drop[aria-disabled=true]{border-color:#b7c4d0;background:#f4f6f8}
+#app .enl-document-drop .attachment-drop-hint{font-size:14px;margin:8px 0;line-height:1.5}
+#app .enl-document-drop-note{display:block;font-size:13px;line-height:1.5;color:#42617a}
+#app .enl-document-drop.attachment-drop-active{border-color:#1766a2;background:#dceeff}
+#app .enl-submission-complete,#app button.enl-submission-complete:disabled{background:#e5f5ec;color:#146638;border:2px solid #72ad8a;opacity:1}
+#app .enl-proof-pdf{cursor:pointer;padding:18px}
+#app .enl-proof-pdf>strong{display:block;font-size:28px;color:#225d8c}
+#app .enl-pdf-frame{flex:1;min-height:0;width:100%;border:1px solid #a5bdce;border-radius:8px;background:#eef3f7}
+#app .enl-photo-toolbar a{padding:10px;color:#185e94;font-weight:700;min-height:44px;box-sizing:border-box}
 #app .enl-proof-thumb{display:block;box-sizing:border-box;width:100%;padding:0;border:1px solid #bdd4e3;border-radius:8px;background:#f7fbfd;overflow:hidden;cursor:zoom-in}
 #app .enl-proof-thumb>img{display:block;width:100%;height:220px;max-height:220px;max-width:100%;object-fit:contain;margin:0;border:0;border-radius:0}
 #app .enl-proof-thumb>span{display:block;padding:9px;font-size:14px;font-weight:700;text-align:center;color:#214e71}
@@ -17,3 +27,6 @@
 .enl-photo-viewport{flex:1;min-height:0;min-width:0;overflow:auto;overscroll-behavior:contain;background:#e9eff4;border-radius:8px;-webkit-overflow-scrolling:touch}
 #app .enl-photo-viewport>img{display:block;max-width:none;max-height:none;margin:0 auto;cursor:zoom-in}
 @media(max-width:600px){#app dialog.enl-photo-viewer{width:96vw;padding:10px}.enl-photo-toolbar{gap:6px}.enl-photo-toolbar strong{flex-basis:100%}#app .enl-photo-toolbar button{padding:8px 10px}}
+
+#app .enl-pdf-viewport>canvas{display:block;max-width:none;margin:12px auto;background:#fff;box-shadow:0 1px 6px #afbac5}
+#app .enl-document-drop[aria-disabled=true]>.attachment-drop-hint,#app .enl-document-drop[aria-disabled=true]>.enl-document-drop-note{display:none}

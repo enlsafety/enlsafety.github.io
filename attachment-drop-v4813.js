@@ -13,12 +13,12 @@
   const isFiles=e=>Array.from(e.dataTransfer?.types||[]).includes('Files');
   const zoneAt=e=>e.target instanceof Element?e.target.closest(selector):null;
   const inputFor=zone=>document.getElementById(zone?.dataset.attachmentInput);
-  const busy=(zone,input)=>!input||input.type!=='file'||input.matches(':disabled')||
+  const busy=(zone,input)=>!input||input.type!=='file'||input.matches(':disabled')||!!zone.closest('[inert]')||
     !!zone.closest('[aria-busy="true"]')||input.form?.getAttribute('aria-busy')==='true';
   function clear(){document.querySelectorAll('.attachment-drop-active').forEach(el=>el.classList.remove('attachment-drop-active'))}
   function accepts(input,file){
     const rules=input.accept.toLowerCase().split(',').map(v=>v.trim()).filter(Boolean);
-    const mime=(typeof inferMime==='function'?inferMime(file):file.type||'').toLowerCase();
+    const mime=(typeof inferMime==='function'?inferMime(file):file.type||(/\.pdf$/i.test(file.name)?'application/pdf':'')).toLowerCase();
     const name=file.name.toLowerCase();
     return !rules.length||rules.some(rule=>rule.startsWith('.')?name.endsWith(rule):
       rule.endsWith('/*')?mime.startsWith(rule.slice(0,-1)):mime===rule);
@@ -59,6 +59,7 @@
     const accepted=files.filter(file=>accepts(input,file));
     if(accepted.length!==files.length)alert('허용되지 않는 파일 형식은 제외했습니다. 이 첨부 구역에서 지원하는 파일을 선택해 주세요.');
     if(!accepted.length)return;
+    if(!input.multiple&&accepted.length>1){alert('이 제출 구역은 한 번에 파일 1개를 받습니다. 여러 장은 하나의 PDF로 묶어 제출해 주세요.');return;}
     try{
       const transfer=new DataTransfer();
       // Deferred-upload forms keep their pending selection until submission.

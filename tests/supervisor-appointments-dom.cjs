@@ -13,11 +13,13 @@ async function until(fn){for(let i=0;i<300;i++){if(fn())return;await pause()}ass
    const w=dom.window,d=w.document;let busy=false,dirty=false;
    w.HTMLCanvasElement.prototype.getContext=()=>({measureText:t=>({width:t.length*11})});w.confirm=()=>true;w.print=()=>{};
    w.enlPrepareDocumentPhoto=async()=>({base64:photo});
+   w.eval(fs.readFileSync('document-photo-viewer.js','utf8'));
+   w.eval(fs.readFileSync('document-photo-viewer.js','utf8'));
    w.eval(fs.readFileSync('supervisor-appointments.js','utf8'));
    const api=async body=>{const r=await f.call(role,{...body,includeTemplate:false});if(r.status!==200)throw Error(r.body.message);return {...r.body,template};};
    w.enlSupervisorAppointment(d.querySelector('.org-main'),{role},api,{site_id:'qa-site'},{isCurrent:()=>true,busy:v=>busy=v,dirty:v=>dirty=v});
    await until(()=>d.querySelector('.appt-fields')&&!busy);
-   const btn=text=>[...d.querySelectorAll('button')].find(b=>b.textContent===text);
+   const btn=text=>[...d.querySelectorAll('button')].find(b=>b.textContent.replace(/^✓ /,'')===text);
    const imageLoad=()=>d.querySelectorAll('img').forEach(img=>img.dispatchEvent(new w.Event('load')));
    imageLoad();
    if(role==='field'){
@@ -38,7 +40,7 @@ async function until(fn){for(let i=0;i<300;i++){if(fn())return;await pause()}ass
     const review=d.querySelector('.org-evidence input');review.checked=true;review.dispatchEvent(new w.Event('change'));assert.ok(!btn('확인완료').disabled);btn('확인완료').click();
     await until(()=>!busy&&d.querySelector('.org-flow-guidance')?.textContent==='임명장 확인완료');
    }else{
-    for(const text of ['새 관리감독자 임명장','임명장 저장','출력물 사진 제출','확인완료','임명장 수정'])assert.ok(btn(text).disabled,role+' cannot '+text);
+    for(const text of ['새 관리감독자 임명장','임명장 저장','제출 완료','확인완료','임명장 수정'])assert.ok(btn(text).disabled,role+' cannot '+text);
     assert.ok(!btn('PDF 출력').disabled,role+' can print');
    }
   }

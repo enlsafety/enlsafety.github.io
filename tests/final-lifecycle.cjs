@@ -54,11 +54,12 @@ async function fixture({hubNotices=false,fetchMock}={}){
  vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/safety-card-links.ts').replace(/^import .*;\r?\n/gm,'').replace(/export /g,'')),ctx);
  vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/safety-card.ts').replace(/^import .*;\r?\n/gm,'').replace(/export /g,'')),ctx);
  vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/lifecycle-policy.ts').replace(/export /g,'')),ctx);
- vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/organization.ts').replace(/^import .*;\r?\n/gm,'').replace(/export /g,'')),ctx);
+ vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/document-evidence.ts').replace(/export /g,'')),ctx);
+ vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/organization.ts').replace(/^export \{.*\} from .*;\r?\n/gm,'').replace(/^import .*;\r?\n/gm,'').replace(/export /g,'')),ctx);
  vm.runInContext('{'+stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/supervisor-appointments.ts').replace(/^import .*;\r?\n/gm,'').replace(/export /g,''))+'globalThis.appointmentRequest=appointmentRequest;}',ctx);
  vm.runInContext(read('supervisor-training-model.js'),ctx);
  vm.runInContext('{'+stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/supervisor-certificates.ts').replace(/^import .*;\r?\n/gm,'').replace(/export /g,''))+'globalThis.certificateRequest=certificateRequest;}',ctx);
- vm.runInContext('{'+stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/policy-management.ts').replace(/export /g,''))+'globalThis.policyRequest=policyRequest;}',ctx);
+ vm.runInContext('{'+stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/policy-management.ts').replace(/^import .*;\r?\n/gm,'').replace(/export /g,''))+'globalThis.policyRequest=policyRequest;}',ctx);
  ctx.riskTemplates=JSON.parse(read('edge-functions/enl-incident-sync-v411/risk-templates.json'));
  vm.runInContext(stripTypeScriptTypes(read('edge-functions/enl-incident-sync-v411/risk-assessment.ts').replace(/^import .*;\r?\n/gm,'').replace(/export /g,'')),ctx);
  vm.runInContext(read('edge-functions/enl-incident-sync-v411/analysis-target-policy.js'),ctx);

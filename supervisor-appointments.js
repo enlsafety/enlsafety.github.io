@@ -33,7 +33,7 @@
     try{window.print();}catch(e){cleanup();throw e;}
   }
   window.enlSupervisorAppointment=(root,user,api,site,hooks)=>{
-    const writer=['safety','field'].includes(user.role),safety=user.role==='safety';
+    const writer=['safety','field'].includes(user.role),safety=user.role==='safety',evidence=window.enlDocumentEvidence;
     let template,model,busy=false,dirty=false;
     const active=()=>hooks.isCurrent()&&root.isConnected;
     const setBusy=v=>{busy=v;if(active())hooks.busy(v);};
@@ -87,43 +87,44 @@
       const save=step('1. 저장','임명장 저장','현장 / 안전관리자',()=>write('save'));
       const print=step('2. 출력','PDF 출력','전체 사용자',()=>{if(!print.disabled)printPaper(currentPaper,site.site_name+'_'+data.name+'_관리감독자_임명장');});
       const file=el('input');file.type='file';file.accept='image/*';file.hidden=true;
-      const submit=step('3. 사진 제출','출력물 사진 제출','현장 담당자',()=>file.click());
+      const submit=step('3. 서류 제출','사진 / PDF 제출','현장 담당자',()=>file.click());
+      evidence.drop(file,submit);
       const approve=step('4. 확인','확인완료','안전관리자',()=>write('approve'));
       const reopen=button(safety&&doc?.event==='submit'?'재제출 요청':'임명장 수정',()=>write('reopen'));
       file.onchange=async()=>{
         const selected=file.files[0];file.value='';if(!selected||submit.disabled)return;
-        setBusy(true);update();note.textContent='사진을 처리하고 있습니다.';
-        try{const result=await window.enlPrepareDocumentPhoto(selected);setBusy(false);update();if(active())await write('submit',result.base64);}
-        catch{if(active())note.textContent='사진을 읽지 못했습니다. JPG 또는 PNG 사진을 선택해 주세요.';}
+        setBusy(true);update();note.textContent='파일을 준비하고 제출하는 중입니다.';
+        try{const result=await evidence.prepare(selected);setBusy(false);update();if(active())await write('submit',result.base64);}
+        catch(error){if(active())note.textContent=evidence.error(error);}
         finally{setBusy(false);if(active())update();}
       };
       if(doc?.photo){
-        const evidence=el('section',null,'org-evidence'),image=el('img');image.alt='제출된 관리감독자 임명장 출력물 사진';
-        image.onload=()=>{photoLoaded=true;update();};image.src=doc.photo;
-        const thumbnail=button('',()=>window.enlOpenDocumentPhoto(doc.photo,image.alt,thumbnail),'enl-proof-thumb');
-        thumbnail.setAttribute('aria-label','제출된 임명장 사진 확대 보기');thumbnail.setAttribute('aria-haspopup','dialog');thumbnail.append(image,el('span','사진 클릭하여 확대 보기'));
+        const section=el('section',null,'org-evidence');
+        const thumbnail=evidence.preview(doc.photo,'제출된 관리감독자 임명장 사진 / PDF',()=>{photoLoaded=true;update();});
         const label=el('label');review=el('input');review.type='checkbox';review.checked=doc.event==='approve';review.onchange=update;
-        label.append(review,' 임명장 내용과 출력물 사진을 대조했습니다.');evidence.append(el('h3','제출된 출력물 사진'),thumbnail,label);root.append(evidence);
+        label.append(review,' 임명장 내용과 제출된 사진 / PDF를 대조했습니다.');section.append(el('h3','제출된 사진 / PDF'),thumbnail,label);root.append(section);
       }
       const zoom=button('양식 확대',()=>{preview.classList.toggle('org-zoomed');zoom.textContent=preview.classList.contains('org-zoomed')?'양식 맞춤':'양식 확대';},'org-zoom');
-      root.append(reopen,note,form,zoom,preview,file);redraw();update();
+      root.append(reopen,note,form,zoom,preview);redraw();update();
       function update(){
         if(!active())return;
         save.disabled=busy||!editable||!!doc&&!dirty;
         print.disabled=busy||dirty||!doc||!loaded;
         submit.disabled=busy||dirty||!doc||historic||locked||user.role!=='field'||site.active===false;
+        file.disabled=submit.disabled;evidence.mark(submit,locked,doc?.event==='submit'?'제출 완료 / 승인 대기':doc?.event==='approve'?'제출 완료':'사진 / PDF 제출');
+        evidence.mark(approve,doc?.event==='approve','확인완료');
         approve.disabled=busy||dirty||historic||!safety||doc?.event!=='submit'||!photoLoaded||!review?.checked;
         reopen.disabled=busy||dirty||historic||!writer||!locked||user.role==='field'&&site.active===false;
         if(review)review.disabled=busy||historic||!safety||doc?.event!=='submit';
         choose.disabled=busy;add.disabled=busy||!writer||user.role==='field'&&site.active===false;
         form.inert=busy;inputs.forEach(i=>i.readOnly=!editable);
         controls.forEach(({card,b})=>card.dataset.actionState=b.disabled?'not-needed':b===print?'general':'required');
-        guidance.textContent=historic?'이전 저장본입니다.':dirty?'변경사항을 먼저 저장하세요.':!doc?'소속, 직책, 성명, 임명일을 입력한 뒤 저장하세요.':doc.event==='approve'?'임명장 확인완료':doc.event==='submit'?'안전관리자가 내용과 출력물 사진을 대조한 뒤 확인합니다.':'출력한 임명장 사진을 제출하세요.';
+        guidance.textContent=historic?'이전 저장본입니다.':dirty?'변경사항을 먼저 저장하세요.':!doc?'소속, 직책, 성명, 임명일을 입력한 뒤 저장하세요.':doc.event==='approve'?'임명장 확인완료':doc.event==='submit'?'안전관리자가 제출된 사진 / PDF 내용을 확인합니다.':'임명장 사진 또는 PDF를 제출하세요.';
       }
       async function write(op,photo){
         const control={save,submit,approve,reopen}[op];if(busy||control.disabled)return;
         if(op==='save'&&!form.reportValidity())return;
-        if(op==='reopen'&&!confirm('수정 후 출력물 사진 제출과 안전관리자 확인을 다시 진행합니다. 계속할까요?'))return;
+        if(op==='reopen'&&!confirm('수정 후 사진 / PDF 제출과 안전관리자 확인을 다시 진행합니다. 계속할까요?'))return;
         setBusy(true);update();note.textContent='처리 중입니다.';
         try{
           await api({action:'platform_org_appointment_'+op,siteId:site.site_id,documentId:id,revision:doc?.revision||0,folderRevision:site.folder_revision,

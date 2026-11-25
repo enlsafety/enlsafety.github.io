@@ -95,3 +95,5 @@
 @media(max-width:600px){.policy-flow-steps{grid-template-columns:minmax(0,1fr);gap:8px}.policy-review-head .org-flow-legend{font-size:11px}}
 
 .policy-document-dot.is-approved{width:14px;height:16px;border-radius:0;background:none;box-shadow:none;color:#198348;font-size:17px;line-height:16px;font-weight:800;text-align:center}
+
+.policy-badge.is-approved::before{content:"✓";width:14px;height:16px;line-height:16px;background:none;border-radius:0;font-size:17px;font-weight:800}
