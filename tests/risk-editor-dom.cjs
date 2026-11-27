@@ -31,7 +31,7 @@ const until=async(fn,label)=>{for(let n=0;n<300;n++){if(fn())return;await new Pr
    [...d.querySelectorAll('.risk-remove')].find(b=>b.textContent==='추가 작업 삭제').click();assert.equal(d.querySelectorAll('.risk-row').length,14);
    const first=d.querySelector('.risk-row input[type=checkbox]');first.checked=true;first.dispatchEvent(new w.Event('change'));assert.ok(d.querySelector('[data-risk-field="excludeReason"]'));
   }else{assert.equal(d.querySelector('.risk-save-actions'),null);assert.ok([...d.querySelectorAll('.risk-fields input,.risk-fields select,.risk-fields textarea')].every(c=>c.disabled));}
-  [...d.querySelectorAll('.risk-editor button')].find(b=>b.textContent==='인쇄 / PDF').click();assert.equal(d.querySelectorAll('#risk-print-page .risk-paper').length,4);assert.equal(d.querySelectorAll('#risk-print-page input,#risk-print-page textarea').length,0,'print renders saved/input text, not editable fields');assert.deepEqual(errors,[]);mount.leave();dom.window.close();
+  [...d.querySelectorAll('.risk-editor button')].find(b=>b.textContent==='출력하기').click();assert.equal(d.querySelectorAll('#risk-print-page .risk-paper').length,4);assert.equal(d.querySelectorAll('#risk-print-page input,#risk-print-page textarea').length,0,'print renders saved/input text, not editable fields');assert.deepEqual(errors,[]);mount.leave();dom.window.close();
   console.log('PASS risk DOM '+role+': type cards, five templates, annual selection, editor, role controls, dirty/save error guards');
  }
  }finally{await f.db.close();}

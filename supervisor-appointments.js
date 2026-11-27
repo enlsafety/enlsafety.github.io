@@ -85,7 +85,8 @@
       const controls=[];
       function step(title,label,role,run){const card=el('div',null,'org-flow-step'),b=button(label,run,'org-primary');card.append(el('strong',title,'org-flow-heading'),b,el('span',role,'org-flow-role'));steps.append(card);controls.push({card,b});return b;}
       const save=step('1. 저장','임명장 저장','현장 / 안전관리자',()=>write('save'));
-      const print=step('2. 출력','PDF 출력','전체 사용자',()=>{if(!print.disabled)printPaper(currentPaper,site.site_name+'_'+data.name+'_관리감독자_임명장');});
+      const print=step('2. 출력','출력하기','전체 사용자',()=>{if(!print.disabled)printPaper(currentPaper,site.site_name+'_'+data.name+'_관리감독자_임명장');});
+      print.parentElement.append(el('small','인쇄창에서 실제 프린터를 선택해 종이로 출력하세요.','org-flow-role'));
       const file=el('input');file.type='file';file.accept='image/*';file.hidden=true;
       const submit=step('3. 서류 제출','출력물 사진 제출','현장 담당자',()=>file.click());
       evidence.drop(file,submit);

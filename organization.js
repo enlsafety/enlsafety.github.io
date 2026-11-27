@@ -506,13 +506,14 @@
         });actionCard(extra,remove,'',confirmedPeriods.includes(period)||confirmedPeriods.includes(doc?.period)?'안전관리자':'현장 / 안전관리자',null,'delete');
       }
       {
-        print=button('PDF 출력',async()=>{
+        print=button('출력하기',async()=>{
           if(dirty||busy)return;
           const sheet=preview.firstElementChild;
           try{await sheet.querySelector('img').decode();if(onScreen()&&sheet.isConnected&&!dirty)printChart(paper(doc.chart,printedSite,null,template),site.site_name+'_안전보건조직도_v'+doc.revision)}
           catch{note.textContent='출력 양식을 불러오지 못했습니다. 다시 시도해 주세요.'}
         });
         const printStep=actionCard(flow,print,'2. 출력','전체 사용자',2,'print');
+        printStep.append(el('small','인쇄창에서 실제 프린터를 선택해 종이로 출력하세요.','org-flow-role'));
         flow.insertBefore(printStep,flow.querySelector('[data-step="3"]'));
       }
       tools.append(zoom);

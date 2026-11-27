@@ -28,9 +28,9 @@ async function until(fn){for(let i=0;i<300;i++){if(fn())return;await pause()}ass
     for(const [name,value] of Object.entries({position:'팀장',name:'검수 관리감독자',date:'2026-11-23'})){
      const input=d.querySelector('[name="'+name+'"]');input.value=value;input.dispatchEvent(new w.Event('input'));
     }
-    assert.ok(dirty);assert.ok(btn('PDF 출력').disabled);btn('임명장 저장').click();
+    assert.ok(dirty);assert.ok(btn('출력하기').disabled);btn('임명장 저장').click();
     await until(()=>!busy&&!dirty&&d.querySelector('.org-versions'));imageLoad();
-    assert.ok(!btn('PDF 출력').disabled);btn('PDF 출력').click();assert.ok(d.querySelector('#org-print-page svg').textContent.includes('검수 관리감독자'));
+    assert.ok(!btn('출력하기').disabled);btn('출력하기').click();assert.ok(d.querySelector('#org-print-page svg').textContent.includes('검수 관리감독자'));
     assert.equal(d.querySelector('#org-print-page input'),null);w.dispatchEvent(new w.Event('afterprint'));assert.equal(d.querySelector('#org-print-page'),null);
     const file=d.querySelector('input[type="file"]');Object.defineProperty(file,'files',{value:[{name:'QA.jpg'}]});file.dispatchEvent(new w.Event('change'));
     await until(()=>!busy&&d.querySelector('.org-evidence'));assert.ok(btn('임명장 저장').disabled);
@@ -41,7 +41,7 @@ async function until(fn){for(let i=0;i<300;i++){if(fn())return;await pause()}ass
     await until(()=>!busy&&d.querySelector('.org-flow-guidance')?.textContent==='임명장 확인완료');
    }else{
     for(const text of ['새 관리감독자 임명장','임명장 저장','제출 완료','확인완료','임명장 수정'])assert.ok(btn(text).disabled,role+' cannot '+text);
-    assert.ok(!btn('PDF 출력').disabled,role+' can print');
+    assert.ok(!btn('출력하기').disabled,role+' can print');
    }
   }
   if(process.env.APPOINTMENT_QA_FIXTURE){

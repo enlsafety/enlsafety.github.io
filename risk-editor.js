@@ -119,7 +119,7 @@
   function draw(){
    editor=el('section',null,'risk-editor');note=el('p','','risk-message');note.setAttribute('role','status');note.setAttribute('aria-live','polite');
    const head=el('div',null,'org-head'),title=el('div');title.append(el('h3',site.site_name+' / '+caption[kind]),el('p',(kind==='regular'?period+'년 / ':'')+template.name+' 위험성평가','org-status'));
-   const tools=el('div',null,'org-actions');tools.append(btn('평가서 목록',()=>{if(canLeave())onBack();},'org-back'),btn('인쇄 / PDF',print));head.append(title,tools);editor.append(head);
+   const tools=el('div',null,'org-actions');tools.append(btn('평가서 목록',()=>{if(canLeave())onBack();},'org-back'),btn('출력하기',print));head.append(title,tools);editor.append(head,el('p','인쇄창에서 실제 프린터를 선택해 종이로 출력하세요.','org-status'));
    const state=el('p',revision?'저장본 '+revision+' / '+(documentData.document.approved?'반기 확인완료':documentData.document.state==='completed'?'작성중 / 안전관리자 승인 대기':'작성중')+' / '+(documentData.document.actor_name||''):'기본 양식 — 아직 저장하지 않았습니다.','risk-state');editor.append(state);
    if(history.length){
     const historyLabel=el('label','저장 이력'),select=el('select');select.dataset.riskHistory='';

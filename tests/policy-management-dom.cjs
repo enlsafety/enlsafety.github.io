@@ -37,7 +37,7 @@ async function waitFor(fn){for(let i=0;i<200;i++){if(fn())return;await tick();}a
    assert.equal(d.querySelectorAll('.policy-rail .policy-document-dot').length,['field','worker'].includes(role)?3:4);
    assert.equal(d.querySelector('.policy-document-layout').firstChild.className,'policy-review-panel');
    w.print=()=>{assert.ok(d.querySelector('#enl-policy-print-page svg'));const ids=[...d.querySelectorAll('svg filter')].map(n=>n.id);assert.equal(new Set(ids).size,ids.length,'screen and print filter IDs must be distinct');w.dispatchEvent(new w.Event('afterprint'));};
-   button(d,'PDF 출력').click();assert.equal(d.querySelector('#enl-policy-print-page'),null);
+   button(d,'출력하기').click();assert.equal(d.querySelector('#enl-policy-print-page'),null);
   }
   let state=await open('field');
   const input=state.d.querySelector('input[type=file]');

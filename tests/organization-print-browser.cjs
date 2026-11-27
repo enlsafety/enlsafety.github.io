@@ -30,7 +30,7 @@ const {orgFixture}=require('./organization.cjs');
     assert.ok(await btn('게시 사진 제출').isDisabled());
     await page.locator('[name=lead]').fill('검수 소장');await page.locator('[name=supervisor]').fill('검수 감독자');
     await btn('조직도 저장').click();
-    await btn('PDF 출력').click();await page.waitForFunction(()=>window.didPrint);
+    await btn('출력하기').click();await page.waitForFunction(()=>window.didPrint);
     assert.ok(await btn('확인완료').isDisabled());
     const chooser=page.waitForEvent('filechooser');await btn('게시 사진 제출').click();
     const png=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=40;c.height=60;return c.toDataURL().split(',')[1];});

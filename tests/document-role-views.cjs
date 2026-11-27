@@ -68,7 +68,7 @@ async function verify(f,role,saved){
     if(saved){
       assert.equal(await main.locator('.org-versions option').count(),3);
       assert.match(await main.innerText(),/승인 완료/);
-      assert.ok(await main.getByRole('button',{name:'PDF 출력'}).isVisible());
+      assert.ok(await main.getByRole('button',{name:'출력하기'}).isVisible());
       await main.locator('.org-versions select').selectOption('1');
       await page.waitForFunction(()=>document.querySelector('.org-versions select')?.value==='1');
       assert.match(await main.locator('svg').textContent(),/검수 책임자/);

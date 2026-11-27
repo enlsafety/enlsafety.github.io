@@ -258,7 +258,7 @@ function mount(host,u,api,sameUser){
     const heading=make('div',null,'policy-document-heading');
     const text=make('div');text.append(make('h3',s.siteName+' / '+docs[doc]),make('p',set.year+'년 · 시행일 '+date(set.date)+' · '+(steps[st]||steps.empty),'policy-message'));
     heading.append(text);
-    const print=btn('PDF 출력',()=>printPoster(doc,set,s.siteName),'policy-main-action');
+    const print=btn('출력하기',()=>printPoster(doc,set,s.siteName),'policy-main-action');
     const upload=make('input');upload.type='file';upload.accept='image/*';upload.hidden=true;
     const note=status(st==='empty'?'출력 후 현장 게시 출력물 사진을 제출하세요.':
       st==='pending'?'안전관리자 확인 대기 중입니다.':
@@ -283,6 +283,7 @@ function mount(host,u,api,sameUser){
     }
     const fieldAction=field&&s.active&&!locked;
     step(1,'출력',print,'전체 사용자',fieldAction);
+    print.parentElement.append(make('small','인쇄창에서 실제 프린터를 선택해 종이로 출력하세요.','org-flow-role'));
     step(2,'서류 제출',submit,'현장 담당자',fieldAction);
     evidence.drop(upload,submit);
     step(3,'확인',approved,'안전관리자',admin&&s.active&&st==='pending');
